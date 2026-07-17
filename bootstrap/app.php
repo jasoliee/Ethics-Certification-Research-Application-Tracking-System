@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\PreventBrowserHistory;
+use App\Http\Middleware\RedirectAuthenticatedUser;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,7 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'guest.role' => RedirectAuthenticatedUser::class,
+            'no-store' => PreventBrowserHistory::class,
+            'role' => EnsureUserHasRole::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
