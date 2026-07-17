@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: ECRATS documentation
+    url: https://github.com/jasoliee/Ethics-Certification-Research-Application-Tracking-System
+    about: Check repository documentation before opening an issue.

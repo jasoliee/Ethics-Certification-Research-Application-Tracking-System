@@ -1,63 +1,76 @@
-<<<<<<< HEAD
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ECRATS
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Ethics Certification Review Application and Tracking System (ECRATS) is a Laravel-based web application for managing research ethics submissions, adviser endorsement, RES screening, reviewer workflows, revision tracking, certificate generation, QR-backed certificate access, notifications, and audit records for the KLD Research Ethics Section.
 
-## About Laravel
+## Current Status
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+This repository currently contains the base Laravel project and project reference documents. Application features are not implemented yet. The first approved setup phase establishes the shared documentation, architecture, and collaboration rules that the five-member team will use before building modules.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Technology Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Laravel 13
+- PHP 8.3
+- Blade templates
+- Tailwind CSS 4
+- Vite
+- MySQL for the target local and production database
+- Composer
+- npm on Windows through `npm.cmd`
+- PHPUnit for the current test baseline
+- Laragon and Visual Studio Code on Windows
 
-## Learning Laravel
+## Main Reference Documents
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Primary requirements live in `context_files/[DRAFT] ECRATS_System_Project_Documentation.docx`.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Supporting references include:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+- `context_files/RSU-MEMO-PROCESS OF ETHICS_FINAL_1-2.pdf`
+- `context_files/RES CERTIFIACTE.pdf`
+- `context_files/REMS PROTOCAL REVIEW WORKSHEET.docx`
+- `context_files/OVPRII.docx`
+- external setup and ERD references supplied by the team
 
-## Agentic Development
+When documents conflict, prefer the newest consolidated requirements document, record the conflict, and ask the team before implementing the disputed behavior.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup Checks
 
-```bash
-composer require laravel/boost --dev
+Use PowerShell from the repository root.
 
-php artisan boost:install
+```powershell
+php -v
+composer --version
+node --version
+npm.cmd --version
+php artisan --version
+composer validate --strict
+composer check-platform-reqs
+php artisan route:list
+php artisan migrate:status
+php artisan test
+npm.cmd run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Use `npm.cmd` rather than `npm` in PowerShell unless the local execution policy has been intentionally changed.
 
-## Contributing
+## Team Workflow
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Do not commit directly to `main`. Use small feature branches, pull requests, and review before merging. Large database, authentication, authorization, security, storage, certificate, workflow, or cross-module changes require a plan in `PLANS.md` before implementation.
 
-## Code of Conduct
+Start with:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- `PROJECT_GUIDELINES.md` for project and coding rules
+- `CONTRIBUTING.md` for branch, commit, PR, and review rules
+- `docs/setup/` for local development and workflow setup
+- `docs/requirements/` for source-of-truth summaries
+- `docs/architecture/` for module boundaries and database design
+- `docs/checklists/security-deployment.md` before production deployment
 
-## Security Vulnerabilities
+## Safety Rules
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-=======
-# Ethics-Certification-Research-Application-Tracking-System
-Ethics Certification Review Application and Tracking System (ECRATS) — A Laravel-based web application for managing research ethics submissions, reviewer workflows, application tracking, and digital certificate issuance.
-
+- Do not modify `.env` automatically.
+- Do not expose credentials.
+- Do not install packages without approval.
+- Do not run destructive Git or database commands without explicit approval.
+- Do not implement requirements that are unclear or contradicted by source documents.
+- Do not store private research documents, payment proofs, reviewer files, or certificates under `public/`.
