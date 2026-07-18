@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './dashboard.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -68,7 +69,7 @@
         display: grid;
         place-items: center;
         padding: 44px;
-        background: rgba(255, 255, 255, 0.88);
+        background: rgba(255, 255, 255, 0.92);
     }
 
     .login-brand-content,
@@ -89,7 +90,7 @@
         aspect-ratio: 1;
         margin-bottom: 22px;
         border-radius: 999px;
-        background: url('../../assets/logo.png') center / cover no-repeat;
+        background: url('../../assets/logo-256.png') center / cover no-repeat;
     }
 
     .login-brand-content h1 {
@@ -130,7 +131,7 @@
 
     .login-instruction {
         margin: 12px auto 28px;
-        max-width: 380px;
+        max-width: 400px;
         color: #303b39;
         text-align: center;
         font-size: 15px;

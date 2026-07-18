@@ -2,6 +2,7 @@
 
 namespace App\Services\Identity;
 
+use App\Enums\ApplicantType;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -28,6 +29,9 @@ class UserAccountService
         $attributes['role'] = $attributes['role'] instanceof UserRole
             ? $attributes['role']->value
             : (string) ($attributes['role'] ?? '');
+        $attributes['applicant_type'] = $attributes['applicant_type'] instanceof ApplicantType
+            ? $attributes['applicant_type']->value
+            : ($attributes['applicant_type'] ?? null);
 
         $targetRole = UserRole::tryFrom($attributes['role']);
 
@@ -41,6 +45,11 @@ class UserAccountService
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8', 'max:16'],
             'role' => ['required', Rule::enum(UserRole::class)],
+            'applicant_type' => [
+                Rule::requiredIf($targetRole === UserRole::Applicant),
+                'nullable',
+                Rule::enum(ApplicantType::class),
+            ],
         ], [
             'username.required' => 'Enter a username.',
             'username.max' => 'Username must not exceed 30 characters.',
@@ -56,6 +65,9 @@ class UserAccountService
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $targetRole,
+            'applicant_type' => $targetRole === UserRole::Applicant
+                ? $validated['applicant_type']
+                : null,
             'account_status' => 'active',
         ]);
     }

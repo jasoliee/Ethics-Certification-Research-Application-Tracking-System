@@ -10,12 +10,6 @@ class RoleHome
     {
         $role = $role instanceof UserRole ? $role : UserRole::tryFrom((string) $role);
 
-        return match ($role) {
-            UserRole::Applicant => 'applicant.landing',
-            UserRole::Adviser => 'adviser.landing',
-            UserRole::Reviewer => 'reviewer.landing',
-            UserRole::ResLead => 'res.landing',
-            default => 'login',
-        };
+        return $role ? 'dashboard' : 'login';
     }
 }

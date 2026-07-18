@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\ResearchApplication;
+use App\Models\ReviewerAssignment;
+use App\Policies\ResearchApplicationPolicy;
+use App\Policies\ReviewerAssignmentPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Gate::policy(ResearchApplication::class, ResearchApplicationPolicy::class);
+        Gate::policy(ReviewerAssignment::class, ReviewerAssignmentPolicy::class);
     }
 }

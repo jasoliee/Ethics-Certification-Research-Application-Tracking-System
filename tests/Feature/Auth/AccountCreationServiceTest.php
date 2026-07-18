@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\ApplicantType;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Identity\UserAccountService;
@@ -44,9 +45,12 @@ class AccountCreationServiceTest extends TestCase
             'username' => 'newapplicant',
             'email' => 'newapplicant@ecrats.test',
             'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Faculty,
         ]));
 
         $this->assertSame(UserRole::Applicant, $applicant->role);
+        $this->assertSame(ApplicantType::Faculty, $applicant->applicant_type);
+        $this->assertSame('Faculty Researcher', $applicant->displayRoleLabel());
 
         $this->expectException(AuthorizationException::class);
 
@@ -154,6 +158,7 @@ class AccountCreationServiceTest extends TestCase
             'email' => 'newuser@ecrats.test',
             'password' => '12345678',
             'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
         ], $overrides);
     }
 

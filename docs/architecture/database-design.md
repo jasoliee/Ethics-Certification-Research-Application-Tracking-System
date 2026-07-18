@@ -2,6 +2,20 @@
 
 This design uses the module-based ERD reference as an input, then aligns it with Laravel conventions and the latest ECRATS requirements. It is not a migration script.
 
+## Implemented Dashboard Foundation
+
+The role dashboard implementation introduces the first additive domain migrations for:
+
+- `research_applications`
+- `document_requirements`
+- `application_documents`
+- `reviewer_assignments`
+- `deadline_configurations`
+- `timeline_calendar_events`
+- `notifications`
+
+These tables currently contain the fields required to calculate dashboard states, queues, requirement completion, reviewer assignments, deadlines, milestones, and notification menus. They are an initial implementation slice, not the complete ERD. Later module plans must extend them through additive reviewed migrations and must not silently reinterpret the documented workflow or confidentiality rules.
+
 ## Key Implementation Decisions
 
 - Use Laravel-standard `id` primary keys for new tables unless the team explicitly approves custom primary key names.
@@ -70,6 +84,7 @@ Candidate additions:
 - `middle_name`
 - `last_name`
 - `role`
+- `applicant_type` (`student` or `faculty` for applicant accounts)
 - `account_status`
 - `created_by_user_id`
 - `last_login_at`

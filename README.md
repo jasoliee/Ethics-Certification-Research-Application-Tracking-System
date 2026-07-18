@@ -4,7 +4,9 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 ## Current Status
 
-This repository currently contains the base Laravel project and project reference documents. Application features are not implemented yet. The first approved setup phase establishes the shared documentation, architecture, and collaboration rules that the five-member team will use before building modules.
+The repository includes username-based authentication, role middleware, record-level dashboard authorization, and functional dashboards for the Student/Faculty Researcher, Adviser, Reviewer, and RES Lead roles. Dashboard counts, tables, requirements, deadlines, milestones, and notifications are database-driven. Modules outside the dashboard currently open shared temporary workspaces until their workflows are implemented.
+
+The dashboard database tables are an initial implementation slice of the larger module-based ERD. They do not replace the remaining application, screening, review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
 ## Technology Stack
 
@@ -53,6 +55,24 @@ npm.cmd run build
 
 Use `npm.cmd` rather than `npm` in PowerShell unless the local execution policy has been intentionally changed.
 
+## Dashboard Preview
+
+After pulling the dashboard changes, apply the additive migrations and build the assets:
+
+```powershell
+php artisan migrate
+npm.cmd run build
+php artisan test
+```
+
+Normal local seeding keeps the dashboards empty. To inspect the populated reference states, run the optional local-only demo seeder:
+
+```powershell
+php artisan db:seed --class=DashboardDemoSeeder
+```
+
+Start the application with `composer run dev` or `php artisan serve`, then open `http://127.0.0.1:8000/login`.
+
 ## Team Workflow
 
 Do not commit directly to `main`. Use small feature branches, pull requests, and review before merging. Large database, authentication, authorization, security, storage, certificate, workflow, or cross-module changes require a plan in `PLANS.md` before implementation.
@@ -61,6 +81,7 @@ Start with:
 
 - `PROJECT_GUIDELINES.md` for project and coding rules
 - `CONTRIBUTING.md` for branch, commit, PR, and review rules
+- `Documentations/README.md` for the implemented dashboard, navigation, components, performance work, and testing guide
 - `docs/setup/` for local development and workflow setup
 - `docs/requirements/` for source-of-truth summaries
 - `docs/architecture/` for module boundaries and database design

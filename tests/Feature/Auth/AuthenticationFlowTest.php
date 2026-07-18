@@ -48,42 +48,43 @@ class AuthenticationFlowTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_testing_accounts_login_to_their_role_landing_pages(): void
+    public function test_testing_accounts_login_to_their_role_dashboard_at_the_canonical_url(): void
     {
         $this->seed(DatabaseSeeder::class);
 
         $accounts = [
-            ['applicanttest', '12345678', 'applicant.landing', 'Student/Faculty Researcher Landing Page'],
-            ['advisertest', '12345678', 'adviser.landing', 'Adviser Landing Page'],
-            ['reviewertest', '12345678', 'reviewer.landing', 'Reviewer Landing Page'],
-            ['reslead', '12345kld', 'res.landing', 'RES Lead Landing Page'],
+            ['applicanttest', '12345678', 'No application yet'],
+            ['advisertest', '12345678', 'Welcome back, Adviser!'],
+            ['reviewertest', '12345678', 'Welcome back, Reviewer!'],
+            ['reslead', '12345kld', 'Welcome back, RES Lead/Admin!'],
         ];
 
-        foreach ($accounts as [$username, $password, $routeName, $landingTitle]) {
+        foreach ($accounts as [$username, $password, $landingTitle]) {
             $this->post('/logout');
 
             $this->post('/login', [
                 'username' => $username,
                 'password' => $password,
-            ])->assertRedirect(route($routeName));
+            ])->assertRedirect(route('dashboard'));
 
             $this->assertAuthenticated();
-            $this->get(route($routeName))
+            $this->get(route('dashboard'))
                 ->assertOk()
                 ->assertSee($landingTitle)
+                ->assertSee('<title>Dashboard | ECRATS</title>', false)
                 ->assertSee('Logout');
         }
     }
 
-    public function test_every_user_is_redirected_away_from_other_role_landing_pages(): void
+    public function test_every_user_is_redirected_away_from_other_role_areas(): void
     {
         $this->seed(DatabaseSeeder::class);
 
         $accounts = [
-            'applicanttest' => 'applicant.landing',
-            'advisertest' => 'adviser.landing',
-            'reviewertest' => 'reviewer.landing',
-            'reslead' => 'res.landing',
+            'applicanttest' => 'applicant.settings.index',
+            'advisertest' => 'adviser.settings.index',
+            'reviewertest' => 'reviewer.settings.index',
+            'reslead' => 'res.settings.index',
         ];
 
         foreach ($accounts as $username => $authorizedRoute) {
@@ -96,7 +97,7 @@ class AuthenticationFlowTest extends TestCase
 
                 $this->actingAs($user)
                     ->get(route($targetRoute))
-                    ->assertRedirect(route($authorizedRoute));
+                    ->assertRedirect(route('dashboard'));
             }
 
             Auth::logout();
@@ -122,23 +123,23 @@ class AuthenticationFlowTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $accounts = [
-            'applicanttest' => 'applicant.landing',
-            'advisertest' => 'adviser.landing',
-            'reviewertest' => 'reviewer.landing',
-            'reslead' => 'res.landing',
+            'applicanttest',
+            'advisertest',
+            'reviewertest',
+            'reslead',
         ];
 
-        foreach ($accounts as $username => $routeName) {
+        foreach ($accounts as $username) {
             $user = User::where('username', $username)->firstOrFail();
 
             $this->actingAs($user)
                 ->get('/login')
-                ->assertRedirect(route($routeName));
+                ->assertRedirect(route('dashboard'));
 
             $this->post('/login', [
                 'username' => 'not-the-current-user',
                 'password' => 'incorrect',
-            ])->assertRedirect(route($routeName));
+            ])->assertRedirect(route('dashboard'));
 
             $this->assertAuthenticatedAs($user);
             $this->post('/logout')->assertRedirect(route('login'));
@@ -154,7 +155,7 @@ class AuthenticationFlowTest extends TestCase
         $this->assertSame('0', $loginResponse->headers->get('Expires'));
 
         $user = User::factory()->create(['role' => UserRole::Reviewer]);
-        $protectedResponse = $this->actingAs($user)->get(route('reviewer.landing'));
+        $protectedResponse = $this->actingAs($user)->get(route('dashboard'));
 
         $this->assertStringContainsString('no-store', (string) $protectedResponse->headers->get('Cache-Control'));
     }
@@ -212,7 +213,7 @@ class AuthenticationFlowTest extends TestCase
         $this->post('/login', [
             'username' => '  applicanttest  ',
             'password' => '12345678',
-        ])->assertRedirect(route('applicant.landing'));
+        ])->assertRedirect(route('dashboard'));
 
         $this->assertAuthenticated();
     }

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ApplicantType;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 class TestingUserSeeder extends Seeder
 {
     /**
-     * @var array<int, array{name: string, username: string, email: string, password: string, role: UserRole}>
+     * @var array<int, array{name: string, username: string, email: string, password: string, role: UserRole, applicant_type?: ApplicantType}>
      */
     private array $users = [
         [
@@ -19,6 +20,7 @@ class TestingUserSeeder extends Seeder
             'email' => 'applicanttest@ecrats.test',
             'password' => '12345678',
             'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
         ],
         [
             'name' => 'Adviser Test',
@@ -46,6 +48,7 @@ class TestingUserSeeder extends Seeder
                     'email' => $user['email'],
                     'password' => Hash::make($user['password']),
                     'role' => $user['role'],
+                    'applicant_type' => $user['applicant_type'] ?? null,
                     'account_status' => 'active',
                 ],
             );

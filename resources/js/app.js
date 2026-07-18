@@ -1,3 +1,5 @@
+import { initializeDashboard } from './dashboard';
+
 const LOGIN_DESIGN_WIDTH = 1040;
 const LOGIN_DESIGN_HEIGHT = 650;
 const LOGIN_OUTER_GAP = 32;
@@ -155,8 +157,13 @@ function initializeLoginPage() {
     });
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeLoginPage);
-} else {
+function initializeApplication() {
     initializeLoginPage();
+    initializeDashboard();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApplication);
+} else {
+    initializeApplication();
 }

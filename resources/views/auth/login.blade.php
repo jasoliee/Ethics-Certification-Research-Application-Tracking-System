@@ -30,7 +30,7 @@
             <div class="login-panel login-panel-form">
                 <div class="login-form-content">
                     <h2 id="login-title">Login Account</h2>
-                    <p class="login-instruction">Enter your username and password below to access your account.</p>
+                    <p class="login-instruction">Enter your username and password to access your account.</p>
 
                     <form class="login-form" method="POST" action="{{ route('login.store') }}" aria-label="Login form" data-login-form novalidate>
                         @csrf
