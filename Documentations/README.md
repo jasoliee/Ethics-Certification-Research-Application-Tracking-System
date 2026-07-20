@@ -12,10 +12,11 @@ This folder documents the authenticated dashboard foundation and the shared inte
 6. [Notifications and profile menu](NOTIFICATIONS_AND_PROFILE_MENU.md)
 7. [Performance optimizations](PERFORMANCE_OPTIMIZATIONS.md)
 8. [Testing guide](TESTING_GUIDE.md)
-9. [Changelog](CHANGELOG.md)
+9. [User management](USER_MANAGEMENT.md)
+10. [Changelog](CHANGELOG.md)
 
 ## Scope
 
-The documented implementation includes the canonical `/dashboard` entry point, role-specific dashboard data, shared navigation, breadcrumbs, notification access, profile pages, academic-cycle milestones, reusable table and tooltip behavior, the KLD footer, and local verification. Module pages that still display a temporary workspace are identified as limitations in the implementation guide.
+The documented implementation includes the canonical `/dashboard` entry point, role-specific dashboard data, shared navigation, breadcrumbs, notification access, profile pages, account management, academic-cycle milestones, reusable table and tooltip behavior, the KLD footer, and local verification. Module pages that still display a temporary workspace are identified as limitations in the implementation guide.
 
 Keep these files synchronized whenever dashboard routes, role rules, data queries, or shared components change.

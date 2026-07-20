@@ -26,15 +26,29 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $firstName = fake()->firstName();
+        $lastName = fake()->lastName();
+
         return [
-            'name' => fake()->name(),
+            'name' => User::formatName($firstName, null, $lastName, null),
+            'first_name' => $firstName,
+            'middle_name' => null,
+            'last_name' => $lastName,
+            'suffix' => null,
             'username' => fake()->unique()->bothify('user????####'),
             'email' => fake()->unique()->safeEmail(),
+            'institutional_identifier' => fake()->unique()->bothify('KLD-####??'),
+            'phone_number' => null,
+            'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
+            'department' => null,
+            'position_title' => null,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::Applicant,
             'applicant_type' => ApplicantType::Student,
             'account_status' => 'active',
+            'created_by_user_id' => null,
+            'password_changed_at' => now(),
             'remember_token' => Str::random(10),
         ];
     }

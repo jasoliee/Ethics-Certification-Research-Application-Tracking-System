@@ -24,6 +24,8 @@ Use this before production deployment and before any school-facing pilot.
 
 - Upload file types are allowlisted.
 - File sizes are limited.
+- CSV account imports verify extension, MIME type, text content, required headers, row count, and every row before creating accounts.
+- CSV imports are stored on the private local disk during processing and deleted after success or failure.
 - Private documents are stored outside `public/`.
 - Certificate files are stored privately.
 - Download routes enforce authorization.
@@ -32,6 +34,8 @@ Use this before production deployment and before any school-facing pilot.
 
 - No public registration.
 - Disabled accounts cannot log in.
+- Password-reset tokens expire, are throttled, and are sent only through the configured mail channel.
+- Production mail delivery is configured and tested before administrator reset links are enabled for school use.
 - Role middleware is active.
 - Policies enforce record ownership and assignments.
 - Reviewer workspace hides applicant identity.
@@ -52,6 +56,7 @@ Use this before production deployment and before any school-facing pilot.
 - Login/account changes are logged where appropriate.
 - Certificate verification attempts are logged.
 - Logs do not contain secrets or private file contents.
+- Audit metadata contains no initial passwords, CSV row contents, or password-reset tokens.
 
 ## Deployment Verification
 
@@ -60,6 +65,8 @@ Use this before production deployment and before any school-facing pilot.
 - `php artisan route:cache` is safe for current routes.
 - `npm.cmd run build` or equivalent asset build has completed.
 - HTTPS is enabled.
+- Secure cookies, trusted proxy headers, HTTP security headers, rate limiting, and database access restrictions are configured for production.
+- A managed or server-level Web Application Firewall is evaluated and configured outside the Laravel codebase.
 - Queue worker strategy is defined.
 - Scheduler strategy is defined.
 

@@ -182,7 +182,7 @@ class AuthenticationFlowTest extends TestCase
         }
     }
 
-    public function test_username_and_password_boundaries_are_enforced_on_login_request(): void
+    public function test_login_keeps_field_validation_separate_from_credential_mismatch(): void
     {
         $this->from('/login')->post('/login', [
             'username' => str_repeat('a', 30),
@@ -198,11 +198,12 @@ class AuthenticationFlowTest extends TestCase
         $this->post('/login', [
             'username' => 'reslead',
             'password' => '1234567',
-        ])->assertSessionHasErrors('password');
+        ])->assertSessionDoesntHaveErrors('password')
+            ->assertSessionHasErrors('credentials');
 
         $this->post('/login', [
             'username' => 'reslead',
-            'password' => '12345678901234567',
+            'password' => str_repeat('a', 65),
         ])->assertSessionHasErrors('password');
     }
 

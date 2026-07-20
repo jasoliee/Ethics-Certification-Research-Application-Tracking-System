@@ -28,8 +28,15 @@ Each role prefix uses `EnsureUserHasRole`. A user entering another role area is 
 
 `AccountCreationAuthorizationService` allows:
 
-- RES Lead to create Adviser and Reviewer accounts.
-- Adviser to create Applicant accounts.
+- RES Lead to create Student Researcher, Faculty Researcher, Adviser, and Reviewer accounts.
+- Adviser to create Student Researcher and Faculty Researcher accounts.
+- No role to create another RES Lead account.
 - Applicant and Reviewer roles to create no accounts.
 
-Account creation validates unique usernames and emails, password boundaries, approved roles, and applicant category when applicable.
+`UserPolicy` also limits account records and actions:
+
+- RES Lead can view and edit non-RES-Lead profiles, change status, send reset links, and import approved account types.
+- Adviser can view and edit only applicants created by that adviser or linked through an assigned research application.
+- Adviser cannot change account status or initiate password resets.
+
+Account creation validates required separate name fields, unique email and institutional identifier, minimum eight-character passwords, approved roles, and applicant category when applicable. Usernames are generated server-side and existing passwords are never shown or directly edited.

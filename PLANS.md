@@ -60,7 +60,59 @@ Date:
 
 ## Active Plans
 
-No active implementation plans.
+## Plan: Account management and secure onboarding
+
+### Goal
+Replace the temporary user-management modules with a complete, role-authorized account workflow for RES Lead and Research Adviser users, while correcting login validation behavior.
+
+### Source Documents
+- Primary requirement: attached account-management request, July 20, 2026 (sections 1-5 and the available opening of section 6).
+- Supporting designs: `ECRATS High Fidelity (5).pdf`, pages 1-8, plus the confirmed supervisor requirement for formatted CSV account imports.
+- Conflicts or missing decisions: the attached text ends mid-sentence in section 6. The newer written requirements override PDF fields that use one full-name input, an editable date joined, RES/Admin account creation, or direct password editing.
+
+### Scope
+Included:
+- Separate account name fields, institutional identifiers, creator tracking, profile details, and system-generated usernames.
+- Searchable, filterable, paginated populated and empty user-management states.
+- Server-enforced role creation, record visibility, editing, account status, and password-reset permissions.
+- Individual account creation and bounded CSV imports with private temporary storage and audit records.
+- Secure email reset links without exposing or directly editing existing passwords.
+- Field-specific login validation and generic credential mismatch errors only after required inputs pass validation.
+
+Excluded:
+- Technical Admin onboarding until that role is formally added to the implemented role enum.
+- Profile photo uploads and two-factor authentication.
+- Infrastructure controls such as a WAF, TLS termination, database encryption, and production mail delivery configuration.
+
+### Implementation Approach
+- Backend: thin controllers, Form Requests, policies, identity services, Laravel password broker, and parameterized Eloquent queries.
+- Frontend: shared responsive Blade views following the approved user-management table, role selection, account form, success, profile, and edit states.
+- Database: additive user-profile columns plus audit logs; retain `users.name` as a generated compatibility display value.
+- Authorization: RES Lead can manage non-RES-Lead accounts; advisers can create and manage only applicants within their allowed relationship scope.
+- Files/storage: validate CSV extension, MIME type, headers, row count, and row values; process from private local storage and delete every temporary file in `finally` cleanup.
+- Notifications/audit: use one-time Laravel password-reset notifications and record security-relevant account actions without secrets or reset tokens.
+
+### Files Expected to Change
+- `app/Enums`, `app/Models`, `app/Policies`, `app/Services/Identity`, and `app/Http/*`
+- `database/migrations`, factories, and seeders
+- `routes/web.php`
+- `resources/views`, `resources/css/dashboard.css`, and `resources/js/dashboard.js`
+- Account, authentication, navigation, and authorization tests
+- Account-management and deployment documentation
+
+### Tests and Verification
+- Focused account-management, authorization, import, password-reset, and login tests.
+- Full `php artisan test`, Pint, route list, migration status, Composer validation/platform checks, and `npm.cmd run build`.
+- Desktop and mobile browser screenshots when the in-app browser connection is available.
+
+### Risks and Rollback
+- Existing users are backfilled conservatively from `users.name`; new fields remain additive so rollback does not discard the compatibility name or authentication records.
+- User creation uses unique database constraints and transactions to protect generated usernames and institutional identifiers.
+- CSV uploads are capped to keep synchronous imports practical for the current deployment and are removed after success or failure.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-20
 
 ## Completed Plans
 

@@ -50,6 +50,33 @@
         @case('refresh')
             <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/>
             @break
+        @case('search')
+            <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>
+            @break
+        @case('plus')
+            <path d="M12 5v14M5 12h14"/>
+            @break
+        @case('upload')
+            <path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>
+            @break
+        @case('download')
+            <path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 20h14"/>
+            @break
+        @case('arrow-left')
+            <path d="M19 12H5M11 18l-6-6 6-6"/>
+            @break
+        @case('edit')
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+            @break
+        @case('lock')
+            <rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+            @break
+        @case('id-card')
+            <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16a3 3 0 0 1 5 0M13 10h5M13 14h4"/>
+            @break
+        @case('eye')
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="identity-eye-slash" d="m4 4 16 16"/>
+            @break
         @case('arrow-right')
             <path d="M5 12h14M13 6l6 6-6 6"/>
             @break

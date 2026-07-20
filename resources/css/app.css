@@ -21,6 +21,117 @@
 }
 
 @layer components {
+    /* Password reset keeps the established campus visual while presenting a focused secure form. */
+    .reset-page {
+        min-height: 100vh;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #eaf2ed;
+    }
+
+    .reset-card {
+        width: min(100%, 480px);
+        display: grid;
+        justify-items: center;
+        gap: 18px;
+        border: 1px solid #d7e2dc;
+        border-radius: 8px;
+        padding: 30px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 20px 55px rgba(20, 65, 40, 0.16);
+        text-align: center;
+    }
+
+    .reset-card > img {
+        width: 92px;
+        height: 92px;
+        object-fit: contain;
+    }
+
+    .reset-card h1,
+    .reset-card p {
+        margin: 0;
+    }
+
+    .reset-card h1 {
+        color: #101828;
+        font-size: 27px;
+    }
+
+    .reset-card p {
+        margin-top: 5px;
+        color: #667085;
+        font-size: 14px;
+    }
+
+    .reset-card form {
+        width: 100%;
+        display: grid;
+        gap: 14px;
+        text-align: left;
+    }
+
+    .reset-field {
+        display: grid;
+        gap: 6px;
+    }
+
+    .reset-field label {
+        color: #27313d;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .reset-field input {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid #9fbea9;
+        border-radius: 5px;
+        padding: 10px 12px;
+        color: #1f2937;
+        background: #ffffff;
+        outline: none;
+    }
+
+    .reset-field input:focus {
+        border-color: #16834b;
+        box-shadow: 0 0 0 3px rgba(22, 131, 75, 0.14);
+    }
+
+    .reset-field input:disabled {
+        color: #667085;
+        background: #f3f5f4;
+    }
+
+    .reset-field > span,
+    .reset-error {
+        color: #b42318;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .reset-card form > button {
+        min-height: 46px;
+        border: 0;
+        border-radius: 5px;
+        color: #ffffff;
+        background: #16834b;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .reset-card form > button:hover {
+        background: #11673c;
+    }
+
+    .reset-card > a {
+        color: #176f3d;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
     .login-page {
         min-height: 100vh;
         min-height: 100svh;

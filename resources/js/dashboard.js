@@ -90,6 +90,55 @@ export function initializeDashboard() {
     }, { passive: true });
 
     initializeResearchTitleTooltips(shell);
+    initializeManagedAccountTools(shell);
+}
+
+function initializeManagedAccountTools(shell) {
+    // Account password controls stay hidden until input exists and clearly expose their current state.
+    shell.querySelectorAll('[data-managed-password-toggle]').forEach((toggle) => {
+        const wrapper = toggle.closest('.identity-password-wrap');
+        const input = wrapper?.querySelector('[data-managed-password]');
+
+        if (! input) {
+            return;
+        }
+
+        const setVisibility = (isVisible) => {
+            input.type = isVisible ? 'text' : 'password';
+            toggle.setAttribute('aria-pressed', String(isVisible));
+            toggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+        };
+        const syncToggle = () => {
+            toggle.hidden = input.value.length === 0;
+
+            if (toggle.hidden) {
+                setVisibility(false);
+            }
+        };
+
+        toggle.addEventListener('click', () => setVisibility(input.type !== 'text'));
+        input.addEventListener('input', syncToggle);
+        syncToggle();
+    });
+
+    // The selected CSV filename is echoed outside the native picker for a stable accessible upload state.
+    const importInput = shell.querySelector('[data-account-import-file]');
+    const importName = shell.querySelector('[data-account-import-name]');
+
+    importInput?.addEventListener('change', () => {
+        if (importName) {
+            importName.textContent = importInput.files?.[0]?.name ?? 'No file selected';
+        }
+    });
+
+    // Status changes require a final acknowledgement because deactivation immediately blocks sign-in.
+    shell.querySelectorAll('[data-confirm-status]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (! window.confirm(form.dataset.confirmStatus)) {
+                event.preventDefault();
+            }
+        });
+    });
 }
 
 function initializeResearchTitleTooltips(shell) {

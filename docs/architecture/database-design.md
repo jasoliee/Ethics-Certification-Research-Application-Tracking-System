@@ -16,6 +16,8 @@ The role dashboard implementation introduces the first additive domain migration
 
 These tables currently contain the fields required to calculate dashboard states, queues, requirement completion, reviewer assignments, deadlines, milestones, and notification menus. They are an initial implementation slice, not the complete ERD. Later module plans must extend them through additive reviewed migrations and must not silently reinterpret the documented workflow or confidentiality rules.
 
+The account-management slice also adds normalized identity fields to `users`, including first/middle/last/suffix names, institutional identifier, optional institutional profile fields, creator tracking, and password-change time. `audit_logs` records account security actions using actor and subject references plus secret-free metadata.
+
 ## Key Implementation Decisions
 
 - Use Laravel-standard `id` primary keys for new tables unless the team explicitly approves custom primary key names.
@@ -83,11 +85,15 @@ Candidate additions:
 - `first_name`
 - `middle_name`
 - `last_name`
+- `suffix`
+- `institutional_identifier`
 - `role`
 - `applicant_type` (`student` or `faculty` for applicant accounts)
 - `account_status`
 - `created_by_user_id`
-- `last_login_at`
+- `password_changed_at`
+
+These fields are now implemented except `last_login_at`, which remains a later authentication enhancement.
 
 ### research_applications
 

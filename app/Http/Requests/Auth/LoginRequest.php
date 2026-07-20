@@ -29,7 +29,7 @@ class LoginRequest extends FormRequest
     {
         return [
             'username' => ['required', 'string', 'max:30'],
-            'password' => ['required', 'string', 'min:8', 'max:16'],
+            'password' => ['required', 'string', 'max:64'],
         ];
     }
 
@@ -42,8 +42,7 @@ class LoginRequest extends FormRequest
             'username.required' => 'Enter your username.',
             'username.max' => 'Username must not exceed 30 characters.',
             'password.required' => 'Enter your password.',
-            'password.min' => 'Password must be at least 8 characters.',
-            'password.max' => 'Password must not exceed 16 characters.',
+            'password.max' => 'Password must not exceed 64 characters.',
         ];
     }
 

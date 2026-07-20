@@ -4,6 +4,8 @@ This file maps implementation areas to the current source documents. Update it w
 
 | Area | Primary source | Supporting source | Implementation notes |
 | --- | --- | --- | --- |
+| Account management | July 20, 2026 account-management requirements | High Fidelity (5), pages 1-8, and supervisor CSV note | Separate names and institutional ID, generated username, role-limited creation, search/filter/pagination, CSV import, status control, reset links, and audit logs. Newer written rules override editable Date Joined, direct password editing, and RES/Admin creation shown in the mockup. |
+| Login validation | July 20, 2026 account-management requirements | Existing approved login design | Field errors remain specific; generic auth error appears only after required fields pass validation and credentials do not match an active account. |
 | Completeness validation | Consolidated project documentation | System design flow 5 | Block formal submission until all required fields and documents are valid. |
 | Adviser endorsement | Consolidated project documentation | RES process memo and system design flow 6 | Adviser verifies receipt image and handles only initial endorsement. |
 | RES screening | Consolidated project documentation plus team/client addition | System design flow 8 | Classifies as Expedited, Full Board, or Exempted. Exempted bypasses standard reviewer assignment/review after RES confirms eligibility. |
@@ -19,6 +21,9 @@ This file maps implementation areas to the current source documents. Update it w
 
 ## Confirmed Additions from Team/Client Communication
 
+- Controlled CSV account creation through a fixed header template.
+- RES Lead researcher/adviser/reviewer creation and adviser applicant-only creation.
+- System-generated usernames and normalized account identity fields.
 - Exempted application path.
 - Disapproved/rejected decision outcome support, with `disapproved` preferred.
 - Public-safe QR/control-number certificate verification.

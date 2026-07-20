@@ -32,6 +32,11 @@ Policies check record-level access:
 - Reviewer is assigned to this anonymized application.
 - RES user can screen or release this record.
 - Certificate belongs to the requesting applicant or is being managed by RES.
+- RES Lead manages non-RES-Lead user accounts but cannot create or administratively edit a RES Lead account.
+- Adviser manages only applicants created by that adviser or connected through an assigned research application.
+- Account status changes and administrator-initiated password resets are RES Lead-only actions.
+
+`UserPolicy` enforces listing, record view, profile update, status, import, and password-reset actions. `AccountCreationAuthorizationService` independently checks the requested target role so a modified form payload cannot create a higher-privilege account.
 
 ## Layer 3: Workflow Guards
 

@@ -4,7 +4,7 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 ## Current Status
 
-The repository includes username-based authentication, role middleware, record-level dashboard authorization, and functional dashboards for the Student/Faculty Researcher, Adviser, Reviewer, and RES Lead roles. Dashboard counts, tables, requirements, deadlines, milestones, and notifications are database-driven. Modules outside the dashboard currently open shared temporary workspaces until their workflows are implemented.
+The repository includes username-based authentication, role middleware, record-level dashboard authorization, functional dashboards for every implemented role, and role-authorized account management. RES Lead users can manage researcher, adviser, and reviewer accounts; advisers can manage only allowed applicant accounts. Account creation includes generated usernames, individual and CSV workflows, status controls, secure reset links, and audit records. Dashboard counts, tables, requirements, deadlines, milestones, and notifications are database-driven. Modules outside these implemented areas still open shared temporary workspaces until their workflows are completed.
 
 The dashboard database tables are an initial implementation slice of the larger module-based ERD. They do not replace the remaining application, screening, review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
@@ -70,6 +70,8 @@ Normal local seeding keeps the dashboards empty. To inspect the populated refere
 ```powershell
 php artisan db:seed --class=DashboardDemoSeeder
 ```
+
+The CSV account template is downloaded from User Management. Imports are limited to 250 rows and are deleted from private temporary storage after success or failure. Local password-reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
 
 Start the application with `composer run dev` or `php artisan serve`, then open `http://127.0.0.1:8000/login`.
 

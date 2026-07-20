@@ -54,3 +54,14 @@ composer run dev
 ```
 
 Do not leave long-running servers in shared development sessions without telling the team.
+
+## Account Management Setup
+
+Apply the account and audit migrations after pulling:
+
+```powershell
+php artisan migrate
+npm.cmd run build
+```
+
+Password-reset notifications use `MAIL_MAILER`. Local development defaults to `log`, so reset links are written to `storage/logs/laravel.log`. Configure and test an authenticated production mail provider before school-facing use; never commit mail credentials.

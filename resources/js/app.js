@@ -141,10 +141,8 @@ function initializeLoginPage() {
 
         if (passwordLength === 0) {
             errors.push(['password', 'Enter your password.']);
-        } else if (passwordLength < 8) {
-            errors.push(['password', 'Password must be at least 8 characters.']);
-        } else if (passwordLength > 16) {
-            errors.push(['password', 'Password must not exceed 16 characters.']);
+        } else if (passwordLength > 64) {
+            errors.push(['password', 'Password must not exceed 64 characters.']);
         }
 
         if (errors.length === 0) {

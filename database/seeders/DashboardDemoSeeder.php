@@ -36,17 +36,22 @@ class DashboardDemoSeeder extends Seeder
         $resLead = User::where('username', 'reslead')->firstOrFail();
 
         $additionalApplicants = collect([
-            ['name' => 'Juan Dela Cruz', 'username' => 'demostudent1', 'email' => 'demostudent1@ecrats.test', 'applicant_type' => ApplicantType::Student],
-            ['name' => 'Maria Santos', 'username' => 'demostudent2', 'email' => 'demostudent2@ecrats.test', 'applicant_type' => ApplicantType::Student],
-            ['name' => 'Carla De Leon', 'username' => 'demostudent3', 'email' => 'demostudent3@ecrats.test', 'applicant_type' => ApplicantType::Student],
-            ['name' => 'Mark Rivera', 'username' => 'demofaculty1', 'email' => 'demofaculty1@ecrats.test', 'applicant_type' => ApplicantType::Faculty],
+            ['name' => 'Juan Dela Cruz', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'institutional_identifier' => 'KLD-STU-101', 'username' => 'demostudent1', 'email' => 'demostudent1@ecrats.test', 'applicant_type' => ApplicantType::Student],
+            ['name' => 'Maria Santos', 'first_name' => 'Maria', 'last_name' => 'Santos', 'institutional_identifier' => 'KLD-STU-102', 'username' => 'demostudent2', 'email' => 'demostudent2@ecrats.test', 'applicant_type' => ApplicantType::Student],
+            ['name' => 'Carla De Leon', 'first_name' => 'Carla', 'last_name' => 'De Leon', 'institutional_identifier' => 'KLD-STU-103', 'username' => 'demostudent3', 'email' => 'demostudent3@ecrats.test', 'applicant_type' => ApplicantType::Student],
+            ['name' => 'Mark Rivera', 'first_name' => 'Mark', 'last_name' => 'Rivera', 'institutional_identifier' => 'KLD-EMP-103', 'username' => 'demofaculty1', 'email' => 'demofaculty1@ecrats.test', 'applicant_type' => ApplicantType::Faculty],
         ])->map(fn (array $data): User => User::updateOrCreate(
             ['username' => $data['username']],
             [
                 ...$data,
+                'middle_name' => null,
+                'suffix' => null,
+                'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
                 'password' => Hash::make('12345678'),
+                'password_changed_at' => now(),
                 'role' => UserRole::Applicant,
                 'account_status' => 'active',
+                'created_by_user_id' => $resLead->id,
             ],
         ));
 

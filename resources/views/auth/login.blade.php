@@ -64,8 +64,7 @@
                                     aria-describedby="login-validation-messages"
                                     aria-invalid="{{ $passwordIsInvalid ? 'true' : 'false' }}"
                                     required
-                                    minlength="8"
-                                    maxlength="16"
+                                    maxlength="64"
                                 >
 
                                 <button

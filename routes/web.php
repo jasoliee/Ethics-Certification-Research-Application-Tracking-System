@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\ModulePageController;
 use App\Http\Controllers\Dashboard\NotificationPageController;
 use App\Http\Controllers\Dashboard\ProfilePageController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
+use App\Http\Controllers\Identity\UserManagementController;
 use App\Support\RoleHome;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,12 @@ Route::middleware('no-store')->group(function (): void {
     Route::middleware('guest.role')->group(function (): void {
         Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
         Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+        Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
+            ->middleware('throttle:12,1')
+            ->name('password.reset');
+        Route::post('/reset-password', [NewPasswordController::class, 'store'])
+            ->middleware('throttle:6,1')
+            ->name('password.update');
     });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
@@ -91,11 +99,17 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.index');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');
-                Route::get('/applicants', ModulePageController::class)
-                    ->defaults('pageTitle', 'Applicants')
-                    ->defaults('moduleMessage', 'Your advised applicants will appear here.')
-                    ->defaults('moduleIcon', 'user-check')
-                    ->name('applicants.index');
+                Route::controller(UserManagementController::class)->prefix('applicants')->name('applicants.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('/create', 'create')->name('create');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/import', 'importForm')->name('import.form');
+                    Route::post('/import', 'import')->name('import.store');
+                    Route::get('/import/template', 'template')->name('import.template');
+                    Route::get('/{managedUser}', 'show')->name('show');
+                    Route::get('/{managedUser}/edit', 'edit')->name('edit');
+                    Route::put('/{managedUser}', 'update')->name('update');
+                });
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
                 Route::get('/settings', ModulePageController::class)
@@ -161,11 +175,19 @@ Route::middleware('no-store')->group(function (): void {
                     ->defaults('moduleMessage', 'Operational and ethics review reports will be available here.')
                     ->defaults('moduleIcon', 'chart')
                     ->name('reports.index');
-                Route::get('/users', ModulePageController::class)
-                    ->defaults('pageTitle', 'User Management')
-                    ->defaults('moduleMessage', 'Adviser and reviewer accounts will be managed here.')
-                    ->defaults('moduleIcon', 'user')
-                    ->name('users.index');
+                Route::controller(UserManagementController::class)->prefix('users')->name('users.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('/create', 'create')->name('create');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/import', 'importForm')->name('import.form');
+                    Route::post('/import', 'import')->name('import.store');
+                    Route::get('/import/template', 'template')->name('import.template');
+                    Route::get('/{managedUser}', 'show')->name('show');
+                    Route::get('/{managedUser}/edit', 'edit')->name('edit');
+                    Route::put('/{managedUser}', 'update')->name('update');
+                    Route::patch('/{managedUser}/status', 'changeStatus')->name('status');
+                    Route::post('/{managedUser}/password-reset', 'sendPasswordReset')->middleware('throttle:3,1')->name('password-reset');
+                });
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
                 Route::get('/settings', ModulePageController::class)

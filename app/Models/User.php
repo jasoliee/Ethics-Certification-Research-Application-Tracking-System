@@ -10,11 +10,31 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'username', 'email', 'password', 'role', 'applicant_type', 'account_status'])]
+#[Fillable([
+    'name',
+    'first_name',
+    'middle_name',
+    'last_name',
+    'suffix',
+    'username',
+    'email',
+    'institutional_identifier',
+    'phone_number',
+    'institution',
+    'department',
+    'position_title',
+    'password',
+    'role',
+    'applicant_type',
+    'account_status',
+    'created_by_user_id',
+    'password_changed_at',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -33,7 +53,21 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'applicant_type' => ApplicantType::class,
+            'password_changed_at' => 'datetime',
         ];
+    }
+
+    /** Build the compatibility display name from the normalized account fields. */
+    public static function formatName(
+        string $firstName,
+        ?string $middleName,
+        string $lastName,
+        ?string $suffix,
+    ): string {
+        return collect([$firstName, $middleName, $lastName, $suffix])
+            ->filter(fn (?string $part): bool => filled($part))
+            ->map(fn (string $part): string => trim($part))
+            ->implode(' ');
     }
 
     public function displayRoleLabel(): string
@@ -43,6 +77,13 @@ class User extends Authenticatable
         }
 
         return $this->role->label();
+    }
+
+    public function institutionalIdentifierLabel(): string
+    {
+        return $this->role === UserRole::Applicant && $this->applicant_type === ApplicantType::Student
+            ? 'Student Number'
+            : 'Employee ID';
     }
 
     protected function username(): Attribute
@@ -65,5 +106,20 @@ class User extends Authenticatable
     public function reviewerAssignments(): HasMany
     {
         return $this->hasMany(ReviewerAssignment::class, 'reviewer_user_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'created_by_user_id');
+    }
+
+    public function createdUsers(): HasMany
+    {
+        return $this->hasMany(self::class, 'created_by_user_id');
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class, 'actor_user_id');
     }
 }
