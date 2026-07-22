@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Support\DashboardNavigation;
+use App\Support\OnboardingGuide;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +49,9 @@ class ShareDashboardContext
                 'dashboardSettingsRoute' => DashboardNavigation::settingsRoute($user->role),
                 'dashboardProfileRoute' => DashboardNavigation::profileRoute($user->role),
                 'dashboardRoleLabel' => $user->displayRoleLabel(),
+                'dashboardOnboardingGuide' => OnboardingGuide::for($user),
+                'dashboardRequiresOnboarding' => $user->password_setup_completed_at !== null
+                    && $user->onboarding_completed_at === null,
                 'dashboardUserInitials' => Str::of($user->name)
                     ->explode(' ')
                     ->filter()

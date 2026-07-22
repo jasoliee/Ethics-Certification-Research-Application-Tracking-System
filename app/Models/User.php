@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ApplicantType;
+use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -27,19 +29,28 @@ use Illuminate\Notifications\Notifiable;
     'phone_number',
     'institution',
     'department',
+    'program',
+    'year_level',
     'position_title',
+    'reviewer_classification',
+    'reviewer_capacity',
     'password',
     'role',
     'applicant_type',
     'account_status',
     'created_by_user_id',
     'password_changed_at',
+    'password_setup_completed_at',
+    'onboarding_completed_at',
+    'setup_email_status',
+    'setup_email_sent_at',
+    'setup_email_failed_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * Get the attributes that should be cast.
@@ -53,7 +64,13 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'applicant_type' => ApplicantType::class,
+            'reviewer_classification' => ReviewerClassification::class,
+            'reviewer_capacity' => 'integer',
             'password_changed_at' => 'datetime',
+            'password_setup_completed_at' => 'datetime',
+            'onboarding_completed_at' => 'datetime',
+            'setup_email_sent_at' => 'datetime',
+            'setup_email_failed_at' => 'datetime',
         ];
     }
 

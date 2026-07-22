@@ -43,6 +43,7 @@
             <div class="dashboard-applicant-grid">
                 <section class="dashboard-focus-card dashboard-detail-card">
                     <h2><x-dashboard.icon name="clipboard" /> Application Status</h2>
+                    @if ($hasSubmittedApplication)
                     <div class="dashboard-status-feature">
                         <span>Current Status</span>
                         <x-dashboard.status-badge
@@ -56,10 +57,21 @@
                         <div><dt>Research Title</dt><dd><x-dashboard.research-title :title="$activeApplication->research_title" /></dd></div>
                         <div><dt>Date Submitted</dt><dd>{{ $activeApplication->submitted_at?->format('M j, Y') ?? 'Not submitted' }}</dd></div>
                     </dl>
+                    @else
+                        <x-dashboard.empty-state
+                            image="no-applications"
+                            alt="Application not yet submitted"
+                            title="No submitted application"
+                            message="Complete every mandatory requirement before submitting your draft."
+                            action-label="Review Draft"
+                            :action-href="route('applicant.applications.show', $activeApplication)"
+                        />
+                    @endif
                 </section>
 
                 <section class="dashboard-focus-card dashboard-detail-card">
                     <h2><x-dashboard.icon name="file-text" /> My Application</h2>
+                    @if ($hasSubmittedApplication)
                     <dl class="dashboard-detail-list dashboard-detail-list-wide">
                         <div><dt>Current Step</dt><dd><x-dashboard.status-badge :label="$activeApplication->application_status->label()" :tone="$activeApplication->application_status->tone()" /></dd></div>
                         <div><dt>Last Updated</dt><dd>{{ ($activeApplication->status_updated_at ?? $activeApplication->updated_at)->format('M j, Y \a\t g:i A') }}</dd></div>
@@ -67,6 +79,16 @@
                         <div><dt>Adviser</dt><dd>{{ $activeApplication->adviser?->name ?? 'Not assigned' }}</dd></div>
                     </dl>
                     <a class="dashboard-outline-action" href="{{ route('applicant.applications.show', $activeApplication) }}">View Application Details</a>
+                    @else
+                        <x-dashboard.empty-state
+                            image="no-applications"
+                            alt="No submitted application record"
+                            title="Application not submitted"
+                            message="Submitted application details will appear here after the server accepts your complete application."
+                            action-label="Continue Application"
+                            :action-href="route('applicant.applications.show', $activeApplication)"
+                        />
+                    @endif
                 </section>
 
                 <section class="dashboard-focus-card dashboard-requirements-card">
@@ -79,7 +101,7 @@
                         <ul class="dashboard-requirement-list">
                             @foreach ($requirements->take(4) as $requirement)
                                 <li>
-                                    <span class="dashboard-requirement-file"><x-dashboard.icon name="file-text" size="20" /></span>
+                                    <span class="dashboard-requirement-file"><x-dashboard.icon :name="$requirement['icon']" size="20" /></span>
                                     <span><strong>{{ $requirement['code'] }}</strong><small>{{ $requirement['name'] }}</small></span>
                                     <x-dashboard.status-badge :label="$requirement['status']->label()" :tone="$requirement['status']->tone()" />
                                 </li>

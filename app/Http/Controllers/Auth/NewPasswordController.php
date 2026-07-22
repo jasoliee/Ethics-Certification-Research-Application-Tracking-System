@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\AccountStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\User;
@@ -32,14 +33,22 @@ class NewPasswordController extends Controller
         $status = Password::reset(
             $request->safe()->only(['email', 'password', 'password_confirmation', 'token']),
             function (User $user, string $password): void {
+                $isInitialSetup = ! $user->password_setup_completed_at;
+
                 // Successful token use invalidates remembered sessions and records the credential-change time.
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'password_changed_at' => now(),
+                    'password_setup_completed_at' => $user->password_setup_completed_at ?? now(),
+                    'account_status' => $user->account_status === AccountStatus::PendingSetup->value
+                        ? AccountStatus::Active->value
+                        : $user->account_status,
                     'remember_token' => Str::random(60),
                 ])->save();
 
-                $this->auditLog->record(null, 'user.password_reset_completed', $user);
+                $this->auditLog->record(null, $isInitialSetup ? 'user.password_setup_completed' : 'user.password_reset_completed', $user, [
+                    'result' => 'completed',
+                ]);
                 event(new PasswordReset($user));
             },
         );

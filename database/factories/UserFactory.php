@@ -41,7 +41,11 @@ class UserFactory extends Factory
             'phone_number' => null,
             'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
             'department' => null,
+            'program' => null,
+            'year_level' => null,
             'position_title' => null,
+            'reviewer_classification' => null,
+            'reviewer_capacity' => null,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::Applicant,
@@ -49,8 +53,22 @@ class UserFactory extends Factory
             'account_status' => 'active',
             'created_by_user_id' => null,
             'password_changed_at' => now(),
+            'password_setup_completed_at' => now(),
+            'onboarding_completed_at' => now(),
+            'setup_email_status' => 'not_required',
             'remember_token' => Str::random(10),
         ];
+    }
+
+    public function pendingSetup(): static
+    {
+        return $this->state(fn (): array => [
+            'account_status' => 'pending_setup',
+            'password_changed_at' => null,
+            'password_setup_completed_at' => null,
+            'onboarding_completed_at' => null,
+            'setup_email_status' => 'not_sent',
+        ]);
     }
 
     /**

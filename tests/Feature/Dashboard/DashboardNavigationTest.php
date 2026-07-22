@@ -105,12 +105,17 @@ class DashboardNavigationTest extends TestCase
             ->assertSee('<span aria-current="page">Revision and Certificates</span>', false);
     }
 
-    public function test_shared_shell_has_clickable_kld_logo_footer_and_role_profile_link(): void
+    public function test_shared_shell_has_expected_navigation_footer_and_profile_links(): void
     {
         $faculty = User::factory()->create([
             'role' => UserRole::Applicant,
             'applicant_type' => 'faculty',
         ]);
+
+        $this->assertNotContains(
+            'Settings',
+            array_column(DashboardNavigation::for(UserRole::Applicant), 'label'),
+        );
 
         $this->actingAs($faculty)
             ->get(route('dashboard'))
@@ -118,8 +123,12 @@ class DashboardNavigationTest extends TestCase
             ->assertSee('href="https://kld.edu.ph/profile.php"', false)
             ->assertSee('Faculty Researcher')
             ->assertSee('href="'.route('applicant.profile.show').'"', false)
+            ->assertSee('href="'.route('applicant.settings.index').'"', false)
+            ->assertDontSee('<nav class="dashboard-breadcrumbs"', false)
             ->assertSee('class="dashboard-footer"', false)
-            ->assertSee('About KLD')
+            ->assertSee('About ECRATS')
+            ->assertSee('https://www.google.com/maps/search/?api=1&query=Kolehiyo+ng+Lungsod+ng+Dasmarinas', false)
+            ->assertDontSee('KLD Login')
             ->assertSee('Helpful Links');
     }
 

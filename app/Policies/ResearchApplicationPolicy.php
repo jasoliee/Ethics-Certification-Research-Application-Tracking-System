@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\User;
@@ -18,5 +19,13 @@ class ResearchApplicationPolicy
                 ->exists(),
             UserRole::ResLead => true,
         };
+    }
+
+    public function submit(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::Applicant
+            && $researchApplication->applicant_user_id === $user->id
+            && in_array($researchApplication->application_status, [ApplicationStatus::Draft, ApplicationStatus::Incomplete], true)
+            && $researchApplication->submitted_at === null;
     }
 }

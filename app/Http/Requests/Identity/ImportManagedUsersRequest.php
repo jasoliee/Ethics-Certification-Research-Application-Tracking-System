@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Identity;
 
 use App\Models\User;
+use App\Services\Identity\UserBulkImportService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ImportManagedUsersRequest extends FormRequest
@@ -16,12 +17,13 @@ class ImportManagedUsersRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'account_type' => ['required', 'string', 'max:30'],
             'accounts_file' => [
                 'required',
                 'file',
-                'max:2048',
-                'extensions:csv',
-                'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel',
+                'max:'.UserBulkImportService::MAX_FILE_KILOBYTES,
+                'extensions:csv,xlsx',
+                'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip',
             ],
         ];
     }
@@ -30,9 +32,9 @@ class ImportManagedUsersRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'accounts_file.extensions' => 'Upload a CSV file using the provided template.',
-            'accounts_file.mimetypes' => 'The uploaded file content must be a valid CSV document.',
-            'accounts_file.max' => 'The CSV file must not exceed 2 MB.',
+            'accounts_file.extensions' => 'Upload a CSV or XLSX file using the selected role template.',
+            'accounts_file.mimetypes' => 'The uploaded file content must be a valid CSV or XLSX document.',
+            'accounts_file.max' => 'The account file must not exceed 2 MB.',
         ];
     }
 }

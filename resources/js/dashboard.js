@@ -91,6 +91,94 @@ export function initializeDashboard() {
 
     initializeResearchTitleTooltips(shell);
     initializeManagedAccountTools(shell);
+    initializeOnboardingGuide(shell);
+}
+
+function initializeOnboardingGuide(shell) {
+    const guide = shell.querySelector('[data-onboarding-guide]');
+
+    if (! guide) {
+        return;
+    }
+
+    const dialog = guide.querySelector('[role="dialog"]');
+    const openButtons = shell.querySelectorAll('[data-guide-open]');
+    const closeButtons = guide.querySelectorAll('[data-guide-close], [data-guide-finish]');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    let returnFocus = null;
+
+    const openGuide = (trigger = null) => {
+        returnFocus = trigger;
+        guide.hidden = false;
+        dialog?.focus();
+    };
+
+    const recordCompletion = async () => {
+        if (guide.dataset.requiresCompletion !== 'true') {
+            return true;
+        }
+
+        try {
+            const response = await fetch(guide.dataset.completeUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (! response.ok) {
+                return false;
+            }
+
+            guide.dataset.requiresCompletion = 'false';
+            openButtons.forEach((button) => {
+                button.hidden = false;
+            });
+
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    const closeGuide = async () => {
+        if (! await recordCompletion()) {
+            return;
+        }
+
+        guide.hidden = true;
+        returnFocus?.focus();
+    };
+
+    openButtons.forEach((button) => button.addEventListener('click', () => openGuide(button)));
+    closeButtons.forEach((button) => button.addEventListener('click', closeGuide));
+
+    shell.querySelectorAll('.dashboard-nav-link').forEach((link) => {
+        link.addEventListener('click', async (event) => {
+            if (guide.hidden || guide.dataset.requiresCompletion !== 'true') {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (await recordCompletion()) {
+                window.location.assign(link.href);
+            }
+        });
+    });
+
+    guide.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeGuide();
+        }
+    });
+
+    if (guide.dataset.requiresCompletion === 'true') {
+        openGuide();
+    }
 }
 
 function initializeManagedAccountTools(shell) {
@@ -135,6 +223,105 @@ function initializeManagedAccountTools(shell) {
     shell.querySelectorAll('[data-confirm-status]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (! window.confirm(form.dataset.confirmStatus)) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    const modeDialog = shell.querySelector('[data-account-mode-dialog]');
+    const modePanel = modeDialog?.querySelector('[role="dialog"]');
+    const modeLabel = modeDialog?.querySelector('[data-account-mode-label]');
+    const individualLink = modeDialog?.querySelector('[data-account-individual-link]');
+    const bulkLink = modeDialog?.querySelector('[data-account-bulk-link]');
+    let modeTrigger = null;
+
+    const closeModeDialog = () => {
+        if (! modeDialog) {
+            return;
+        }
+
+        modeDialog.hidden = true;
+        modeTrigger?.focus();
+    };
+
+    shell.querySelectorAll('[data-account-mode-open]').forEach((button) => {
+        button.addEventListener('click', () => {
+            modeTrigger = button;
+            modeLabel.textContent = button.dataset.accountLabel;
+            individualLink.href = button.dataset.individualUrl;
+            bulkLink.href = button.dataset.bulkUrl;
+            modeDialog.hidden = false;
+            modePanel?.focus();
+        });
+    });
+    modeDialog?.querySelector('[data-account-mode-close]')?.addEventListener('click', closeModeDialog);
+    modeDialog?.addEventListener('click', (event) => {
+        if (event.target === modeDialog) {
+            closeModeDialog();
+        }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modeDialog && ! modeDialog.hidden) {
+            closeModeDialog();
+        }
+    });
+
+    const massForm = shell.querySelector('[data-managed-mass-action]');
+    const selectAll = massForm?.querySelector('[data-select-all-users]');
+    const userCheckboxes = [...(massForm?.querySelectorAll('[data-select-user]') ?? [])];
+    const actionSelect = massForm?.querySelector('[data-mass-action-select]');
+    const actionValue = massForm?.querySelector('[data-mass-action-value]');
+
+    selectAll?.addEventListener('change', () => {
+        userCheckboxes.forEach((checkbox) => {
+            checkbox.checked = selectAll.checked;
+        });
+    });
+
+    massForm?.querySelectorAll('[data-mass-submit]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            const selectedAction = button.dataset.massSubmit === 'selected'
+                ? actionSelect.value
+                : button.dataset.massSubmit;
+            const selectedCount = userCheckboxes.filter((checkbox) => checkbox.checked).length;
+
+            if (! selectedAction) {
+                event.preventDefault();
+                actionSelect.focus();
+                return;
+            }
+
+            if (selectedAction !== 'resend_all_pending' && selectedCount === 0) {
+                event.preventDefault();
+                window.alert('Select at least one account.');
+                return;
+            }
+
+            const message = selectedAction === 'archive'
+                ? `Remove ${selectedCount} selected accounts from active records?`
+                : selectedAction === 'resend_all_pending'
+                    ? 'Send a new setup link to every pending account in the current management scope?'
+                    : `Apply this action to ${selectedCount} selected accounts?`;
+
+            if (! window.confirm(message)) {
+                event.preventDefault();
+                return;
+            }
+
+            actionValue.value = selectedAction;
+            actionSelect.required = false;
+        });
+    });
+
+    shell.querySelectorAll('[data-confirm-import]').forEach((form) => {
+        form.addEventListener('submit', () => {
+            form.querySelector('button[type="submit"]')?.setAttribute('disabled', 'disabled');
+        });
+    });
+
+    shell.querySelectorAll('[data-confirm-username-change]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (! window.confirm('Generate a new username from the corrected identity and notify this user?')) {
                 event.preventDefault();
             }
         });

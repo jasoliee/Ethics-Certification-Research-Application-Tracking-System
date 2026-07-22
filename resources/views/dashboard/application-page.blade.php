@@ -20,6 +20,13 @@
                 <div><dt>Review Type</dt><dd>{{ $application->review_type ? Str::headline($application->review_type) : 'Not classified' }}</dd></div>
             </dl>
             <a class="dashboard-outline-action" href="{{ route($indexRoute) }}">Back to List</a>
+            @if ($canSubmit)
+                <form method="POST" action="{{ route('applicant.applications.submit', $application) }}">
+                    @csrf
+                    <button class="dashboard-primary-action" type="submit">Submit Application</button>
+                    @error('requirements')<span class="identity-field-error">{{ $message }}</span>@enderror
+                </form>
+            @endif
         </section>
     </div>
 @endsection

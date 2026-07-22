@@ -12,6 +12,7 @@ use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\TimelineCalendarEvent;
 use App\Models\User;
+use App\Support\DocumentTypeIcon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -55,6 +56,7 @@ class DashboardDataService
                         'original_file_name',
                         'document_version',
                         'validation_status',
+                        'mime_type',
                     ])
                     ->where('research_application_id', $activeApplication->id)
                     ->where('is_current', true)
@@ -64,19 +66,22 @@ class DashboardDataService
                 ->get()
                 ->map(function (DocumentRequirement $requirement): array {
                     $document = $requirement->applicationDocuments->first();
-                    $status = $document?->validation_status ?? RequirementStatus::Pending;
+                    $status = $document?->validation_status ?? RequirementStatus::Missing;
 
                     return [
                         'code' => $requirement->code,
                         'name' => $requirement->name,
                         'status' => $status,
                         'file_name' => $document?->original_file_name,
+                        'icon' => DocumentTypeIcon::fromMimeType($document?->mime_type),
                     ];
                 });
         }
 
         return [
             'activeApplication' => $activeApplication,
+            'hasSubmittedApplication' => $activeApplication?->submitted_at !== null
+                && ! in_array($activeApplication?->application_status, [ApplicationStatus::Draft, ApplicationStatus::Incomplete], true),
             'requirements' => $requirements,
             'completedRequirementCount' => $requirements
                 ->where('status', RequirementStatus::Completed)

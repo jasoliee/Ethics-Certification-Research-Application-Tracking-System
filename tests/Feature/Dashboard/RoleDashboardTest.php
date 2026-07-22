@@ -133,6 +133,29 @@ class RoleDashboardTest extends TestCase
             ->assertDontSee('OTHER-001');
     }
 
+    public function test_adviser_dashboard_keeps_archived_applicant_identity_for_historical_applications(): void
+    {
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $applicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'name' => 'Archived Applicant',
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'ADV-ARCHIVED-001',
+            'applicant_user_id' => $applicant->id,
+            'adviser_user_id' => $adviser->id,
+            'application_status' => ApplicationStatus::SubmittedToAdviser,
+            'submitted_at' => now(),
+        ]);
+        $applicant->delete();
+
+        $this->actingAs($adviser)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('ADV-ARCHIVED-001')
+            ->assertSee('Archived Applicant');
+    }
+
     public function test_reviewer_dashboard_counts_assignments_and_near_deadline_from_real_records(): void
     {
         $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);

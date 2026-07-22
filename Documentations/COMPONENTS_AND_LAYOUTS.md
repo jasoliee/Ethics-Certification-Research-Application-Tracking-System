@@ -21,7 +21,7 @@ The header contains the mobile navigation control, breadcrumbs, notification bel
 
 ## Footer
 
-`resources/views/components/dashboard/footer.blade.php` contains About KLD, Contact, Quick Links, Helpful Links, social links, and dynamic copyright text. External links use the official KLD website destinations available at implementation time.
+`resources/views/components/dashboard/footer.blade.php` contains About ECRATS, RES contact details, Quick Links, Helpful Links, social links, a clickable Maps address, and dynamic copyright text. The old KLD Login link is intentionally absent.
 
 ## Timeline Header
 

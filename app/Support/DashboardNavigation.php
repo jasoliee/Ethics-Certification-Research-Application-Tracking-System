@@ -15,19 +15,16 @@ class DashboardNavigation
                 self::item('Application', 'applicant.applications.index', 'file-text', 'applicant.applications.*'),
                 self::item('Revision and Certificates', 'applicant.revision-certificates.index', 'award', 'applicant.revision-certificates.*'),
                 self::item('Reports', 'applicant.reports.index', 'chart', 'applicant.reports.*'),
-                self::item('Settings', 'applicant.settings.index', 'settings', 'applicant.settings.*'),
             ],
             UserRole::Adviser => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Application', 'adviser.applications.index', 'file-text', 'adviser.applications.*'),
                 self::item('Applicants', 'adviser.applicants.index', 'user-check', 'adviser.applicants.*'),
-                self::item('Settings', 'adviser.settings.index', 'settings', 'adviser.settings.*'),
             ],
             UserRole::Reviewer => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Assignments', 'reviewer.assignments.index', 'clipboard', 'reviewer.assignments.*'),
                 self::item('Review', 'reviewer.reviews.index', 'users', 'reviewer.reviews.*'),
-                self::item('Settings', 'reviewer.settings.index', 'settings', 'reviewer.settings.*'),
             ],
             UserRole::ResLead => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
@@ -36,7 +33,6 @@ class DashboardNavigation
                 self::item('Certificates', 'res.certificates.index', 'award', 'res.certificates.*'),
                 self::item('Reports', 'res.reports.index', 'chart', 'res.reports.*'),
                 self::item('User Management', 'res.users.index', 'user', 'res.users.*'),
-                self::item('Settings', 'res.settings.index', 'settings', 'res.settings.*'),
             ],
         };
     }

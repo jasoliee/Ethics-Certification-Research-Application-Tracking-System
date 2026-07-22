@@ -38,12 +38,12 @@ class ResearchApplication extends Model
 
     public function applicant(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'applicant_user_id');
+        return $this->belongsTo(User::class, 'applicant_user_id')->withTrashed();
     }
 
     public function adviser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'adviser_user_id');
+        return $this->belongsTo(User::class, 'adviser_user_id')->withTrashed();
     }
 
     public function documents(): HasMany

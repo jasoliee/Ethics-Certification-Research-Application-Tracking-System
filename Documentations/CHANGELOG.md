@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-07-22
+
+### Added
+
+- Pending account setup with one-time seven-day password links and delivery state.
+- Role-specific onboarding guides with permanent Guide access.
+- Role-specific CSV/XLSX templates, preview/confirm import, error reports, and spreadsheet safety checks.
+- Mass account deactivate, archive, selected resend, and all-pending resend actions.
+- Confirmed surname/identifier correction with username regeneration and notification.
+- Applicant initial-submission guard requiring all active documents to be completed.
+- MIME-based document icons, authorization-denial auditing, and RES audit history.
+- Maintained OVPRII background asset and complete implementation/security documentation set.
+
+### Changed
+
+- Account creators no longer enter usernames, passwords, password confirmation, or Date Joined.
+- New accounts remain pending until the account holder chooses a password.
+- Footer identifies ECRATS and RES, removes KLD Login, and links the address to Maps.
+- Settings is removed from the sidebar but remains in the profile menu.
+- Draft Application Status and My Application cards remain empty until accepted submission.
+
+### Known Limitations
+
+- Official document/certificate generation, QR verification, and the later review lifecycle remain incomplete.
+
 ## 2026-07-20
 
 ### Added

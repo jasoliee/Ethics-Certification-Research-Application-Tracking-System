@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\AuditLogService;
 use App\Support\RoleHome;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(private readonly AuditLogService $auditLog) {}
+
     public function create(Request $request): View|RedirectResponse
     {
         if ($request->user()) {
@@ -39,6 +42,14 @@ class AuthenticatedSessionController extends Controller
         if (! Auth::attempt($credentials)) {
             RateLimiter::hit($request->throttleKey());
 
+            if (RateLimiter::attempts($request->throttleKey()) >= 2) {
+                $this->auditLog->record(null, 'auth.login_failed', metadata: [
+                    'attempts' => RateLimiter::attempts($request->throttleKey()),
+                    'username_hash' => hash('sha256', strtolower($request->validated('username'))),
+                    'result' => 'failed',
+                ]);
+            }
+
             return back()->withErrors([
                 'credentials' => 'The username or password is incorrect.',
             ])->onlyInput('username');
@@ -46,6 +57,9 @@ class AuthenticatedSessionController extends Controller
 
         RateLimiter::clear($request->throttleKey());
         $request->session()->regenerate();
+        $this->auditLog->record($request->user(), 'auth.login_succeeded', $request->user(), [
+            'result' => 'succeeded',
+        ]);
 
         return redirect()->route(RoleHome::routeNameFor($request->user()->role));
     }

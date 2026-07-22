@@ -13,6 +13,12 @@
     </div>
 
     <div class="dashboard-topbar-actions">
+        @if (request()->routeIs('dashboard'))
+            <button class="dashboard-guide-button" type="button" data-guide-open @if ($dashboardRequiresOnboarding) hidden @endif>
+                <x-dashboard.icon name="circle-help" size="19" />
+                <span>Guide</span>
+            </button>
+        @endif
         <div class="dashboard-menu-wrap">
             <button
                 class="dashboard-icon-button"

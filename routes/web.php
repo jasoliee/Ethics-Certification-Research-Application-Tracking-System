@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\ModulePageController;
 use App\Http\Controllers\Dashboard\NotificationPageController;
+use App\Http\Controllers\Dashboard\OnboardingController;
 use App\Http\Controllers\Dashboard\ProfilePageController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
@@ -41,7 +42,11 @@ Route::middleware('no-store')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
         Route::post('/notifications/mark-all-read', [NotificationPageController::class, 'markAllRead'])
+            ->middleware('throttle:notification-actions')
             ->name('notifications.mark-all-read');
+        Route::post('/onboarding/complete', OnboardingController::class)
+            ->middleware('throttle:onboarding')
+            ->name('onboarding.complete');
 
         Route::prefix('student-faculty-researcher')
             ->name('applicant.')
@@ -64,6 +69,9 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.show');
                 Route::get('/applications/{researchApplication}/requirements', [ResearchApplicationPageController::class, 'requirements'])
                     ->name('applications.requirements');
+                Route::post('/applications/{researchApplication}/submit', [ResearchApplicationPageController::class, 'submit'])
+                    ->middleware('throttle:application-submit')
+                    ->name('applications.submit');
                 Route::get('/revision-certificates', ModulePageController::class)
                     ->defaults('pageTitle', 'Revision and Certificates')
                     ->defaults('moduleTitle', 'Revision and Certificates')
@@ -102,13 +110,17 @@ Route::middleware('no-store')->group(function (): void {
                 Route::controller(UserManagementController::class)->prefix('applicants')->name('applicants.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/create', 'create')->name('create');
-                    Route::post('/', 'store')->name('store');
+                    Route::post('/', 'store')->middleware('throttle:account-write')->name('store');
                     Route::get('/import', 'importForm')->name('import.form');
-                    Route::post('/import', 'import')->name('import.store');
-                    Route::get('/import/template', 'template')->name('import.template');
+                    Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
+                    Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
+                    Route::get('/import/template/{format}', 'template')->whereIn('format', ['csv', 'xlsx'])->name('import.template');
+                    Route::get('/import/errors/{token}', 'errorReport')->whereUuid('token')->name('import.errors');
                     Route::get('/{managedUser}', 'show')->name('show');
                     Route::get('/{managedUser}/edit', 'edit')->name('edit');
-                    Route::put('/{managedUser}', 'update')->name('update');
+                    Route::put('/{managedUser}', 'update')->middleware('throttle:account-write')->name('update');
+                    Route::patch('/{managedUser}/username', 'regenerateUsername')->middleware('throttle:account-write')->name('username');
+                    Route::post('/{managedUser}/password-reset', 'sendPasswordReset')->middleware('throttle:setup-email')->name('password-reset');
                 });
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
@@ -178,15 +190,20 @@ Route::middleware('no-store')->group(function (): void {
                 Route::controller(UserManagementController::class)->prefix('users')->name('users.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/create', 'create')->name('create');
-                    Route::post('/', 'store')->name('store');
+                    Route::post('/', 'store')->middleware('throttle:account-write')->name('store');
                     Route::get('/import', 'importForm')->name('import.form');
-                    Route::post('/import', 'import')->name('import.store');
-                    Route::get('/import/template', 'template')->name('import.template');
+                    Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
+                    Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
+                    Route::get('/import/template/{format}', 'template')->whereIn('format', ['csv', 'xlsx'])->name('import.template');
+                    Route::get('/import/errors/{token}', 'errorReport')->whereUuid('token')->name('import.errors');
+                    Route::post('/mass-action', 'massAction')->middleware('throttle:account-mass-action')->name('mass-action');
+                    Route::get('/audit-log', 'auditIndex')->name('audit.index');
                     Route::get('/{managedUser}', 'show')->name('show');
                     Route::get('/{managedUser}/edit', 'edit')->name('edit');
-                    Route::put('/{managedUser}', 'update')->name('update');
-                    Route::patch('/{managedUser}/status', 'changeStatus')->name('status');
-                    Route::post('/{managedUser}/password-reset', 'sendPasswordReset')->middleware('throttle:3,1')->name('password-reset');
+                    Route::put('/{managedUser}', 'update')->middleware('throttle:account-write')->name('update');
+                    Route::patch('/{managedUser}/username', 'regenerateUsername')->middleware('throttle:account-write')->name('username');
+                    Route::patch('/{managedUser}/status', 'changeStatus')->middleware('throttle:account-write')->name('status');
+                    Route::post('/{managedUser}/password-reset', 'sendPasswordReset')->middleware('throttle:setup-email')->name('password-reset');
                 });
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');

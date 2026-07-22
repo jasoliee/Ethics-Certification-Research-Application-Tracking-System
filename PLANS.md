@@ -63,12 +63,12 @@ Date:
 ## Plan: Account management and secure onboarding
 
 ### Goal
-Replace the temporary user-management modules with a complete, role-authorized account workflow for RES Lead and Research Adviser users, while correcting login validation behavior.
+Replace the temporary user-management modules with a complete, role-authorized account workflow for RES Lead and Research Adviser users, while correcting shared dashboard, onboarding, and application-readiness behavior.
 
 ### Source Documents
-- Primary requirement: attached account-management request, July 20, 2026 (sections 1-5 and the available opening of section 6).
+- Primary requirement: attached consolidated implementation prompt, July 21, 2026 (sections 1-38 and final additions).
 - Supporting designs: `ECRATS High Fidelity (5).pdf`, pages 1-8, plus the confirmed supervisor requirement for formatted CSV account imports.
-- Conflicts or missing decisions: the attached text ends mid-sentence in section 6. The newer written requirements override PDF fields that use one full-name input, an editable date joined, RES/Admin account creation, or direct password editing.
+- Conflicts or missing decisions: the final note calls for a random system password while the security requirements prohibit distributing passwords. ECRATS will create a random unusable internal credential and distribute only the username and one-time setup link. Official certificate generation is not yet implemented, so this phase can establish and document the maintained OVPRII asset contract but cannot claim generated-certificate verification.
 
 ### Scope
 Included:
@@ -76,7 +76,11 @@ Included:
 - Searchable, filterable, paginated populated and empty user-management states.
 - Server-enforced role creation, record visibility, editing, account status, and password-reset permissions.
 - Individual account creation and bounded CSV imports with private temporary storage and audit records.
+- Role-specific CSV/XLSX templates, import preview/confirmation, row-level errors, and one-time confirmation tokens.
 - Secure email reset links without exposing or directly editing existing passwords.
+- Pending-setup accounts, one-week single-use setup links, delivery status, single and mass resend actions, and soft-delete/mass-deactivation controls.
+- One-time role-specific onboarding with a permanent Guide control.
+- Shared footer, navigation, profile, breadcrumb, empty-state, and applicant requirement-state corrections.
 - Field-specific login validation and generic credential mismatch errors only after required inputs pass validation.
 
 Excluded:
@@ -86,11 +90,11 @@ Excluded:
 
 ### Implementation Approach
 - Backend: thin controllers, Form Requests, policies, identity services, Laravel password broker, and parameterized Eloquent queries.
-- Frontend: shared responsive Blade views following the approved user-management table, role selection, account form, success, profile, and edit states.
-- Database: additive user-profile columns plus audit logs; retain `users.name` as a generated compatibility display value.
+- Frontend: shared responsive Blade views for full-page role selection, creation-mode dialog, account form, preview, table mass actions, onboarding, and corrected dashboard components.
+- Database: additive setup, onboarding, delivery, role-profile, and soft-delete fields; retain `users.name` as a generated compatibility display value.
 - Authorization: RES Lead can manage non-RES-Lead accounts; advisers can create and manage only applicants within their allowed relationship scope.
-- Files/storage: validate CSV extension, MIME type, headers, row count, and row values; process from private local storage and delete every temporary file in `finally` cleanup.
-- Notifications/audit: use one-time Laravel password-reset notifications and record security-relevant account actions without secrets or reset tokens.
+- Files/storage: validate CSV/XLSX structure, MIME type, headers, template version, formulas, row count, and values; process previews from private local storage and delete temporary files after confirmation or expiry cleanup.
+- Notifications/audit: use one-time Laravel password-broker tokens, role-safe setup notifications, delivery-state tracking, and security audit events without secrets or tokens.
 
 ### Files Expected to Change
 - `app/Enums`, `app/Models`, `app/Policies`, `app/Services/Identity`, and `app/Http/*`
@@ -101,14 +105,22 @@ Excluded:
 - Account-management and deployment documentation
 
 ### Tests and Verification
-- Focused account-management, authorization, import, password-reset, and login tests.
+- Focused account-management, authorization, import, password-setup, onboarding, navigation, requirement-readiness, and login tests.
 - Full `php artisan test`, Pint, route list, migration status, Composer validation/platform checks, and `npm.cmd run build`.
 - Desktop and mobile browser screenshots when the in-app browser connection is available.
 
 ### Risks and Rollback
 - Existing users are backfilled conservatively from `users.name`; new fields remain additive so rollback does not discard the compatibility name or authentication records.
 - User creation uses unique database constraints and transactions to protect generated usernames and institutional identifiers.
-- CSV uploads are capped to keep synchronous imports practical for the current deployment and are removed after success or failure.
+- CSV/XLSX uploads are capped to keep synchronous imports practical for the current deployment and are removed after parsing or expiry.
+
+### Verification Status (2026-07-22)
+- `php artisan test`: final run passed 61 tests and 587 assertions.
+- Pint, Composer validation/platform checks, route registration, migration status, additive migration, idempotent seeding, and the Vite production build passed.
+- `npm audit`: no vulnerabilities.
+- `composer audit`: four medium advisories affect locked `guzzlehttp/guzzle 7.14.1`; all require `7.15.1` or later. Dependency updates await explicit approval.
+- Live HTTP login page returned 200 at `http://127.0.0.1:8001/login`.
+- Interactive browser screenshots remain unavailable because this session has no connected in-app browser.
 
 ### Approval Notes
 Approved by: User request

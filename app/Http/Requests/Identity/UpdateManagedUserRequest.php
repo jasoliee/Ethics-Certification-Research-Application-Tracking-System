@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Identity;
 
+use App\Enums\ApplicantType;
+use App\Enums\ReviewerClassification;
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -31,7 +34,25 @@ class UpdateManagedUserRequest extends FormRequest
             'phone_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]+$/'],
             'institution' => ['nullable', 'string', 'max:150'],
             'department' => ['nullable', 'string', 'max:150'],
-            'position_title' => ['nullable', 'string', 'max:150'],
+            'program' => ['nullable', 'string', 'max:150'],
+            'year_level' => [
+                Rule::requiredIf($subject->role === UserRole::Applicant && $subject->applicant_type === ApplicantType::Student),
+                'nullable',
+                'string',
+                'max:30',
+            ],
+            'position_title' => [Rule::requiredIf($subject->role === UserRole::Adviser), 'nullable', 'string', 'max:150'],
+            'reviewer_classification' => [
+                Rule::requiredIf($subject->role === UserRole::Reviewer),
+                'nullable',
+                Rule::enum(ReviewerClassification::class),
+            ],
+            'reviewer_capacity' => [
+                Rule::requiredIf($subject->role === UserRole::Reviewer),
+                'nullable',
+                'integer',
+                'between:1,30',
+            ],
         ];
     }
 }

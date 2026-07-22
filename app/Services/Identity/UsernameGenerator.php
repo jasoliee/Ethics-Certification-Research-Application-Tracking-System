@@ -2,8 +2,6 @@
 
 namespace App\Services\Identity;
 
-use App\Enums\ApplicantType;
-use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -11,26 +9,26 @@ class UsernameGenerator
 {
     private const MAX_LENGTH = 30;
 
+    private const MIN_LENGTH = 6;
+
     public function generate(
-        string $firstName,
+        string $institutionalIdentifier,
         string $lastName,
-        UserRole $role,
-        ?ApplicantType $applicantType,
+        array $reservedUsernames = [],
     ): string {
-        $first = $this->segment($firstName, 'user');
+        $identifier = $this->segment($institutionalIdentifier, 'user');
         $last = $this->segment($lastName, 'account');
-        $roleSegment = match ($role) {
-            UserRole::Applicant => $applicantType === ApplicantType::Faculty ? 'faculty' : 'student',
-            UserRole::Adviser => 'adviser',
-            UserRole::Reviewer => 'reviewer',
-            UserRole::ResLead => 'reslead',
-        };
-        $base = Str::limit($first.'.'.$last.'_'.$roleSegment, self::MAX_LENGTH, '');
+        $base = Str::limit($identifier.'.'.$last, self::MAX_LENGTH, '');
+
+        if (strlen($base) < self::MIN_LENGTH) {
+            $base = str_pad($base, self::MIN_LENGTH, '0');
+        }
+
         $candidate = $base;
         $suffix = 2;
 
         // A deterministic suffix keeps usernames readable while respecting the unique database constraint.
-        while (User::query()->where('username', $candidate)->exists()) {
+        while (in_array($candidate, $reservedUsernames, true) || User::query()->where('username', $candidate)->exists()) {
             $ending = (string) $suffix++;
             $candidate = Str::limit($base, self::MAX_LENGTH - strlen($ending), '').$ending;
         }

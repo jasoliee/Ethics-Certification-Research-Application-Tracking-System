@@ -25,10 +25,7 @@ class DashboardController extends Controller
         return view($view, [
             ...$data,
             'pageTitle' => 'Dashboard',
-            'breadcrumbs' => [
-                ['label' => 'Home', 'route' => 'dashboard'],
-                ['label' => 'Dashboard'],
-            ],
+            'breadcrumbs' => [],
         ]);
     }
 }

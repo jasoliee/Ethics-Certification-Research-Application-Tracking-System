@@ -4,8 +4,10 @@ namespace App\Services\Identity;
 
 use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
+use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Notifications\UsernameChangedNotification;
 use App\Services\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UserAccountService
 {
@@ -28,25 +31,29 @@ class UserAccountService
      *
      * @throws AuthorizationException|ValidationException
      */
-    public function create(User $actor, array $attributes): User
+    public function create(User $actor, array $attributes, ?string $expectedUsername = null): User
     {
         $validated = $this->validateCreation($actor, $attributes);
 
-        return DB::transaction(function () use ($actor, $validated): User {
+        return DB::transaction(function () use ($actor, $expectedUsername, $validated): User {
             $targetRole = UserRole::from($validated['role']);
             $applicantType = $targetRole === UserRole::Applicant
                 ? ApplicantType::from($validated['applicant_type'])
                 : null;
             $username = $this->usernameGenerator->generate(
-                $validated['first_name'],
+                $validated['institutional_identifier'],
                 $validated['last_name'],
-                $targetRole,
-                $applicantType,
             );
+
+            if ($expectedUsername !== null && $username !== $expectedUsername) {
+                throw ValidationException::withMessages([
+                    'import_token' => 'The import preview is stale. Validate the file again before confirming.',
+                ]);
+            }
 
             // Compatibility name and username are generated server-side and cannot be overridden by the request.
             $user = User::create([
-                ...$this->profileValues($validated),
+                ...$this->profileValues($validated, $targetRole, $applicantType),
                 'name' => User::formatName(
                     $validated['first_name'],
                     $validated['middle_name'] ?? null,
@@ -54,17 +61,21 @@ class UserAccountService
                     $validated['suffix'] ?? null,
                 ),
                 'username' => $username,
-                'password' => Hash::make($validated['password']),
-                'password_changed_at' => now(),
+                'password' => Hash::make(Str::random(64)),
+                'password_changed_at' => null,
+                'password_setup_completed_at' => null,
+                'onboarding_completed_at' => null,
+                'setup_email_status' => 'not_sent',
                 'role' => $targetRole,
                 'applicant_type' => $applicantType,
-                'account_status' => AccountStatus::Active->value,
+                'account_status' => AccountStatus::PendingSetup->value,
                 'created_by_user_id' => $actor->id,
             ]);
 
             $this->auditLog->record($actor, 'user.created', $user, [
                 'role' => $targetRole->value,
                 'applicant_type' => $applicantType?->value,
+                'username' => $username,
             ]);
 
             return $user;
@@ -75,11 +86,23 @@ class UserAccountService
     public function updateProfile(User $actor, User $subject, array $attributes): User
     {
         Gate::forUser($actor)->authorize('update', $subject);
-        $validated = validator($this->normalizeProfile($attributes), $this->profileRules($subject))->validate();
+        $normalized = $this->normalizeProfile($attributes);
+
+        if (($normalized['last_name'] ?? null) !== $subject->last_name
+            || ($normalized['institutional_identifier'] ?? null) !== $subject->institutional_identifier) {
+            throw ValidationException::withMessages([
+                'identity' => 'Use the confirmed identity correction action to change surname or institutional identifier.',
+            ]);
+        }
+
+        $validated = validator(
+            $normalized,
+            $this->profileRules($subject, $subject->role, $subject->applicant_type),
+        )->validate();
 
         return DB::transaction(function () use ($actor, $subject, $validated): User {
             $subject->fill([
-                ...$this->profileValues($validated),
+                ...$this->profileValues($validated, $subject->role, $subject->applicant_type),
                 'name' => User::formatName(
                     $validated['first_name'],
                     $validated['middle_name'] ?? null,
@@ -98,6 +121,64 @@ class UserAccountService
         });
     }
 
+    /** @param array<string, mixed> $attributes */
+    public function regenerateUsername(User $actor, User $subject, array $attributes): User
+    {
+        Gate::forUser($actor)->authorize('update', $subject);
+        $lastName = Str::squish((string) ($attributes['last_name'] ?? ''));
+        $identifier = Str::upper(trim((string) ($attributes['institutional_identifier'] ?? '')));
+        $validated = validator([
+            ...$attributes,
+            'last_name' => $lastName,
+            'institutional_identifier' => $identifier,
+        ], [
+            'last_name' => ['required', 'string', 'max:100'],
+            'institutional_identifier' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[A-Z0-9][A-Z0-9._-]*$/i',
+                Rule::unique('users', 'institutional_identifier')->ignore($subject->id),
+            ],
+            'confirm_username_regeneration' => ['accepted'],
+        ])->validate();
+
+        if ($validated['last_name'] === $subject->last_name
+            && $validated['institutional_identifier'] === $subject->institutional_identifier) {
+            throw ValidationException::withMessages(['identity' => 'Change the surname or institutional identifier before confirming.']);
+        }
+
+        $previousUsername = $subject->username;
+        $updated = DB::transaction(function () use ($actor, $subject, $validated, $previousUsername): User {
+            $username = $this->usernameGenerator->generate(
+                $validated['institutional_identifier'],
+                $validated['last_name'],
+            );
+            $subject->forceFill([
+                'last_name' => $validated['last_name'],
+                'institutional_identifier' => $validated['institutional_identifier'],
+                'username' => $username,
+                'name' => User::formatName($subject->first_name, $subject->middle_name, $validated['last_name'], $subject->suffix),
+            ])->save();
+
+            $this->auditLog->record($actor, 'user.username_regenerated', $subject, [
+                'previous_username' => $previousUsername,
+                'new_username' => $username,
+                'result' => 'updated',
+            ]);
+
+            return $subject->refresh();
+        });
+
+        try {
+            $updated->notify(new UsernameChangedNotification($updated->username));
+        } catch (Throwable) {
+            $this->auditLog->record($actor, 'user.username_notification_failed', $updated, ['result' => 'failed']);
+        }
+
+        return $updated;
+    }
+
     public function changeStatus(User $actor, User $subject, AccountStatus|string $status): User
     {
         Gate::forUser($actor)->authorize('changeStatus', $subject);
@@ -105,6 +186,12 @@ class UserAccountService
 
         if (! $status) {
             throw ValidationException::withMessages(['account_status' => 'Select a valid account status.']);
+        }
+
+        if ($status === AccountStatus::Active && ! $subject->password_setup_completed_at) {
+            throw ValidationException::withMessages([
+                'account_status' => 'The account cannot be activated until password setup is complete.',
+            ]);
         }
 
         return DB::transaction(function () use ($actor, $subject, $status): User {
@@ -126,7 +213,7 @@ class UserAccountService
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    public function validateCreation(User $actor, array $attributes): array
+    public function validateCreation(User $actor, array $attributes, bool $checkDatabaseUniqueness = true): array
     {
         $attributes = $this->normalizeProfile($attributes);
         $attributes['role'] = $attributes['role'] instanceof UserRole
@@ -142,10 +229,11 @@ class UserAccountService
             throw new AuthorizationException('You are not allowed to create this account type.');
         }
 
+        $applicantType = $targetRole === UserRole::Applicant
+            ? ApplicantType::tryFrom((string) ($attributes['applicant_type'] ?? ''))
+            : null;
         $rules = [
-            ...$this->profileRules(),
-            'password' => ['required', 'string', 'min:8', 'max:64', 'confirmed'],
-            'password_confirmation' => ['required', 'string', 'max:64'],
+            ...$this->profileRules(null, $targetRole, $applicantType, $checkDatabaseUniqueness),
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [
                 Rule::requiredIf($targetRole === UserRole::Applicant),
@@ -155,45 +243,68 @@ class UserAccountService
         ];
 
         return validator($attributes, $rules, [
-            'password.required' => 'Enter an initial password.',
-            'password.min' => 'Password must be at least 8 characters.',
-            'password.confirmed' => 'Password confirmation does not match.',
             'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
         ])->validate();
     }
 
     /** @return array<string, array<int, mixed>> */
-    private function profileRules(?User $subject = null): array
-    {
+    private function profileRules(
+        ?User $subject = null,
+        ?UserRole $targetRole = null,
+        ?ApplicantType $applicantType = null,
+        bool $checkDatabaseUniqueness = true,
+    ): array {
         return [
             'first_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'suffix' => ['nullable', 'string', 'max:30'],
-            'email' => [
+            'email' => array_values(array_filter([
                 'required',
                 'email:rfc',
                 'max:255',
-                Rule::unique('users', 'email')->ignore($subject?->id),
-            ],
-            'institutional_identifier' => [
+                $checkDatabaseUniqueness ? Rule::unique('users', 'email')->ignore($subject?->id) : null,
+            ])),
+            'institutional_identifier' => array_values(array_filter([
                 'required',
                 'string',
                 'max:50',
                 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i',
-                Rule::unique('users', 'institutional_identifier')->ignore($subject?->id),
-            ],
+                $checkDatabaseUniqueness ? Rule::unique('users', 'institutional_identifier')->ignore($subject?->id) : null,
+            ])),
             'phone_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]+$/'],
             'institution' => ['nullable', 'string', 'max:150'],
             'department' => ['nullable', 'string', 'max:150'],
-            'position_title' => ['nullable', 'string', 'max:150'],
+            'program' => ['nullable', 'string', 'max:150'],
+            'year_level' => [
+                Rule::requiredIf($targetRole === UserRole::Applicant && $applicantType === ApplicantType::Student),
+                'nullable',
+                'string',
+                'max:30',
+            ],
+            'position_title' => [Rule::requiredIf($targetRole === UserRole::Adviser), 'nullable', 'string', 'max:150'],
+            'reviewer_classification' => [
+                Rule::requiredIf($targetRole === UserRole::Reviewer),
+                'nullable',
+                Rule::enum(ReviewerClassification::class),
+            ],
+            'reviewer_capacity' => [
+                Rule::requiredIf($targetRole === UserRole::Reviewer),
+                'nullable',
+                'integer',
+                'between:1,30',
+            ],
         ];
     }
 
     /** @param array<string, mixed> $attributes @return array<string, mixed> */
     private function normalizeProfile(array $attributes): array
     {
-        foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'position_title'] as $field) {
+        if (($attributes['reviewer_classification'] ?? null) instanceof ReviewerClassification) {
+            $attributes['reviewer_classification'] = $attributes['reviewer_classification']->value;
+        }
+
+        foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'program', 'year_level', 'position_title', 'reviewer_classification'] as $field) {
             $attributes[$field] = filled($attributes[$field] ?? null)
                 ? Str::squish((string) $attributes[$field])
                 : null;
@@ -206,9 +317,12 @@ class UserAccountService
     }
 
     /** @param array<string, mixed> $validated @return array<string, mixed> */
-    private function profileValues(array $validated): array
-    {
-        return collect($validated)->only([
+    private function profileValues(
+        array $validated,
+        UserRole $targetRole,
+        ?ApplicantType $applicantType,
+    ): array {
+        $values = collect($validated)->only([
             'first_name',
             'middle_name',
             'last_name',
@@ -218,7 +332,25 @@ class UserAccountService
             'phone_number',
             'institution',
             'department',
+            'program',
+            'year_level',
             'position_title',
+            'reviewer_classification',
+            'reviewer_capacity',
         ])->all();
+
+        if ($targetRole !== UserRole::Applicant) {
+            $values['program'] = null;
+            $values['year_level'] = null;
+        } elseif ($applicantType !== ApplicantType::Student) {
+            $values['year_level'] = null;
+        }
+
+        if ($targetRole !== UserRole::Reviewer) {
+            $values['reviewer_classification'] = null;
+            $values['reviewer_capacity'] = null;
+        }
+
+        return $values;
     }
 }

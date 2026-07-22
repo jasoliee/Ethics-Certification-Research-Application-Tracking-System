@@ -36,12 +36,29 @@ class UserPolicy
 
     public function initiatePasswordReset(User $actor, User $subject): bool
     {
-        return $this->changeStatus($actor, $subject);
+        return ! $actor->is($subject) && $this->canManageProfile($actor, $subject);
+    }
+
+    public function delete(User $actor, User $subject): bool
+    {
+        return $actor->role === UserRole::ResLead
+            && $subject->role !== UserRole::ResLead
+            && ! $actor->is($subject);
     }
 
     public function import(User $actor): bool
     {
         return $this->create($actor);
+    }
+
+    public function completeOnboarding(User $actor, User $subject): bool
+    {
+        return $actor->is($subject);
+    }
+
+    public function viewAuditLog(User $actor): bool
+    {
+        return $actor->role === UserRole::ResLead;
     }
 
     private function canManageProfile(User $actor, User $subject): bool

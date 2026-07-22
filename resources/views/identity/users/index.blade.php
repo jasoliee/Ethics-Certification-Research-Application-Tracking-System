@@ -10,13 +10,12 @@
             </div>
 
             <div class="identity-heading-actions">
-                <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.import.form') }}">
-                    <x-dashboard.icon name="upload" size="19" />
-                    <span>Bulk Import</span>
-                </a>
+                @if ($isResLead)
+                    <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.audit.index') }}"><x-dashboard.icon name="clipboard" size="19" /><span>Audit Log</span></a>
+                @endif
                 <a class="identity-button identity-button-primary" href="{{ route($routeBase.'.create') }}">
                     <x-dashboard.icon name="plus" size="19" />
-                    <span>Add New User</span>
+                    <span>Add Account</span>
                 </a>
             </div>
         </header>
@@ -83,6 +82,7 @@
                 <label for="status-filter">Status</label>
                 <select id="status-filter" name="account_status">
                     <option value="">All statuses</option>
+                    <option value="pending_setup" @selected(($filters['account_status'] ?? null) === 'pending_setup')>Pending Setup</option>
                     <option value="active" @selected(($filters['account_status'] ?? null) === 'active')>Active</option>
                     <option value="inactive" @selected(($filters['account_status'] ?? null) === 'inactive')>Inactive</option>
                 </select>
@@ -93,6 +93,23 @@
                 <a href="{{ route($routeBase.'.index') }}">Reset</a>
             </div>
         </form>
+
+        @if ($isResLead)
+            <form method="POST" action="{{ route($routeBase.'.mass-action') }}" data-managed-mass-action>
+                @csrf
+                <div class="identity-mass-toolbar">
+                    <label for="mass-action">Selected accounts</label>
+                    <select id="mass-action" required data-mass-action-select>
+                        <option value="">Choose action</option>
+                        <option value="deactivate">Deactivate</option>
+                        <option value="archive">Delete from active records</option>
+                        <option value="resend_setup">Resend setup link</option>
+                    </select>
+                    <input type="hidden" name="action" value="" data-mass-action-value>
+                    <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="selected">Apply</button>
+                    <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="resend_all_pending">Resend All Pending</button>
+                </div>
+        @endif
 
         {{-- The table preserves a stable header and a purpose-built empty state for zero results. --}}
         <section class="identity-table-panel" aria-labelledby="user-results-heading">
@@ -114,6 +131,7 @@
                 <table class="identity-user-table">
                     <thead>
                         <tr>
+                            @if ($isResLead)<th scope="col" class="identity-checkbox-cell"><input type="checkbox" aria-label="Select all visible accounts" data-select-all-users></th>@endif
                             <th scope="col">Name</th>
                             <th scope="col">Institutional ID</th>
                             <th scope="col">Email</th>
@@ -121,6 +139,7 @@
                             <th scope="col">Institution / Unit</th>
                             <th scope="col">Date Created</th>
                             <th scope="col">Status</th>
+                            <th scope="col">Setup Email</th>
                             <th scope="col">Action</th>
                         </tr>
                     </thead>
@@ -135,6 +154,7 @@
                                 };
                             @endphp
                             <tr>
+                                @if ($isResLead)<td class="identity-checkbox-cell"><input type="checkbox" name="user_ids[]" value="{{ $managedUser->id }}" aria-label="Select {{ $managedUser->name }}" data-select-user></td>@endif
                                 <td>
                                     <span class="identity-table-person">
                                         <span class="identity-mini-avatar" aria-hidden="true">{{ $initials }}</span>
@@ -151,12 +171,13 @@
                                     </span>
                                 </td>
                                 <td><time datetime="{{ $managedUser->created_at?->toDateString() }}">{{ $managedUser->created_at?->format('M d, Y') }}</time></td>
-                                <td><x-dashboard.status-badge :label="Str::headline($managedUser->account_status)" :tone="$managedUser->account_status === 'active' ? 'green' : 'neutral'" dot /></td>
+                                <td><x-dashboard.status-badge :label="Str::headline($managedUser->account_status)" :tone="$managedUser->account_status === 'active' ? 'green' : ($managedUser->account_status === 'pending_setup' ? 'orange' : 'neutral')" dot /></td>
+                                <td>{{ Str::headline($managedUser->setup_email_status) }}</td>
                                 <td><a class="identity-view-link" href="{{ route($routeBase.'.show', $managedUser) }}">View</a></td>
                             </tr>
                         @empty
                             <tr class="identity-empty-row">
-                                <td colspan="8">
+                                <td colspan="{{ $isResLead ? 10 : 9 }}">
                                     <div class="identity-empty-state">
                                         <span><x-dashboard.icon name="users" size="48" /></span>
                                         <strong>No users found</strong>
@@ -186,5 +207,8 @@
                 </nav>
             @endif
         </section>
+        @if ($isResLead)
+            </form>
+        @endif
     </div>
 @endsection

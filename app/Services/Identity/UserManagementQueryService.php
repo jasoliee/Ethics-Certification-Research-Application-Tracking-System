@@ -52,7 +52,7 @@ class UserManagementQueryService
             $query->where('applicant_type', $applicantType->value);
         }
 
-        if (in_array($filters['account_status'] ?? null, ['active', 'inactive'], true)) {
+        if (in_array($filters['account_status'] ?? null, ['pending_setup', 'active', 'inactive'], true)) {
             $query->where('account_status', $filters['account_status']);
         }
 

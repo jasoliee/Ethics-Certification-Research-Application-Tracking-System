@@ -4,7 +4,9 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 ## Current Status
 
-The repository includes username-based authentication, role middleware, record-level dashboard authorization, functional dashboards for every implemented role, and role-authorized account management. RES Lead users can manage researcher, adviser, and reviewer accounts; advisers can manage only allowed applicant accounts. Account creation includes generated usernames, individual and CSV workflows, status controls, secure reset links, and audit records. Dashboard counts, tables, requirements, deadlines, milestones, and notifications are database-driven. Modules outside these implemented areas still open shared temporary workspaces until their workflows are completed.
+The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus CSV/XLSX preview and confirmation. Onboarding, mass account actions, audit history, database-driven requirements, MIME-based icons, and guarded initial application submission are implemented and tested.
+
+Modules outside these areas still open shared temporary workspaces. Adviser decisions, RES screening, blind review, revisions, result release, certificate rendering, and QR verification are not yet complete end-to-end workflows. The maintained OVPRII background asset is prepared under `resources/assets/official`, but no official document generator currently consumes it.
 
 The dashboard database tables are an initial implementation slice of the larger module-based ERD. They do not replace the remaining application, screening, review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
@@ -71,7 +73,7 @@ Normal local seeding keeps the dashboards empty. To inspect the populated refere
 php artisan db:seed --class=DashboardDemoSeeder
 ```
 
-The CSV account template is downloaded from User Management. Imports are limited to 250 rows and are deleted from private temporary storage after success or failure. Local password-reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
+CSV and XLSX account templates are downloaded from User Management after selecting an authorized role. Imports are limited to 250 rows and 2 MB, require preview and explicit confirmation, and use private temporary storage. Local setup/reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
 
 Start the application with `composer run dev` or `php artisan serve`, then open `http://127.0.0.1:8000/login`.
 

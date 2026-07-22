@@ -27,6 +27,11 @@
                 @endif
 
                 @yield('content')
+
+                <x-dashboard.onboarding-guide
+                    :guide="$dashboardOnboardingGuide"
+                    :requires-completion="$dashboardRequiresOnboarding"
+                />
             </main>
 
             <x-dashboard.footer />

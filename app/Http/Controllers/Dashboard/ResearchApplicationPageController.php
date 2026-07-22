@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ResearchApplication;
+use App\Services\Applications\ResearchApplicationSubmissionService;
 use App\Support\DashboardNavigation;
 use App\Support\RoleHome;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -25,6 +27,17 @@ class ResearchApplicationPageController extends Controller
         Gate::authorize('view', $researchApplication);
 
         return $this->page($request, $researchApplication, 'Submitted Requirements', 'clipboard');
+    }
+
+    public function submit(
+        Request $request,
+        ResearchApplication $researchApplication,
+        ResearchApplicationSubmissionService $submissions,
+    ): RedirectResponse {
+        $submissions->submit($request->user(), $researchApplication);
+
+        return redirect()->route('applicant.applications.show', $researchApplication)
+            ->with('status', 'Application submitted to your adviser.');
     }
 
     private function page(Request $request, ResearchApplication $application, string $title, string $icon): View
@@ -50,6 +63,7 @@ class ResearchApplicationPageController extends Controller
             'application' => $application->loadMissing('applicant:id,name', 'adviser:id,name'),
             'moduleIcon' => $icon,
             'indexRoute' => DashboardNavigation::applicationsRoute($role),
+            'canSubmit' => $request->user()->can('submit', $application),
             'breadcrumbs' => $breadcrumbs,
         ]);
     }

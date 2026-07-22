@@ -3,10 +3,13 @@
 namespace Tests\Feature\Identity;
 
 use App\Enums\ApplicantType;
+use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
-use App\Models\AuditLog;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\AccountSetupNotification;
+use App\Notifications\UsernameChangedNotification;
+use App\Services\Identity\AccountTypeCatalog;
+use App\Services\Identity\SafeSpreadsheet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -14,245 +17,427 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use ZipArchive;
 
 class UserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_res_lead_listing_is_searchable_paginated_and_excludes_res_lead_accounts(): void
+    public function test_res_lead_listing_excludes_res_leads_and_shows_pending_setup_state(): void
     {
         $resLead = User::factory()->create([
             'role' => UserRole::ResLead,
             'name' => 'Primary RES Lead',
-            'institutional_identifier' => 'RES-LEAD-NOT-IN-TABLE',
+            'institutional_identifier' => 'RES-LEAD-HIDDEN',
         ]);
-        $adviser = User::factory()->create(['role' => UserRole::Adviser, 'name' => 'Ana Reyes', 'email' => 'ana.reyes@ecrats.test']);
-        User::factory()->count(11)->create(['role' => UserRole::Reviewer]);
+        $pending = User::factory()->pendingSetup()->create(['name' => 'Pending Student']);
 
         $this->actingAs($resLead)
             ->get(route('res.users.index'))
             ->assertOk()
-            ->assertSee('User Management')
-            ->assertSee('Showing 1 to 10 of 12 users')
-            ->assertSee('Ana Reyes')
-            ->assertDontSee('RES-LEAD-NOT-IN-TABLE');
+            ->assertSee('Pending Student')
+            ->assertSee('Pending Setup')
+            ->assertDontSee('RES-LEAD-HIDDEN');
 
-        $this->actingAs($resLead)
-            ->get(route('res.users.index', ['search' => 'ana.reyes@ecrats.test']))
-            ->assertOk()
-            ->assertSee($adviser->institutional_identifier)
-            ->assertSee('Showing 1 to 1 of 1 users');
+        $this->assertTrue($pending->password_setup_completed_at === null);
     }
 
-    public function test_adviser_sees_only_applicants_with_an_allowed_relationship(): void
+    public function test_individual_creation_generates_pending_account_and_sends_username_setup_link(): void
     {
-        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
-        $owned = User::factory()->create(['role' => UserRole::Applicant, 'created_by_user_id' => $adviser->id, 'name' => 'Owned Applicant']);
-        $other = User::factory()->create(['role' => UserRole::Applicant, 'name' => 'Other Applicant']);
-        User::factory()->create(['role' => UserRole::Reviewer, 'name' => 'Hidden Reviewer']);
-
-        $this->actingAs($adviser)
-            ->get(route('adviser.applicants.index'))
-            ->assertOk()
-            ->assertSee($owned->name)
-            ->assertDontSee($other->name)
-            ->assertDontSee('Hidden Reviewer');
-
-        $this->actingAs($adviser)
-            ->get(route('adviser.applicants.show', $other))
-            ->assertForbidden();
-    }
-
-    public function test_res_lead_creates_account_with_normalized_fields_and_generated_username(): void
-    {
+        Notification::fake();
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
 
-        $response = $this->actingAs($resLead)->post(route('res.users.store'), $this->validPayload([
+        $response = $this->actingAs($resLead)->post(route('res.users.store'), $this->studentPayload([
             'first_name' => 'Juan',
             'middle_name' => 'Santos',
             'last_name' => 'Dela Cruz',
             'email' => 'JUAN.DELA.CRUZ@ECRATS.TEST',
             'institutional_identifier' => 'kld-stu-501',
-            'role' => UserRole::Applicant->value,
-            'applicant_type' => ApplicantType::Student->value,
-            'username' => 'manual-username',
+            'username' => 'manual-name',
+            'password' => 'creator-password-must-be-ignored',
         ]));
 
         $user = User::where('email', 'juan.dela.cruz@ecrats.test')->firstOrFail();
         $response->assertRedirect(route('res.users.show', ['managedUser' => $user, 'created' => 1]));
         $this->assertSame('Juan Santos Dela Cruz', $user->name);
         $this->assertSame('KLD-STU-501', $user->institutional_identifier);
-        $this->assertSame('juan.dela.cruz_student', $user->username);
-        $this->assertSame($resLead->id, $user->created_by_user_id);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'user.created', 'subject_id' => $user->id]);
+        $this->assertSame('kld.stu.501.dela.cruz', $user->username);
+        $this->assertSame('pending_setup', $user->account_status);
+        $this->assertNull($user->password_setup_completed_at);
+        $this->assertFalse(Hash::check('creator-password-must-be-ignored', $user->password));
+
+        Notification::assertSentTo($user, AccountSetupNotification::class, function ($notification) use ($user): bool {
+            $mail = $notification->toMail($user);
+            $lines = collect($mail->introLines)->implode(' ');
+
+            return str_contains($lines, $user->username)
+                && ! str_contains($lines, 'creator-password-must-be-ignored')
+                && str_contains((string) $mail->actionUrl, '/reset-password/');
+        });
+        $this->assertDatabaseHas('audit_logs', ['action' => 'user.setup_email_sent', 'subject_id' => $user->id]);
     }
 
-    public function test_adviser_cannot_create_reviewer_or_res_lead_accounts(): void
+    public function test_adviser_can_create_only_student_or_faculty_accounts(): void
     {
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
 
+        $this->actingAs($adviser)
+            ->post(route('adviser.applicants.store'), $this->studentPayload())
+            ->assertRedirect();
+
         foreach ([UserRole::Reviewer, UserRole::ResLead] as $role) {
             $this->actingAs($adviser)
-                ->post(route('adviser.applicants.store'), $this->validPayload([
-                    'email' => $role->value.'@ecrats.test',
-                    'institutional_identifier' => 'KLD-BLOCK-'.substr(md5($role->value), 0, 6),
+                ->post(route('adviser.applicants.store'), $this->reviewerPayload([
                     'role' => $role->value,
+                    'email' => $role->value.'@ecrats.test',
+                    'institutional_identifier' => 'BLOCK-'.$role->value,
                 ]))
                 ->assertForbidden();
         }
     }
 
-    public function test_profile_update_cannot_change_role_username_status_or_password(): void
+    public function test_pending_setup_account_cannot_login_and_setup_token_is_single_use(): void
     {
-        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $subject = User::factory()->create(['role' => UserRole::Reviewer, 'account_status' => 'inactive']);
-        $originalPassword = $subject->password;
-        $originalUsername = $subject->username;
-
-        $this->actingAs($resLead)
-            ->put(route('res.users.update', $subject), [
-                ...$this->profilePayload($subject),
-                'first_name' => 'Updated',
-                'role' => UserRole::ResLead->value,
-                'username' => 'changed-by-payload',
-                'account_status' => 'active',
-                'password' => 'changed-password',
-            ])
-            ->assertRedirect(route('res.users.show', $subject));
-
-        $subject->refresh();
-        $this->assertSame('Updated', $subject->first_name);
-        $this->assertSame(UserRole::Reviewer, $subject->role);
-        $this->assertSame($originalUsername, $subject->username);
-        $this->assertSame('inactive', $subject->account_status);
-        $this->assertSame($originalPassword, $subject->password);
-    }
-
-    public function test_res_lead_can_deactivate_account_and_inactive_login_uses_generic_error(): void
-    {
-        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $subject = User::factory()->create([
-            'role' => UserRole::Reviewer,
-            'username' => 'statusreviewer',
-            'password' => Hash::make('securepass'),
+        $user = User::factory()->pendingSetup()->create([
+            'username' => 'pending.user',
+            'email' => 'pending.user@ecrats.test',
         ]);
+        $token = Password::broker()->createToken($user);
 
-        $this->actingAs($resLead)
-            ->patch(route('res.users.status', $subject), ['account_status' => 'inactive'])
-            ->assertRedirect();
-
-        $this->assertSame('inactive', $subject->refresh()->account_status);
-        $this->post(route('logout'));
-        $this->from('/login')->post('/login', ['username' => 'statusreviewer', 'password' => 'securepass'])
+        $this->post(route('login.store'), ['username' => 'pending.user', 'password' => 'password'])
             ->assertSessionHasErrors(['credentials' => 'The username or password is incorrect.']);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'user.status_changed', 'subject_id' => $subject->id]);
-    }
 
-    public function test_res_lead_sends_secure_reset_link_and_user_can_complete_it(): void
-    {
-        Notification::fake();
-        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $subject = User::factory()->create(['role' => UserRole::Reviewer]);
-
-        $this->actingAs($resLead)
-            ->post(route('res.users.password-reset', $subject))
-            ->assertRedirect();
-
-        Notification::assertSentTo($subject, ResetPassword::class);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'user.password_reset_requested', 'subject_id' => $subject->id]);
-
-        $token = Password::broker()->createToken($subject);
-        $this->post(route('logout'));
         $this->post(route('password.update'), [
             'token' => $token,
-            'email' => $subject->email,
+            'email' => $user->email,
             'password' => 'newsecurepass',
             'password_confirmation' => 'newsecurepass',
         ])->assertRedirect(route('login'));
 
-        $this->assertTrue(Hash::check('newsecurepass', $subject->refresh()->password));
-        $this->assertDatabaseHas('audit_logs', ['action' => 'user.password_reset_completed', 'subject_id' => $subject->id]);
+        $user->refresh();
+        $this->assertSame('active', $user->account_status);
+        $this->assertNotNull($user->password_setup_completed_at);
+        $this->assertTrue(Hash::check('newsecurepass', $user->password));
+
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'anothersecurepass',
+            'password_confirmation' => 'anothersecurepass',
+        ])->assertSessionHasErrors('email');
+        $this->assertTrue(Hash::check('newsecurepass', $user->refresh()->password));
     }
 
-    public function test_valid_csv_import_is_atomic_audited_and_removes_private_temporary_file(): void
+    public function test_setup_token_expires_after_one_week(): void
     {
+        $user = User::factory()->pendingSetup()->create();
+        $token = Password::broker()->createToken($user);
+
+        $this->assertSame(10080, config('auth.passwords.users.expire'));
+        $this->travel(8)->days();
+
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'newsecurepass',
+            'password_confirmation' => 'newsecurepass',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertSame('pending_setup', $user->refresh()->account_status);
+        $this->assertNull($user->password_setup_completed_at);
+    }
+
+    public function test_role_specific_csv_and_excel_templates_exclude_credentials(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $csv = $this->actingAs($resLead)->get(route('res.users.import.template', [
+            'format' => 'csv',
+            'account_type' => 'reviewer',
+        ]));
+        $csv->assertOk();
+        $csvContent = $csv->streamedContent();
+        $this->assertStringContainsString('reviewer_classification', $csvContent);
+        $this->assertStringContainsString('reviewer_capacity', $csvContent);
+        $this->assertStringNotContainsString('password', strtolower($csvContent));
+        $this->assertStringNotContainsString('username', strtolower($csvContent));
+
+        $xlsx = $this->actingAs($resLead)->get(route('res.users.import.template', [
+            'format' => 'xlsx',
+            'account_type' => 'student_researcher',
+        ]))->assertOk();
+        $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $xlsx->headers->get('content-type'));
+        $templatePath = $xlsx->baseResponse->getFile()->getPathname();
+        $this->assertStringStartsWith('PK', (string) file_get_contents($templatePath));
+    }
+
+    public function test_csv_import_requires_preview_then_single_confirmation(): void
+    {
+        Notification::fake();
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $csv = implode("\n", [
-            'account_type,first_name,middle_name,last_name,suffix,email,institutional_identifier,phone_number,institution,department,position_title,password',
-            'student_researcher,CSV,,Student,,csv.student@ecrats.test,KLD-STU-601,,KLD,Engineering,,securepass',
-            'reviewer,CSV,,Reviewer,,csv.reviewer@ecrats.test,KLD-EMP-601,,KLD,Research Ethics,,securepass',
+            'template_version,applicant_type,first_name,last_name,email,student_number,year_level',
+            AccountTypeCatalog::TEMPLATE_VERSION.',student_researcher,CSV,Student,csv.student@ecrats.test,KLD-STU-601,Fourth Year',
         ]);
 
-        $this->actingAs($resLead)
-            ->post(route('res.users.import.store'), [
-                'accounts_file' => UploadedFile::fake()->createWithContent('accounts.csv', $csv),
-            ])
+        $response = $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => UploadedFile::fake()->createWithContent('students.csv', $csv),
+        ]);
+        $response->assertOk()->assertSee('Import Preview')->assertSee('kld.stu.601.student');
+        $this->assertDatabaseMissing('users', ['email' => 'csv.student@ecrats.test']);
+
+        $previewFile = collect(Storage::disk('local')->allFiles('imports/user-accounts/previews/'.$resLead->id))->first();
+        $this->assertNotNull($previewFile);
+        $token = pathinfo($previewFile, PATHINFO_FILENAME);
+
+        $this->actingAs($resLead)->post(route('res.users.import.confirm'), ['import_token' => $token])
             ->assertRedirect(route('res.users.index'));
+        $created = User::where('email', 'csv.student@ecrats.test')->firstOrFail();
+        $this->assertSame('pending_setup', $created->account_status);
+        Notification::assertSentTo($created, AccountSetupNotification::class);
 
-        $this->assertDatabaseHas('users', ['email' => 'csv.student@ecrats.test', 'applicant_type' => ApplicantType::Student->value]);
-        $this->assertDatabaseHas('users', ['email' => 'csv.reviewer@ecrats.test', 'role' => UserRole::Reviewer->value]);
-        $this->assertSame([], Storage::disk('local')->allFiles('imports/user-accounts'));
-        $this->assertSame(1, AuditLog::where('action', 'user.bulk_imported')->count());
+        $this->actingAs($resLead)->post(route('res.users.import.confirm'), ['import_token' => $token])
+            ->assertSessionHasErrors('import_token');
+        $this->assertSame(1, User::where('email', 'csv.student@ecrats.test')->count());
     }
 
-    public function test_invalid_csv_rolls_back_every_row_and_deletes_temporary_file(): void
+    public function test_invalid_import_reports_rows_and_creates_nothing(): void
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $csv = implode("\n", [
-            'account_type,first_name,last_name,email,institutional_identifier,password',
-            'student_researcher,Valid,Student,valid.csv@ecrats.test,KLD-STU-701,securepass',
-            'reviewer,Invalid,Reviewer,not-an-email,KLD-EMP-701,short',
+            'template_version,first_name,last_name,email,employee_id,reviewer_classification,reviewer_capacity',
+            AccountTypeCatalog::TEMPLATE_VERSION.',Invalid,Reviewer,not-an-email,KLD-EMP-701,unknown,99',
         ]);
 
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'reviewer',
+            'accounts_file' => UploadedFile::fake()->createWithContent('reviewers.csv', $csv),
+        ])->assertOk()->assertSee('Import cannot be confirmed')->assertSee('Row');
+
+        $this->assertDatabaseMissing('users', ['institutional_identifier' => 'KLD-EMP-701']);
+        $this->assertSame([], Storage::disk('local')->allFiles('imports/user-accounts/uploads'));
+    }
+
+    public function test_csv_import_rejects_invalid_utf8_beyond_the_initial_chunk(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $csv = 'template_version,applicant_type,first_name,last_name,email,student_number,year_level'."\n"
+            .AccountTypeCatalog::TEMPLATE_VERSION.',student_researcher,'.str_repeat('A', 4100).",Student,invalid@ecrats.test,KLD-STU-999,Fourth Year\xFF";
+
         $this->actingAs($resLead)
-            ->from(route('res.users.import.form'))
+            ->from(route('res.users.import.form', ['account_type' => 'student_researcher']))
             ->post(route('res.users.import.store'), [
-                'accounts_file' => UploadedFile::fake()->createWithContent('accounts.csv', $csv),
+                'account_type' => 'student_researcher',
+                'accounts_file' => UploadedFile::fake()->createWithContent('students.csv', $csv),
             ])
-            ->assertRedirect(route('res.users.import.form'))
+            ->assertRedirect()
             ->assertSessionHasErrors('accounts_file');
 
-        $this->assertDatabaseMissing('users', ['email' => 'valid.csv@ecrats.test']);
-        $this->assertSame([], Storage::disk('local')->allFiles('imports/user-accounts'));
+        $this->assertDatabaseMissing('users', ['institutional_identifier' => 'KLD-STU-999']);
+        $this->assertSame([], Storage::disk('local')->allFiles('imports/user-accounts/uploads'));
+    }
+
+    public function test_excel_import_round_trip_and_formula_rejection(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $headers = ['template_version', 'applicant_type', 'first_name', 'last_name', 'email', 'student_number', 'year_level'];
+        $spreadsheet = app(SafeSpreadsheet::class);
+        $validPath = $spreadsheet->createTemplate($headers);
+        $this->appendSpreadsheetRow($validPath, [
+            AccountTypeCatalog::TEMPLATE_VERSION,
+            'student_researcher',
+            'Excel',
+            'Student',
+            'excel.student@ecrats.test',
+            'KLD-STU-801',
+            'Fourth Year',
+        ]);
+
+        $valid = new UploadedFile(
+            $validPath,
+            'students.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $valid,
+        ])->assertOk()->assertSee('Import Preview')->assertSee('excel.student@ecrats.test');
+
+        $formulaPath = $spreadsheet->createTemplate($headers);
+        $this->appendSpreadsheetRow($formulaPath, [
+            AccountTypeCatalog::TEMPLATE_VERSION,
+            'student_researcher',
+            'Unsafe',
+            'Formula',
+            'unsafe.formula@ecrats.test',
+            'KLD-STU-802',
+            'Fourth Year',
+        ], 2);
+        $formula = new UploadedFile(
+            $formulaPath,
+            'formula.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+
+        $this->actingAs($resLead)
+            ->from(route('res.users.import.form', ['account_type' => 'student_researcher']))
+            ->post(route('res.users.import.store'), [
+                'account_type' => 'student_researcher',
+                'accounts_file' => $formula,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('accounts_file');
+
+        $this->assertDatabaseMissing('users', ['email' => 'unsafe.formula@ecrats.test']);
+    }
+
+    public function test_res_lead_can_mass_deactivate_and_soft_delete_accounts(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $deactivate = User::factory()->create();
+        $archive = User::factory()->create();
+
+        $this->actingAs($resLead)->post(route('res.users.mass-action'), [
+            'action' => 'deactivate',
+            'user_ids' => [$deactivate->id],
+        ])->assertRedirect();
+        $this->assertSame('inactive', $deactivate->refresh()->account_status);
+
+        $this->actingAs($resLead)->post(route('res.users.mass-action'), [
+            'action' => 'archive',
+            'user_ids' => [$archive->id],
+        ])->assertRedirect();
+        $this->assertSoftDeleted('users', ['id' => $archive->id]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'user.archived', 'subject_id' => $archive->id]);
+    }
+
+    public function test_identity_correction_regenerates_username_notifies_user_and_audits_change(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $subject = User::factory()->create([
+            'last_name' => 'Oldname',
+            'institutional_identifier' => 'KLD-STU-901',
+            'username' => 'kld.stu.901.oldname',
+        ]);
+
+        $this->actingAs($resLead)->patch(route('res.users.username', $subject), [
+            'last_name' => 'Corrected Name',
+            'institutional_identifier' => 'KLD-STU-902',
+            'confirm_username_regeneration' => '1',
+        ])->assertRedirect(route('res.users.show', $subject));
+
+        $subject->refresh();
+        $this->assertSame('kld.stu.902.corrected.name', $subject->username);
+        $this->assertSame('Corrected Name', $subject->last_name);
+        Notification::assertSentTo($subject, UsernameChangedNotification::class);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_user_id' => $resLead->id,
+            'action' => 'user.username_regenerated',
+            'subject_id' => $subject->id,
+        ]);
+    }
+
+    public function test_setup_resend_is_rate_limited_and_never_duplicates_account(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $subject = User::factory()->pendingSetup()->create();
+
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $this->actingAs($resLead)
+                ->post(route('res.users.password-reset', $subject))
+                ->assertRedirect();
+        }
+
+        $this->actingAs($resLead)
+            ->post(route('res.users.password-reset', $subject))
+            ->assertTooManyRequests();
+
+        $this->assertSame(1, User::whereKey($subject->id)->count());
+        $this->assertDatabaseCount('password_reset_tokens', 1);
+        $this->assertCount(3, Notification::sent($subject, AccountSetupNotification::class));
+    }
+
+    public function test_unauthorized_user_management_access_is_denied_and_audited(): void
+    {
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $unrelatedApplicant = User::factory()->create(['role' => UserRole::Applicant]);
+
+        $this->actingAs($adviser)
+            ->get(route('adviser.applicants.show', $unrelatedApplicant))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_user_id' => $adviser->id,
+            'action' => 'auth.authorization_denied',
+        ]);
     }
 
     /** @param array<string, mixed> $overrides @return array<string, mixed> */
-    private function validPayload(array $overrides = []): array
+    private function studentPayload(array $overrides = []): array
     {
         return array_merge([
             'first_name' => 'New',
             'middle_name' => null,
-            'last_name' => 'Account',
+            'last_name' => 'Student',
             'suffix' => null,
-            'email' => 'new.account@ecrats.test',
-            'institutional_identifier' => 'KLD-EMP-501',
+            'email' => 'new.student@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-501',
             'phone_number' => '+63 917 123 4567',
             'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
-            'department' => 'Research Ethics Section',
-            'position_title' => 'Research Staff',
-            'password' => 'securepass',
-            'password_confirmation' => 'securepass',
+            'department' => 'Engineering',
+            'program' => 'BS Information Systems',
+            'year_level' => 'Fourth Year',
+            'role' => UserRole::Applicant->value,
+            'applicant_type' => ApplicantType::Student->value,
+        ], $overrides);
+    }
+
+    /** @param array<string, mixed> $overrides @return array<string, mixed> */
+    private function reviewerPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'first_name' => 'New',
+            'last_name' => 'Reviewer',
+            'email' => 'new.reviewer@ecrats.test',
+            'institutional_identifier' => 'KLD-EMP-501',
+            'position_title' => 'Faculty Reviewer',
+            'reviewer_classification' => ReviewerClassification::Expedited->value,
+            'reviewer_capacity' => 30,
             'role' => UserRole::Reviewer->value,
             'applicant_type' => null,
         ], $overrides);
     }
 
-    /** @return array<string, mixed> */
-    private function profilePayload(User $user): array
+    /** @param array<int, string> $values */
+    private function appendSpreadsheetRow(string $path, array $values, ?int $formulaColumn = null): void
     {
-        return [
-            'first_name' => $user->first_name,
-            'middle_name' => $user->middle_name,
-            'last_name' => $user->last_name,
-            'suffix' => $user->suffix,
-            'email' => $user->email,
-            'institutional_identifier' => $user->institutional_identifier,
-            'phone_number' => $user->phone_number,
-            'institution' => $user->institution,
-            'department' => $user->department,
-            'position_title' => $user->position_title,
-        ];
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path) === true);
+        $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
+        $cells = '';
+
+        foreach ($values as $index => $value) {
+            $column = chr(65 + $index);
+            $escaped = htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+            $cells .= $formulaColumn === $index
+                ? '<c r="'.$column.'2"><f>1+1</f><v>2</v></c>'
+                : '<c r="'.$column.'2" t="inlineStr"><is><t>'.$escaped.'</t></is></c>';
+        }
+
+        $sheet = str_replace('</sheetData>', '<row r="2">'.$cells.'</row></sheetData>', $sheet);
+        $this->assertTrue($zip->addFromString('xl/worksheets/sheet1.xml', $sheet));
+        $zip->close();
     }
 }
