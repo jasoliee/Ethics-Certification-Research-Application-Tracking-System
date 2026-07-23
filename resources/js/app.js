@@ -31,24 +31,14 @@ function initializeLoginPage() {
         window.addEventListener('resize', resizeLoginShell, { passive: true });
     }
 
-    const form = document.querySelector('[data-login-form]');
+    document.querySelectorAll('[data-password-toggle]').forEach((passwordToggle) => {
+        const inputId = passwordToggle.getAttribute('aria-controls');
+        const password = inputId ? document.getElementById(inputId) : null;
 
-    if (! form) {
-        return;
-    }
+        if (! password) {
+            return;
+        }
 
-    const username = form.querySelector('#username');
-    const password = form.querySelector('#password');
-    const passwordToggle = form.querySelector('[data-password-toggle]');
-    const messageArea = form.querySelector('#login-validation-messages');
-
-    if (! username || ! password || ! messageArea) {
-        return;
-    }
-
-    const fields = { username, password };
-
-    if (passwordToggle) {
         const setPasswordVisibility = (passwordIsVisible) => {
             const label = passwordIsVisible ? 'Hide password' : 'Show password';
 
@@ -78,7 +68,23 @@ function initializeLoginPage() {
         syncPasswordToggle();
         window.requestAnimationFrame(syncPasswordToggle);
         window.setTimeout(syncPasswordToggle, 500);
+    });
+
+    const form = document.querySelector('[data-login-form]');
+
+    if (! form) {
+        return;
     }
+
+    const username = form.querySelector('#username');
+    const password = form.querySelector('#password');
+    const messageArea = form.querySelector('#login-validation-messages');
+
+    if (! username || ! password || ! messageArea) {
+        return;
+    }
+
+    const fields = { username, password };
 
     const hideMessage = (message) => {
         message.hidden = true;

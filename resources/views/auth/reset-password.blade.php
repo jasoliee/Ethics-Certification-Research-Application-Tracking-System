@@ -20,8 +20,33 @@
                 <input type="hidden" name="email" value="{{ old('email', $email) }}">
 
                 <div class="reset-field"><label for="reset-email">Email Address</label><input id="reset-email" type="email" value="{{ old('email', $email) }}" disabled></div>
-                <div class="reset-field"><label for="reset-password">New Password</label><input id="reset-password" name="password" type="password" minlength="8" maxlength="64" autocomplete="new-password" required autofocus>@error('password')<span>{{ $message }}</span>@enderror</div>
-                <div class="reset-field"><label for="reset-password-confirmation">Confirm Password</label><input id="reset-password-confirmation" name="password_confirmation" type="password" maxlength="64" autocomplete="new-password" required></div>
+                <div class="reset-field">
+                    <label for="reset-password">New Password</label>
+                    <div class="password-input-wrapper">
+                        <input id="reset-password" name="password" type="password" minlength="8" maxlength="64" autocomplete="new-password" required autofocus>
+                        <button type="button" class="password-toggle" aria-label="Show password" aria-controls="reset-password" aria-pressed="false" title="Show password" data-password-toggle hidden>
+                            <svg class="password-toggle-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path d="M2.1 12s3.6-7 9.9-7 9.9 7 9.9 7-3.6 7-9.9 7-9.9-7-9.9-7Z" />
+                                <circle cx="12" cy="12" r="3" />
+                                <path class="password-toggle-slash" data-password-state-indicator d="m3 3 18 18" />
+                            </svg>
+                        </button>
+                    </div>
+                    @error('password')<span>{{ $message }}</span>@enderror
+                </div>
+                <div class="reset-field">
+                    <label for="reset-password-confirmation">Confirm Password</label>
+                    <div class="password-input-wrapper">
+                        <input id="reset-password-confirmation" name="password_confirmation" type="password" maxlength="64" autocomplete="new-password" required>
+                        <button type="button" class="password-toggle" aria-label="Show password" aria-controls="reset-password-confirmation" aria-pressed="false" title="Show password" data-password-toggle hidden>
+                            <svg class="password-toggle-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path d="M2.1 12s3.6-7 9.9-7 9.9 7 9.9 7-3.6 7-9.9 7-9.9-7-9.9-7Z" />
+                                <circle cx="12" cy="12" r="3" />
+                                <path class="password-toggle-slash" data-password-state-indicator d="m3 3 18 18" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
                 @error('email')<div class="reset-error" role="alert">{{ $message }}</div>@enderror
                 <button type="submit">Reset Password</button>
             </form>

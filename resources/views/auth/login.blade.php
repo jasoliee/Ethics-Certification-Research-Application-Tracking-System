@@ -14,6 +14,7 @@
         $hasCredentialError = $errors->has('credentials');
         $usernameIsInvalid = $hasCredentialError || $errors->has('username');
         $passwordIsInvalid = $hasCredentialError || $errors->has('password');
+        $loginUsername = old('username', session('login_username', ''));
     @endphp
 
     <main class="login-page" aria-labelledby="login-title">
@@ -32,6 +33,15 @@
                     <h2 id="login-title">Login Account</h2>
                     <p class="login-instruction">Enter your username and password to access your account.</p>
 
+                    @if (session('status'))
+                        <div class="login-status-message" role="status">
+                            <span>{{ session('status') }}</span>
+                            @if (session('login_username'))
+                                <strong>{{ session('login_username') }}</strong>
+                            @endif
+                        </div>
+                    @endif
+
                     <form class="login-form" method="POST" action="{{ route('login.store') }}" aria-label="Login form" data-login-form novalidate>
                         @csrf
 
@@ -41,7 +51,7 @@
                                 id="username"
                                 name="username"
                                 type="text"
-                                value="{{ old('username') }}"
+                                value="{{ $loginUsername }}"
                                 autocomplete="username"
                                 placeholder="Enter your username"
                                 aria-describedby="login-validation-messages"

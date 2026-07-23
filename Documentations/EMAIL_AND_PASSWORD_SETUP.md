@@ -29,17 +29,30 @@ Use an approved institutional provider. A Gmail-compatible SMTP configuration ma
 
 ```dotenv
 MAIL_MAILER=smtp
+MAIL_SCHEME=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=approved-account@example.edu.ph
 MAIL_PASSWORD=provider-app-password
-MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=approved-account@example.edu.ph
 MAIL_FROM_NAME="ECRATS"
 APP_URL=https://ecrats.example.edu.ph
 ```
 
 Production `APP_URL` must be the real HTTPS origin so emailed links never point to localhost. Store secrets only in the deployment environment.
+
+## Gmail Local Delivery Test
+
+For temporary local Gmail testing, use a Google App Password, not the normal Gmail password. App passwords require 2-Step Verification on the Google account. Put the app password only in your local `.env`; never commit it or paste it into team chat.
+
+After editing `.env`, clear cached config and send a test email:
+
+```bash
+php artisan optimize:clear
+php artisan ecrats:mail-test your-recipient@gmail.com
+```
+
+If the command succeeds but the inbox is empty, check Spam and confirm the Gmail account allows app passwords. If it fails with an authentication error, generate a new app password and update `MAIL_PASSWORD`.
 
 ## Queues
 

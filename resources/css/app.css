@@ -254,6 +254,25 @@
         gap: 14px;
     }
 
+    .login-status-message {
+        display: grid;
+        gap: 6px;
+        margin: -8px 0 18px;
+        border: 1px solid rgba(25, 136, 85, 0.3);
+        border-radius: 8px;
+        padding: 12px 14px;
+        background: rgba(25, 136, 85, 0.08);
+        color: #135c39;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+    .login-status-message strong {
+        color: #0f3f29;
+        font-size: 16px;
+        word-break: break-word;
+    }
+
     .login-field {
         display: grid;
         gap: 10px;
@@ -306,6 +325,8 @@
         padding-right: 58px;
     }
 
+    input[type='password']::-ms-reveal,
+    input[type='password']::-ms-clear,
     .password-input-wrapper input::-ms-reveal,
     .password-input-wrapper input::-ms-clear {
         width: 0;

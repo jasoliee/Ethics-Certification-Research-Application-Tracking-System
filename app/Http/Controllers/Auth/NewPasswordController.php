@@ -30,10 +30,13 @@ class NewPasswordController extends Controller
 
     public function store(ResetPasswordRequest $request): RedirectResponse
     {
+        $loginUsername = null;
+
         $status = Password::reset(
             $request->safe()->only(['email', 'password', 'password_confirmation', 'token']),
-            function (User $user, string $password): void {
+            function (User $user, string $password) use (&$loginUsername): void {
                 $isInitialSetup = ! $user->password_setup_completed_at;
+                $loginUsername = $user->username;
 
                 // Successful token use invalidates remembered sessions and records the credential-change time.
                 $user->forceFill([
@@ -57,6 +60,9 @@ class NewPasswordController extends Controller
             throw ValidationException::withMessages(['email' => trans($status)]);
         }
 
-        return redirect()->route('login')->with('status', 'Your password has been reset. You can now log in.');
+        return redirect()
+            ->route('login')
+            ->with('status', 'Your password has been reset. You can now log in with your username.')
+            ->with('login_username', $loginUsername);
     }
 }
