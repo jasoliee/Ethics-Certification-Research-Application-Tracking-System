@@ -49,24 +49,44 @@
         </div>
         <div class="identity-field">
             <label for="institution">Institution / Affiliation</label>
-            <input id="institution" name="institution" type="text" value="{{ old('institution', $managedUser?->institution) }}" maxlength="150" autocomplete="organization">
+            <select id="institution" name="institution" autocomplete="organization">
+                <option value="">Select institution</option>
+                @foreach ($profileOptions[\App\Enums\ProfileOptionField::Institution->value] ?? [] as $option)
+                    <option value="{{ $option }}" @selected(old('institution', $managedUser?->institution) === $option)>{{ $option }}</option>
+                @endforeach
+            </select>
             @error('institution')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         <div class="identity-field">
             <label for="department">Department / Unit</label>
-            <input id="department" name="department" type="text" value="{{ old('department', $managedUser?->department) }}" maxlength="150" autocomplete="organization-title">
+            <select id="department" name="department" autocomplete="organization-title">
+                <option value="">Select department</option>
+                @foreach ($profileOptions[\App\Enums\ProfileOptionField::Department->value] ?? [] as $option)
+                    <option value="{{ $option }}" @selected(old('department', $managedUser?->department) === $option)>{{ $option }}</option>
+                @endforeach
+            </select>
             @error('department')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         @if ($profileRole === \App\Enums\UserRole::Applicant->value)
             <div class="identity-field">
                 <label for="program">Program</label>
-                <input id="program" name="program" type="text" value="{{ old('program', $managedUser?->program) }}" maxlength="150">
+                <select id="program" name="program">
+                    <option value="">Select program</option>
+                    @foreach ($profileOptions[\App\Enums\ProfileOptionField::Program->value] ?? [] as $option)
+                        <option value="{{ $option }}" @selected(old('program', $managedUser?->program) === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
                 @error('program')<span class="identity-field-error">{{ $message }}</span>@enderror
             </div>
             @if ($profileApplicantType === \App\Enums\ApplicantType::Student->value)
                 <div class="identity-field">
                     <label for="year_level">Year Level <span aria-hidden="true">*</span></label>
-                    <input id="year_level" name="year_level" type="text" value="{{ old('year_level', $managedUser?->year_level) }}" maxlength="30" required>
+                    <select id="year_level" name="year_level" required>
+                        <option value="">Select year level</option>
+                        @foreach ($profileOptions[\App\Enums\ProfileOptionField::YearLevel->value] ?? [] as $option)
+                            <option value="{{ $option }}" @selected(old('year_level', $managedUser?->year_level) === $option)>{{ $option }}</option>
+                        @endforeach
+                    </select>
                     @error('year_level')<span class="identity-field-error">{{ $message }}</span>@enderror
                 </div>
             @endif

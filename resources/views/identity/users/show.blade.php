@@ -37,22 +37,25 @@
                 <span class="identity-profile-avatar" aria-hidden="true">{{ $initials }}</span>
                 <div>
                     <h1>{{ $managedUser->name }}</h1>
-                    <x-dashboard.status-badge :label="$managedUser->displayRoleLabel()" tone="green" />
-                    <span><x-dashboard.icon name="mail" size="18" />{{ $managedUser->email }}</span>
-                    <span><x-dashboard.icon name="id-card" size="18" />{{ $managedUser->institutionalIdentifierLabel() }}: {{ $managedUser->institutional_identifier }}</span>
+                    <div class="identity-profile-basics">
+                        <x-dashboard.status-badge :label="$managedUser->displayRoleLabel()" tone="green" />
+                        <span><x-dashboard.icon name="mail" size="18" />{{ $managedUser->email }}</span>
+                        <span><x-dashboard.icon name="id-card" size="18" />{{ $managedUser->institutionalIdentifierLabel() }}: {{ $managedUser->institutional_identifier }}</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="identity-profile-metrics">
-                @foreach ($metrics as $metric)
-                    <div><span><x-dashboard.icon :name="$metric['icon']" size="22" /></span><strong>{{ $metric['value'] }}</strong><small>{{ $metric['label'] }}</small></div>
-                @endforeach
+            <div class="identity-profile-actions">
+                <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.index') }}">
+                    <x-dashboard.icon name="arrow-left" size="18" />
+                    <span>Back to User Management</span>
+                </a>
+                <div class="identity-profile-metrics">
+                    @foreach ($metrics as $metric)
+                        <div><span><x-dashboard.icon :name="$metric['icon']" size="22" /></span><strong>{{ $metric['value'] }}</strong><small>{{ $metric['label'] }}</small></div>
+                    @endforeach
+                </div>
             </div>
-
-            <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.index') }}">
-                <x-dashboard.icon name="arrow-left" size="18" />
-                <span>Back to User Management</span>
-            </a>
         </section>
 
         <div class="identity-profile-grid">

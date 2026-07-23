@@ -38,10 +38,6 @@
             @endforelse
         </section>
 
-        @if ($notifications->hasPages())
-            <nav class="dashboard-pagination" aria-label="Notification pages">
-                {{ $notifications->links() }}
-            </nav>
-        @endif
+        <x-dashboard.pagination :paginator="$notifications" label="Notification pages" />
     </div>
 @endsection

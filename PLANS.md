@@ -60,6 +60,65 @@ Date:
 
 ## Active Plans
 
+## Plan: User management import, options, audit, and shared table polish
+
+### Goal
+Align RES Lead and Adviser account-management workflows with the July 23, 2026 UI and import guide while preserving secure onboarding, role authorization, private import staging, and team-compatible shared components.
+
+### Source Documents
+- Primary requirement: attached organized Codex-ready user-management guide, July 23, 2026.
+- Supporting implementation: existing account-management services, policies, Blade views, and high-fidelity-inspired dashboard components.
+- Conflicts or missing decisions: CSV files cannot contain spreadsheet dropdown validation, column widths, or wrap-text styling. CSV remains the only visible template and upload choice. Shared database options will drive CSV examples and validation; the existing internal XLSX generator will retain spreadsheet-only formatting and dropdown support for compatibility. Department and Program begin without guessed defaults and can be populated by RES Lead.
+
+### Scope
+Included:
+- CSV-only visible bulk-import controls, revised role headers, realistic ignored example rows, error modal, and skip-without-error handling for repeated or existing accounts.
+- Database-backed Year Level, Institution, Department, and Program options with RES Lead creation, shared form use, CSV validation, and internal XLSX dropdown generation.
+- Reviewer classification support for Expedited, Full Board, and Exempted.
+- User and adviser account-list responsiveness, consistent truncation tooltips, centered/equal-width badges, compact checkbox columns, and reusable centered pagination.
+- Searchable/filterable audit log with actor role and hidden onboarding/password-setup-completion events.
+- Add Account, individual account form, and account information layout corrections.
+
+Excluded:
+- Displaying or filtering password-reset, setup, import-confirmation, or error-report tokens. ECRATS intentionally does not store those secrets in audit records.
+- Inventing Department or Program option lists before the team supplies them.
+- Removing backend subject information from audit records; only the RES Lead table column is removed.
+
+### Implementation Approach
+- Backend: extend the current identity services and controller, keep policies authoritative, skip duplicates/existing identities during preflight, and preserve confirmation-token single use.
+- Frontend: reuse Blade/CSS/JavaScript patterns for accessible dialogs, delayed table tooltips, responsive scroll containers, filters, and pagination.
+- Database: add a normalized profile-option table with active values, creator attribution, uniqueness per field, and required Institution/Year Level defaults.
+- Authorization: only RES Lead can add shared dropdown options; advisers consume active options but cannot modify them.
+- Files/storage: keep uploads in private local storage, show CSV controls only, and continue deleting temporary upload/preview/error artifacts through the existing lifecycle.
+- Notifications/audit: keep account setup notifications unchanged; record option creation without secrets and omit specified completion events from the visible report only.
+
+### Files Expected to Change
+- `app/Enums`, `app/Models`, `app/Services/Identity`, `app/Http/Requests/Identity`, and `app/Http/Controllers/Identity`
+- `database/migrations`
+- `routes/web.php`
+- `resources/views/identity/users`, shared dashboard components, `resources/css/dashboard.css`, and `resources/js/dashboard.js`
+- Focused identity feature tests and user-management documentation
+
+### Tests and Verification
+- Focused tests for CSV headers/example rows, duplicate/existing skips, real row errors, dropdown-option authorization/use, audit visibility/filtering, and revised UI text.
+- Full `php artisan test`, `php artisan route:list`, `npm.cmd run build`, Pint, and `git diff --check`.
+
+### Risks and Rollback
+- The option table is additive; rollback removes only shared option records and leaves existing user profile text intact.
+- Existing profile values not yet in the option table remain visible and editable without silently rewriting them.
+- Database unique constraints remain the final duplicate defense during confirmation; stale previews fail safely.
+
+### Verification Status (2026-07-23)
+- `php artisan test`: 68 tests and 646 assertions passed.
+- `php artisan route:list`: 77 routes registered, including the RES Lead profile-option endpoint.
+- Blade view compilation, the Vite production build, Pint, and `git diff --check` passed.
+- The additive `profile_options` migration ran successfully against the local database.
+- Interactive browser/mobile screenshots were not available because this session had no connected in-app browser or Chrome instance.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-23
+
 ## Plan: Account management and secure onboarding
 
 ### Goal

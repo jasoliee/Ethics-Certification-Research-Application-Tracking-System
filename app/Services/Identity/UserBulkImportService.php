@@ -2,7 +2,6 @@
 
 namespace App\Services\Identity;
 
-use App\Enums\ApplicantType;
 use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -53,9 +52,9 @@ class UserBulkImportService
             $result['preview_token'] = null;
             $result['error_token'] = null;
 
-            if ($result['invalid_count'] === 0) {
+            if ($result['invalid_count'] === 0 && $result['valid_count'] > 0) {
                 $result['preview_token'] = $this->storePreview($actor, $type, $result['valid_rows']);
-            } else {
+            } elseif ($result['invalid_count'] > 0) {
                 $result['error_token'] = $this->storeErrorReport($actor, $result['invalid_rows']);
             }
 
@@ -76,7 +75,7 @@ class UserBulkImportService
         }
     }
 
-    /** @return array{created: int, emails_sent: int, emails_failed: int} */
+    /** @return array{created: int, skipped: int, emails_sent: int, emails_failed: int} */
     public function confirm(User $actor, string $token): array
     {
         $source = $this->previewPath($actor, $token);
@@ -98,13 +97,29 @@ class UserBulkImportService
             }
 
             $type = $this->accountTypes->authorized($actor, (string) ($payload['account_type'] ?? ''));
-            $createdUsers = DB::transaction(function () use ($actor, $payload): array {
+            $confirmation = DB::transaction(function () use ($actor, $payload): array {
                 $created = [];
+                $skipped = 0;
 
                 foreach ($payload['rows'] ?? [] as $row) {
+                    $attributes = $row['attributes'];
+                    $alreadyExists = User::withTrashed()
+                        ->where(function ($query) use ($attributes): void {
+                            $query
+                                ->where('email', $attributes['email'])
+                                ->orWhere('institutional_identifier', $attributes['institutional_identifier']);
+                        })
+                        ->exists();
+
+                    if ($alreadyExists) {
+                        $skipped++;
+
+                        continue;
+                    }
+
                     $created[] = $this->accounts->create(
                         $actor,
-                        $row['attributes'],
+                        $attributes,
                         $row['generated_username'],
                     );
                 }
@@ -112,16 +127,19 @@ class UserBulkImportService
                 $this->auditLog->record($actor, 'user.bulk_import_confirmed', metadata: [
                     'account_type' => $payload['account_type'],
                     'created_count' => count($created),
+                    'skipped_count' => $skipped,
                     'result' => 'created',
                 ]);
 
-                return $created;
+                return ['users' => $created, 'skipped' => $skipped];
             });
+            $createdUsers = $confirmation['users'];
 
             $delivery = $this->passwordResets->sendMany($actor, $createdUsers);
             $this->auditLog->record($actor, 'user.bulk_import_completed', metadata: [
                 'account_type' => $type['key'],
                 'created_count' => count($createdUsers),
+                'skipped_count' => $confirmation['skipped'],
                 'emails_sent' => $delivery['sent'],
                 'emails_failed' => $delivery['failed'],
                 'result' => $delivery['failed'] === 0 ? 'completed' : 'completed_with_email_failures',
@@ -129,6 +147,7 @@ class UserBulkImportService
 
             return [
                 'created' => count($createdUsers),
+                'skipped' => $confirmation['skipped'],
                 'emails_sent' => $delivery['sent'],
                 'emails_failed' => $delivery['failed'],
             ];
@@ -195,6 +214,11 @@ class UserBulkImportService
             $values = array_pad($values, count($headers), '');
             /** @var array<string, string> $row */
             $row = array_combine($headers, array_map(fn ($value): string => trim((string) $value), $values));
+
+            if ($this->accountTypes->isExampleRow($type, $row)) {
+                continue;
+            }
+
             $row['_line'] = (string) ($index + 2);
             $rows[] = $row;
         }
@@ -269,6 +293,7 @@ class UserBulkImportService
     {
         $validRows = [];
         $invalidRows = [];
+        $skippedRows = [];
         $seenEmails = [];
         $seenIdentifiers = [];
         $reservedUsernames = [];
@@ -285,7 +310,7 @@ class UserBulkImportService
             ->filter()
             ->unique()
             ->values();
-        $existing = User::query()
+        $existing = User::withTrashed()
             ->select(['email', 'institutional_identifier'])
             ->whereIn('email', $candidateEmails)
             ->orWhereIn('institutional_identifier', $candidateIdentifiers)
@@ -296,37 +321,32 @@ class UserBulkImportService
         foreach ($rows as $row) {
             $line = (int) $row['_line'];
             unset($row['_line']);
-            $errors = $this->unsafeCellErrors($row);
-
-            if (($row['template_version'] ?? '') !== AccountTypeCatalog::TEMPLATE_VERSION) {
-                $errors[] = 'Template version must be '.AccountTypeCatalog::TEMPLATE_VERSION.'.';
-            }
-
-            if ($type['applicant_type'] !== null) {
-                $providedType = Str::of($row['applicant_type'] ?? '')->lower()->replace([' ', '-'], '_')->value();
-                $allowedValues = $type['applicant_type'] === ApplicantType::Student->value
-                    ? ['student', 'student_researcher']
-                    : ['faculty', 'faculty_researcher'];
-
-                if (! in_array($providedType, $allowedValues, true)) {
-                    $errors[] = 'Applicant type does not match the selected account template.';
-                }
-            }
-
             $attributes = $this->attributesFromRow($row, $type);
             $emailKey = Str::lower(trim((string) ($attributes['email'] ?? '')));
             $identifierKey = Str::upper(trim((string) ($attributes['institutional_identifier'] ?? '')));
 
             if (($emailKey !== '' && isset($seenEmails[$emailKey])) || ($identifierKey !== '' && isset($seenIdentifiers[$identifierKey]))) {
-                $errors[] = 'Email addresses and institutional identifiers must be unique within the file.';
                 $duplicateCount++;
+                $skippedRows[] = [
+                    'row' => $line,
+                    'reason' => 'Duplicate credentials in this file; only the first valid occurrence will be created.',
+                ];
+
+                continue;
             }
 
             if (($emailKey !== '' && $existingEmails->has($emailKey))
                 || ($identifierKey !== '' && $existingIdentifiers->has($identifierKey))) {
-                $errors[] = 'The email address or institutional identifier already belongs to an account.';
                 $existingConflictCount++;
+                $skippedRows[] = [
+                    'row' => $line,
+                    'reason' => 'An account with this email address or institutional identifier already exists.',
+                ];
+
+                continue;
             }
+
+            $errors = $this->unsafeCellErrors($row);
 
             if ($errors === []) {
                 try {
@@ -345,6 +365,12 @@ class UserBulkImportService
                         'generated_username' => $username,
                         'attributes' => $validated,
                     ];
+                    if ($emailKey !== '') {
+                        $seenEmails[$emailKey] = true;
+                    }
+                    if ($identifierKey !== '') {
+                        $seenIdentifiers[$identifierKey] = true;
+                    }
                 } catch (ValidationException $exception) {
                     $errors = collect($exception->errors())->flatten()->values()->all();
                 } catch (AuthorizationException $exception) {
@@ -355,24 +381,19 @@ class UserBulkImportService
             if ($errors !== []) {
                 $invalidRows[] = ['row' => $line, 'errors' => array_values(array_unique($errors))];
             }
-
-            if ($emailKey !== '') {
-                $seenEmails[$emailKey] = true;
-            }
-            if ($identifierKey !== '') {
-                $seenIdentifiers[$identifierKey] = true;
-            }
         }
 
         return [
             'total_count' => count($rows),
             'valid_count' => count($validRows),
             'invalid_count' => count($invalidRows),
+            'skipped_count' => count($skippedRows),
             'duplicate_count' => $duplicateCount,
             'existing_conflict_count' => $existingConflictCount,
             'valid_rows' => $validRows,
             'invalid_rows' => $invalidRows,
-            'warnings' => $invalidRows === [] ? [] : ['No accounts will be created until every row passes validation.'],
+            'skipped_rows' => $skippedRows,
+            'warnings' => $invalidRows === [] ? [] : ['No accounts will be created until every row with a format or validation error is corrected.'],
         ];
     }
 
@@ -380,13 +401,14 @@ class UserBulkImportService
     private function attributesFromRow(array $row, array $type): array
     {
         $identifier = $row[$type['identifier_header']] ?? '';
-        unset($row['template_version'], $row['applicant_type'], $row['student_number'], $row['employee_id']);
+        unset($row['student_number'], $row['employee_id']);
 
         return [
             ...$row,
             'institutional_identifier' => $identifier,
             'role' => $type['role'],
             'applicant_type' => $type['applicant_type'],
+            'reviewer_capacity' => $type['key'] === 'reviewer' ? 30 : null,
         ];
     }
 

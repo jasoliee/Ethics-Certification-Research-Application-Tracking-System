@@ -11,6 +11,7 @@
 
             <div class="identity-heading-actions">
                 @if ($isResLead)
+                    <button class="identity-button identity-button-secondary" type="button" data-profile-option-open><x-dashboard.icon name="plus" size="19" /><span>Add Dropdown Option</span></button>
                     <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.audit.index') }}"><x-dashboard.icon name="clipboard" size="19" /><span>Audit Log</span></a>
                 @endif
                 <a class="identity-button identity-button-primary" href="{{ route($routeBase.'.create') }}">
@@ -106,7 +107,7 @@
                         <option value="resend_setup">Resend setup link</option>
                     </select>
                     <input type="hidden" name="action" value="" data-mass-action-value>
-                    <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="selected">Apply</button>
+                    <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="selected">Apply Action</button>
                     <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="resend_all_pending">Resend All Pending</button>
                 </div>
         @endif
@@ -132,15 +133,14 @@
                     <thead>
                         <tr>
                             @if ($isResLead)<th scope="col" class="identity-checkbox-cell"><input type="checkbox" aria-label="Select all visible accounts" data-select-all-users></th>@endif
-                            <th scope="col">Name</th>
-                            <th scope="col">Institutional ID</th>
-                            <th scope="col">Email</th>
-                            <th scope="col">Role</th>
-                            <th scope="col">Institution / Unit</th>
-                            <th scope="col">Date Created</th>
-                            <th scope="col">Status</th>
-                            <th scope="col">Setup Email</th>
-                            <th scope="col">Action</th>
+                            <th scope="col" class="identity-col-name">Name</th>
+                            <th scope="col" class="identity-col-identifier">Institutional ID</th>
+                            <th scope="col" class="identity-col-email">Email</th>
+                            <th scope="col" class="identity-col-role">Role</th>
+                            <th scope="col" class="identity-col-unit">Institution / Unit</th>
+                            <th scope="col" class="identity-col-date">Date Created</th>
+                            <th scope="col" class="identity-col-status">Status</th>
+                            <th scope="col" class="identity-col-action">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -155,29 +155,28 @@
                             @endphp
                             <tr>
                                 @if ($isResLead)<td class="identity-checkbox-cell"><input type="checkbox" name="user_ids[]" value="{{ $managedUser->id }}" aria-label="Select {{ $managedUser->name }}" data-select-user></td>@endif
-                                <td>
+                                <td class="identity-col-name">
                                     <span class="identity-table-person">
                                         <span class="identity-mini-avatar" aria-hidden="true">{{ $initials }}</span>
-                                        <strong>{{ $managedUser->name }}</strong>
+                                        <strong class="identity-table-truncate" data-table-tooltip="{{ $managedUser->name }}">{{ $managedUser->name }}</strong>
                                     </span>
                                 </td>
-                                <td>{{ $managedUser->institutional_identifier }}</td>
-                                <td><a href="mailto:{{ $managedUser->email }}">{{ $managedUser->email }}</a></td>
-                                <td><x-dashboard.status-badge :label="$managedUser->displayRoleLabel()" :tone="$roleTone" /></td>
-                                <td>
+                                <td class="identity-col-identifier"><span class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institutional_identifier }}">{{ $managedUser->institutional_identifier }}</span></td>
+                                <td class="identity-col-email"><a class="identity-table-truncate" data-table-tooltip="{{ $managedUser->email }}" href="mailto:{{ $managedUser->email }}">{{ $managedUser->email }}</a></td>
+                                <td class="identity-col-role"><x-dashboard.status-badge class="identity-role-badge" :label="$managedUser->displayRoleLabel()" :tone="$roleTone" /></td>
+                                <td class="identity-col-unit">
                                     <span class="identity-table-unit">
-                                        <strong>{{ $managedUser->institution ?: 'Not provided' }}</strong>
-                                        @if ($managedUser->department)<small>{{ $managedUser->department }}</small>@endif
+                                        <strong class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institution ?: 'Not provided' }}">{{ $managedUser->institution ?: 'Not provided' }}</strong>
+                                        @if ($managedUser->department)<small class="identity-table-truncate" data-table-tooltip="{{ $managedUser->department }}">{{ $managedUser->department }}</small>@endif
                                     </span>
                                 </td>
-                                <td><time datetime="{{ $managedUser->created_at?->toDateString() }}">{{ $managedUser->created_at?->format('M d, Y') }}</time></td>
-                                <td><x-dashboard.status-badge :label="Str::headline($managedUser->account_status)" :tone="$managedUser->account_status === 'active' ? 'green' : ($managedUser->account_status === 'pending_setup' ? 'orange' : 'neutral')" dot /></td>
-                                <td>{{ Str::headline($managedUser->setup_email_status) }}</td>
-                                <td><a class="identity-view-link" href="{{ route($routeBase.'.show', $managedUser) }}">View</a></td>
+                                <td class="identity-col-date"><time datetime="{{ $managedUser->created_at?->toDateString() }}">{{ $managedUser->created_at?->format('M d, Y') }}</time></td>
+                                <td class="identity-col-status"><x-dashboard.status-badge class="identity-status-badge" :label="Str::headline($managedUser->account_status)" :tone="$managedUser->account_status === 'active' ? 'green' : ($managedUser->account_status === 'pending_setup' ? 'orange' : 'neutral')" dot /></td>
+                                <td class="identity-col-action"><a class="identity-view-link" href="{{ route($routeBase.'.show', $managedUser) }}">View</a></td>
                             </tr>
                         @empty
                             <tr class="identity-empty-row">
-                                <td colspan="{{ $isResLead ? 10 : 9 }}">
+                                <td colspan="{{ $isResLead ? 9 : 8 }}">
                                     <div class="identity-empty-state">
                                         <span><x-dashboard.icon name="users" size="48" /></span>
                                         <strong>No users found</strong>
@@ -191,24 +190,11 @@
                 </table>
             </div>
 
-            @if ($users->hasPages())
-                <nav class="identity-pagination" aria-label="User result pages">
-                    @if ($users->onFirstPage())
-                        <span aria-disabled="true">Previous</span>
-                    @else
-                        <a href="{{ $users->previousPageUrl() }}" rel="prev">Previous</a>
-                    @endif
-                    <strong>Page {{ $users->currentPage() }} of {{ $users->lastPage() }}</strong>
-                    @if ($users->hasMorePages())
-                        <a href="{{ $users->nextPageUrl() }}" rel="next">Next</a>
-                    @else
-                        <span aria-disabled="true">Next</span>
-                    @endif
-                </nav>
-            @endif
+            <x-dashboard.pagination :paginator="$users" label="User result pages" />
         </section>
         @if ($isResLead)
             </form>
         @endif
+        @include('identity.users.partials.profile-option-dialog')
     </div>
 @endsection

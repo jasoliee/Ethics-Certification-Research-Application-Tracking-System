@@ -219,6 +219,65 @@ function initializeManagedAccountTools(shell) {
         }
     });
 
+    const importErrorsDialog = shell.querySelector('[data-import-errors-dialog]');
+    const importErrorsPanel = importErrorsDialog?.querySelector('[role="dialog"]');
+    const closeImportErrors = () => {
+        if (importErrorsDialog) {
+            importErrorsDialog.hidden = true;
+        }
+    };
+
+    shell.querySelectorAll('[data-import-errors-open]').forEach((button) => {
+        button.addEventListener('click', () => {
+            importErrorsDialog.hidden = false;
+            importErrorsPanel?.focus();
+        });
+    });
+    importErrorsDialog?.querySelectorAll('[data-import-errors-close]').forEach((button) => {
+        button.addEventListener('click', closeImportErrors);
+    });
+    importErrorsDialog?.addEventListener('click', (event) => {
+        if (event.target === importErrorsDialog) {
+            closeImportErrors();
+        }
+    });
+
+    const profileOptionDialog = shell.querySelector('[data-profile-option-dialog]');
+    const profileOptionPanel = profileOptionDialog?.querySelector('[role="dialog"]');
+    const closeProfileOptionDialog = () => {
+        if (profileOptionDialog) {
+            profileOptionDialog.hidden = true;
+        }
+    };
+
+    shell.querySelectorAll('[data-profile-option-open]').forEach((button) => {
+        button.addEventListener('click', () => {
+            profileOptionDialog.hidden = false;
+            profileOptionPanel?.focus();
+        });
+    });
+    profileOptionDialog?.querySelectorAll('[data-profile-option-close]').forEach((button) => {
+        button.addEventListener('click', closeProfileOptionDialog);
+    });
+    profileOptionDialog?.addEventListener('click', (event) => {
+        if (event.target === profileOptionDialog) {
+            closeProfileOptionDialog();
+        }
+    });
+    profileOptionDialog?.querySelector('[data-profile-option-form]')?.addEventListener('submit', (event) => {
+        const field = profileOptionDialog.querySelector('#option_field');
+        const value = profileOptionDialog.querySelector('#option_value');
+        const fieldLabel = field?.selectedOptions?.[0]?.textContent?.trim() ?? 'selected field';
+
+        if (! window.confirm(`Add "${value?.value?.trim()}" to ${fieldLabel}?`)) {
+            event.preventDefault();
+        }
+    });
+    if (profileOptionDialog?.hasAttribute('data-open-on-load')) {
+        profileOptionDialog.hidden = false;
+        profileOptionPanel?.focus();
+    }
+
     // Status changes require a final acknowledgement because deactivation immediately blocks sign-in.
     shell.querySelectorAll('[data-confirm-status]').forEach((form) => {
         form.addEventListener('submit', (event) => {
@@ -263,6 +322,12 @@ function initializeManagedAccountTools(shell) {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && modeDialog && ! modeDialog.hidden) {
             closeModeDialog();
+        }
+        if (event.key === 'Escape' && importErrorsDialog && ! importErrorsDialog.hidden) {
+            closeImportErrors();
+        }
+        if (event.key === 'Escape' && profileOptionDialog && ! profileOptionDialog.hidden) {
+            closeProfileOptionDialog();
         }
     });
 
@@ -329,7 +394,7 @@ function initializeManagedAccountTools(shell) {
 }
 
 function initializeResearchTitleTooltips(shell) {
-    const targets = [...shell.querySelectorAll('[data-research-title-tooltip]')];
+    const targets = [...shell.querySelectorAll('[data-research-title-tooltip], [data-table-tooltip]')];
 
     if (targets.length === 0) {
         return;
@@ -400,7 +465,7 @@ function initializeResearchTitleTooltips(shell) {
         activeTarget = target;
         pointerPosition = position;
         showTimer = window.setTimeout(() => {
-            tooltip.textContent = target.dataset.fullTitle ?? target.textContent.trim();
+            tooltip.textContent = target.dataset.tableTooltip ?? target.dataset.fullTitle ?? target.textContent.trim();
             tooltip.hidden = false;
             target.setAttribute('aria-describedby', tooltipId);
             positionTooltip();

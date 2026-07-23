@@ -61,6 +61,11 @@ class UserPolicy
         return $actor->role === UserRole::ResLead;
     }
 
+    public function manageProfileOptions(User $actor): bool
+    {
+        return $actor->role === UserRole::ResLead;
+    }
+
     private function canManageProfile(User $actor, User $subject): bool
     {
         if ($actor->role === UserRole::ResLead) {

@@ -92,8 +92,8 @@ class AccountCreationServiceTest extends TestCase
             'last_name' => 'User',
             'suffix' => null,
             'phone_number' => null,
-            'institution' => 'KLD',
-            'department' => 'Research',
+            'institution' => 'Institute of Engineering',
+            'department' => null,
         ], $overrides);
     }
 
@@ -102,7 +102,7 @@ class AccountCreationServiceTest extends TestCase
         return $this->base(array_merge([
             'email' => 'student@ecrats.test',
             'institutional_identifier' => 'KLD-STU-201',
-            'program' => 'BSIS',
+            'program' => null,
             'year_level' => 'Fourth Year',
             'role' => UserRole::Applicant,
             'applicant_type' => ApplicantType::Student,
@@ -114,7 +114,7 @@ class AccountCreationServiceTest extends TestCase
         return $this->base(array_merge([
             'email' => 'faculty@ecrats.test',
             'institutional_identifier' => 'KLD-EMP-203',
-            'program' => 'BSIS',
+            'program' => null,
             'position_title' => 'Faculty Researcher',
             'role' => UserRole::Applicant,
             'applicant_type' => ApplicantType::Faculty,

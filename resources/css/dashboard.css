@@ -3725,3 +3725,495 @@
         display: none;
     }
 }
+
+@layer components {
+    .identity-role-workspace {
+        border: 1px solid #dbe5df;
+        border-radius: 8px;
+        padding: 28px;
+        background: #ffffff;
+    }
+
+    .identity-role-combined-heading {
+        display: grid;
+        justify-items: center;
+        gap: 8px;
+        text-align: center;
+    }
+
+    .identity-role-combined-heading h1,
+    .identity-role-combined-heading h2 {
+        margin: 0;
+    }
+
+    .identity-role-combined-heading h1 {
+        color: #172033;
+        font-size: 28px;
+    }
+
+    .identity-role-combined-heading h2 {
+        color: #176f3d;
+        font-size: 20px;
+    }
+
+    .identity-role-footer-actions,
+    .identity-form-heading-actions,
+    .identity-import-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .identity-mode-close {
+        transition: color 150ms ease, background 150ms ease;
+    }
+
+    .identity-mode-close:hover,
+    .identity-mode-close:focus-visible {
+        color: #176f3d;
+        background: #eaf5ed;
+        outline: none;
+    }
+
+    .identity-individual-heading {
+        align-items: center;
+        text-align: center;
+    }
+
+    .identity-individual-heading h1 {
+        font-size: 28px;
+    }
+
+    .identity-role-title {
+        color: #176f3d;
+        font-size: 22px;
+    }
+
+    .identity-form-heading-actions {
+        justify-content: flex-end;
+    }
+
+    .identity-form-section {
+        padding-top: 30px;
+    }
+
+    .identity-filter select,
+    .identity-field select {
+        width: 100%;
+        min-width: 0;
+        min-height: 42px;
+        border: 1px solid #cfd9d3;
+        border-radius: 5px;
+        padding: 9px 32px 9px 11px;
+        color: #1f2937;
+        background: #ffffff;
+        font-size: 13px;
+        outline: none;
+    }
+
+    .identity-filter select:focus,
+    .identity-field select:focus {
+        border-color: #278e58;
+        box-shadow: 0 0 0 3px rgba(39, 142, 88, 0.14);
+    }
+
+    .identity-option-dialog {
+        width: min(100%, 520px);
+    }
+
+    .identity-option-dialog form {
+        width: 100%;
+        display: grid;
+        gap: 16px;
+        margin-top: 10px;
+        text-align: left;
+    }
+
+    .identity-option-dialog .identity-dialog-actions {
+        justify-content: flex-end;
+    }
+
+    .identity-import-actions {
+        margin-top: 4px;
+    }
+
+    .identity-preview-stats {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .identity-validation-summary-neutral {
+        border-left-color: #4f6f85;
+        color: #34495e;
+        background: #f2f6f8;
+    }
+
+    .identity-skipped-section {
+        display: grid;
+        gap: 10px;
+    }
+
+    .identity-skipped-section h3,
+    .identity-skipped-section p {
+        margin: 0;
+    }
+
+    .identity-skipped-section h3 {
+        color: #27313d;
+        font-size: 15px;
+    }
+
+    .identity-skipped-section p {
+        color: #667085;
+        font-size: 12px;
+    }
+
+    .identity-import-result-table {
+        min-width: 680px;
+    }
+
+    .identity-error-dialog {
+        width: min(100%, 760px);
+        max-height: calc(100svh - 40px);
+        align-content: start;
+        justify-items: stretch;
+        text-align: left;
+    }
+
+    .identity-error-dialog-heading {
+        padding-right: 40px;
+    }
+
+    .identity-error-dialog-heading h2,
+    .identity-error-dialog-heading p {
+        margin: 0;
+    }
+
+    .identity-error-dialog-heading p {
+        margin-top: 5px;
+        color: #667085;
+        font-size: 12px;
+    }
+
+    .identity-error-dialog-body {
+        max-height: 52svh;
+        display: grid;
+        gap: 10px;
+        overflow-y: auto;
+        border-block: 1px solid #e2e8e4;
+        padding-block: 14px;
+    }
+
+    .identity-import-error {
+        border: 1px solid #efc9c5;
+        border-radius: 6px;
+        padding: 12px 14px;
+        color: #7a271a;
+        background: #fff7f6;
+    }
+
+    .identity-import-error ul {
+        display: grid;
+        gap: 5px;
+        margin: 8px 0 0;
+        padding-left: 20px;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .identity-error-empty {
+        min-height: 170px;
+    }
+
+    .identity-error-dialog > .identity-dialog-actions {
+        justify-content: flex-end;
+    }
+
+    .identity-management-page {
+        min-width: 0;
+        overflow-x: hidden;
+    }
+
+    .identity-table-scroll {
+        max-width: 100%;
+        overscroll-behavior-inline: contain;
+    }
+
+    .identity-user-table {
+        table-layout: fixed;
+    }
+
+    .identity-user-table .identity-checkbox-cell {
+        width: 38px;
+        min-width: 38px;
+        max-width: 38px;
+        padding-inline: 6px;
+    }
+
+    .identity-user-table .identity-col-name {
+        width: 220px;
+        min-width: 220px;
+    }
+
+    .identity-user-table .identity-col-identifier {
+        width: 155px;
+        min-width: 155px;
+    }
+
+    .identity-user-table .identity-col-email {
+        width: 220px;
+        min-width: 220px;
+    }
+
+    .identity-user-table .identity-col-role {
+        width: 155px;
+        min-width: 155px;
+        text-align: center;
+    }
+
+    .identity-user-table .identity-col-unit {
+        width: 250px;
+        min-width: 250px;
+    }
+
+    .identity-user-table .identity-col-date {
+        width: 120px;
+        min-width: 120px;
+    }
+
+    .identity-user-table .identity-col-status {
+        width: 140px;
+        min-width: 140px;
+        text-align: center;
+    }
+
+    .identity-user-table .identity-col-action {
+        width: 80px;
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .identity-table-truncate {
+        max-width: 100%;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .identity-col-role .dashboard-status-badge,
+    .identity-col-status .dashboard-status-badge {
+        margin-inline: auto;
+    }
+
+    .identity-role-badge {
+        width: 132px;
+    }
+
+    .identity-status-badge,
+    .identity-result-badge {
+        width: 116px;
+    }
+
+    .identity-audit-filters {
+        grid-template-columns: minmax(220px, 1.3fr) repeat(3, minmax(150px, 0.85fr)) auto;
+    }
+
+    .identity-audit-table {
+        min-width: 920px;
+    }
+
+    .identity-audit-table .identity-col-date-time {
+        width: 180px;
+        min-width: 180px;
+    }
+
+    .identity-audit-table .identity-col-actor {
+        width: 230px;
+        min-width: 230px;
+    }
+
+    .identity-audit-table .identity-col-audit-action {
+        width: 245px;
+        min-width: 245px;
+    }
+
+    .identity-pagination {
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .identity-pagination > .identity-pagination-direction {
+        min-width: 82px;
+    }
+
+    .identity-pagination-pages {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .identity-pagination-pages a,
+    .identity-pagination-pages span {
+        width: 34px;
+        height: 34px;
+        display: inline-grid;
+        place-items: center;
+        border: 1px solid #d2dbd6;
+        border-radius: 5px;
+        color: #176f3d;
+        background: #ffffff;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .identity-pagination-pages .is-current {
+        color: #ffffff;
+        background: #176f3d;
+        border-color: #176f3d;
+    }
+
+    .identity-pagination-pages .identity-pagination-ellipsis {
+        border-color: transparent;
+        color: #667085;
+        background: transparent;
+    }
+
+    .identity-profile-hero {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .identity-profile-person > div {
+        width: 100%;
+    }
+
+    .identity-profile-basics {
+        width: 100%;
+        display: grid;
+        grid-template-columns: auto minmax(190px, 1fr) minmax(210px, 1fr);
+        align-items: center;
+        gap: 12px 22px;
+    }
+
+    .identity-profile-basics > span:not(.dashboard-status-badge) {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-wrap: anywhere;
+        color: #526078;
+        font-size: 12px;
+    }
+
+    .identity-profile-basics .dashboard-icon {
+        flex: 0 0 auto;
+        color: #238353;
+    }
+
+    .identity-profile-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .identity-profile-actions .identity-profile-metrics {
+        min-width: 170px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .identity-filter-bar,
+    .identity-filter-bar.is-adviser-filter,
+    .identity-audit-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .identity-filter-search,
+    .identity-filter-actions {
+        grid-column: auto;
+    }
+
+    .identity-profile-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .identity-profile-actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 760px) {
+    .identity-heading-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .identity-role-tabs,
+    .identity-role-tabs.is-two {
+        display: flex;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+    }
+
+    .identity-role-tabs a {
+        min-width: 155px;
+        border-right: 1px solid #e3e9e5;
+    }
+
+    .identity-filter-bar,
+    .identity-filter-bar.is-adviser-filter,
+    .identity-audit-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .identity-filter-actions {
+        justify-content: flex-start;
+    }
+
+    .identity-role-workspace {
+        padding: 22px 16px;
+    }
+
+    .identity-form-heading-actions,
+    .identity-profile-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .identity-profile-basics {
+        grid-template-columns: 1fr;
+    }
+
+    .identity-profile-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .identity-profile-actions > .identity-button {
+        width: 100%;
+    }
+
+    .identity-pagination {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .identity-heading-actions .identity-button,
+    .identity-role-footer-actions .identity-button,
+    .identity-role-footer-actions > a,
+    .identity-import-actions .identity-button {
+        width: 100%;
+    }
+
+    .identity-pagination-pages {
+        order: -1;
+        width: 100%;
+    }
+}

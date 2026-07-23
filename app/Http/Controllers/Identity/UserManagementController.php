@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Identity;
 
 use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
+use App\Enums\ProfileOptionField;
+use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Identity\ChangeManagedUserStatusRequest;
@@ -12,12 +14,14 @@ use App\Http\Requests\Identity\ImportManagedUsersRequest;
 use App\Http\Requests\Identity\MassManagedUserActionRequest;
 use App\Http\Requests\Identity\RegenerateManagedUsernameRequest;
 use App\Http\Requests\Identity\StoreManagedUserRequest;
+use App\Http\Requests\Identity\StoreProfileOptionRequest;
 use App\Http\Requests\Identity\UpdateManagedUserRequest;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\Identity\AccountTypeCatalog;
 use App\Services\Identity\ManagedPasswordResetService;
 use App\Services\Identity\ManagedUserMassActionService;
+use App\Services\Identity\ProfileOptionCatalog;
 use App\Services\Identity\SafeSpreadsheet;
 use App\Services\Identity\UserAccountService;
 use App\Services\Identity\UserBulkImportService;
@@ -35,6 +39,7 @@ class UserManagementController extends Controller
     public function __construct(
         private readonly UserManagementQueryService $queries,
         private readonly AccountTypeCatalog $accountTypes,
+        private readonly ProfileOptionCatalog $profileOptions,
     ) {}
 
     public function index(Request $request): View
@@ -49,12 +54,16 @@ class UserManagementController extends Controller
         ])->validate();
         $visible = $this->queries->visibleTo($request->user());
         $counts = $this->managementCounts(clone $visible);
-        $institutions = (clone $visible)
-            ->whereNotNull('institution')
-            ->where('institution', '!=', '')
-            ->distinct()
-            ->orderBy('institution')
-            ->pluck('institution');
+        $institutions = collect($this->profileOptions->values(ProfileOptionField::Institution))
+            ->merge((clone $visible)
+                ->whereNotNull('institution')
+                ->where('institution', '!=', '')
+                ->distinct()
+                ->orderBy('institution')
+                ->pluck('institution'))
+            ->unique()
+            ->sort()
+            ->values();
 
         if (filled($filters['institution'] ?? null)) {
             $visible->where('institution', $filters['institution']);
@@ -70,7 +79,6 @@ class UserManagementController extends Controller
                 'role',
                 'applicant_type',
                 'account_status',
-                'setup_email_status',
                 'institution',
                 'department',
                 'created_at',
@@ -87,6 +95,7 @@ class UserManagementController extends Controller
             'institutions' => $institutions,
             'routeBase' => $this->routeBase($request->user()),
             'isResLead' => $request->user()->role === UserRole::ResLead,
+            'canManageProfileOptions' => $request->user()->can('manageProfileOptions', User::class),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'User Management'],
@@ -106,6 +115,8 @@ class UserManagementController extends Controller
             'pageTitle' => 'Add New User',
             'accountTypes' => $types,
             'selectedType' => $selectedType,
+            'profileOptions' => $this->profileOptions->grouped(),
+            'canManageProfileOptions' => $request->user()->can('manageProfileOptions', User::class),
             'routeBase' => $this->routeBase($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
@@ -158,6 +169,8 @@ class UserManagementController extends Controller
         return view('identity.users.edit', [
             'pageTitle' => 'Edit User',
             'managedUser' => $managedUser,
+            'profileOptions' => $this->profileOptions->groupedForUser($managedUser),
+            'canManageProfileOptions' => $request->user()->can('manageProfileOptions', User::class),
             'routeBase' => $this->routeBase($request->user()),
             'breadcrumbs' => [
                 ['label' => 'User Management', 'route' => $this->routeBase($request->user()).'.index'],
@@ -177,6 +190,16 @@ class UserManagementController extends Controller
         return redirect()
             ->route($this->routeBase($request->user()).'.show', $managedUser)
             ->with('status', 'Account information updated.');
+    }
+
+    public function storeProfileOption(
+        StoreProfileOptionRequest $request,
+        ProfileOptionCatalog $profileOptions,
+    ): RedirectResponse {
+        $field = ProfileOptionField::from($request->validated('option_field'));
+        $profileOptions->create($request->user(), $field, $request->validated('option_value'));
+
+        return back()->with('status', "{$field->label()} option added.");
     }
 
     public function changeStatus(
@@ -264,7 +287,7 @@ class UserManagementController extends Controller
 
         return redirect()
             ->route($this->routeBase($request->user()).'.index')
-            ->with('status', "{$result['created']} accounts created. {$result['emails_sent']} setup emails sent; {$result['emails_failed']} failed.");
+            ->with('status', "{$result['created']} accounts created; {$result['skipped']} duplicates or existing accounts skipped. {$result['emails_sent']} setup emails sent; {$result['emails_failed']} failed.");
     }
 
     public function template(Request $request, string $format, SafeSpreadsheet $spreadsheets): StreamedResponse|BinaryFileResponse
@@ -272,23 +295,33 @@ class UserManagementController extends Controller
         Gate::authorize('import', User::class);
         abort_unless(in_array($format, ['csv', 'xlsx'], true), 404);
         $type = $this->accountTypes->authorized($request->user(), (string) $request->query('account_type'));
-        $headers = [...$type['required_headers'], ...$type['optional_headers']];
+        $headers = $type['template_headers'];
         $filename = 'ecrats-'.$type['key'].'-template.'.$format;
+        $optionValues = $this->profileOptions->grouped();
+        $dropdowns = [
+            'year_level' => $optionValues[ProfileOptionField::YearLevel->value],
+            'institution' => $optionValues[ProfileOptionField::Institution->value],
+            'department' => $optionValues[ProfileOptionField::Department->value],
+            'program' => $optionValues[ProfileOptionField::Program->value],
+            'reviewer_classification' => collect(ReviewerClassification::cases())->map->label()->all(),
+        ];
+        $dropdowns = collect($dropdowns)->only($headers)->all();
 
         if ($format === 'xlsx') {
             return response()
-                ->download($spreadsheets->createTemplate($headers), $filename, [
+                ->download($spreadsheets->createTemplate($headers, $type['example_row'], $dropdowns), $filename, [
                     'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     'Cache-Control' => 'no-store, private',
                 ])
                 ->deleteFileAfterSend(true);
         }
 
-        return response()->streamDownload(function () use ($headers): void {
+        return response()->streamDownload(function () use ($headers, $type): void {
             $stream = fopen('php://output', 'wb');
 
             if ($stream !== false) {
                 fputcsv($stream, $headers, ',', '"', '\\');
+                fputcsv($stream, collect($headers)->map(fn (string $header): string => (string) ($type['example_row'][$header] ?? ''))->all(), ',', '"', '\\');
                 fclose($stream);
             }
         }, $filename, [
@@ -344,12 +377,41 @@ class UserManagementController extends Controller
     {
         Gate::authorize('viewAuditLog', User::class);
         $filters = validator($request->query(), [
+            'search' => ['nullable', 'string', 'max:100'],
             'action' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', Rule::enum(UserRole::class)],
+            'result' => ['nullable', 'string', 'max:100'],
         ])->validate();
+        $hiddenActions = ['user.onboarding_completed', 'user.password_setup_completed'];
+        $search = trim((string) ($filters['search'] ?? ''));
+        $baseQuery = AuditLog::query()->whereNotIn('action', $hiddenActions);
+        $actions = (clone $baseQuery)->distinct()->orderBy('action')->pluck('action');
+        $results = (clone $baseQuery)
+            ->whereNotNull('metadata')
+            ->pluck('metadata')
+            ->pluck('result')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
         $logs = AuditLog::query()
             ->select(['id', 'actor_user_id', 'action', 'subject_type', 'subject_id', 'metadata', 'created_at'])
-            ->with('actor:id,name')
+            ->with('actor:id,name,username,role')
+            ->whereNotIn('action', $hiddenActions)
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($matches) use ($search): void {
+                    $matches
+                        ->whereLike('action', '%'.$search.'%')
+                        ->orWhereHas('actor', function ($actors) use ($search): void {
+                            $actors
+                                ->whereLike('name', '%'.$search.'%')
+                                ->orWhereLike('username', '%'.$search.'%');
+                        });
+                });
+            })
             ->when(filled($filters['action'] ?? null), fn ($query) => $query->where('action', $filters['action']))
+            ->when(filled($filters['role'] ?? null), fn ($query) => $query->whereHas('actor', fn ($actors) => $actors->where('role', $filters['role'])))
+            ->when(filled($filters['result'] ?? null), fn ($query) => $query->where('metadata->result', $filters['result']))
             ->latest('created_at')
             ->paginate(25)
             ->withQueryString();
@@ -358,6 +420,8 @@ class UserManagementController extends Controller
             'pageTitle' => 'Account Audit Log',
             'logs' => $logs,
             'filters' => $filters,
+            'actions' => $actions,
+            'results' => $results,
             'routeBase' => $this->routeBase($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],

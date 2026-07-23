@@ -3,12 +3,13 @@
 namespace Tests\Feature\Identity;
 
 use App\Enums\ApplicantType;
+use App\Enums\ProfileOptionField;
 use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\AccountSetupNotification;
 use App\Notifications\UsernameChangedNotification;
-use App\Services\Identity\AccountTypeCatalog;
 use App\Services\Identity\SafeSpreadsheet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -158,7 +159,11 @@ class UserManagementTest extends TestCase
         $csv->assertOk();
         $csvContent = $csv->streamedContent();
         $this->assertStringContainsString('reviewer_classification', $csvContent);
-        $this->assertStringContainsString('reviewer_capacity', $csvContent);
+        $this->assertStringNotContainsString('reviewer_capacity', $csvContent);
+        $this->assertStringNotContainsString('template_version', $csvContent);
+        $this->assertStringNotContainsString('applicant_type', $csvContent);
+        $this->assertStringContainsString('first_name,middle_name,last_name', $csvContent);
+        $this->assertStringContainsString('lourdes.navarro@example.com', $csvContent);
         $this->assertStringNotContainsString('password', strtolower($csvContent));
         $this->assertStringNotContainsString('username', strtolower($csvContent));
 
@@ -169,6 +174,13 @@ class UserManagementTest extends TestCase
         $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $xlsx->headers->get('content-type'));
         $templatePath = $xlsx->baseResponse->getFile()->getPathname();
         $this->assertStringStartsWith('PK', (string) file_get_contents($templatePath));
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($templatePath) === true);
+        $this->assertStringContainsString('<cols>', (string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $this->assertStringContainsString('<dataValidations', (string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $this->assertStringContainsString('Institute of Engineering', (string) $zip->getFromName('xl/worksheets/sheet2.xml'));
+        $this->assertStringContainsString('wrapText="1"', (string) $zip->getFromName('xl/styles.xml'));
+        $zip->close();
     }
 
     public function test_csv_import_requires_preview_then_single_confirmation(): void
@@ -177,8 +189,8 @@ class UserManagementTest extends TestCase
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $csv = implode("\n", [
-            'template_version,applicant_type,first_name,last_name,email,student_number,year_level',
-            AccountTypeCatalog::TEMPLATE_VERSION.',student_researcher,CSV,Student,csv.student@ecrats.test,KLD-STU-601,Fourth Year',
+            'first_name,middle_name,last_name,email,student_number,year_level,institution',
+            'CSV,,Student,csv.student@ecrats.test,KLD-STU-601,Fourth Year,Institute of Engineering',
         ]);
 
         $response = $this->actingAs($resLead)->post(route('res.users.import.store'), [
@@ -208,8 +220,8 @@ class UserManagementTest extends TestCase
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $csv = implode("\n", [
-            'template_version,first_name,last_name,email,employee_id,reviewer_classification,reviewer_capacity',
-            AccountTypeCatalog::TEMPLATE_VERSION.',Invalid,Reviewer,not-an-email,KLD-EMP-701,unknown,99',
+            'first_name,middle_name,last_name,email,employee_id,reviewer_classification',
+            'Invalid,,Reviewer,not-an-email,KLD-EMP-701,unknown',
         ]);
 
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
@@ -225,8 +237,8 @@ class UserManagementTest extends TestCase
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $csv = 'template_version,applicant_type,first_name,last_name,email,student_number,year_level'."\n"
-            .AccountTypeCatalog::TEMPLATE_VERSION.',student_researcher,'.str_repeat('A', 4100).",Student,invalid@ecrats.test,KLD-STU-999,Fourth Year\xFF";
+        $csv = 'first_name,middle_name,last_name,email,student_number,year_level'."\n"
+            .str_repeat('A', 4100).",,Student,invalid@ecrats.test,KLD-STU-999,Fourth Year\xFF";
 
         $this->actingAs($resLead)
             ->from(route('res.users.import.form', ['account_type' => 'student_researcher']))
@@ -245,17 +257,17 @@ class UserManagementTest extends TestCase
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $headers = ['template_version', 'applicant_type', 'first_name', 'last_name', 'email', 'student_number', 'year_level'];
+        $headers = ['first_name', 'middle_name', 'last_name', 'email', 'student_number', 'year_level', 'institution'];
         $spreadsheet = app(SafeSpreadsheet::class);
         $validPath = $spreadsheet->createTemplate($headers);
         $this->appendSpreadsheetRow($validPath, [
-            AccountTypeCatalog::TEMPLATE_VERSION,
-            'student_researcher',
             'Excel',
+            '',
             'Student',
             'excel.student@ecrats.test',
             'KLD-STU-801',
             'Fourth Year',
+            'Institute of Engineering',
         ]);
 
         $valid = new UploadedFile(
@@ -273,14 +285,14 @@ class UserManagementTest extends TestCase
 
         $formulaPath = $spreadsheet->createTemplate($headers);
         $this->appendSpreadsheetRow($formulaPath, [
-            AccountTypeCatalog::TEMPLATE_VERSION,
-            'student_researcher',
             'Unsafe',
+            '',
             'Formula',
             'unsafe.formula@ecrats.test',
             'KLD-STU-802',
             'Fourth Year',
-        ], 2);
+            'Institute of Engineering',
+        ], 0);
         $formula = new UploadedFile(
             $formulaPath,
             'formula.xlsx',
@@ -299,6 +311,154 @@ class UserManagementTest extends TestCase
             ->assertSessionHasErrors('accounts_file');
 
         $this->assertDatabaseMissing('users', ['email' => 'unsafe.formula@ecrats.test']);
+    }
+
+    public function test_generated_example_row_is_ignored_during_csv_validation(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $template = $this->actingAs($resLead)->get(route('res.users.import.template', [
+            'format' => 'csv',
+            'account_type' => 'student_researcher',
+        ]))->streamedContent();
+        $csv = trim($template)."\n"
+            .'Real,,Student,,real.student@ecrats.test,KLD-STU-901,,Fourth Year,Institute of Engineering,,';
+
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => UploadedFile::fake()->createWithContent('students.csv', $csv),
+        ])
+            ->assertOk()
+            ->assertSee('real.student@ecrats.test')
+            ->assertDontSee('alexandra.reyes@example.com');
+    }
+
+    public function test_duplicate_and_existing_csv_accounts_are_skipped_without_blocking_valid_rows(): void
+    {
+        Notification::fake();
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        User::factory()->create([
+            'email' => 'existing.student@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-EXISTING',
+        ]);
+        $csv = implode("\n", [
+            'first_name,middle_name,last_name,email,student_number,year_level,institution',
+            'First,,Valid,first.valid@ecrats.test,KLD-STU-902,Fourth Year,Institute of Engineering',
+            'First,,Valid,first.valid@ecrats.test,KLD-STU-902,Fourth Year,Institute of Engineering',
+            'Existing,,Student,existing.student@ecrats.test,KLD-STU-EXISTING,Fourth Year,Institute of Engineering',
+        ]);
+
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => UploadedFile::fake()->createWithContent('students.csv', $csv),
+        ])
+            ->assertOk()
+            ->assertSee('Skipped Rows')
+            ->assertSee('only the first valid occurrence')
+            ->assertSee('already exists')
+            ->assertDontSee('Import cannot be confirmed');
+
+        $previewFile = collect(Storage::disk('local')->allFiles('imports/user-accounts/previews/'.$resLead->id))->first();
+        $token = pathinfo((string) $previewFile, PATHINFO_FILENAME);
+        $this->actingAs($resLead)->post(route('res.users.import.confirm'), ['import_token' => $token])
+            ->assertRedirect(route('res.users.index'));
+
+        $this->assertSame(1, User::where('institutional_identifier', 'KLD-STU-902')->count());
+        $this->assertSame(1, User::where('institutional_identifier', 'KLD-STU-EXISTING')->count());
+    }
+
+    public function test_res_lead_can_add_shared_dropdown_options_and_adviser_cannot(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+
+        $this->actingAs($resLead)->post(route('res.users.profile-options.store'), [
+            'option_field' => ProfileOptionField::Department->value,
+            'option_value' => 'Computer Studies',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('profile_options', [
+            'field' => ProfileOptionField::Department->value,
+            'value' => 'Computer Studies',
+            'normalized_value' => 'computer studies',
+            'created_by_user_id' => $resLead->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'user.profile_option_created',
+            'actor_user_id' => $resLead->id,
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.create', ['mode' => 'individual', 'account_type' => 'student_researcher']))
+            ->assertOk()
+            ->assertSee('Computer Studies');
+
+        $this->actingAs($adviser)->post(route('res.users.profile-options.store'), [
+            'option_field' => ProfileOptionField::Program->value,
+            'option_value' => 'Unauthorized Program',
+        ])->assertRedirect();
+        $this->assertDatabaseMissing('profile_options', ['value' => 'Unauthorized Program']);
+    }
+
+    public function test_audit_log_hides_completion_events_and_filters_by_actor_role(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $reviewer = User::factory()->create(['role' => UserRole::Reviewer, 'name' => 'Filtered Reviewer']);
+        AuditLog::create([
+            'actor_user_id' => $reviewer->id,
+            'action' => 'user.profile_updated',
+            'subject_type' => User::class,
+            'subject_id' => $reviewer->id,
+            'metadata' => ['result' => 'completed'],
+        ]);
+        AuditLog::create([
+            'actor_user_id' => $reviewer->id,
+            'action' => 'user.onboarding_completed',
+            'subject_type' => User::class,
+            'subject_id' => $reviewer->id,
+            'metadata' => ['result' => 'completed'],
+        ]);
+        AuditLog::create([
+            'actor_user_id' => $reviewer->id,
+            'action' => 'user.password_setup_completed',
+            'subject_type' => User::class,
+            'subject_id' => $reviewer->id,
+            'metadata' => ['result' => 'completed'],
+        ]);
+
+        $this->actingAs($resLead)->get(route('res.users.audit.index', [
+            'search' => 'Filtered',
+            'role' => UserRole::Reviewer->value,
+            'result' => 'completed',
+        ]))
+            ->assertOk()
+            ->assertSee('Filtered Reviewer')
+            ->assertSee('Reviewer')
+            ->assertSee('Profile Updated')
+            ->assertDontSee('Onboarding Completed')
+            ->assertDontSee('Password Setup Completed')
+            ->assertDontSee('>Subject<', false);
+    }
+
+    public function test_revised_user_management_controls_use_csv_and_shared_ui_text(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.import.form', ['account_type' => 'student_researcher']))
+            ->assertOk()
+            ->assertSee('Upload CSV File')
+            ->assertSee('>Validate<', false)
+            ->assertSee('Show Errors')
+            ->assertSee('No errors yet.')
+            ->assertDontSee('Excel Template');
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.index'))
+            ->assertOk()
+            ->assertSee('Apply Action')
+            ->assertDontSee('Setup Email');
     }
 
     public function test_res_lead_can_mass_deactivate_and_soft_delete_accounts(): void
@@ -395,9 +555,9 @@ class UserManagementTest extends TestCase
             'email' => 'new.student@ecrats.test',
             'institutional_identifier' => 'KLD-STU-501',
             'phone_number' => '+63 917 123 4567',
-            'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
-            'department' => 'Engineering',
-            'program' => 'BS Information Systems',
+            'institution' => 'Institute of Engineering',
+            'department' => null,
+            'program' => null,
             'year_level' => 'Fourth Year',
             'role' => UserRole::Applicant->value,
             'applicant_type' => ApplicantType::Student->value,

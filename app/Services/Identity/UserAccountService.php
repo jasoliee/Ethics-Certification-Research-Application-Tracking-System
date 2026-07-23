@@ -4,6 +4,7 @@ namespace App\Services\Identity;
 
 use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
+use App\Enums\ProfileOptionField;
 use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Models\User;
@@ -23,6 +24,7 @@ class UserAccountService
     public function __construct(
         private readonly AccountCreationAuthorizationService $authorization,
         private readonly UsernameGenerator $usernameGenerator,
+        private readonly ProfileOptionCatalog $profileOptions,
         private readonly AuditLogService $auditLog,
     ) {}
 
@@ -98,6 +100,7 @@ class UserAccountService
         $validated = validator(
             $normalized,
             $this->profileRules($subject, $subject->role, $subject->applicant_type),
+            $this->profileValidationMessages(),
         )->validate();
 
         return DB::transaction(function () use ($actor, $subject, $validated): User {
@@ -242,9 +245,7 @@ class UserAccountService
             ],
         ];
 
-        return validator($attributes, $rules, [
-            'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
-        ])->validate();
+        return validator($attributes, $rules, $this->profileValidationMessages())->validate();
     }
 
     /** @return array<string, array<int, mixed>> */
@@ -273,14 +274,30 @@ class UserAccountService
                 $checkDatabaseUniqueness ? Rule::unique('users', 'institutional_identifier')->ignore($subject?->id) : null,
             ])),
             'phone_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]+$/'],
-            'institution' => ['nullable', 'string', 'max:150'],
-            'department' => ['nullable', 'string', 'max:150'],
-            'program' => ['nullable', 'string', 'max:150'],
+            'institution' => [
+                'nullable',
+                'string',
+                'max:150',
+                Rule::in($this->profileOptions->values(ProfileOptionField::Institution, $subject?->institution)),
+            ],
+            'department' => [
+                'nullable',
+                'string',
+                'max:150',
+                Rule::in($this->profileOptions->values(ProfileOptionField::Department, $subject?->department)),
+            ],
+            'program' => [
+                'nullable',
+                'string',
+                'max:150',
+                Rule::in($this->profileOptions->values(ProfileOptionField::Program, $subject?->program)),
+            ],
             'year_level' => [
                 Rule::requiredIf($targetRole === UserRole::Applicant && $applicantType === ApplicantType::Student),
                 'nullable',
                 'string',
                 'max:30',
+                Rule::in($this->profileOptions->values(ProfileOptionField::YearLevel, $subject?->year_level)),
             ],
             'position_title' => [Rule::requiredIf($targetRole === UserRole::Adviser), 'nullable', 'string', 'max:150'],
             'reviewer_classification' => [
@@ -310,10 +327,37 @@ class UserAccountService
                 : null;
         }
 
+        if (filled($attributes['reviewer_classification'] ?? null)) {
+            $classification = Str::of((string) $attributes['reviewer_classification'])
+                ->lower()
+                ->replace(['-', ' '], '_')
+                ->value();
+            $attributes['reviewer_classification'] = match ($classification) {
+                'expedited_review' => ReviewerClassification::Expedited->value,
+                'full_board_review' => ReviewerClassification::FullBoard->value,
+                default => $classification,
+            };
+        }
+
         $attributes['email'] = Str::lower(trim((string) ($attributes['email'] ?? '')));
         $attributes['institutional_identifier'] = Str::upper(trim((string) ($attributes['institutional_identifier'] ?? '')));
 
         return $attributes;
+    }
+
+    /** @return array<string, string> */
+    private function profileValidationMessages(): array
+    {
+        return [
+            'email.email' => 'Email must be a valid address such as name@example.com.',
+            'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
+            'institution.in' => $this->profileOptions->validationMessage(ProfileOptionField::Institution),
+            'department.in' => $this->profileOptions->validationMessage(ProfileOptionField::Department),
+            'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),
+            'year_level.in' => $this->profileOptions->validationMessage(ProfileOptionField::YearLevel),
+            'reviewer_classification.enum' => 'Reviewer Classification must be Expedited, Full Board, or Exempted.',
+            'reviewer_capacity.between' => 'Reviewer Capacity must be between 1 and 30.',
+        ];
     }
 
     /** @param array<string, mixed> $validated @return array<string, mixed> */

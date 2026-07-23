@@ -198,6 +198,7 @@ Route::middleware('no-store')->group(function (): void {
                     Route::get('/import/errors/{token}', 'errorReport')->whereUuid('token')->name('import.errors');
                     Route::post('/mass-action', 'massAction')->middleware('throttle:account-mass-action')->name('mass-action');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');
+                    Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-write')->name('profile-options.store');
                     Route::get('/{managedUser}', 'show')->name('show');
                     Route::get('/{managedUser}/edit', 'edit')->name('edit');
                     Route::put('/{managedUser}', 'update')->middleware('throttle:account-write')->name('update');

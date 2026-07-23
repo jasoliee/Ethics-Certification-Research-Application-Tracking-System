@@ -10,6 +10,8 @@ Research Adviser may create and manage Student or Faculty Researcher accounts on
 
 The full-page account selector opens a choice between Individual and Bulk creation. Individual forms collect split names and role-specific profile fields. Username, password, password confirmation, and Date Joined are not creator inputs.
 
+Year Level, Institution, Department, and Program use shared database-backed options. RES Lead can add an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. Department and Program intentionally begin without guessed values.
+
 Required role fields include:
 
 - Student Researcher: student number and year level.
@@ -29,4 +31,4 @@ RES Lead can select multiple accounts to deactivate, archive by soft deletion, o
 
 ## Audit Events
 
-Creation, profile updates, identity correction, status changes, archives, setup-link generation, email outcomes, import phases, password completion, login outcomes, onboarding, application submission, and authorization denials are recorded without passwords or reset tokens.
+Creation, profile updates, shared-option creation, identity correction, status changes, archives, setup-link generation, email outcomes, import phases, password completion, login outcomes, onboarding, application submission, and authorization denials are recorded without passwords or reset tokens. The RES Lead audit report intentionally hides onboarding-completion and initial password-setup-completion events while retaining those records in the database.

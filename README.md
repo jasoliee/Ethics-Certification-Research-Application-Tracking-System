@@ -73,7 +73,7 @@ Normal local seeding keeps the dashboards empty. To inspect the populated refere
 php artisan db:seed --class=DashboardDemoSeeder
 ```
 
-CSV and XLSX account templates are downloaded from User Management after selecting an authorized role. Imports are limited to 250 rows and 2 MB, require preview and explicit confirmation, and use private temporary storage. Local setup/reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
+CSV account templates are downloaded from User Management after selecting an authorized role. Imports are limited to 250 rows and 2 MB, skip duplicate/existing identities, require preview and explicit confirmation, and use private temporary storage. Local setup/reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
 
 Start the application with `composer run dev` or `php artisan serve`, then open `http://127.0.0.1:8000/login`.
 

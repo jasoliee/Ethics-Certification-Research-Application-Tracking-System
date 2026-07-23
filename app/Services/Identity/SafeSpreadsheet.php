@@ -15,8 +15,12 @@ class SafeSpreadsheet
 
     private const MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024;
 
-    /** @param array<int, string> $headers */
-    public function createTemplate(array $headers): string
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<string, string>  $exampleRow
+     * @param  array<string, array<int, string>>  $dropdowns
+     */
+    public function createTemplate(array $headers, array $exampleRow = [], array $dropdowns = []): string
     {
         $relativePath = 'exports/account-templates/'.Str::uuid().'.xlsx';
         Storage::disk('local')->makeDirectory('exports/account-templates');
@@ -27,23 +31,35 @@ class SafeSpreadsheet
             throw ValidationException::withMessages(['template' => 'The Excel template could not be generated.']);
         }
 
-        $cells = collect($headers)->values()->map(function (string $header, int $index): string {
-            $reference = $this->columnName($index + 1).'1';
-            $value = htmlspecialchars($header, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $headerCells = collect($headers)->values()->map(
+            fn (string $header, int $index): string => $this->inlineCell($this->columnName($index + 1).'1', $header, 1),
+        )->implode('');
+        $exampleCells = collect($headers)->values()->map(
+            fn (string $header, int $index): string => $this->inlineCell($this->columnName($index + 1).'2', (string) ($exampleRow[$header] ?? ''), 2),
+        )->implode('');
+        $columns = collect($headers)->values()->map(function (string $header, int $index) use ($exampleRow): string {
+            $contentWidth = max(mb_strlen($header), mb_strlen((string) ($exampleRow[$header] ?? '')));
+            $width = min(44, max(14, $contentWidth + 3));
+            $column = $index + 1;
 
-            return '<c r="'.$reference.'" t="inlineStr"><is><t>'.$value.'</t></is></c>';
+            return '<col min="'.$column.'" max="'.$column.'" width="'.$width.'" customWidth="1"/>';
         })->implode('');
+        [$optionCells, $dataValidations] = $this->dropdownXml($headers, $dropdowns);
 
         $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
         $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
         $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Accounts" sheetId="1" r:id="rId1"/></sheets></workbook>');
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Accounts" sheetId="1" r:id="rId1"/><sheet name="Options" sheetId="2" state="hidden" r:id="rId2"/></sheets></workbook>');
         $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+        $zip->addFromString('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF176F3D"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
         $zip->addFromString('xl/worksheets/sheet1.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">'.$cells.'</row></sheetData></worksheet>');
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>'.$columns.'</cols><sheetData><row r="1" ht="30" customHeight="1">'.$headerCells.'</row><row r="2" ht="42" customHeight="1">'.$exampleCells.'</row></sheetData>'.$dataValidations.'</worksheet>');
+        $zip->addFromString('xl/worksheets/sheet2.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'.$optionCells.'</sheetData></worksheet>');
         $zip->close();
 
         return $path;
@@ -63,7 +79,7 @@ class SafeSpreadsheet
             $sharedStrings = $this->sharedStrings($zip);
             $sheetXml = $this->entry($zip, $this->firstWorksheetPath($zip));
 
-            if (stripos($sheetXml, '<f') !== false) {
+            if (preg_match('/<f(?:\s|>)/i', $sheetXml) === 1) {
                 throw $this->invalid('Spreadsheet formulas are not allowed in account imports.');
             }
 
@@ -250,6 +266,56 @@ class SafeSpreadsheet
         }
 
         return $name;
+    }
+
+    private function inlineCell(string $reference, string $value, int $style = 0): string
+    {
+        $safeValue = htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $styleAttribute = $style > 0 ? ' s="'.$style.'"' : '';
+
+        return '<c r="'.$reference.'"'.$styleAttribute.' t="inlineStr"><is><t>'.$safeValue.'</t></is></c>';
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<string, array<int, string>>  $dropdowns
+     * @return array{0: string, 1: string}
+     */
+    private function dropdownXml(array $headers, array $dropdowns): array
+    {
+        $optionRows = [];
+        $validations = [];
+        $optionColumn = 0;
+
+        foreach ($dropdowns as $header => $values) {
+            $headerIndex = array_search($header, $headers, true);
+            $values = array_values(array_filter($values, fn ($value): bool => filled($value)));
+
+            if ($headerIndex === false || $values === []) {
+                continue;
+            }
+
+            $optionColumn++;
+            $optionColumnName = $this->columnName($optionColumn);
+
+            foreach ($values as $rowIndex => $value) {
+                $row = $rowIndex + 1;
+                $optionRows[$row] ??= [];
+                $optionRows[$row][] = $this->inlineCell($optionColumnName.$row, (string) $value);
+            }
+
+            $targetColumn = $this->columnName($headerIndex + 1);
+            $validations[] = '<dataValidation type="list" allowBlank="1" showErrorMessage="1" errorTitle="Invalid option" error="Select a value from the dropdown list." sqref="'.$targetColumn.'2:'.$targetColumn.'252"><formula1>\'Options\'!$'.$optionColumnName.'$1:$'.$optionColumnName.'$'.count($values).'</formula1></dataValidation>';
+        }
+
+        $rows = collect($optionRows)
+            ->map(fn (array $cells, int $row): string => '<row r="'.$row.'">'.implode('', $cells).'</row>')
+            ->implode('');
+        $validationXml = $validations === []
+            ? ''
+            : '<dataValidations count="'.count($validations).'">'.implode('', $validations).'</dataValidations>';
+
+        return [$rows, $validationXml];
     }
 
     private function invalid(string $message): ValidationException
