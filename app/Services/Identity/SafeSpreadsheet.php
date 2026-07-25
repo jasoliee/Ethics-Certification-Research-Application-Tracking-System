@@ -184,8 +184,22 @@ class SafeSpreadsheet
 
         // Open the completed package and require every standard workbook part used by ECRATS.
         $zip = new ZipArchive;
+        $reopened = false;
 
-        if ($zip->open($path) !== true) {
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            clearstatcache(true, $path);
+
+            if ($zip->open($path) === true) {
+                $reopened = true;
+                break;
+            }
+
+            if ($attempt < 3) {
+                usleep(100000 * ($attempt + 1));
+            }
+        }
+
+        if (! $reopened) {
             throw ValidationException::withMessages(['template' => 'The generated Excel template could not be reopened.']);
         }
 
@@ -430,8 +444,22 @@ class SafeSpreadsheet
         }
 
         $zip = new ZipArchive;
+        $reopened = false;
 
-        if ($zip->open($path) !== true) {
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            clearstatcache(true, $path);
+
+            if ($zip->open($path) === true) {
+                $reopened = true;
+                break;
+            }
+
+            if ($attempt < 3) {
+                usleep(100000 * ($attempt + 1));
+            }
+        }
+
+        if (! $reopened) {
             throw $this->invalid('The Excel file is corrupted or password-protected.');
         }
 
