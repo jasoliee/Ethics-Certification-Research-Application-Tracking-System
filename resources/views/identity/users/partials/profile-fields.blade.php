@@ -3,8 +3,9 @@
     $profileRole = $managedUser?->role?->value ?? ($selectedType['role'] ?? null);
     $profileApplicantType = $managedUser?->applicant_type?->value ?? ($selectedType['applicant_type'] ?? null);
 @endphp
+{{-- Personal fields use the shared section-title spacing across every supported account type. --}}
 <fieldset class="identity-form-section">
-    <legend>Personal Information</legend>
+    <legend class="identity-form-section-title">Personal Information</legend>
     <div class="identity-form-grid identity-form-grid-four">
         <div class="identity-field">
             <label for="first_name">First Name <span aria-hidden="true">*</span></label>
@@ -29,8 +30,9 @@
     </div>
 </fieldset>
 
+{{-- Institutional and role-specific fields share the same divider-to-title spacing and field order. --}}
 <fieldset class="identity-form-section">
-    <legend>Institutional Information</legend>
+    <legend class="identity-form-section-title">Institutional Information</legend>
     <div class="identity-form-grid">
         <div class="identity-field">
             <label for="email">Email Address <span aria-hidden="true">*</span></label>
@@ -103,8 +105,8 @@
                 <label for="reviewer_classification">Reviewer Classification <span aria-hidden="true">*</span></label>
                 <select id="reviewer_classification" name="reviewer_classification" required>
                     <option value="">Select classification</option>
-                    @foreach (\App\Enums\ReviewerClassification::cases() as $classification)
-                        <option value="{{ $classification->value }}" @selected(old('reviewer_classification', $managedUser?->reviewer_classification?->value) === $classification->value)>{{ $classification->label() }}</option>
+                    @foreach ($profileOptions[\App\Enums\ProfileOptionField::ReviewerClassification->value] ?? [] as $option)
+                        <option value="{{ $option }}" @selected(old('reviewer_classification', $managedUser?->reviewer_classification) === $option)>{{ $option }}</option>
                     @endforeach
                 </select>
                 @error('reviewer_classification')<span class="identity-field-error">{{ $message }}</span>@enderror

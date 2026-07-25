@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\UserRole;
+use App\Services\AuditLogService;
 use App\Support\RoleHome;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,15 @@ class EnsureUserHasRole
         );
 
         if (! in_array($user->role?->value, $allowedRoles, true)) {
+            try {
+                app(AuditLogService::class)->record($user, 'auth.authorization_denied', $user, [
+                    'route' => $request->route()?->getName(),
+                    'result' => 'denied',
+                ]);
+            } catch (\Throwable) {
+                // Access still fails closed if audit persistence is temporarily unavailable.
+            }
+
             return redirect()->route(RoleHome::routeNameFor($user->role));
         }
 

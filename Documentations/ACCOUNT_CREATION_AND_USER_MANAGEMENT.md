@@ -8,9 +8,9 @@ Research Adviser may create and manage Student or Faculty Researcher accounts on
 
 ## Individual Creation
 
-The full-page account selector opens a choice between Individual and Bulk creation. Individual forms collect split names and role-specific profile fields. Username, password, password confirmation, and Date Joined are not creator inputs.
+The full-page account selector opens a choice between Individual and Bulk creation. Individual forms collect split names and role-specific profile fields. Username, password, password confirmation, and Date Joined are not creator inputs. Form sections reuse one spacing class so divider lines, titles, and first field rows remain consistently separated for every account type.
 
-Year Level, Institution, Department, and Program use shared database-backed options. RES Lead can add an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. Department and Program intentionally begin without guessed values.
+Year Level, Institution, Department, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. Department and Program intentionally begin without guessed values. Existing profile strings remain unchanged when catalog entries are renamed or deactivated.
 
 Required role fields include:
 
@@ -21,9 +21,17 @@ Required role fields include:
 
 Created accounts remain pending until password setup succeeds. Email failure never activates the account.
 
+## Excel Creation
+
+Bulk creation accepts only official `.xlsx` workbooks. Each role has exact headers, an ignored sentinel example row, a hidden protected Options worksheet, an Instructions worksheet, and database-backed dropdowns. Preview separates valid, invalid, duplicate, existing, and warning rows. Confirmation creates only the valid preview rows and never overwrites an existing account. See [Bulk Account Import](BULK_ACCOUNT_IMPORT.md).
+
+When validation fails, the upload surface shows only `An error occurred.` Complete safe details are available in the scrollable Show Errors modal. A red exclamation badge remains until the file changes or later validation succeeds; opening the modal stops only the brief attention animation.
+
 ## Profile and Identity Changes
 
 Ordinary profile edits cannot change surname or institutional identifier because both determine the username. A separate confirmed identity-correction action changes those values, regenerates the username, audits old/new usernames, and notifies the account email.
+
+The account-information header preserves three responsive regions: identity on the left, application count in the center, and Back to User Management on the right. Reset/setup resend actions reuse the shared green-outline button and retain authorization, CSRF, rate limiting, and neutral delivery responses.
 
 ## Status and Mass Actions
 
@@ -31,4 +39,4 @@ RES Lead can select multiple accounts to deactivate, archive by soft deletion, o
 
 ## Audit Events
 
-Creation, profile updates, shared-option creation, identity correction, status changes, archives, setup-link generation, email outcomes, import phases, password completion, login outcomes, onboarding, application submission, and authorization denials are recorded without passwords or reset tokens. The RES Lead audit report intentionally hides onboarding-completion and initial password-setup-completion events while retaining those records in the database.
+Creation, profile updates, shared-option lifecycle changes, identity correction, status changes, archives, setup-link generation, email outcomes, import phases, password completion, login outcomes, onboarding, application submission, and authorization denials are recorded without passwords or reset tokens. Metadata is recursively sanitized for secret-bearing keys. The RES Lead audit report supports search, role, action, result, target type, and date filters while intentionally hiding onboarding-completion and initial password-setup-completion events. See [Audit Log](AUDIT_LOG.md).

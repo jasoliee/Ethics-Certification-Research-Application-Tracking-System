@@ -4,7 +4,6 @@ namespace App\Http\Requests\Identity;
 
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
-use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Identity\ProfileOptionCatalog;
@@ -42,14 +41,19 @@ class UpdateManagedUserRequest extends FormRequest
                 Rule::requiredIf($subject->role === UserRole::Applicant && $subject->applicant_type === ApplicantType::Student),
                 'nullable',
                 'string',
-                'max:30',
+                'max:150',
                 Rule::in($options->values(ProfileOptionField::YearLevel, $subject->year_level)),
             ],
             'position_title' => [Rule::requiredIf($subject->role === UserRole::Adviser), 'nullable', 'string', 'max:150'],
             'reviewer_classification' => [
                 Rule::requiredIf($subject->role === UserRole::Reviewer),
                 'nullable',
-                Rule::enum(ReviewerClassification::class),
+                'string',
+                'max:150',
+                Rule::in($options->values(
+                    ProfileOptionField::ReviewerClassification,
+                    $subject->reviewer_classification,
+                )),
             ],
             'reviewer_capacity' => [
                 Rule::requiredIf($subject->role === UserRole::Reviewer),
@@ -73,7 +77,7 @@ class UpdateManagedUserRequest extends FormRequest
             'department.in' => $options->validationMessage(ProfileOptionField::Department),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classification.enum' => 'Reviewer Classification must be Expedited, Full Board, or Exempted.',
+            'reviewer_classification.in' => $options->validationMessage(ProfileOptionField::ReviewerClassification),
         ];
     }
 }

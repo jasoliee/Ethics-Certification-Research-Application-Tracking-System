@@ -22,8 +22,8 @@ class ImportManagedUsersRequest extends FormRequest
                 'required',
                 'file',
                 'max:'.UserBulkImportService::MAX_FILE_KILOBYTES,
-                'extensions:csv,xlsx',
-                'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip',
+                'extensions:xlsx',
+                'mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip',
             ],
         ];
     }
@@ -32,9 +32,9 @@ class ImportManagedUsersRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'accounts_file.extensions' => 'Upload a CSV or XLSX file using the selected role template.',
-            'accounts_file.mimetypes' => 'The uploaded file content must be a valid CSV or XLSX document.',
-            'accounts_file.max' => 'The account file must not exceed 2 MB.',
+            'accounts_file.extensions' => 'Upload the current official .xlsx template. CSV, legacy Excel, and macro-enabled files are not accepted.',
+            'accounts_file.mimetypes' => 'The uploaded file content must be a standard macro-free XLSX workbook.',
+            'accounts_file.max' => 'The Excel file must not exceed 2 MB.',
         ];
     }
 }

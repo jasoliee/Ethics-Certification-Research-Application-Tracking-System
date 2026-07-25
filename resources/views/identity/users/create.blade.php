@@ -26,12 +26,6 @@
                 </div>
 
                 <div class="identity-role-footer-actions">
-                    @if ($canManageProfileOptions)
-                        <button class="identity-button identity-button-secondary" type="button" data-profile-option-open>
-                            <x-dashboard.icon name="plus" size="18" />
-                            <span>Add Dropdown Option</span>
-                        </button>
-                    @endif
                     <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.index') }}">Cancel</a>
                 </div>
             </div>
@@ -43,7 +37,7 @@
                     <p>Choose how account information will be entered.</p>
                     <div class="identity-mode-options">
                         <a href="#" data-account-individual-link><x-dashboard.icon name="user" size="24" /><span><strong>Individual Account</strong><small>Enter one account in a secure form.</small></span></a>
-                        <a href="#" data-account-bulk-link><x-dashboard.icon name="upload" size="24" /><span><strong>Bulk Account</strong><small>Validate a role-specific CSV file before creating accounts.</small></span></a>
+                        <a href="#" data-account-bulk-link><x-dashboard.icon name="file-spreadsheet" size="24" /><span><strong>Excel Bulk Import</strong><small>Validate the official role-specific Excel template before creating accounts.</small></span></a>
                     </div>
                 </div>
             </section>
@@ -63,7 +57,7 @@
                     <div><h2 class="identity-role-title">{{ $selectedType['label'] }}</h2><p>Required fields are marked with an asterisk.</p></div>
                     <div class="identity-form-heading-actions">
                         @if ($canManageProfileOptions)
-                            <button class="identity-button identity-button-secondary" type="button" data-profile-option-open>Add Dropdown Option</button>
+                            <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}">Dropdown Options</a>
                         @endif
                         <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.create') }}">Change Account Type</a>
                     </div>
@@ -81,7 +75,5 @@
                 </div>
             </form>
         @endif
-
-        @include('identity.users.partials.profile-option-dialog')
     </div>
 @endsection

@@ -60,13 +60,128 @@ Date:
 
 ## Active Plans
 
+## Plan: Account-management UI and verified workbook corrections
+
+### Goal
+Correct the approved account-management and dashboard presentation, produce Excel templates that survive a trusted Xlsx-reader round trip, and keep bulk-import validation details in one secure, accessible modal state.
+
+### Source Documents
+- Primary requirement: attached correction specification, July 24, 2026.
+- Visual references: supplied account-information, reset-link, dashboard-card, validation-modal, workbook-error, and table-overflow screenshots.
+- Existing implementation: the current account policies, private preview lifecycle, bounded OOXML parser, reusable dashboard components, and the active Excel-only account-administration plan.
+- Verification boundary: automated package and Xlsx-reader checks can validate the generated file, but Microsoft Excel and responsive visual acceptance remain manual checks until directly observed.
+
+### Scope
+Included:
+- Restore the three-part account-information header, use the shared green-outline reset action, contain account-table overflow, and normalize individual-form section spacing.
+- Center shared dashboard summary-card content vertically as icon, count, and label without changing role queries, labels, colors, or authorization.
+- Correct the generated OOXML package, add trusted PhpSpreadsheet round-trip verification, validate required entries, named ranges, data validation, response headers, and private temporary-file cleanup.
+- Keep the general import message concise, render categorized details only in the Show Errors modal, and add a persistent accessible error badge with a short reduced-motion-safe attention state.
+- Extend focused tests, documentation, manual visual checks, and source comments required by this correction.
+
+Excluded:
+- Changing application status meanings, dashboard count calculations, user-management authorization, reset-token behavior, or import confirmation rules.
+- Installing a browser framework or claiming manual Microsoft Excel or visual acceptance without direct observation.
+- Replacing the hardened bounded parser for untrusted uploaded workbooks with unrestricted spreadsheet evaluation.
+
+### Implementation Approach
+- Backend: keep controllers thin, verify each trusted generated file before download, catch generation failures safely, and reuse one private user-bound validation-result structure.
+- Frontend: update shared Blade/CSS/JavaScript components so all supported roles inherit the same card, table, button, spacing, modal, and accessibility behavior.
+- Database: no schema change is planned; validation state remains bounded, private, user-bound, and expiring.
+- Authorization: preserve existing policies, gates, role middleware, CSRF protection, and route throttles.
+- Files/storage: keep private temporary `.xlsx` files, verify package entries and Xlsx readability, and delete delivered, rejected, expired, or cancelled artifacts.
+- Dependencies: add `phpoffice/phpspreadsheet` for trusted Xlsx generation verification and automated round-trip tests.
+
+### Files Expected to Change
+- `composer.json`, `composer.lock`, `app/Services/Identity/SafeSpreadsheet.php`, `UserManagementController`, and focused identity tests
+- Shared dashboard summary-card Blade/CSS and role dashboard tests
+- User-management Blade views, `resources/css/dashboard.css`, and `resources/js/dashboard.js`
+- `PLANS.md`, changelogs, account/dashboard/import/testing documents, and `Documentations/MANUAL_VISUAL_VALIDATION.md`
+
+### Tests and Verification
+- Focused account authorization, reset-link, pagination, summary-card, workbook round-trip, download response, validation-state, and modal rendering tests.
+- `php artisan optimize:clear`, `php artisan route:list`, `php artisan test`, Pint, Composer validation/platform checks, dependency audits, `npm.cmd run build`, and `git diff --check`.
+- Manual Microsoft Excel and responsive checks remain explicitly pending unless directly observed.
+
+### Risks and Rollback
+- PhpSpreadsheet adds a maintained workbook dependency; rollback removes the package and trusted round-trip verifier but must not restore the invalid workbook response.
+- Shared CSS changes affect all role dashboards and account tables, so focused rendering contracts and the full frontend build guard regressions.
+- Validation details remain session-bound and escaped; rollback must preserve user isolation, expiry, and secure cleanup.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-24
+
+## Plan: Excel-only account administration completion
+
+### Goal
+Complete the existing RES Lead and Adviser account-management workflows using a secure Excel-only import, centrally managed dropdown options, consistent audit/report behavior, and reusable responsive table components based on high-fidelity pages 1-8.
+
+### Source Documents
+- Primary requirement: attached account-management completion specification, July 23, 2026.
+- Visual reference: `ECRATS High Fidelity (5).pdf`, pages 1-8, plus the supplied current user-table, status-badge, and RES Lead dashboard screenshots.
+- Existing implementation: the current private preview/confirmation flow, account policies, option catalog, shared Blade components, and focused feature tests.
+- Superseded decision: the earlier July 23 plan retained CSV because of a prior requirement conflict. The latest approved specification explicitly replaces the active CSV workflow with `.xlsx` only.
+
+### Scope
+Included:
+- Exactly three worksheet templates (`Accounts`, `Options`, and `Instructions`) with role-specific columns, a sentinel example row, active database options, named-range dropdowns, and bounded OOXML generation.
+- Server-side workbook structure, archive, formula, external-link, embedded-content, header, row, controlled-value, authorization, duplicate, and existing-account validation.
+- Private single-use import previews, separate validation categories, batch conflict checks, valid-row-only confirmation, result reporting, and post-transaction setup-email delivery.
+- Database-backed Year Level, Institution, Department, Program, and Reviewer Classification options with add, edit, deactivate, restore, usage visibility, and historical-value preservation.
+- RES Lead and Adviser list/view/create/import responsiveness; shared badge, tooltip, table, pagination, status, and outline-button behavior; expanded audit filtering without exposing secret tokens.
+
+Excluded:
+- Mandatory queue infrastructure, because the current local/client environment does not guarantee a continuously running worker.
+- Password-protected workbook decryption, legacy Excel conversion, macros, formula evaluation, or external workbook retrieval.
+- A visible audit token filter. The current schema has no non-secret correlation, request, trace, or public event identifier; authentication and setup tokens must remain undisclosed.
+- Guessing Department or Program defaults before the team supplies approved values.
+
+### Implementation Approach
+- Backend: preserve the existing controller/service boundaries, replace CSV branches with a bounded `.xlsx` contract, batch duplicate lookups, keep policies authoritative, and sanitize audit metadata before persistence.
+- Frontend: extend the existing Blade/CSS/JavaScript components instead of introducing a second design system; keep table scrolling inside its container and use one delegated 0.5-second tooltip implementation.
+- Database: add Reviewer Classification defaults to `profile_options`; no destructive user-profile conversion is required because historical profile values remain stored on `users`.
+- Authorization: RES Lead manages shared options and all permitted non-RES-Lead account types; Advisers remain limited to authorized Student and Faculty Researcher records.
+- Files/storage: accept one `.xlsx` up to 2 MB and 250 account rows, use private temporary storage, expire previews after 30 minutes, and remove uploads after parsing.
+- Notifications/audit: create accounts before sending setup mail, report delivery separately, and never persist passwords, setup/reset tokens, complete workbooks, or SMTP details in audit metadata.
+
+### Files Expected to Change
+- `app/Enums`, `app/Models`, `app/Services/Identity`, `app/Services/AuditLogService.php`, identity Form Requests, and `UserManagementController`
+- `database/migrations`
+- `routes/web.php`
+- Identity Blade views, shared dashboard components, `resources/css/dashboard.css`, and `resources/js/dashboard.js`
+- Focused Identity tests and account-management documentation
+
+### Tests and Verification
+- Focused Excel generation/import, option lifecycle, authorization, duplicate, email-domain, audit, pagination, and UI contract tests.
+- `php artisan route:list`, focused tests, full `php artisan test`, Pint, Composer checks, `npm.cmd run build`, and `git diff --check`.
+- Browser verification at approximately 1440, 1280, 1024, 768, and 390 pixels when the local server and in-app browser are available.
+
+### Verification Status (2026-07-24)
+- Focused Identity and account-authorization coverage passed with 28 tests and 320 assertions before final parser hardening.
+- Final `php artisan test` passed with 73 tests and 813 assertions.
+- Pint, Blade compilation, Composer strict validation, platform requirements including `ext-zip`, all 75 application routes, migration status, and the Vite production build passed.
+- `composer audit --locked` found no security advisories; `npm.cmd audit --audit-level=moderate` found zero vulnerabilities.
+- The additive migration ran successfully against the local database. `git diff --check` passed, nothing is staged, and neither `.env` nor `outputs/` is tracked.
+- The local login route returned HTTP 200 at `http://127.0.0.1:8000/login`. Responsive interactive screenshots were not completed because the discoverable in-app browser failed to attach a fresh webview tab twice; no visual result is claimed.
+
+### Risks and Rollback
+- The migration is additive and inserts only missing Reviewer Classification options. Rollback removes only migration-owned defaults that are not referenced as creator-managed records.
+- Previously downloaded CSV/XLSX templates are not accepted under the new active contract; users must download a current official `.xlsx` template.
+- Existing user profile strings remain intact when an option is edited or deactivated. Restoring the migration does not rewrite historical values.
+- Custom bounded OOXML handling avoids a new package dependency, but intentionally supports only the documented three-sheet template contract rather than arbitrary spreadsheets.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-23
+
 ## Plan: User management import, options, audit, and shared table polish
 
 ### Goal
 Align RES Lead and Adviser account-management workflows with the July 23, 2026 UI and import guide while preserving secure onboarding, role authorization, private import staging, and team-compatible shared components.
 
 ### Source Documents
-- Primary requirement: attached organized Codex-ready user-management guide, July 23, 2026.
+- Primary requirement: attached organized user-management guide, July 23, 2026.
 - Supporting implementation: existing account-management services, policies, Blade views, and high-fidelity-inspired dashboard components.
 - Conflicts or missing decisions: CSV files cannot contain spreadsheet dropdown validation, column widths, or wrap-text styling. CSV remains the only visible template and upload choice. Shared database options will drive CSV examples and validation; the existing internal XLSX generator will retain spreadsheet-only formatting and dropdown support for compatibility. Department and Program begin without guessed defaults and can be populated by RES Lead.
 

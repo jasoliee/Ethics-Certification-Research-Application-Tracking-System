@@ -114,8 +114,8 @@ Route::middleware('no-store')->group(function (): void {
                     Route::get('/import', 'importForm')->name('import.form');
                     Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
                     Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
-                    Route::get('/import/template/{format}', 'template')->whereIn('format', ['csv', 'xlsx'])->name('import.template');
-                    Route::get('/import/errors/{token}', 'errorReport')->whereUuid('token')->name('import.errors');
+                    // Rate-limit verified workbook generation while retaining the Adviser role and catalog checks.
+                    Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');
                     Route::get('/{managedUser}', 'show')->name('show');
                     Route::get('/{managedUser}/edit', 'edit')->name('edit');
                     Route::put('/{managedUser}', 'update')->middleware('throttle:account-write')->name('update');
@@ -194,11 +194,14 @@ Route::middleware('no-store')->group(function (): void {
                     Route::get('/import', 'importForm')->name('import.form');
                     Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
                     Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
-                    Route::get('/import/template/{format}', 'template')->whereIn('format', ['csv', 'xlsx'])->name('import.template');
-                    Route::get('/import/errors/{token}', 'errorReport')->whereUuid('token')->name('import.errors');
+                    // Rate-limit verified workbook generation while retaining the RES Lead role and catalog checks.
+                    Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');
                     Route::post('/mass-action', 'massAction')->middleware('throttle:account-mass-action')->name('mass-action');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');
-                    Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-write')->name('profile-options.store');
+                    Route::get('/profile-options', 'profileOptionsIndex')->name('profile-options.index');
+                    Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-option')->name('profile-options.store');
+                    Route::put('/profile-options/{profileOption}', 'updateProfileOption')->middleware('throttle:account-option')->name('profile-options.update');
+                    Route::patch('/profile-options/{profileOption}/status', 'changeProfileOptionStatus')->middleware('throttle:account-option')->name('profile-options.status');
                     Route::get('/{managedUser}', 'show')->name('show');
                     Route::get('/{managedUser}/edit', 'edit')->name('edit');
                     Route::put('/{managedUser}', 'update')->middleware('throttle:account-write')->name('update');

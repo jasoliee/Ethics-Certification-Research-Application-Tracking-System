@@ -4,7 +4,6 @@ namespace App\Http\Requests\Identity;
 
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
-use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Identity\AccountCreationAuthorizationService;
@@ -45,9 +44,15 @@ class StoreManagedUserRequest extends FormRequest
             'institution' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Institution))],
             'department' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Department))],
             'program' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Program))],
-            'year_level' => [Rule::requiredIf($isStudent), 'nullable', 'string', 'max:30', Rule::in($options->values(ProfileOptionField::YearLevel))],
+            'year_level' => [Rule::requiredIf($isStudent), 'nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::YearLevel))],
             'position_title' => [Rule::requiredIf($isAdviser), 'nullable', 'string', 'max:150'],
-            'reviewer_classification' => [Rule::requiredIf($isReviewer), 'nullable', Rule::enum(ReviewerClassification::class)],
+            'reviewer_classification' => [
+                Rule::requiredIf($isReviewer),
+                'nullable',
+                'string',
+                'max:150',
+                Rule::in($options->values(ProfileOptionField::ReviewerClassification)),
+            ],
             'reviewer_capacity' => [Rule::requiredIf($isReviewer), 'nullable', 'integer', 'between:1,30'],
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [Rule::requiredIf($isApplicant), 'nullable', Rule::enum(ApplicantType::class)],
@@ -66,7 +71,7 @@ class StoreManagedUserRequest extends FormRequest
             'department.in' => $options->validationMessage(ProfileOptionField::Department),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classification.enum' => 'Reviewer Classification must be Expedited, Full Board, or Exempted.',
+            'reviewer_classification.in' => $options->validationMessage(ProfileOptionField::ReviewerClassification),
         ];
     }
 }

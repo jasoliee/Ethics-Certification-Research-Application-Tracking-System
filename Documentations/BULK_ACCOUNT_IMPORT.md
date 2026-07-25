@@ -1,40 +1,60 @@
-# Bulk Account Import
+# Excel Bulk Account Import
+
+CSV was replaced as the active account-import format because the approved workflow requires role-specific formatting, Excel dropdowns, protected option data, preserved text identifiers, and in-workbook instructions. Only a current ECRATS `.xlsx` template is accepted.
+
+## Prerequisite
+
+PHP `ext-zip` is required. Confirm the active CLI configuration with:
+
+```powershell
+php --ini
+php -m | Select-String zip
+composer check-platform-reqs
+```
 
 ## Workflow
 
-1. Select one authorized account type.
-2. Download that role's CSV template.
-3. Upload at most 2 MB and 250 non-empty account rows.
-4. Review generated usernames, skipped duplicates/existing accounts, and row-level errors.
-5. Correct the source file until every row is valid.
-6. Confirm the preview once to create all new accounts in a transaction.
-7. ECRATS sends setup links after the transaction commits.
+1. Select an account type authorized for the signed-in RES Lead or Adviser.
+2. Download a new `.xlsx` template so it contains the latest active options.
+3. Keep Row 1 and all worksheet names unchanged; leave the marked Row 2 example intact.
+4. Enter accounts on Row 3 onward, save as `.xlsx`, and upload one file up to 2 MB.
+5. Review valid, invalid, duplicate, existing-account, and warning categories plus generated usernames.
+6. Confirm once to create only the valid preview rows. Invalid rows remain uncreated and can be corrected in a later workbook.
+7. ECRATS sends setup links after all account database writes finish and reports delivery separately.
 
-No user is created during preview. Confirmation uses an atomic file rename, making the preview token single-use across refreshes and double clicks. Preview/error files expire after 30 minutes and are scoped to the actor under private local storage.
+No account is created during validation. The actor-scoped preview expires after 30 minutes. Confirmation atomically renames the preview file, making it single-use across refreshes and double clicks. Sources are deleted after parsing and preview files are deleted after confirmation or expiry cleanup.
 
-## Templates
+## Workbook Contract
 
-The visible template is UTF-8 CSV with role-specific headers and one realistic example row. The example row is ignored automatically during validation. Templates never contain username, password, password confirmation, role override, account status, setup status, or Date Joined columns.
+Every official workbook contains exactly three worksheets in this order:
 
-The selected account type is server-owned. A row cannot use a template to create a more privileged role.
+- `Accounts`: visible data-entry sheet, frozen header, filter, text-formatted cells, fixed widths, and dropdowns where current options exist.
+- `Options`: hidden and protected sheet containing active Year Level, Institution, Department, Program, and Reviewer Classification values used by defined names.
+- `Instructions`: visible contract, accepted values, limits, warnings, and upload steps.
 
-CSV does not support cell dropdowns, widths, or wrap-text formatting. ECRATS therefore validates CSV values against the same database-backed Year Level, Institution, Department, and Program options used by account forms. The retained internal XLSX generator applies those spreadsheet-only features for compatibility, but XLSX is not shown as an upload/template choice in the interface.
+Row 2 is ignored only when its identifier is exactly `EXAMPLE-ROW-DO-NOT-IMPORT`. If edited, it becomes ordinary account data and must validate.
 
-## Validation
+## Role Columns
 
-- Exact known headers with required fields and no duplicates.
-- Valid role-specific institutional identifier and fields.
-- Student number or employee ID remains the primary identity key.
-- The first valid occurrence of repeated credentials is kept; later occurrences are skipped.
-- Rows matching an existing email or identifier, including archived accounts, are skipped without becoming validation errors.
-- New-row emails and identifiers remain protected by database uniqueness.
-- Maximum reviewer capacity of 30.
-- UTF-8 CSV content in the visible workflow; safe XLSX parsing remains available for backward compatibility.
-- No spreadsheet formulas, formula-prefixed cells, HTML, unsupported control characters, macros, embedded objects, or external links.
-- Archive entry and expanded-size limits to reduce decompression abuse.
+- Student Researcher: First Name, Middle Name, Last Name, Suffix, Email, Student Number, Phone Number, Year Level, Institution, Department, Program.
+- Faculty Researcher: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institution, Department, Program, Position / Designation.
+- Research Adviser: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institution, Department, Position / Designation.
+- Ethics Reviewer: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institution, Department, Position / Designation, Reviewer Classification.
 
-Real format or field errors block confirmation and appear in a scrollable error dialog with their row number and accepted format/value. An invalid import creates no accounts and can provide a CSV error report. Error-report cells are escaped before download to avoid spreadsheet formula injection.
+Headers, order, account type, worksheet names, visibility, and worksheet count must match exactly. Username, password, role override, account status, setup status, and Date Joined are never import columns.
+
+## Validation and Duplicate Handling
+
+Server validation is authoritative even when Excel shows a dropdown. It checks required fields, valid email syntax without domain allow-listing, controlled values against active database options, reviewer limits, exact identifiers, row and column bounds, and uniqueness.
+
+The first valid occurrence of an email or institutional identifier is eligible. Later identical workbook rows are categorized as duplicates. Existing active or archived identities are categorized as existing and never overwritten. Conflicting email/identifier combinations are invalid. Database unique indexes remain the final concurrency defense during confirmation.
+
+## Workbook Safety
+
+The parser accepts the ZIP-based OOXML contract only. It rejects CSV, XLS, XLSM, XLSB, renamed non-XLSX files, corrupt/encrypted/password-protected workbooks, formulas, unexpected sheets, changed headers, external relationships, macros, ActiveX, OLE, custom UI, query connections, embedded files, extra columns, and excessive rows.
+
+Limits include 2 MB compressed upload size, 250 account rows, 150 archive entries, 20 MB total expanded archive bytes, 1,000 option rows per field, and 10,000 shared strings. XML is parsed only after these archive and structural checks. This is bounded in-memory OOXML handling, not a general-purpose streaming spreadsheet reader.
 
 ## Failure Safety
 
-Uploaded sources are removed in a `finally` block. Account creation is transactional. Email failure after commit leaves the affected account pending and visible for a controlled resend.
+Each account uses a short transaction. An unexpected failure is reported for that row without holding mail delivery or unrelated rows inside one long transaction. Setup email runs only after database writes finish. A delivery failure leaves the account pending and available for controlled resend.

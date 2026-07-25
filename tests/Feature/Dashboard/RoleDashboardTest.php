@@ -43,6 +43,42 @@ class RoleDashboardTest extends TestCase
         }
     }
 
+    /**
+     * Verify every role using shared summary cards renders zero counts in icon, number, then label order.
+     */
+    public function test_shared_summary_cards_render_centered_vertical_order_for_zero_counts(): void
+    {
+        // Arrange the first expected card for each dashboard role that owns a summary-card grid.
+        $cases = [
+            UserRole::Adviser->value => 'Pending',
+            UserRole::Reviewer->value => 'Pending Reviews',
+            UserRole::ResLead->value => 'For RES Screening',
+        ];
+
+        foreach ($cases as $role => $label) {
+            // Act with an empty database scope so the shared component must render a real zero-count state.
+            $user = User::factory()->create(['role' => $role]);
+            $response = $this->actingAs($user)->get(route('dashboard'))->assertOk();
+            $content = (string) $response->getContent();
+            $cardStart = strpos($content, 'aria-label="'.$label.': 0"');
+            $cardEnd = $cardStart === false ? false : strpos($content, '</a>', $cardStart);
+            $this->assertIsInt($cardStart);
+            $this->assertIsInt($cardEnd);
+            $card = substr($content, $cardStart, $cardEnd - $cardStart);
+
+            // Assert accessible labeling and the component's semantic icon, count, and text source order.
+            $response->assertSee('aria-label="'.$label.': 0"', false);
+            $iconPosition = strpos($card, 'dashboard-summary-icon');
+            $countPosition = strpos($card, '<strong>0</strong>');
+            $labelPosition = strpos($card, '<span>'.$label.'</span>');
+            $this->assertIsInt($iconPosition);
+            $this->assertIsInt($countPosition);
+            $this->assertIsInt($labelPosition);
+            $this->assertLessThan($countPosition, $iconPosition);
+            $this->assertLessThan($labelPosition, $countPosition);
+        }
+    }
+
     public function test_applicant_dashboard_displays_active_application_requirements_deadline_and_milestone(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
@@ -228,6 +264,38 @@ class RoleDashboardTest extends TestCase
             ->assertSee('aria-label="For Result Release: 1"', false)
             ->assertSee('RES-001')
             ->assertSee('RES-005');
+    }
+
+    /**
+     * Verify every role that uses shared summary cards renders zero counts before centered labels.
+     */
+    public function test_shared_summary_cards_render_icon_count_and_label_order_for_zero_counts(): void
+    {
+        // Arrange the role-specific labels expected when the database contains no applications or assignments.
+        $cases = [
+            UserRole::Adviser->value => ['Pending', 'In Review', 'Endorsed', 'Returned'],
+            UserRole::Reviewer->value => ['Pending Reviews', 'Near Deadline', 'Revision Reviews', 'Completed Reviews'],
+            UserRole::ResLead->value => ['For RES Screening', 'Under RES Screening', 'Awaiting Assignment', 'Under Review', 'For Result Release'],
+        ];
+
+        foreach ($cases as $role => $labels) {
+            // Act as a fresh role account so every shared card receives a database-derived zero count.
+            $user = User::factory()->create(['role' => $role]);
+            $response = $this->actingAs($user)->get(route('dashboard'));
+
+            // Assert the reusable component keeps icon, count, then label order and exposes each count-label pair accessibly.
+            $response->assertOk()
+                ->assertSeeInOrder([
+                    'dashboard-summary-icon',
+                    'dashboard-summary-copy',
+                    '<strong>0</strong>',
+                    '<span>'.$labels[0].'</span>',
+                ], false);
+
+            foreach ($labels as $label) {
+                $response->assertSee('aria-label="'.$label.': 0"', false);
+            }
+        }
     }
 
     public function test_role_dashboards_keep_database_query_counts_bounded(): void

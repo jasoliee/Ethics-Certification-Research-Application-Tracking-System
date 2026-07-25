@@ -10,7 +10,8 @@ ECRATS is the Ethics Certification Review Application and Tracking System for th
 - Role dashboards for Student/Faculty Researcher, Research Adviser, Ethics Reviewer, and RES Lead.
 - RES account administration and adviser-controlled applicant administration.
 - Server-generated usernames, pending setup accounts, one-time password setup links, and role onboarding guides.
-- CSV/XLSX account import with preview, confirmation, validation reports, and private temporary storage.
+- Excel-only `.xlsx` account import with exact workbook contracts, current-option dropdowns, categorized preview, single-use confirmation, and private temporary storage.
+- RES Lead dropdown-option administration and filtered account audit reporting with recursive sensitive-metadata sanitization.
 - Database-driven applicant requirements, MIME-based document icons, and guarded initial submission.
 - Notifications, profile/settings access, audit records, deadlines, timelines, and responsive shared layout.
 

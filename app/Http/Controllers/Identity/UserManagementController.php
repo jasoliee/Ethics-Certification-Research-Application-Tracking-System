@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Identity;
 use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
-use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Identity\ChangeManagedUserStatusRequest;
+use App\Http\Requests\Identity\ChangeProfileOptionStatusRequest;
 use App\Http\Requests\Identity\ConfirmManagedUserImportRequest;
 use App\Http\Requests\Identity\ImportManagedUsersRequest;
 use App\Http\Requests\Identity\MassManagedUserActionRequest;
@@ -16,7 +16,9 @@ use App\Http\Requests\Identity\RegenerateManagedUsernameRequest;
 use App\Http\Requests\Identity\StoreManagedUserRequest;
 use App\Http\Requests\Identity\StoreProfileOptionRequest;
 use App\Http\Requests\Identity\UpdateManagedUserRequest;
+use App\Http\Requests\Identity\UpdateProfileOptionRequest;
 use App\Models\AuditLog;
+use App\Models\ProfileOption;
 use App\Models\User;
 use App\Services\Identity\AccountTypeCatalog;
 use App\Services\Identity\ManagedPasswordResetService;
@@ -29,10 +31,11 @@ use App\Services\Identity\UserManagementQueryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class UserManagementController extends Controller
 {
@@ -199,7 +202,70 @@ class UserManagementController extends Controller
         $field = ProfileOptionField::from($request->validated('option_field'));
         $profileOptions->create($request->user(), $field, $request->validated('option_value'));
 
-        return back()->with('status', "{$field->label()} option added.");
+        return redirect()
+            ->route('res.users.profile-options.index', ['field' => $field->value])
+            ->with('status', "{$field->label()} option added.");
+    }
+
+    public function profileOptionsIndex(Request $request): View
+    {
+        Gate::authorize('manageProfileOptions', User::class);
+        $filters = validator($request->query(), [
+            'search' => ['nullable', 'string', 'max:100'],
+            'field' => ['nullable', Rule::enum(ProfileOptionField::class)],
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ])->validate();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $query = ProfileOption::query()
+            ->select(['id', 'field', 'value', 'sort_order', 'is_active', 'created_at', 'updated_at'])
+            ->when($search !== '', fn ($options) => $options->whereLike('value', '%'.$search.'%'))
+            ->when(filled($filters['field'] ?? null), fn ($options) => $options->where('field', $filters['field']))
+            ->when(($filters['status'] ?? null) === 'active', fn ($options) => $options->where('is_active', true))
+            ->when(($filters['status'] ?? null) === 'inactive', fn ($options) => $options->where('is_active', false))
+            ->orderBy('field')
+            ->orderBy('sort_order')
+            ->orderBy('value');
+        $options = $query->paginate(20)->withQueryString();
+
+        return view('identity.users.options', [
+            'pageTitle' => 'Dropdown Option Management',
+            'options' => $options,
+            'usageCounts' => $this->profileOptions->usageCounts(collect($options->items())),
+            'filters' => $filters,
+            'counts' => [
+                'active' => ProfileOption::query()->where('is_active', true)->count(),
+                'inactive' => ProfileOption::query()->where('is_active', false)->count(),
+            ],
+            'routeBase' => 'res.users',
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'User Management', 'route' => 'res.users.index'],
+                ['label' => 'Dropdown Options'],
+            ],
+        ]);
+    }
+
+    public function updateProfileOption(
+        UpdateProfileOptionRequest $request,
+        ProfileOption $profileOption,
+        ProfileOptionCatalog $profileOptions,
+    ): RedirectResponse {
+        $profileOptions->update($request->user(), $profileOption, $request->validated('option_value'));
+
+        return back()->with('status', 'Dropdown option updated. Existing account values were left unchanged.');
+    }
+
+    public function changeProfileOptionStatus(
+        ChangeProfileOptionStatusRequest $request,
+        ProfileOption $profileOption,
+        ProfileOptionCatalog $profileOptions,
+    ): RedirectResponse {
+        $isActive = $request->boolean('is_active');
+        $profileOptions->setActive($request->user(), $profileOption, $isActive);
+
+        return back()->with('status', $isActive
+            ? 'Dropdown option restored for new selections.'
+            : 'Dropdown option deactivated. Historical account values were preserved.');
     }
 
     public function changeStatus(
@@ -287,74 +353,44 @@ class UserManagementController extends Controller
 
         return redirect()
             ->route($this->routeBase($request->user()).'.index')
-            ->with('status', "{$result['created']} accounts created; {$result['skipped']} duplicates or existing accounts skipped. {$result['emails_sent']} setup emails sent; {$result['emails_failed']} failed.");
+            ->with('status', "{$result['created']} accounts created; {$result['existing']} newly existing accounts skipped; {$result['failed']} rows failed. {$result['emails_sent']} setup emails sent; {$result['emails_failed']} failed or remain pending.");
     }
 
-    public function template(Request $request, string $format, SafeSpreadsheet $spreadsheets): StreamedResponse|BinaryFileResponse
+    /**
+     * Generate a verified role-specific workbook before attaching any spreadsheet response headers.
+     */
+    public function template(Request $request, SafeSpreadsheet $spreadsheets): BinaryFileResponse|RedirectResponse
     {
+        // Preserve the existing policy and role-catalog checks before any private workbook work begins.
         Gate::authorize('import', User::class);
-        abort_unless(in_array($format, ['csv', 'xlsx'], true), 404);
         $type = $this->accountTypes->authorized($request->user(), (string) $request->query('account_type'));
-        $headers = $type['template_headers'];
-        $filename = 'ecrats-'.$type['key'].'-template.'.$format;
+        $filename = 'ecrats-'.$type['key'].'-template.xlsx';
         $optionValues = $this->profileOptions->grouped();
-        $dropdowns = [
-            'year_level' => $optionValues[ProfileOptionField::YearLevel->value],
-            'institution' => $optionValues[ProfileOptionField::Institution->value],
-            'department' => $optionValues[ProfileOptionField::Department->value],
-            'program' => $optionValues[ProfileOptionField::Program->value],
-            'reviewer_classification' => collect(ReviewerClassification::cases())->map->label()->all(),
-        ];
-        $dropdowns = collect($dropdowns)->only($headers)->all();
 
-        if ($format === 'xlsx') {
-            return response()
-                ->download($spreadsheets->createTemplate($headers, $type['example_row'], $dropdowns), $filename, [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'Cache-Control' => 'no-store, private',
-                ])
-                ->deleteFileAfterSend(true);
+        try {
+            // Complete generation and verification first so a failure returns an ordinary application redirect, never a mislabeled XLSX.
+            $path = $spreadsheets->createTemplate($type, $optionValues);
+        } catch (Throwable $exception) {
+            // Record only bounded operational context; exception text can contain internal paths or library diagnostics.
+            Log::warning('Account template generation failed.', [
+                'actor_user_id' => $request->user()->id,
+                'account_type' => $type['key'],
+                'exception_class' => $exception::class,
+            ]);
+
+            // Return a neutral message through the normal import page without spreadsheet attachment headers.
+            return back()->withErrors([
+                'template' => 'The Excel template could not be generated. Please try again.',
+            ]);
         }
 
-        return response()->streamDownload(function () use ($headers, $type): void {
-            $stream = fopen('php://output', 'wb');
-
-            if ($stream !== false) {
-                fputcsv($stream, $headers, ',', '"', '\\');
-                fputcsv($stream, collect($headers)->map(fn (string $header): string => (string) ($type['example_row'][$header] ?? ''))->all(), ',', '"', '\\');
-                fclose($stream);
-            }
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Cache-Control' => 'no-store, private',
-        ]);
-    }
-
-    public function errorReport(Request $request, string $token, UserBulkImportService $imports): StreamedResponse
-    {
-        Gate::authorize('import', User::class);
-        $errors = $imports->errorReport($request->user(), $token);
-
-        return response()->streamDownload(function () use ($errors): void {
-            $stream = fopen('php://output', 'wb');
-
-            if ($stream === false) {
-                return;
-            }
-
-            fputcsv($stream, ['row', 'errors'], ',', '"', '\\');
-
-            foreach ($errors as $error) {
-                $message = implode(' | ', $error['errors']);
-                $safeMessage = preg_match('/^[=+\-@]/', $message) === 1 ? "'".$message : $message;
-                fputcsv($stream, [$error['row'], $safeMessage], ',', '"', '\\');
-            }
-
-            fclose($stream);
-        }, 'ecrats-account-import-errors.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Cache-Control' => 'no-store, private',
-        ]);
+        // Attach only the verified private file and ask Symfony to remove it after the response is delivered.
+        return response()
+            ->download($path, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Cache-Control' => 'no-store, private',
+            ])
+            ->deleteFileAfterSend(true);
     }
 
     public function massAction(
@@ -381,19 +417,15 @@ class UserManagementController extends Controller
             'action' => ['nullable', 'string', 'max:100'],
             'role' => ['nullable', Rule::enum(UserRole::class)],
             'result' => ['nullable', 'string', 'max:100'],
+            'target_type' => ['nullable', 'string', 'max:255'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ])->validate();
         $hiddenActions = ['user.onboarding_completed', 'user.password_setup_completed'];
         $search = trim((string) ($filters['search'] ?? ''));
         $baseQuery = AuditLog::query()->whereNotIn('action', $hiddenActions);
         $actions = (clone $baseQuery)->distinct()->orderBy('action')->pluck('action');
-        $results = (clone $baseQuery)
-            ->whereNotNull('metadata')
-            ->pluck('metadata')
-            ->pluck('result')
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values();
+        $targetTypes = (clone $baseQuery)->whereNotNull('subject_type')->distinct()->orderBy('subject_type')->pluck('subject_type');
         $logs = AuditLog::query()
             ->select(['id', 'actor_user_id', 'action', 'subject_type', 'subject_id', 'metadata', 'created_at'])
             ->with('actor:id,name,username,role')
@@ -412,6 +444,9 @@ class UserManagementController extends Controller
             ->when(filled($filters['action'] ?? null), fn ($query) => $query->where('action', $filters['action']))
             ->when(filled($filters['role'] ?? null), fn ($query) => $query->whereHas('actor', fn ($actors) => $actors->where('role', $filters['role'])))
             ->when(filled($filters['result'] ?? null), fn ($query) => $query->where('metadata->result', $filters['result']))
+            ->when(filled($filters['target_type'] ?? null), fn ($query) => $query->where('subject_type', $filters['target_type']))
+            ->when(filled($filters['date_from'] ?? null), fn ($query) => $query->whereDate('created_at', '>=', $filters['date_from']))
+            ->when(filled($filters['date_to'] ?? null), fn ($query) => $query->whereDate('created_at', '<=', $filters['date_to']))
             ->latest('created_at')
             ->paginate(25)
             ->withQueryString();
@@ -421,7 +456,7 @@ class UserManagementController extends Controller
             'logs' => $logs,
             'filters' => $filters,
             'actions' => $actions,
-            'results' => $results,
+            'targetTypes' => $targetTypes,
             'routeBase' => $this->routeBase($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],

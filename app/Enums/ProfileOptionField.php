@@ -8,6 +8,7 @@ enum ProfileOptionField: string
     case Institution = 'institution';
     case Department = 'department';
     case Program = 'program';
+    case ReviewerClassification = 'reviewer_classification';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum ProfileOptionField: string
             self::Institution => 'Institution',
             self::Department => 'Department',
             self::Program => 'Program',
+            self::ReviewerClassification => 'Reviewer Classification',
         };
     }
 }

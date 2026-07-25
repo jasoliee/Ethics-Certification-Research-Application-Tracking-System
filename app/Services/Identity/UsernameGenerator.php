@@ -16,24 +16,77 @@ class UsernameGenerator
         string $lastName,
         array $reservedUsernames = [],
     ): string {
+        $generated = $this->generateBatch([
+            ['institutional_identifier' => $institutionalIdentifier, 'last_name' => $lastName],
+        ], $reservedUsernames);
+
+        return $generated[0];
+    }
+
+    /**
+     * Resolve an import batch in a small number of set-based username lookups.
+     *
+     * @param  array<int, array{institutional_identifier: string, last_name: string}>  $identities
+     * @param  array<int, string>  $reservedUsernames
+     * @return array<int, string>
+     */
+    public function generateBatch(array $identities, array $reservedUsernames = []): array
+    {
+        $states = collect($identities)->map(fn (array $identity): array => [
+            'base' => $this->base($identity['institutional_identifier'], $identity['last_name']),
+            'suffix' => 1,
+            'candidate' => $this->base($identity['institutional_identifier'], $identity['last_name']),
+        ])->all();
+        $assigned = [];
+        $reserved = array_fill_keys($reservedUsernames, true);
+
+        while (count($assigned) < count($states)) {
+            $pendingCandidates = collect($states)
+                ->reject(fn (array $state, int $index): bool => isset($assigned[$index]))
+                ->pluck('candidate')
+                ->unique()
+                ->values()
+                ->all();
+            $databaseMatches = User::withTrashed()
+                ->whereIn('username', $pendingCandidates)
+                ->pluck('username')
+                ->flip();
+
+            foreach ($states as $index => &$state) {
+                if (isset($assigned[$index])) {
+                    continue;
+                }
+
+                $candidate = $state['candidate'];
+
+                if (! isset($reserved[$candidate]) && ! $databaseMatches->has($candidate)) {
+                    $assigned[$index] = $candidate;
+                    $reserved[$candidate] = true;
+
+                    continue;
+                }
+
+                $state['suffix']++;
+                $ending = (string) $state['suffix'];
+                $state['candidate'] = Str::limit($state['base'], self::MAX_LENGTH - strlen($ending), '').$ending;
+            }
+            unset($state);
+        }
+
+        ksort($assigned);
+
+        return array_values($assigned);
+    }
+
+    private function base(string $institutionalIdentifier, string $lastName): string
+    {
         $identifier = $this->segment($institutionalIdentifier, 'user');
         $last = $this->segment($lastName, 'account');
         $base = Str::limit($identifier.'.'.$last, self::MAX_LENGTH, '');
 
-        if (strlen($base) < self::MIN_LENGTH) {
-            $base = str_pad($base, self::MIN_LENGTH, '0');
-        }
-
-        $candidate = $base;
-        $suffix = 2;
-
-        // A deterministic suffix keeps usernames readable while respecting the unique database constraint.
-        while (in_array($candidate, $reservedUsernames, true) || User::query()->where('username', $candidate)->exists()) {
-            $ending = (string) $suffix++;
-            $candidate = Str::limit($base, self::MAX_LENGTH - strlen($ending), '').$ending;
-        }
-
-        return $candidate;
+        return strlen($base) < self::MIN_LENGTH
+            ? str_pad($base, self::MIN_LENGTH, '0')
+            : $base;
     }
 
     private function segment(string $value, string $fallback): string

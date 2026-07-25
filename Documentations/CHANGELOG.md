@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-07-24
+
+### Added
+
+- Excel-only `.xlsx` templates with exact Accounts, hidden Options, and Instructions worksheets.
+- Database-backed Reviewer Classification plus add, rename, deactivate, and restore management for all shared profile options.
+- Categorized import previews, bounded OOXML validation, valid-row-only single-use confirmation, and post-write setup delivery.
+- Expanded audit filters, recursive sensitive-metadata sanitization, reusable table tooltips, consistent badges, and responsive pagination.
+- Dedicated Adviser User Management, Dropdown Option Management, and Audit Log guides.
+
+### Changed
+
+- Superseded the active CSV workflow with `.xlsx` so the approved dropdown, formatting, identifier, and instruction requirements can be enforced.
+- Updated account import to skip existing and later duplicate identities without overwriting them while reporting conflicting identities as invalid.
+- Updated reviewer classification from a fixed PHP enum to a database-managed string catalog that preserves historical values.
+- Updated Guzzle and PSR-7 within their current major versions to resolve locked dependency advisories.
+
+### Requirements
+
+- PHP `ext-zip` is now a declared platform requirement for workbook generation and validation.
+
 ## 2026-07-22
 
 ### Added

@@ -7,6 +7,7 @@ Run from the repository root in PowerShell:
 ```powershell
 composer install
 npm.cmd install
+php -m | Select-String zip
 php artisan migrate
 npm.cmd run build
 php artisan test
@@ -43,7 +44,7 @@ Applicant:
 - Confirm draft Application Status and My Application cards remain empty until submission.
 - Confirm missing, pending, or rejected requirements block initial submission.
 - Open Application and Revision and Certificates; verify breadcrumbs and active states.
-- Hover a truncated research title for one second and repeat using keyboard focus.
+- Hover a truncated research title or account value for about 0.5 seconds and repeat using keyboard focus.
 
 Adviser:
 
@@ -63,8 +64,12 @@ RES Lead:
 - Confirm screening, assignment, review, and result-release counts.
 - Confirm Notifications is absent from the sidebar but available from the bell.
 - Confirm administrative application records open and other role prefixes redirect.
-- Download each role's CSV/XLSX template, preview an import, and confirm once.
-- Confirm formulas/macros/external XLSX links are rejected and no account is created.
+- Download each role's `.xlsx` template and confirm the worksheets are exactly Accounts, hidden Options, and Instructions.
+- Confirm current active options appear as Excel dropdowns and inactive values fail server-side validation.
+- Preview a workbook containing valid, invalid, duplicate, and existing rows; confirm only the valid rows once.
+- Confirm CSV, XLS, XLSM, XLSB, renamed files, formulas, macros, external links, password protection, changed headers, extra sheets/columns, and excessive rows are rejected.
+- Add, rename, deactivate, and restore a dropdown option; confirm historical user values remain unchanged and advisers cannot manage options.
+- Filter the audit report by search, actor role, action, result, target type, and date; confirm filters survive pagination.
 - Confirm mass deactivate/archive/resend actions require selection and confirmation.
 
 All roles:
@@ -75,9 +80,10 @@ All roles:
 - Scroll to the footer and verify all four sections.
 - Confirm Settings is absent from the sidebar but present in the profile menu.
 - Confirm the footer says About ECRATS, has a Maps link, and has no KLD Login link.
-- Check desktop, tablet, and mobile widths for clipping or overlap.
+- Check approximately 1440, 1280, 1024, 768, and 390 pixel widths for clipping or whole-page horizontal overflow.
+- Confirm wide account/audit tables scroll inside their wrapper, badges remain aligned, pagination is centered, and long values show a tooltip after about 0.5 seconds.
 - Check the browser console for errors.
 
 ## Verification Baseline
 
-The expanded automated suite covers authentication, role authorization, dashboards, onboarding, account creation, setup-link expiry/single use, CSV/XLSX import, formula rejection, mass actions, username correction, application submission, MIME icons, audit events, and rate limiting. Always report the exact current test count from the command output instead of preserving a count in this document.
+The expanded automated suite covers authentication, role authorization, dashboards, onboarding, account creation, setup-link expiry/single use, Excel generation and import, workbook-structure rejection, dropdown-option lifecycle, duplicate/existing separation, broad valid email domains, mass actions, username correction, application submission, MIME icons, audit filtering/sanitization, and rate limiting. Always report the exact current test count from command output instead of preserving a count in this document.

@@ -5,7 +5,6 @@ namespace App\Services\Identity;
 use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
-use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Notifications\UsernameChangedNotification;
@@ -33,55 +32,26 @@ class UserAccountService
      *
      * @throws AuthorizationException|ValidationException
      */
-    public function create(User $actor, array $attributes, ?string $expectedUsername = null): User
+    public function create(User $actor, array $attributes): User
     {
         $validated = $this->validateCreation($actor, $attributes);
+        $username = $this->usernameGenerator->generate(
+            $validated['institutional_identifier'],
+            $validated['last_name'],
+        );
 
-        return DB::transaction(function () use ($actor, $expectedUsername, $validated): User {
-            $targetRole = UserRole::from($validated['role']);
-            $applicantType = $targetRole === UserRole::Applicant
-                ? ApplicantType::from($validated['applicant_type'])
-                : null;
-            $username = $this->usernameGenerator->generate(
-                $validated['institutional_identifier'],
-                $validated['last_name'],
-            );
+        return $this->persistAccount($actor, $validated, $username);
+    }
 
-            if ($expectedUsername !== null && $username !== $expectedUsername) {
-                throw ValidationException::withMessages([
-                    'import_token' => 'The import preview is stale. Validate the file again before confirming.',
-                ]);
-            }
+    /** @param array<string, mixed> $attributes */
+    public function createFromImport(User $actor, array $attributes, string $generatedUsername): User
+    {
+        $validated = $this->validateCreation($actor, $attributes, false);
+        validator(['username' => $generatedUsername], [
+            'username' => ['required', 'string', 'min:6', 'max:30', 'regex:/^[a-z0-9]+(?:\.[a-z0-9]+)*[0-9]*$/'],
+        ])->validate();
 
-            // Compatibility name and username are generated server-side and cannot be overridden by the request.
-            $user = User::create([
-                ...$this->profileValues($validated, $targetRole, $applicantType),
-                'name' => User::formatName(
-                    $validated['first_name'],
-                    $validated['middle_name'] ?? null,
-                    $validated['last_name'],
-                    $validated['suffix'] ?? null,
-                ),
-                'username' => $username,
-                'password' => Hash::make(Str::random(64)),
-                'password_changed_at' => null,
-                'password_setup_completed_at' => null,
-                'onboarding_completed_at' => null,
-                'setup_email_status' => 'not_sent',
-                'role' => $targetRole,
-                'applicant_type' => $applicantType,
-                'account_status' => AccountStatus::PendingSetup->value,
-                'created_by_user_id' => $actor->id,
-            ]);
-
-            $this->auditLog->record($actor, 'user.created', $user, [
-                'role' => $targetRole->value,
-                'applicant_type' => $applicantType?->value,
-                'username' => $username,
-            ]);
-
-            return $user;
-        });
+        return $this->persistAccount($actor, $validated, $generatedUsername);
     }
 
     /** @param array<string, mixed> $attributes */
@@ -296,14 +266,19 @@ class UserAccountService
                 Rule::requiredIf($targetRole === UserRole::Applicant && $applicantType === ApplicantType::Student),
                 'nullable',
                 'string',
-                'max:30',
+                'max:150',
                 Rule::in($this->profileOptions->values(ProfileOptionField::YearLevel, $subject?->year_level)),
             ],
             'position_title' => [Rule::requiredIf($targetRole === UserRole::Adviser), 'nullable', 'string', 'max:150'],
             'reviewer_classification' => [
                 Rule::requiredIf($targetRole === UserRole::Reviewer),
                 'nullable',
-                Rule::enum(ReviewerClassification::class),
+                'string',
+                'max:150',
+                Rule::in($this->profileOptions->values(
+                    ProfileOptionField::ReviewerClassification,
+                    $subject?->reviewer_classification,
+                )),
             ],
             'reviewer_capacity' => [
                 Rule::requiredIf($targetRole === UserRole::Reviewer),
@@ -317,26 +292,10 @@ class UserAccountService
     /** @param array<string, mixed> $attributes @return array<string, mixed> */
     private function normalizeProfile(array $attributes): array
     {
-        if (($attributes['reviewer_classification'] ?? null) instanceof ReviewerClassification) {
-            $attributes['reviewer_classification'] = $attributes['reviewer_classification']->value;
-        }
-
         foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'program', 'year_level', 'position_title', 'reviewer_classification'] as $field) {
             $attributes[$field] = filled($attributes[$field] ?? null)
                 ? Str::squish((string) $attributes[$field])
                 : null;
-        }
-
-        if (filled($attributes['reviewer_classification'] ?? null)) {
-            $classification = Str::of((string) $attributes['reviewer_classification'])
-                ->lower()
-                ->replace(['-', ' '], '_')
-                ->value();
-            $attributes['reviewer_classification'] = match ($classification) {
-                'expedited_review' => ReviewerClassification::Expedited->value,
-                'full_board_review' => ReviewerClassification::FullBoard->value,
-                default => $classification,
-            };
         }
 
         $attributes['email'] = Str::lower(trim((string) ($attributes['email'] ?? '')));
@@ -355,9 +314,49 @@ class UserAccountService
             'department.in' => $this->profileOptions->validationMessage(ProfileOptionField::Department),
             'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $this->profileOptions->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classification.enum' => 'Reviewer Classification must be Expedited, Full Board, or Exempted.',
+            'reviewer_classification.in' => $this->profileOptions->validationMessage(ProfileOptionField::ReviewerClassification),
             'reviewer_capacity.between' => 'Reviewer Capacity must be between 1 and 30.',
         ];
+    }
+
+    /** @param array<string, mixed> $validated */
+    private function persistAccount(User $actor, array $validated, string $username): User
+    {
+        return DB::transaction(function () use ($actor, $validated, $username): User {
+            $targetRole = UserRole::from($validated['role']);
+            $applicantType = $targetRole === UserRole::Applicant
+                ? ApplicantType::from($validated['applicant_type'])
+                : null;
+
+            // Compatibility name and username are generated server-side and cannot be overridden by input.
+            $user = User::create([
+                ...$this->profileValues($validated, $targetRole, $applicantType),
+                'name' => User::formatName(
+                    $validated['first_name'],
+                    $validated['middle_name'] ?? null,
+                    $validated['last_name'],
+                    $validated['suffix'] ?? null,
+                ),
+                'username' => $username,
+                'password' => Hash::make(Str::random(64)),
+                'password_changed_at' => null,
+                'password_setup_completed_at' => null,
+                'onboarding_completed_at' => null,
+                'setup_email_status' => 'not_sent',
+                'role' => $targetRole,
+                'applicant_type' => $applicantType,
+                'account_status' => AccountStatus::PendingSetup->value,
+                'created_by_user_id' => $actor->id,
+            ]);
+
+            $this->auditLog->record($actor, 'user.created', $user, [
+                'role' => $targetRole->value,
+                'applicant_type' => $applicantType?->value,
+                'username' => $username,
+            ]);
+
+            return $user;
+        });
     }
 
     /** @param array<string, mixed> $validated @return array<string, mixed> */

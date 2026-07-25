@@ -16,6 +16,8 @@
 - Recent dashboard collections retain a five-record limit.
 - Notification history uses 20-record pagination; the header loads only four records.
 - Database access remains outside Blade views.
+- User Management, Adviser User Management, option usage, and import conflict checks use batched or grouped queries and paginated collections.
+- One delegated tooltip implementation serves truncated table/profile values instead of registering one listener per cell.
 - A visually equivalent 256-pixel logo is used by authenticated and login layouts. Its asset size is about 80 KB; the original master remains available.
 - Local validation uses `php artisan serve --quiet --no-reload` to prevent request-log backpressure.
 

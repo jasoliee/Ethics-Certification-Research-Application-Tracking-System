@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Enums\ApplicantType;
-use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\User;
@@ -138,7 +137,7 @@ class AccountCreationServiceTest extends TestCase
             'email' => 'reviewer@ecrats.test',
             'institutional_identifier' => 'KLD-EMP-202',
             'position_title' => 'Faculty Reviewer',
-            'reviewer_classification' => ReviewerClassification::Expedited,
+            'reviewer_classification' => 'Expedited',
             'reviewer_capacity' => 30,
             'role' => UserRole::Reviewer,
             'applicant_type' => null,

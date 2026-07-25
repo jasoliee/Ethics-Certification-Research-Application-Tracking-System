@@ -6,7 +6,8 @@
             <h1>Welcome back, RES Lead/Admin!</h1>
         </header>
 
-        <div class="dashboard-summary-grid dashboard-summary-grid-five">
+        {{-- RES Lead summary cards use the shared vertical card component without changing administrative counts. --}}
+        <div class="dashboard-summary-grid dashboard-summary-grid-five" aria-label="Administrative application summary">
             <x-dashboard.summary-card label="For RES Screening" :count="$counts['for_screening']" icon="file-text" tone="orange" :href="route('res.applications.index')" />
             <x-dashboard.summary-card label="Under RES Screening" :count="$counts['screening']" icon="users" tone="blue" :href="route('res.applications.index')" />
             <x-dashboard.summary-card label="Awaiting Assignment" :count="$counts['awaiting_assignment']" icon="user" tone="green" :href="route('res.review-monitoring.index')" />

@@ -18,13 +18,15 @@ Named rate limits cover account writes, import preview/confirm, setup email, mas
 
 - Passwords are hashed; internal creation credentials are random and never disclosed.
 - Reset tokens use Laravel's hashed broker storage and are never audited.
-- Bulk sources and previews are private, actor-scoped, bounded, and cleaned up.
-- XLSX parsing rejects formulas, macros, embedded content, external links, unsafe XML, and oversized archives.
+- Bulk sources and previews are private, actor-scoped, bounded, single-use, and cleaned up after parsing, confirmation, or expiry.
+- Only structurally valid `.xlsx` is accepted. Parsing rejects renamed files, encryption/password protection, formulas, macros, embedded/ActiveX/OLE content, external relationships, unexpected sheets, changed headers, excessive columns/rows, and oversized archives.
+- Excel dropdowns are convenience controls only; every controlled value is checked against current active database options on the server.
+- Email validation follows standards-compatible syntax and does not impose a Gmail-only or fixed-domain rule.
 - Private research files, certificates, and payment proofs must never use `public/` storage.
 
 ## Auditing
 
-Security-relevant actions record actor, action, subject, bounded metadata, IP address, user agent, and creation time. The RES audit view intentionally omits IP address, user agent, and unrestricted metadata. Authorization denials are captured globally after Laravel converts policy failures to 403 responses.
+Security-relevant actions record actor, action, subject, bounded metadata, IP address, user agent, and creation time. Metadata keys indicating passwords, credentials, secrets, tokens, authorization, cookies, sessions, CSRF values, or API keys are removed recursively before persistence. The RES audit view intentionally omits IP address, user agent, unrestricted metadata, and secret-token filtering. Authorization denials are recorded before the role middleware redirects cross-role requests; policy denials remain 403 responses.
 
 ## Response Protection
 
@@ -32,4 +34,4 @@ No-store caching, `nosniff`, same-origin framing, strict referrer behavior, rest
 
 ## Known Limits
 
-The repository does not yet provide malware scanning, production object storage, CSP nonces, queue delivery reconciliation, full certificate authorization, or complete blind-review workflows. Deployment controls still matter even when application tests pass.
+The repository does not yet provide malware scanning, production object storage, CSP nonces, queue delivery reconciliation, a safe public audit correlation identifier, full certificate authorization, or complete blind-review workflows. The custom parser is intentionally limited to the official bounded ECRATS workbook contract. Deployment controls still matter even when application tests pass.

@@ -7,7 +7,8 @@
             <p>Manage assigned ethics reviews, monitor deadlines, and continue pending review tasks.</p>
         </header>
 
-        <div class="dashboard-summary-grid dashboard-summary-grid-four">
+        {{-- Reviewer summary cards keep assignment counts distinct while sharing the centered card layout. --}}
+        <div class="dashboard-summary-grid dashboard-summary-grid-four" aria-label="Assigned review summary">
             <x-dashboard.summary-card label="Pending Reviews" :count="$counts['pending']" icon="file-search" tone="orange" :href="route('reviewer.assignments.index')" />
             <x-dashboard.summary-card label="Near Deadline" :count="$counts['near_deadline']" icon="calendar" tone="red" :href="route('reviewer.assignments.index')" />
             <x-dashboard.summary-card label="Revision Reviews" :count="$counts['revision']" icon="refresh" tone="blue" :href="route('reviewer.reviews.index')" />

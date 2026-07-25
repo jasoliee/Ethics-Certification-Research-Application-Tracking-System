@@ -11,7 +11,7 @@
 
             <div class="identity-heading-actions">
                 @if ($isResLead)
-                    <button class="identity-button identity-button-secondary" type="button" data-profile-option-open><x-dashboard.icon name="plus" size="19" /><span>Add Dropdown Option</span></button>
+                    <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}"><x-dashboard.icon name="settings" size="19" /><span>Dropdown Options</span></a>
                     <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.audit.index') }}"><x-dashboard.icon name="clipboard" size="19" /><span>Audit Log</span></a>
                 @endif
                 <a class="identity-button identity-button-primary" href="{{ route($routeBase.'.create') }}">
@@ -91,7 +91,7 @@
 
             <div class="identity-filter-actions">
                 <button class="identity-button identity-button-primary" type="submit">Apply</button>
-                <a href="{{ route($routeBase.'.index') }}">Reset</a>
+                <a class="identity-button identity-button-warning" href="{{ route($routeBase.'.index') }}" aria-label="Reset user filters">Reset</a>
             </div>
         </form>
 
@@ -128,7 +128,8 @@
                 </a>
             </div>
 
-            <div class="identity-table-scroll">
+            {{-- The focusable region contains wide columns and exposes native horizontal keyboard and touch scrolling. --}}
+            <div class="identity-table-scroll" role="region" aria-label="User account results" tabindex="0">
                 <table class="identity-user-table">
                     <thead>
                         <tr>
@@ -190,11 +191,11 @@
                 </table>
             </div>
 
+            {{-- Pagination stays inside the same bounded result panel as the scrollable table. --}}
             <x-dashboard.pagination :paginator="$users" label="User result pages" />
         </section>
         @if ($isResLead)
             </form>
         @endif
-        @include('identity.users.partials.profile-option-dialog')
     </div>
 @endsection

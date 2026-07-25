@@ -23,6 +23,14 @@ Legacy role landing URLs remain as redirects to `/dashboard` so existing bookmar
 
 Each role owns named notification, profile, settings, and module routes. Direct access to another role's prefix is rejected by `role` middleware and redirected to `dashboard`.
 
+## Account Administration Routes
+
+Adviser applicant administration is under `/adviser/applicants` with route prefix `adviser.applicants.`. RES Lead administration is under `/res-lead/users` with route prefix `res.users.`.
+
+Both authorized surfaces provide list, create, store, `.xlsx` import form/upload/confirmation/template, show, edit, update, username correction, and setup/reset-link actions. RES Lead additionally provides mass actions, status changes, `/audit-log`, and `/profile-options` management. Import templates no longer use a format route parameter; the only active format is `.xlsx`.
+
+Profile-option writes use POST for add, PUT for rename, and PATCH for deactivate/restore. All write routes retain CSRF protection, role authorization, Form Request validation, and named rate limits.
+
 ## Applicant Navigation
 
 The applicant sidebar contains Home, Application, Revision and Certificates, Reports, and Settings. The combined destination is:

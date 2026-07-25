@@ -6,14 +6,14 @@ use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UserBulkImportService
 {
-    public const MAX_ROWS = 250;
+    public const MAX_ROWS = SafeSpreadsheet::MAX_ACCOUNT_ROWS;
 
     public const MAX_FILE_KILOBYTES = 2048;
 
@@ -33,30 +33,32 @@ class UserBulkImportService
     {
         $type = $this->accountTypes->authorized($actor, $accountType);
         $extension = strtolower($file->getClientOriginalExtension());
-        $path = $file->storeAs('imports/user-accounts/uploads', Str::uuid().'.'.$extension, 'local');
+
+        if ($extension !== 'xlsx') {
+            throw ValidationException::withMessages([
+                'accounts_file' => 'Only the current official .xlsx account template is accepted.',
+            ]);
+        }
+
+        $path = $file->storeAs('imports/user-accounts/uploads', Str::uuid().'.xlsx', 'local');
 
         if (! is_string($path)) {
-            throw ValidationException::withMessages(['accounts_file' => 'The account file could not be stored securely.']);
+            throw ValidationException::withMessages(['accounts_file' => 'The Excel file could not be stored securely.']);
         }
 
         $this->auditLog->record($actor, 'user.bulk_upload_initiated', metadata: [
             'account_type' => $type['key'],
-            'format' => $extension,
+            'format' => 'xlsx',
             'result' => 'started',
         ]);
 
         try {
-            $rows = $this->readRows(Storage::disk('local')->path($path), $extension, $type);
+            $rows = $this->readRows(Storage::disk('local')->path($path), $type);
             $result = $this->preflight($actor, $rows, $type);
             $result['account_type'] = $type;
-            $result['preview_token'] = null;
-            $result['error_token'] = null;
-
-            if ($result['invalid_count'] === 0 && $result['valid_count'] > 0) {
-                $result['preview_token'] = $this->storePreview($actor, $type, $result['valid_rows']);
-            } elseif ($result['invalid_count'] > 0) {
-                $result['error_token'] = $this->storeErrorReport($actor, $result['invalid_rows']);
-            }
+            $result['preview_token'] = $result['valid_count'] > 0
+                ? $this->storePreview($actor, $type, $result['valid_rows'])
+                : null;
 
             $this->auditLog->record($actor, 'user.bulk_validation_completed', metadata: [
                 'account_type' => $type['key'],
@@ -64,18 +66,31 @@ class UserBulkImportService
                 'valid_rows' => $result['valid_count'],
                 'invalid_rows' => $result['invalid_count'],
                 'duplicate_rows' => $result['duplicate_count'],
-                'existing_conflicts' => $result['existing_conflict_count'],
-                'result' => $result['invalid_count'] === 0 ? 'valid' : 'invalid',
+                'existing_rows' => $result['existing_count'],
+                'result' => $result['invalid_count'] === 0 ? 'valid' : 'valid_with_exclusions',
             ]);
 
             return $result;
+        } catch (Throwable $exception) {
+            $this->auditLog->record($actor, 'user.bulk_validation_failed', metadata: [
+                'account_type' => $type['key'],
+                'reason' => class_basename($exception),
+                'result' => 'failed',
+            ]);
+
+            throw $exception;
         } finally {
             Storage::disk('local')->delete($path);
-            $this->cleanupExpiredFiles($actor);
+            $this->cleanupExpiredFiles();
         }
     }
 
-    /** @return array{created: int, skipped: int, emails_sent: int, emails_failed: int} */
+    /**
+     * Confirm only the server-generated valid-row payload. Each account uses its own short transaction so an
+     * unexpected row failure can be reported without holding mail delivery or unrelated rows in one transaction.
+     *
+     * @return array{created: int, existing: int, failed: int, emails_sent: int, emails_failed: int}
+     */
     public function confirm(User $actor, string $token): array
     {
         $source = $this->previewPath($actor, $token);
@@ -93,61 +108,87 @@ class UserBulkImportService
 
             if ((int) ($payload['actor_id'] ?? 0) !== $actor->id
                 || now()->timestamp - (int) ($payload['created_at'] ?? 0) > self::PREVIEW_TTL_MINUTES * 60) {
-                throw ValidationException::withMessages(['import_token' => 'This import preview has expired. Validate the file again.']);
+                throw ValidationException::withMessages(['import_token' => 'This import preview has expired. Validate the Excel file again.']);
             }
 
             $type = $this->accountTypes->authorized($actor, (string) ($payload['account_type'] ?? ''));
-            $confirmation = DB::transaction(function () use ($actor, $payload): array {
-                $created = [];
-                $skipped = 0;
+            $rows = collect($payload['rows'] ?? [])->values();
+            $emails = $rows->pluck('attributes.email')->filter()->unique()->values();
+            $identifiers = $rows->pluck('attributes.institutional_identifier')->filter()->unique()->values();
+            $usernames = $rows->pluck('generated_username')->filter()->unique()->values();
+            $currentUsers = User::withTrashed()
+                ->select(['id', 'email', 'institutional_identifier', 'username'])
+                ->where(function ($query) use ($emails, $identifiers, $usernames): void {
+                    $query
+                        ->whereIn('email', $emails)
+                        ->orWhereIn('institutional_identifier', $identifiers)
+                        ->orWhereIn('username', $usernames);
+                })
+                ->get();
+            $takenEmails = $currentUsers->pluck('email')->map(fn (string $email): string => Str::lower($email))->flip();
+            $takenIdentifiers = $currentUsers->pluck('institutional_identifier')->filter()->map(fn (string $identifier): string => Str::upper($identifier))->flip();
+            $takenUsernames = $currentUsers->pluck('username')->filter()->flip();
+            $createdUsers = [];
+            $existing = 0;
+            $failed = 0;
 
-                foreach ($payload['rows'] ?? [] as $row) {
-                    $attributes = $row['attributes'];
-                    $alreadyExists = User::withTrashed()
-                        ->where(function ($query) use ($attributes): void {
-                            $query
-                                ->where('email', $attributes['email'])
-                                ->orWhere('institutional_identifier', $attributes['institutional_identifier']);
-                        })
-                        ->exists();
+            foreach ($rows as $row) {
+                $attributes = $row['attributes'];
+                $email = Str::lower((string) $attributes['email']);
+                $identifier = Str::upper((string) $attributes['institutional_identifier']);
+                $username = (string) $row['generated_username'];
 
-                    if ($alreadyExists) {
-                        $skipped++;
+                if ($takenEmails->has($email) || $takenIdentifiers->has($identifier)) {
+                    $existing++;
 
-                        continue;
-                    }
-
-                    $created[] = $this->accounts->create(
-                        $actor,
-                        $attributes,
-                        $row['generated_username'],
-                    );
+                    continue;
                 }
 
-                $this->auditLog->record($actor, 'user.bulk_import_confirmed', metadata: [
-                    'account_type' => $payload['account_type'],
-                    'created_count' => count($created),
-                    'skipped_count' => $skipped,
-                    'result' => 'created',
-                ]);
+                if ($takenUsernames->has($username)) {
+                    $failed++;
+                    $this->recordRowFailure($actor, $type['key'], (int) $row['row'], 'username_conflict');
 
-                return ['users' => $created, 'skipped' => $skipped];
-            });
-            $createdUsers = $confirmation['users'];
+                    continue;
+                }
 
+                try {
+                    $user = $this->accounts->createFromImport($actor, $attributes, $username);
+                    $createdUsers[] = $user;
+                    $takenEmails[$email] = true;
+                    $takenIdentifiers[$identifier] = true;
+                    $takenUsernames[$username] = true;
+                } catch (Throwable $exception) {
+                    $failed++;
+                    $this->recordRowFailure($actor, $type['key'], (int) $row['row'], class_basename($exception));
+                }
+            }
+
+            $this->auditLog->record($actor, 'user.bulk_import_confirmed', metadata: [
+                'account_type' => $type['key'],
+                'created_count' => count($createdUsers),
+                'existing_count' => $existing,
+                'failed_count' => $failed,
+                'result' => $failed === 0 ? 'created' : 'created_with_failures',
+            ]);
+
+            // External mail delivery starts only after all account transactions have completed.
             $delivery = $this->passwordResets->sendMany($actor, $createdUsers);
             $this->auditLog->record($actor, 'user.bulk_import_completed', metadata: [
                 'account_type' => $type['key'],
                 'created_count' => count($createdUsers),
-                'skipped_count' => $confirmation['skipped'],
+                'existing_count' => $existing,
+                'failed_count' => $failed,
                 'emails_sent' => $delivery['sent'],
                 'emails_failed' => $delivery['failed'],
-                'result' => $delivery['failed'] === 0 ? 'completed' : 'completed_with_email_failures',
+                'result' => $failed === 0 && $delivery['failed'] === 0
+                    ? 'completed'
+                    : 'completed_with_failures',
             ]);
 
             return [
                 'created' => count($createdUsers),
-                'skipped' => $confirmation['skipped'],
+                'existing' => $existing,
+                'failed' => $failed,
                 'emails_sent' => $delivery['sent'],
                 'emails_failed' => $delivery['failed'],
             ];
@@ -156,149 +197,50 @@ class UserBulkImportService
         }
     }
 
-    /** @return array<int, array{row: int, errors: array<int, string>}> */
-    public function errorReport(User $actor, string $token): array
-    {
-        $path = $this->errorPath($actor, $token);
-
-        if (! is_file($path)) {
-            throw ValidationException::withMessages(['error_token' => 'The error report is unavailable or expired.']);
-        }
-
-        $payload = $this->readPayload($path);
-
-        if ((int) ($payload['actor_id'] ?? 0) !== $actor->id
-            || now()->timestamp - (int) ($payload['created_at'] ?? 0) > self::PREVIEW_TTL_MINUTES * 60) {
-            @unlink($path);
-            throw ValidationException::withMessages(['error_token' => 'The error report has expired.']);
-        }
-
-        return $payload['errors'] ?? [];
-    }
-
     /** @param array<string, mixed> $type @return array<int, array<string, string>> */
-    private function readRows(string $path, string $extension, array $type): array
+    private function readRows(string $path, array $type): array
     {
-        $matrix = match ($extension) {
-            'csv' => $this->readCsv($path),
-            'xlsx' => $this->spreadsheets->read($path),
-            default => throw ValidationException::withMessages(['accounts_file' => 'Upload a CSV or XLSX file.']),
-        };
-
-        if ($matrix === []) {
-            throw ValidationException::withMessages(['accounts_file' => 'The account file is empty.']);
-        }
-
-        $headers = array_map(
-            fn ($value): string => Str::of((string) $value)->replace("\xEF\xBB\xBF", '')->trim()->lower()->value(),
-            array_shift($matrix),
-        );
-        $this->validateHeaders($headers, $type);
+        $workbook = $this->spreadsheets->read($path, $type);
+        $fields = array_values($type['template_columns']);
         $rows = [];
 
-        foreach ($matrix as $index => $values) {
-            if (count(array_filter($values, fn ($value): bool => trim((string) $value) !== '')) === 0) {
-                continue;
-            }
-
-            if (count($rows) >= self::MAX_ROWS) {
-                throw ValidationException::withMessages(['accounts_file' => 'A single import may contain at most '.self::MAX_ROWS.' account rows.']);
-            }
-
-            $values = array_values($values);
-
-            if (count($values) > count($headers)) {
-                throw ValidationException::withMessages(['accounts_file' => 'Row '.($index + 2).' contains more cells than the template header.']);
-            }
-
-            $values = array_pad($values, count($headers), '');
+        foreach ($workbook['rows'] as $workbookRow) {
             /** @var array<string, string> $row */
-            $row = array_combine($headers, array_map(fn ($value): string => trim((string) $value), $values));
+            $row = array_combine($fields, $workbookRow['values']);
 
+            // Only the exact sentinel may bypass validation; an ordinary Row 2 remains account data.
             if ($this->accountTypes->isExampleRow($type, $row)) {
                 continue;
             }
 
-            $row['_line'] = (string) ($index + 2);
+            if (count($rows) >= self::MAX_ROWS) {
+                throw ValidationException::withMessages([
+                    'accounts_file' => 'A single Excel import may contain at most '.self::MAX_ROWS.' account rows.',
+                ]);
+            }
+
+            $row['_line'] = (string) $workbookRow['row'];
             $rows[] = $row;
         }
 
         if ($rows === []) {
-            throw ValidationException::withMessages(['accounts_file' => 'Add at least one account row below the header.']);
+            throw ValidationException::withMessages([
+                'accounts_file' => 'Add at least one account row to the Accounts worksheet.',
+            ]);
         }
 
         return $rows;
     }
 
-    /** @return array<int, array<int, string>> */
-    private function readCsv(string $path): array
-    {
-        $contents = file_get_contents($path);
-
-        if (! is_string($contents)
-            || str_contains($contents, "\0")
-            || ! mb_check_encoding($contents, 'UTF-8')
-            || str_starts_with($contents, "PK\x03\x04")) {
-            throw ValidationException::withMessages(['accounts_file' => 'The uploaded file is not valid UTF-8 CSV content.']);
-        }
-
-        $handle = fopen($path, 'rb');
-
-        if ($handle === false) {
-            throw ValidationException::withMessages(['accounts_file' => 'The CSV file could not be read.']);
-        }
-
-        try {
-            $rows = [];
-
-            while (($values = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-                $rows[] = array_map(fn ($value): string => (string) $value, $values);
-            }
-
-            return $rows;
-        } finally {
-            fclose($handle);
-        }
-    }
-
-    /** @param array<int, string> $headers @param array<string, mixed> $type */
-    private function validateHeaders(array $headers, array $type): void
-    {
-        $required = $type['required_headers'];
-        $allowed = [...$required, ...$type['optional_headers']];
-        $missing = array_values(array_diff($required, $headers));
-        $unknown = array_values(array_diff($headers, $allowed));
-        $duplicates = count($headers) !== count(array_unique($headers));
-
-        if ($missing === [] && $unknown === [] && ! $duplicates) {
-            return;
-        }
-
-        $parts = [];
-        if ($missing !== []) {
-            $parts[] = 'missing: '.implode(', ', $missing);
-        }
-        if ($unknown !== []) {
-            $parts[] = 'unknown: '.implode(', ', $unknown);
-        }
-        if ($duplicates) {
-            $parts[] = 'duplicate header names';
-        }
-
-        throw ValidationException::withMessages(['accounts_file' => 'The file header does not match the selected role template ('.implode('; ', $parts).').']);
-    }
-
     /** @param array<int, array<string, string>> $rows @param array<string, mixed> $type @return array<string, mixed> */
     private function preflight(User $actor, array $rows, array $type): array
     {
-        $validRows = [];
+        $validCandidates = [];
         $invalidRows = [];
-        $skippedRows = [];
+        $duplicateRows = [];
+        $existingRows = [];
         $seenEmails = [];
         $seenIdentifiers = [];
-        $reservedUsernames = [];
-        $duplicateCount = 0;
-        $existingConflictCount = 0;
         $candidateEmails = collect($rows)
             ->pluck('email')
             ->map(fn ($email): string => Str::lower(trim((string) $email)))
@@ -306,101 +248,162 @@ class UserBulkImportService
             ->unique()
             ->values();
         $candidateIdentifiers = collect($rows)
-            ->map(fn (array $row): string => Str::upper(trim((string) ($row[$type['identifier_header']] ?? ''))))
+            ->map(fn (array $row): string => Str::upper(trim((string) ($row[$type['identifier_field']] ?? ''))))
             ->filter()
             ->unique()
             ->values();
-        $existing = User::withTrashed()
-            ->select(['email', 'institutional_identifier'])
-            ->whereIn('email', $candidateEmails)
-            ->orWhereIn('institutional_identifier', $candidateIdentifiers)
+        $existingUsers = User::withTrashed()
+            ->select(['id', 'email', 'institutional_identifier'])
+            ->where(function ($query) use ($candidateEmails, $candidateIdentifiers): void {
+                $query
+                    ->whereIn('email', $candidateEmails)
+                    ->orWhereIn('institutional_identifier', $candidateIdentifiers);
+            })
             ->get();
-        $existingEmails = $existing->pluck('email')->map(fn (string $email): string => Str::lower($email))->flip();
-        $existingIdentifiers = $existing->pluck('institutional_identifier')->map(fn (string $identifier): string => Str::upper($identifier))->flip();
+        $existingByEmail = $existingUsers->keyBy(fn (User $user): string => Str::lower($user->email));
+        $existingByIdentifier = $existingUsers
+            ->filter(fn (User $user): bool => filled($user->institutional_identifier))
+            ->keyBy(fn (User $user): string => Str::upper((string) $user->institutional_identifier));
 
         foreach ($rows as $row) {
             $line = (int) $row['_line'];
             unset($row['_line']);
             $attributes = $this->attributesFromRow($row, $type);
-            $emailKey = Str::lower(trim((string) ($attributes['email'] ?? '')));
-            $identifierKey = Str::upper(trim((string) ($attributes['institutional_identifier'] ?? '')));
-
-            if (($emailKey !== '' && isset($seenEmails[$emailKey])) || ($identifierKey !== '' && isset($seenIdentifiers[$identifierKey]))) {
-                $duplicateCount++;
-                $skippedRows[] = [
-                    'row' => $line,
-                    'reason' => 'Duplicate credentials in this file; only the first valid occurrence will be created.',
-                ];
-
-                continue;
-            }
-
-            if (($emailKey !== '' && $existingEmails->has($emailKey))
-                || ($identifierKey !== '' && $existingIdentifiers->has($identifierKey))) {
-                $existingConflictCount++;
-                $skippedRows[] = [
-                    'row' => $line,
-                    'reason' => 'An account with this email address or institutional identifier already exists.',
-                ];
-
-                continue;
-            }
-
-            $errors = $this->unsafeCellErrors($row);
+            $errors = $this->unsafeCellErrors($row, $type);
 
             if ($errors === []) {
                 try {
-                    $validated = $this->accounts->validateCreation($actor, $attributes, false);
-                    $username = $this->usernames->generate(
-                        $validated['institutional_identifier'],
-                        $validated['last_name'],
-                        $reservedUsernames,
-                    );
-                    $reservedUsernames[] = $username;
-                    $validRows[] = [
-                        'row' => $line,
-                        'name' => User::formatName($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name'], $validated['suffix'] ?? null),
-                        'email' => $validated['email'],
-                        'institutional_identifier' => $validated['institutional_identifier'],
-                        'generated_username' => $username,
-                        'attributes' => $validated,
-                    ];
-                    if ($emailKey !== '') {
-                        $seenEmails[$emailKey] = true;
-                    }
-                    if ($identifierKey !== '') {
-                        $seenIdentifiers[$identifierKey] = true;
-                    }
+                    $attributes = $this->accounts->validateCreation($actor, $attributes, false);
                 } catch (ValidationException $exception) {
-                    $errors = collect($exception->errors())->flatten()->values()->all();
+                    $errors = $this->validationErrors($exception, $row, $type);
                 } catch (AuthorizationException $exception) {
-                    $errors = [$exception->getMessage()];
+                    $errors = [[
+                        'field' => 'Account Type',
+                        'value' => $type['label'],
+                        'reason' => $exception->getMessage(),
+                        'expected' => 'An account type authorized for the signed-in user.',
+                    ]];
                 }
             }
 
             if ($errors !== []) {
-                $invalidRows[] = ['row' => $line, 'errors' => array_values(array_unique($errors))];
+                $invalidRows[] = ['row' => $line, 'errors' => $errors];
+
+                continue;
             }
+
+            $email = Str::lower((string) $attributes['email']);
+            $identifier = Str::upper((string) $attributes['institutional_identifier']);
+            $emailOwner = $existingByEmail->get($email);
+            $identifierOwner = $existingByIdentifier->get($identifier);
+
+            if ($emailOwner || $identifierOwner) {
+                $sameExistingAccount = $emailOwner
+                    && $identifierOwner
+                    && $emailOwner->id === $identifierOwner->id
+                    && Str::lower($emailOwner->email) === $email
+                    && Str::upper((string) $emailOwner->institutional_identifier) === $identifier;
+
+                if ($sameExistingAccount) {
+                    $existingRows[] = [
+                        'row' => $line,
+                        'reason' => 'This institutional identifier and email already belong to an existing account. The account will not be overwritten.',
+                    ];
+                } else {
+                    $invalidRows[] = [
+                        'row' => $line,
+                        'errors' => [[
+                            'field' => $emailOwner ? 'Email' : $type['identifier_header'],
+                            'value' => $emailOwner ? $this->safeSubmittedValue($email) : $this->safeSubmittedValue($identifier),
+                            'reason' => 'The email or institutional identifier belongs to a conflicting account.',
+                            'expected' => 'A unique email and institutional identifier that refer to the same new person.',
+                        ]],
+                    ];
+                }
+
+                continue;
+            }
+
+            $seenByEmail = $seenEmails[$email] ?? null;
+            $seenByIdentifier = $seenIdentifiers[$identifier] ?? null;
+
+            if ($seenByEmail !== null || $seenByIdentifier !== null) {
+                $sameWorkbookAccount = $seenByEmail === $identifier && $seenByIdentifier === $email;
+
+                if ($sameWorkbookAccount) {
+                    $duplicateRows[] = [
+                        'row' => $line,
+                        'reason' => 'Duplicate account in this workbook; only the first valid occurrence is eligible for creation.',
+                    ];
+                } else {
+                    $invalidRows[] = [
+                        'row' => $line,
+                        'errors' => [[
+                            'field' => $seenByEmail !== null ? 'Email' : $type['identifier_header'],
+                            'value' => $this->safeSubmittedValue($seenByEmail !== null ? $email : $identifier),
+                            'reason' => 'This value conflicts with another row in the workbook.',
+                            'expected' => 'Each email and institutional identifier must identify only one account.',
+                        ]],
+                    ];
+                }
+
+                continue;
+            }
+
+            $seenEmails[$email] = $identifier;
+            $seenIdentifiers[$identifier] = $email;
+            $validCandidates[] = [
+                'row' => $line,
+                'name' => User::formatName(
+                    $attributes['first_name'],
+                    $attributes['middle_name'] ?? null,
+                    $attributes['last_name'],
+                    $attributes['suffix'] ?? null,
+                ),
+                'email' => $attributes['email'],
+                'institutional_identifier' => $attributes['institutional_identifier'],
+                'attributes' => $attributes,
+            ];
+        }
+
+        $generatedUsernames = $this->usernames->generateBatch(collect($validCandidates)->map(fn (array $row): array => [
+            'institutional_identifier' => $row['attributes']['institutional_identifier'],
+            'last_name' => $row['attributes']['last_name'],
+        ])->all());
+        $validRows = collect($validCandidates)->values()->map(function (array $row, int $index) use ($generatedUsernames): array {
+            $row['generated_username'] = $generatedUsernames[$index];
+
+            return $row;
+        })->all();
+        $warnings = [];
+
+        if ($invalidRows !== []) {
+            $warnings[] = 'Invalid rows are excluded. Confirmation creates only rows classified as valid.';
+        }
+
+        if ($duplicateRows !== [] || $existingRows !== []) {
+            $warnings[] = 'Duplicate and existing accounts are skipped and never overwritten.';
         }
 
         return [
             'total_count' => count($rows),
             'valid_count' => count($validRows),
             'invalid_count' => count($invalidRows),
-            'skipped_count' => count($skippedRows),
-            'duplicate_count' => $duplicateCount,
-            'existing_conflict_count' => $existingConflictCount,
+            'duplicate_count' => count($duplicateRows),
+            'existing_count' => count($existingRows),
+            'estimated_create_count' => count($validRows),
             'valid_rows' => $validRows,
             'invalid_rows' => $invalidRows,
-            'skipped_rows' => $skippedRows,
-            'warnings' => $invalidRows === [] ? [] : ['No accounts will be created until every row with a format or validation error is corrected.'],
+            'duplicate_rows' => $duplicateRows,
+            'existing_rows' => $existingRows,
+            'warnings' => $warnings,
         ];
     }
 
     /** @param array<string, string> $row @param array<string, mixed> $type @return array<string, mixed> */
     private function attributesFromRow(array $row, array $type): array
     {
-        $identifier = $row[$type['identifier_header']] ?? '';
+        $identifier = $row[$type['identifier_field']] ?? '';
         unset($row['student_number'], $row['employee_id']);
 
         return [
@@ -412,22 +415,84 @@ class UserBulkImportService
         ];
     }
 
-    /** @param array<string, string> $row @return array<int, string> */
-    private function unsafeCellErrors(array $row): array
+    /** @param array<string, string> $row @param array<string, mixed> $type @return array<int, array<string, string>> */
+    private function unsafeCellErrors(array $row, array $type): array
     {
         $errors = [];
 
-        foreach ($row as $header => $value) {
+        foreach ($row as $field => $value) {
+            $label = $this->fieldLabel($type, $field);
+
             if ($value !== '' && preg_match('/^[=+\-@]/', $value) === 1) {
-                $errors[] = "{$header} contains a spreadsheet formula or unsafe value.";
+                $errors[] = [
+                    'field' => $label,
+                    'value' => '[unsafe value omitted]',
+                    'reason' => 'A formula-like or executable spreadsheet value was found.',
+                    'expected' => 'Plain text that does not begin with =, +, -, or @.',
+                ];
             }
 
             if ($value !== strip_tags($value) || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', $value) === 1) {
-                $errors[] = "{$header} contains HTML or unsupported control characters.";
+                $errors[] = [
+                    'field' => $label,
+                    'value' => '[unsafe value omitted]',
+                    'reason' => 'HTML or unsupported control characters were found.',
+                    'expected' => 'Plain readable text.',
+                ];
             }
         }
 
         return $errors;
+    }
+
+    /** @param array<string, string> $row @param array<string, mixed> $type @return array<int, array<string, string>> */
+    private function validationErrors(ValidationException $exception, array $row, array $type): array
+    {
+        $errors = [];
+
+        foreach ($exception->errors() as $field => $messages) {
+            $sourceField = $field === 'institutional_identifier' ? $type['identifier_field'] : $field;
+
+            foreach ($messages as $message) {
+                $errors[] = [
+                    'field' => $this->fieldLabel($type, $sourceField),
+                    'value' => $this->safeSubmittedValue((string) ($row[$sourceField] ?? '')),
+                    'reason' => $message,
+                    'expected' => $this->expectedFormat($field),
+                ];
+            }
+        }
+
+        return $errors;
+    }
+
+    /** @param array<string, mixed> $type */
+    private function fieldLabel(array $type, string $field): string
+    {
+        $label = array_search($field, $type['template_columns'], true);
+
+        return is_string($label) ? $label : Str::headline($field);
+    }
+
+    private function expectedFormat(string $field): string
+    {
+        return match ($field) {
+            'email' => 'A valid unique email address, such as name@example.com.',
+            'institutional_identifier' => 'The official unique Student Number or Employee ID using letters, numbers, periods, underscores, or hyphens.',
+            'year_level', 'institution', 'department', 'program', 'reviewer_classification' => 'A current active value from the database-backed dropdown list.',
+            'first_name', 'middle_name', 'last_name', 'suffix', 'position_title' => 'Plain text within the documented length limit.',
+            'phone_number' => 'Digits with optional spaces, +, parentheses, periods, or hyphens.',
+            default => 'A value accepted by the selected official account template.',
+        };
+    }
+
+    private function safeSubmittedValue(string $value): string
+    {
+        if ($value === '' || preg_match('/^[=+\-@]/', $value) === 1 || $value !== strip_tags($value)) {
+            return $value === '' ? '(blank)' : '[unsafe value omitted]';
+        }
+
+        return Str::limit($value, 120);
     }
 
     /** @param array<string, mixed> $type @param array<int, array<string, mixed>> $rows */
@@ -445,20 +510,6 @@ class UserBulkImportService
         return $token;
     }
 
-    /** @param array<int, array{row: int, errors: array<int, string>}> $errors */
-    private function storeErrorReport(User $actor, array $errors): string
-    {
-        $token = (string) Str::uuid();
-        $path = $this->errorPath($actor, $token);
-        $this->writePayload($path, [
-            'actor_id' => $actor->id,
-            'created_at' => now()->timestamp,
-            'errors' => $errors,
-        ]);
-
-        return $token;
-    }
-
     /** @param array<string, mixed> $payload */
     private function writePayload(string $path, array $payload): void
     {
@@ -469,6 +520,7 @@ class UserBulkImportService
         }
 
         file_put_contents($path, json_encode($payload, JSON_THROW_ON_ERROR), LOCK_EX);
+        @chmod($path, 0600);
     }
 
     /** @return array<string, mixed> */
@@ -483,17 +535,14 @@ class UserBulkImportService
         return json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
     }
 
-    private function cleanupExpiredFiles(User $actor): void
+    private function cleanupExpiredFiles(): void
     {
-        foreach ([$this->previewDirectory($actor), $this->errorDirectory($actor)] as $directory) {
-            if (! is_dir($directory)) {
-                continue;
-            }
+        $disk = Storage::disk('local');
+        $cutoff = now()->subMinutes(self::PREVIEW_TTL_MINUTES)->timestamp;
 
-            foreach (glob($directory.'/*.json') ?: [] as $path) {
-                if (filemtime($path) !== false && filemtime($path) < now()->subMinutes(self::PREVIEW_TTL_MINUTES)->timestamp) {
-                    @unlink($path);
-                }
+        foreach ($disk->allFiles('imports/user-accounts/previews') as $file) {
+            if ($disk->lastModified($file) < $cutoff) {
+                $disk->delete($file);
             }
         }
     }
@@ -502,24 +551,7 @@ class UserBulkImportService
     {
         $this->assertUuid($token);
 
-        return $this->previewDirectory($actor).DIRECTORY_SEPARATOR.$token.'.json';
-    }
-
-    private function errorPath(User $actor, string $token): string
-    {
-        $this->assertUuid($token);
-
-        return $this->errorDirectory($actor).DIRECTORY_SEPARATOR.$token.'.json';
-    }
-
-    private function previewDirectory(User $actor): string
-    {
-        return Storage::disk('local')->path('imports/user-accounts/previews/'.$actor->id);
-    }
-
-    private function errorDirectory(User $actor): string
-    {
-        return Storage::disk('local')->path('imports/user-accounts/error-reports/'.$actor->id);
+        return Storage::disk('local')->path('imports/user-accounts/previews/'.$actor->id.'/'.$token.'.json');
     }
 
     private function assertUuid(string $token): void
@@ -527,5 +559,15 @@ class UserBulkImportService
         if (! Str::isUuid($token)) {
             throw ValidationException::withMessages(['import_token' => 'The import token is invalid.']);
         }
+    }
+
+    private function recordRowFailure(User $actor, string $accountType, int $row, string $reason): void
+    {
+        $this->auditLog->record($actor, 'user.bulk_import_row_failed', metadata: [
+            'account_type' => $accountType,
+            'row' => $row,
+            'reason' => $reason,
+            'result' => 'failed',
+        ]);
     }
 }

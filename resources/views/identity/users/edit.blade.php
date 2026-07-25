@@ -16,7 +16,7 @@
                 <div><span class="identity-eyebrow">{{ $managedUser->displayRoleLabel() }}</span><h2>Profile Information</h2></div>
                 <div class="identity-form-heading-actions">
                     @if ($canManageProfileOptions)
-                        <button class="identity-button identity-button-secondary" type="button" data-profile-option-open>Add Dropdown Option</button>
+                        <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}">Dropdown Options</a>
                     @endif
                     <dl class="identity-readonly-summary"><div><dt>Username</dt><dd>{{ $managedUser->username }}</dd></div><div><dt>Status</dt><dd>{{ Str::headline($managedUser->account_status) }}</dd></div></dl>
                 </div>
@@ -46,7 +46,5 @@
             @error('identity')<div class="identity-validation-summary" role="alert"><strong>Identity correction was not applied.</strong><span>{{ $message }}</span></div>@enderror
             <div class="identity-form-actions"><button class="identity-button identity-button-secondary" type="submit">Correct Identity</button></div>
         </form>
-
-        @include('identity.users.partials.profile-option-dialog')
     </div>
 @endsection

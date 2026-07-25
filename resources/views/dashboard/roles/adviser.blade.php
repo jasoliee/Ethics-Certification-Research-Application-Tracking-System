@@ -7,7 +7,8 @@
             <p>Manage research ethics applications.</p>
         </header>
 
-        <div class="dashboard-summary-grid dashboard-summary-grid-four">
+        {{-- Adviser summary cards keep role-scoped application counts in the shared centered layout. --}}
+        <div class="dashboard-summary-grid dashboard-summary-grid-four" aria-label="Advised application summary">
             <x-dashboard.summary-card label="Pending" :count="$counts['pending']" icon="file-text" tone="orange" :href="route('adviser.applications.index')" />
             <x-dashboard.summary-card label="In Review" :count="$counts['in_review']" icon="users" tone="blue" :href="route('adviser.applications.index')" />
             <x-dashboard.summary-card label="Endorsed" :count="$counts['endorsed']" icon="check" tone="green" :href="route('adviser.applications.index')" />

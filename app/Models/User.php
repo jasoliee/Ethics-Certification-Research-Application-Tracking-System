@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\ApplicantType;
-use App\Enums\ReviewerClassification;
 use App\Enums\UserRole;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
@@ -64,7 +63,6 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'applicant_type' => ApplicantType::class,
-            'reviewer_classification' => ReviewerClassification::class,
             'reviewer_capacity' => 'integer',
             'password_changed_at' => 'datetime',
             'password_setup_completed_at' => 'datetime',

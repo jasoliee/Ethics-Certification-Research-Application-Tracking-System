@@ -209,79 +209,101 @@ function initializeManagedAccountTools(shell) {
         syncToggle();
     });
 
-    // The selected CSV filename is echoed outside the native picker for a stable accessible upload state.
+    // Locate the import controls and result regions once so every interaction updates one visible state.
     const importInput = shell.querySelector('[data-account-import-file]');
     const importName = shell.querySelector('[data-account-import-name]');
+    const importGeneralError = shell.querySelector('[data-import-general-error]');
+    const importPreview = shell.querySelector('[data-import-preview]');
+    const importErrorsButton = shell.querySelector('[data-import-errors-open]');
+    const importErrorsDialog = shell.querySelector('[data-import-errors-dialog]');
+    const importErrorsPanel = importErrorsDialog?.querySelector('[role="dialog"]');
+    const importResultCategories = importErrorsDialog?.querySelectorAll('[data-import-result-category]') ?? [];
+    const importErrorsEmpty = importErrorsDialog?.querySelector('[data-import-errors-empty]');
+    let importErrorsTrigger = null;
 
+    // Stop the short attention pulse while retaining the unresolved error badge and accessible label.
+    const stopImportAttention = () => {
+        importErrorsButton?.classList.remove('is-attention');
+    };
+
+    // Clear stale client-visible results when the user chooses a different workbook for validation.
+    const clearImportResults = () => {
+        importErrorsButton?.classList.remove('has-errors', 'is-attention');
+        importErrorsButton?.setAttribute('aria-label', 'Show Errors');
+
+        if (importGeneralError) {
+            importGeneralError.hidden = true;
+        }
+
+        if (importPreview) {
+            importPreview.hidden = true;
+        }
+
+        importResultCategories.forEach((category) => {
+            category.hidden = true;
+        });
+
+        if (importErrorsEmpty) {
+            importErrorsEmpty.hidden = false;
+        }
+    };
+
+    // Echo the selected Excel filename and discard result indicators tied to the previous selection.
     importInput?.addEventListener('change', () => {
         if (importName) {
             importName.textContent = importInput.files?.[0]?.name ?? 'No file selected';
         }
+
+        clearImportResults();
     });
 
-    const importErrorsDialog = shell.querySelector('[data-import-errors-dialog]');
-    const importErrorsPanel = importErrorsDialog?.querySelector('[role="dialog"]');
+    // End the temporary animation after a short interval and immediately for reduced-motion users.
+    if (importErrorsButton?.classList.contains('is-attention')) {
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.setTimeout(stopImportAttention, prefersReducedMotion ? 0 : 2400);
+    }
+
+    // Close the validation modal and restore keyboard focus to the control that opened it.
     const closeImportErrors = () => {
         if (importErrorsDialog) {
             importErrorsDialog.hidden = true;
+            importErrorsTrigger?.focus();
         }
     };
 
+    // Open the modal, stop only the temporary pulse, and preserve unresolved error details and badge state.
     shell.querySelectorAll('[data-import-errors-open]').forEach((button) => {
         button.addEventListener('click', () => {
+            importErrorsTrigger = button;
+            stopImportAttention();
             importErrorsDialog.hidden = false;
             importErrorsPanel?.focus();
         });
     });
+
+    // Register every visible modal close command against the shared focus-restoring close function.
     importErrorsDialog?.querySelectorAll('[data-import-errors-close]').forEach((button) => {
         button.addEventListener('click', closeImportErrors);
     });
+
+    // Treat a click on the shaded backdrop as a modal close without clearing server results.
     importErrorsDialog?.addEventListener('click', (event) => {
         if (event.target === importErrorsDialog) {
             closeImportErrors();
         }
     });
 
-    const profileOptionDialog = shell.querySelector('[data-profile-option-dialog]');
-    const profileOptionPanel = profileOptionDialog?.querySelector('[role="dialog"]');
-    const closeProfileOptionDialog = () => {
-        if (profileOptionDialog) {
-            profileOptionDialog.hidden = true;
-        }
-    };
-
-    shell.querySelectorAll('[data-profile-option-open]').forEach((button) => {
-        button.addEventListener('click', () => {
-            profileOptionDialog.hidden = false;
-            profileOptionPanel?.focus();
-        });
-    });
-    profileOptionDialog?.querySelectorAll('[data-profile-option-close]').forEach((button) => {
-        button.addEventListener('click', closeProfileOptionDialog);
-    });
-    profileOptionDialog?.addEventListener('click', (event) => {
-        if (event.target === profileOptionDialog) {
-            closeProfileOptionDialog();
-        }
-    });
-    profileOptionDialog?.querySelector('[data-profile-option-form]')?.addEventListener('submit', (event) => {
-        const field = profileOptionDialog.querySelector('#option_field');
-        const value = profileOptionDialog.querySelector('#option_value');
-        const fieldLabel = field?.selectedOptions?.[0]?.textContent?.trim() ?? 'selected field';
-
-        if (! window.confirm(`Add "${value?.value?.trim()}" to ${fieldLabel}?`)) {
-            event.preventDefault();
-        }
-    });
-    if (profileOptionDialog?.hasAttribute('data-open-on-load')) {
-        profileOptionDialog.hidden = false;
-        profileOptionPanel?.focus();
-    }
-
     // Status changes require a final acknowledgement because deactivation immediately blocks sign-in.
     shell.querySelectorAll('[data-confirm-status]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (! window.confirm(form.dataset.confirmStatus)) {
+                event.preventDefault();
+            }
+        });
+    });
+    shell.querySelectorAll('[data-confirm-option-status]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (! window.confirm(form.dataset.confirmOptionStatus)) {
                 event.preventDefault();
             }
         });
@@ -325,9 +347,6 @@ function initializeManagedAccountTools(shell) {
         }
         if (event.key === 'Escape' && importErrorsDialog && ! importErrorsDialog.hidden) {
             closeImportErrors();
-        }
-        if (event.key === 'Escape' && profileOptionDialog && ! profileOptionDialog.hidden) {
-            closeProfileOptionDialog();
         }
     });
 
@@ -394,7 +413,8 @@ function initializeManagedAccountTools(shell) {
 }
 
 function initializeResearchTitleTooltips(shell) {
-    const targets = [...shell.querySelectorAll('[data-research-title-tooltip], [data-table-tooltip]')];
+    const selector = '[data-research-title-tooltip], [data-table-tooltip]';
+    const targets = [...shell.querySelectorAll(selector)];
 
     if (targets.length === 0) {
         return;
@@ -411,6 +431,12 @@ function initializeResearchTitleTooltips(shell) {
     tooltip.setAttribute('role', 'tooltip');
     tooltip.hidden = true;
     document.body.append(tooltip);
+
+    targets.forEach((target) => {
+        if (! target.matches('a, button, input, select, textarea, [tabindex]')) {
+            target.tabIndex = 0;
+        }
+    });
 
     const isTruncated = (target) => (
         target.scrollWidth > target.clientWidth + 1
@@ -469,28 +495,49 @@ function initializeResearchTitleTooltips(shell) {
             tooltip.hidden = false;
             target.setAttribute('aria-describedby', tooltipId);
             positionTooltip();
-        }, 1000);
+        }, 500);
     };
 
-    targets.forEach((target) => {
-        target.addEventListener('pointerenter', (event) => {
-            scheduleTooltip(target, { x: event.clientX, y: event.clientY });
-        });
-        target.addEventListener('pointermove', (event) => {
-            if (activeTarget !== target) {
-                return;
-            }
+    // Delegation keeps the listener count fixed even when a paginated table contains many truncated cells.
+    shell.addEventListener('pointerover', (event) => {
+        const target = event.target.closest?.(selector);
 
-            pointerPosition = { x: event.clientX, y: event.clientY };
-            positionTooltip();
-        });
-        target.addEventListener('pointerleave', hideTooltip);
-        target.addEventListener('focus', () => scheduleTooltip(target));
-        target.addEventListener('blur', hideTooltip);
-        target.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') {
-                hideTooltip();
-            }
-        });
+        if (target && ! target.contains(event.relatedTarget)) {
+            scheduleTooltip(target, { x: event.clientX, y: event.clientY });
+        }
     });
+    shell.addEventListener('pointermove', (event) => {
+        if (! activeTarget) {
+            return;
+        }
+
+        pointerPosition = { x: event.clientX, y: event.clientY };
+        positionTooltip();
+    });
+    shell.addEventListener('pointerout', (event) => {
+        const target = event.target.closest?.(selector);
+
+        if (target && ! target.contains(event.relatedTarget)) {
+            hideTooltip();
+        }
+    });
+    shell.addEventListener('focusin', (event) => {
+        const target = event.target.closest?.(selector);
+
+        if (target) {
+            scheduleTooltip(target);
+        }
+    });
+    shell.addEventListener('focusout', (event) => {
+        if (activeTarget?.contains(event.target)) {
+            hideTooltip();
+        }
+    });
+    shell.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            hideTooltip();
+        }
+    });
+    window.addEventListener('resize', positionTooltip, { passive: true });
+    window.addEventListener('scroll', positionTooltip, { passive: true, capture: true });
 }

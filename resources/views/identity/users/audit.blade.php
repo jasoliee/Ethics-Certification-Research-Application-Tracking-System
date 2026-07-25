@@ -35,21 +35,28 @@
             </div>
             <div class="identity-filter">
                 <label for="audit-result">Result</label>
-                <select id="audit-result" name="result">
-                    <option value="">All results</option>
-                    @foreach ($results as $result)
-                        <option value="{{ $result }}" @selected(($filters['result'] ?? null) === $result)>{{ Str::headline($result) }}</option>
+                <input id="audit-result" name="result" type="search" value="{{ $filters['result'] ?? '' }}" placeholder="e.g., completed" maxlength="100">
+            </div>
+            <div class="identity-filter">
+                <label for="audit-target">Target Type</label>
+                <select id="audit-target" name="target_type">
+                    <option value="">All targets</option>
+                    @foreach ($targetTypes as $targetType)
+                        <option value="{{ $targetType }}" @selected(($filters['target_type'] ?? null) === $targetType)>{{ class_basename($targetType) }}</option>
                     @endforeach
                 </select>
             </div>
+            <div class="identity-filter"><label for="audit-date-from">From</label><input id="audit-date-from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}"></div>
+            <div class="identity-filter"><label for="audit-date-to">To</label><input id="audit-date-to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}"></div>
             <div class="identity-filter-actions">
                 <button class="identity-button identity-button-primary" type="submit">Apply</button>
-                <a href="{{ route($routeBase.'.audit.index') }}">Reset</a>
+                <a class="identity-button identity-button-warning" href="{{ route($routeBase.'.audit.index') }}" aria-label="Reset audit-log filters">Reset</a>
             </div>
         </form>
 
         <section class="identity-table-panel">
-            <div class="identity-table-scroll">
+            {{-- Audit columns scroll within this focusable region instead of widening the complete dashboard page. --}}
+            <div class="identity-table-scroll" role="region" aria-label="Account audit results" tabindex="0">
                 <table class="identity-user-table identity-audit-table">
                     <thead><tr><th class="identity-col-date-time">Date and Time</th><th class="identity-col-actor">Actor</th><th class="identity-col-role">Role</th><th class="identity-col-audit-action">Action</th><th class="identity-col-status">Result</th></tr></thead>
                     <tbody>
@@ -83,6 +90,7 @@
                     </tbody>
                 </table>
             </div>
+            {{-- Audit pagination remains within the responsive result panel. --}}
             <x-dashboard.pagination :paginator="$logs" label="Audit log pages" />
         </section>
     </div>
