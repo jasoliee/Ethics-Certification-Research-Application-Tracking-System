@@ -9,14 +9,10 @@
         $importWarnings = $preview['warnings'] ?? [];
         $duplicateRows = $preview['duplicate_rows'] ?? [];
         $existingRows = $preview['existing_rows'] ?? [];
-        $activeExistingAccounts = $preview['active_existing_accounts'] ?? [];
-        $archivedAccounts = $preview['archived_accounts'] ?? [];
-        $restoredAccounts = $preview['restored_accounts'] ?? [];
-        $restorationConflicts = $preview['restoration_conflicts'] ?? [];
 
         // An error state is reserved for failed request or row validation, while other categories remain reviewable results.
         $hasImportErrors = $requestValidationErrors !== [] || $invalidRows !== [];
-        $hasImportResults = $hasImportErrors || $importWarnings !== [] || $duplicateRows !== [] || $existingRows !== [] || $activeExistingAccounts !== [] || $archivedAccounts !== [];
+        $hasImportResults = $hasImportErrors || $importWarnings !== [] || $duplicateRows !== [] || $existingRows !== [];
     @endphp
 
     <div class="dashboard-page identity-management-page">
@@ -180,77 +176,9 @@
                         <section class="identity-import-category" aria-labelledby="duplicate-rows-heading" data-import-result-category><h3 id="duplicate-rows-heading">Duplicate Rows ({{ count($duplicateRows) }})</h3>@foreach ($duplicateRows as $row)<p><strong>Excel Row {{ $row['row'] }}:</strong> {{ $row['reason'] }}</p>@endforeach</section>
                     @endif
 
-                    <section class="identity-import-category" aria-labelledby="active-existing-heading" data-import-result-category>
-                        <div class="identity-import-category-heading">
-                            <h3 id="active-existing-heading">Active Existing Accounts ({{ count($activeExistingAccounts) }})</h3>
-                            <p>These institutional identifiers, email addresses or usernames belong to accounts that are currently active. They will not be created again or overwritten.</p>
-                        </div>
-                        @if ($activeExistingAccounts !== [])
-                            @foreach ($activeExistingAccounts as $row)
-                                <article class="identity-import-error">
-                                    <strong>Excel Row {{ $row['row'] }}</strong>
-                                    <dl class="identity-import-error-details">
-                                        <div><dt>Name</dt><dd>{{ $row['name'] }}</dd></div>
-                                        <div><dt>Institutional ID</dt><dd>{{ $row['institutional_identifier'] }}</dd></div>
-                                        <div><dt>Email</dt><dd>{{ $row['email'] }}</dd></div>
-                                        <div><dt>Role</dt><dd>{{ $row['role'] }}</dd></div>
-                                        <div><dt>Current status</dt><dd>{{ $row['account_status'] }}</dd></div>
-                                    </dl>
-                                    <p>This institutional identifier and email belong to an active account. The account was not recreated.</p>
-                                </article>
-                            @endforeach
-                        @else
-                            <p>No active existing accounts were detected in this workbook.</p>
-                        @endif
-                    </section>
-
-                    <section class="identity-import-category" aria-labelledby="archived-accounts-heading" data-import-result-category>
-                        <div class="identity-import-category-heading">
-                            <h3 id="archived-accounts-heading">Archived Accounts Found ({{ count($archivedAccounts) }})</h3>
-                            <p>These institutional identifiers, email addresses or usernames belong to accounts that were previously archived. Restore them to reactivate the original accounts and preserve their history.</p>
-                        </div>
-                        @if ($preview['preview_token'] ?? null)
-                            <form class="identity-import-restore-form" method="POST" action="{{ route($routeBase.'.import.restore') }}">
-                                @csrf
-                                <input type="hidden" name="import_token" value="{{ $preview['preview_token'] }}">
-                                <button class="identity-button identity-button-secondary" type="submit">Restore All Archived Accounts</button>
-                            </form>
-                        @endif
-                        @if ($archivedAccounts !== [])
-                            @foreach ($archivedAccounts as $row)
-                                <article class="identity-import-error">
-                                    <strong>Excel Row {{ $row['row'] }}</strong>
-                                    <dl class="identity-import-error-details">
-                                        <div><dt>Name</dt><dd>{{ $row['name'] }}</dd></div>
-                                        <div><dt>Institutional ID</dt><dd>{{ $row['institutional_identifier'] }}</dd></div>
-                                        <div><dt>Email</dt><dd>{{ $row['email'] }}</dd></div>
-                                        <div><dt>Role</dt><dd>{{ $row['role'] }}</dd></div>
-                                        <div><dt>Archived date</dt><dd>{{ $row['archived_at'] ? \Carbon\Carbon::parse($row['archived_at'])->toDateString() : 'Unavailable' }}</dd></div>
-                                    </dl>
-                                    <p>This institutional identifier and email belong to an archived account. The account was not recreated. Restore the original account to reactivate it and preserve its previous records.</p>
-                                </article>
-                            @endforeach
-                        @else
-                            <p>No archived accounts were detected in this workbook.</p>
-                        @endif
-                    </section>
-
-                    @if ($restoredAccounts !== [])
-                        <section class="identity-import-category" aria-labelledby="restored-accounts-heading" data-import-result-category>
-                            <h3 id="restored-accounts-heading">Restored Accounts ({{ count($restoredAccounts) }})</h3>
-                            @foreach ($restoredAccounts as $row)
-                                <p><strong>{{ $row['name'] }}</strong> was restored.</p>
-                            @endforeach
-                        </section>
-                    @endif
-
-                    @if ($restorationConflicts !== [])
-                        <section class="identity-import-category" aria-labelledby="restoration-conflicts-heading" data-import-result-category>
-                            <h3 id="restoration-conflicts-heading">Restoration Conflicts ({{ count($restorationConflicts) }})</h3>
-                            @foreach ($restorationConflicts as $row)
-                                <p>{{ $row['reason'] }}</p>
-                            @endforeach
-                        </section>
+                    @if ($existingRows !== [])
+                        {{-- Existing accounts are identified without exposing private account attributes or overwriting records. --}}
+                        <section class="identity-import-category" aria-labelledby="existing-rows-heading" data-import-result-category><h3 id="existing-rows-heading">Existing Accounts ({{ count($existingRows) }})</h3>@foreach ($existingRows as $row)<p><strong>Excel Row {{ $row['row'] }}:</strong> {{ $row['reason'] }}</p>@endforeach</section>
                     @endif
 
                     {{-- Empty state is shown initially, after a successful validation, or after the selected file changes. --}}

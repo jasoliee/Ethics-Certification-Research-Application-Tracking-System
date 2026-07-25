@@ -46,7 +46,7 @@ class UserAccountService
     /** @param array<string, mixed> $attributes */
     public function createFromImport(User $actor, array $attributes, string $generatedUsername): User
     {
-        $validated = $this->validateCreation($actor, $attributes, false, true);
+        $validated = $this->validateCreation($actor, $attributes, false);
         validator(['username' => $generatedUsername], [
             'username' => ['required', 'string', 'min:6', 'max:30', 'regex:/^[a-z0-9]+(?:\.[a-z0-9]+)*[0-9]*$/'],
         ])->validate();
@@ -186,7 +186,7 @@ class UserAccountService
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    public function validateCreation(User $actor, array $attributes, bool $checkDatabaseUniqueness = true, bool $checkIdentityAvailability = true): array
+    public function validateCreation(User $actor, array $attributes, bool $checkDatabaseUniqueness = true): array
     {
         $attributes = $this->normalizeProfile($attributes);
         $attributes['role'] = $attributes['role'] instanceof UserRole
@@ -206,7 +206,7 @@ class UserAccountService
             ? ApplicantType::tryFrom((string) ($attributes['applicant_type'] ?? ''))
             : null;
         $rules = [
-            ...$this->profileRules(null, $targetRole, $applicantType, false),
+            ...$this->profileRules(null, $targetRole, $applicantType, $checkDatabaseUniqueness),
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [
                 Rule::requiredIf($targetRole === UserRole::Applicant),
@@ -215,18 +215,7 @@ class UserAccountService
             ],
         ];
 
-        $validated = validator($attributes, $rules, $this->profileValidationMessages())->validate();
-
-        if ($checkIdentityAvailability) {
-            // Explicitly classify active and archived identity matches so creation can block each case differently.
-            $generatedUsername = $this->usernameGenerator->generate(
-                (string) ($validated['institutional_identifier'] ?? ''),
-                (string) ($validated['last_name'] ?? ''),
-            );
-            $this->assertIdentityAvailability($validated, $generatedUsername);
-        }
-
-        return $validated;
+        return validator($attributes, $rules, $this->profileValidationMessages())->validate();
     }
 
     /** @return array<string, array<int, mixed>> */
@@ -298,45 +287,6 @@ class UserAccountService
                 'between:1,30',
             ],
         ];
-    }
-
-    /** @param array<string, mixed> $validated */
-    private function assertIdentityAvailability(array $validated, string $generatedUsername): void
-    {
-        $email = Str::lower((string) ($validated['email'] ?? ''));
-        $identifier = Str::upper((string) ($validated['institutional_identifier'] ?? ''));
-        $username = Str::lower(trim($generatedUsername));
-
-        if ($email === '' || $identifier === '') {
-            return;
-        }
-
-        // Search both active and soft-deleted accounts so archived identities are treated as restoration candidates.
-        $matches = User::withTrashed()
-            ->select(['id', 'email', 'institutional_identifier', 'username', 'deleted_at'])
-            ->where(function ($query) use ($email, $identifier, $username): void {
-                $query
-                    ->where('email', $email)
-                    ->orWhere('institutional_identifier', $identifier)
-                    ->orWhere('username', $username);
-            })
-            ->get();
-
-        if ($matches->isEmpty()) {
-            return;
-        }
-
-        $activeMatch = $matches->first(fn (User $user): bool => $user->deleted_at === null);
-
-        if ($activeMatch) {
-            throw ValidationException::withMessages([
-                'identity' => 'An active account already exists using this Student Number, Employee ID, email address or username. Open the existing account from User Management instead of creating another account.',
-            ]);
-        }
-
-        throw ValidationException::withMessages([
-            'identity' => 'An archived account already exists using these credentials. Restore the original account to preserve its previous applications, records and audit history.',
-        ]);
     }
 
     /** @param array<string, mixed> $attributes @return array<string, mixed> */

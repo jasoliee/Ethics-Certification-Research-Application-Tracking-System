@@ -51,11 +51,6 @@ class UserPolicy
         return $this->create($actor);
     }
 
-    public function restoreArchivedAccounts(User $actor): bool
-    {
-        return $actor->role === UserRole::ResLead;
-    }
-
     public function completeOnboarding(User $actor, User $subject): bool
     {
         return $actor->is($subject);

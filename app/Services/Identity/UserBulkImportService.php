@@ -2,11 +2,9 @@
 
 namespace App\Services\Identity;
 
-use App\Enums\AccountStatus;
 use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Http\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -42,17 +40,7 @@ class UserBulkImportService
             ]);
         }
 
-        $sourcePath = $file->getPathname();
-
-        if (! is_string($sourcePath) || $sourcePath === '' || ! is_file($sourcePath)) {
-            throw ValidationException::withMessages(['accounts_file' => 'The Excel file could not be read from the uploaded request.']);
-        }
-
-        $path = Storage::disk('local')->putFileAs(
-            'imports/user-accounts/uploads',
-            new File($sourcePath),
-            Str::uuid().'.xlsx',
-        );
+        $path = $file->storeAs('imports/user-accounts/uploads', Str::uuid().'.xlsx', 'local');
 
         if (! is_string($path)) {
             throw ValidationException::withMessages(['accounts_file' => 'The Excel file could not be stored securely.']);
@@ -68,8 +56,8 @@ class UserBulkImportService
             $rows = $this->readRows(Storage::disk('local')->path($path), $type);
             $result = $this->preflight($actor, $rows, $type);
             $result['account_type'] = $type;
-            $result['preview_token'] = $result['valid_count'] > 0 || $result['existing_count'] > 0 || $result['invalid_count'] > 0 || $result['duplicate_count'] > 0
-                ? $this->storePreview($actor, $type, $result)
+            $result['preview_token'] = $result['valid_count'] > 0
+                ? $this->storePreview($actor, $type, $result['valid_rows'])
                 : null;
 
             $this->auditLog->record($actor, 'user.bulk_validation_completed', metadata: [
@@ -250,8 +238,6 @@ class UserBulkImportService
         $validCandidates = [];
         $invalidRows = [];
         $duplicateRows = [];
-        $activeExistingAccounts = [];
-        $archivedAccounts = [];
         $existingRows = [];
         $seenEmails = [];
         $seenIdentifiers = [];
@@ -267,7 +253,7 @@ class UserBulkImportService
             ->unique()
             ->values();
         $existingUsers = User::withTrashed()
-            ->select(['id', 'name', 'email', 'institutional_identifier', 'role', 'account_status', 'deleted_at'])
+            ->select(['id', 'email', 'institutional_identifier'])
             ->where(function ($query) use ($candidateEmails, $candidateIdentifiers): void {
                 $query
                     ->whereIn('email', $candidateEmails)
@@ -287,7 +273,7 @@ class UserBulkImportService
 
             if ($errors === []) {
                 try {
-                    $attributes = $this->accounts->validateCreation($actor, $attributes, false, false);
+                    $attributes = $this->accounts->validateCreation($actor, $attributes, false);
                 } catch (ValidationException $exception) {
                     $errors = $this->validationErrors($exception, $row, $type);
                 } catch (AuthorizationException $exception) {
@@ -319,28 +305,10 @@ class UserBulkImportService
                     && Str::upper((string) $emailOwner->institutional_identifier) === $identifier;
 
                 if ($sameExistingAccount) {
-                    $account = $emailOwner ?? $identifierOwner;
-                    $entry = [
-                        'id' => $account->id,
+                    $existingRows[] = [
                         'row' => $line,
-                        'name' => $account->name,
-                        'email' => $account->email,
-                        'institutional_identifier' => $account->institutional_identifier,
-                        'role' => $account->role?->label() ?? $account->role,
-                        'account_status' => $account->account_status,
-                        'archived_at' => $account->deleted_at?->toIso8601String(),
-                        'reason' => $account->deleted_at === null
-                            ? 'This institutional identifier and email belong to an active account. The account will not be overwritten.'
-                            : 'This institutional identifier and email belong to an archived account. The original account was not recreated.',
+                        'reason' => 'This institutional identifier and email already belong to an existing account. The account will not be overwritten.',
                     ];
-
-                    if ($account->deleted_at === null) {
-                        $activeExistingAccounts[] = $entry;
-                    } else {
-                        $archivedAccounts[] = $entry;
-                    }
-
-                    $existingRows[] = $entry;
                 } else {
                     $invalidRows[] = [
                         'row' => $line,
@@ -422,65 +390,13 @@ class UserBulkImportService
             'valid_count' => count($validRows),
             'invalid_count' => count($invalidRows),
             'duplicate_count' => count($duplicateRows),
-            'existing_count' => count($activeExistingAccounts) + count($archivedAccounts),
+            'existing_count' => count($existingRows),
             'estimated_create_count' => count($validRows),
             'valid_rows' => $validRows,
             'invalid_rows' => $invalidRows,
             'duplicate_rows' => $duplicateRows,
             'existing_rows' => $existingRows,
-            'active_existing_accounts' => $activeExistingAccounts,
-            'archived_accounts' => $archivedAccounts,
-            'restored_accounts' => [],
-            'restoration_conflicts' => [],
             'warnings' => $warnings,
-        ];
-    }
-
-    public function restorePreview(User $actor, string $token): array
-    {
-        $this->assertUuid($token);
-        $payload = $this->readPayload($this->previewPath($actor, $token));
-
-        if ((int) ($payload['actor_id'] ?? 0) !== $actor->id) {
-            throw ValidationException::withMessages(['import_token' => 'This import preview does not belong to you.']);
-        }
-
-        if (now()->timestamp - (int) ($payload['created_at'] ?? 0) > self::PREVIEW_TTL_MINUTES * 60) {
-            throw ValidationException::withMessages(['import_token' => 'This import preview has expired. Validate the Excel file again.']);
-        }
-
-        $restoredAccounts = collect($payload['restored_accounts'] ?? [])->values()->all();
-        $restorationConflicts = [];
-
-        foreach (($payload['archived_accounts'] ?? []) as $accountReference) {
-            $archivedUser = User::withTrashed()->whereKey($accountReference['id'] ?? null)->first();
-
-            if (! $archivedUser || ! $archivedUser->trashed()) {
-                $restorationConflicts[] = [
-                    'id' => $accountReference['id'] ?? null,
-                    'reason' => 'The archived account is no longer available for restoration.',
-                ];
-
-                continue;
-            }
-
-            $restoredAccounts[] = [
-                'id' => $archivedUser->id,
-                'name' => $archivedUser->name,
-                'email' => $archivedUser->email,
-                'institutional_identifier' => $archivedUser->institutional_identifier,
-            ];
-        }
-
-        $payload['restored_accounts'] = array_values(array_unique($restoredAccounts, SORT_REGULAR));
-        $payload['restoration_conflicts'] = $restorationConflicts;
-        $payload['archived_accounts'] = [];
-        $this->writePayload($this->previewPath($actor, $token), $payload);
-
-        return [
-            'restored_accounts' => $payload['restored_accounts'],
-            'restoration_conflicts' => $restorationConflicts,
-            'account_type' => (string) ($payload['account_type'] ?? ''),
         ];
     }
 
@@ -579,8 +495,8 @@ class UserBulkImportService
         return Str::limit($value, 120);
     }
 
-    /** @param array<string, mixed> $type @param array<string, mixed> $preview */
-    private function storePreview(User $actor, array $type, array $preview): string
+    /** @param array<string, mixed> $type @param array<int, array<string, mixed>> $rows */
+    private function storePreview(User $actor, array $type, array $rows): string
     {
         $token = (string) Str::uuid();
         $path = $this->previewPath($actor, $token);
@@ -588,11 +504,7 @@ class UserBulkImportService
             'actor_id' => $actor->id,
             'account_type' => $type['key'],
             'created_at' => now()->timestamp,
-            'rows' => $preview['valid_rows'] ?? [],
-            'active_existing_accounts' => $preview['active_existing_accounts'] ?? [],
-            'archived_accounts' => $preview['archived_accounts'] ?? [],
-            'restored_accounts' => $preview['restored_accounts'] ?? [],
-            'restoration_conflicts' => $preview['restoration_conflicts'] ?? [],
+            'rows' => $rows,
         ]);
 
         return $token;

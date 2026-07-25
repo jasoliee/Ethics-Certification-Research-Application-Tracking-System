@@ -356,21 +356,6 @@ class UserManagementController extends Controller
             ->with('status', "{$result['created']} accounts created; {$result['existing']} newly existing accounts skipped; {$result['failed']} rows failed. {$result['emails_sent']} setup emails sent; {$result['emails_failed']} failed or remain pending.");
     }
 
-    /** Restore archived accounts that were identified during the current import validation preview. */
-    public function restoreImport(Request $request, UserBulkImportService $imports): RedirectResponse
-    {
-        Gate::authorize('restoreArchivedAccounts', User::class);
-        $token = (string) $request->input('import_token');
-        $result = $imports->restorePreview($request->user(), $token);
-        $restoredCount = count($result['restored_accounts']);
-
-        return redirect()
-            ->route($this->routeBase($request->user()).'.import.form', ['account_type' => $result['account_type']])
-            ->with('status', $restoredCount > 0
-                ? "Restored {$restoredCount} archived account".($restoredCount === 1 ? '' : 's').'.'
-                : 'No archived accounts were restored.');
-    }
-
     /**
      * Generate a verified role-specific workbook before attaching any spreadsheet response headers.
      */

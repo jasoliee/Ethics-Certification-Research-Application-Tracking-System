@@ -113,7 +113,6 @@ Route::middleware('no-store')->group(function (): void {
                     Route::post('/', 'store')->middleware('throttle:account-write')->name('store');
                     Route::get('/import', 'importForm')->name('import.form');
                     Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
-                    Route::post('/import/restore', 'restoreImport')->middleware('throttle:import-confirm')->name('import.restore');
                     Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
                     // Rate-limit verified workbook generation while retaining the Adviser role and catalog checks.
                     Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');
@@ -194,7 +193,6 @@ Route::middleware('no-store')->group(function (): void {
                     Route::post('/', 'store')->middleware('throttle:account-write')->name('store');
                     Route::get('/import', 'importForm')->name('import.form');
                     Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
-                    Route::post('/import/restore', 'restoreImport')->middleware('throttle:import-confirm')->name('import.restore');
                     Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
                     // Rate-limit verified workbook generation while retaining the RES Lead role and catalog checks.
                     Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');

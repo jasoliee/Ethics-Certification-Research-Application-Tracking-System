@@ -38,9 +38,8 @@ class StoreManagedUserRequest extends FormRequest
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'suffix' => ['nullable', 'string', 'max:30'],
-            // The service handles active-versus-archived identity conflicts so the UI can show a targeted message.
-            'email' => ['required', 'email:rfc', 'max:255'],
-            'institutional_identifier' => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i'],
+            'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')],
+            'institutional_identifier' => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i', Rule::unique('users', 'institutional_identifier')],
             'phone_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]+$/'],
             'institution' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Institution))],
             'department' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Department))],
