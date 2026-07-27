@@ -91,7 +91,170 @@ export function initializeDashboard() {
 
     initializeResearchTitleTooltips(shell);
     initializeManagedAccountTools(shell);
+    initializeApplicationTools(shell);
     initializeOnboardingGuide(shell);
+}
+
+function initializeApplicationTools(shell) {
+    // Share one focus-restoring modal behavior between dashboard details and requirements dialogs.
+    const modalConfigurations = [
+        {
+            dialog: shell.querySelector('[data-application-details-dialog]'),
+            openSelector: '[data-application-details-open]',
+            closeSelector: '[data-application-details-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-requirements-details-dialog]'),
+            openSelector: '[data-requirements-details-open]',
+            closeSelector: '[data-requirements-details-close]',
+        },
+    ];
+
+    // Initialize only modal configurations whose Blade dialog exists on the current page.
+    modalConfigurations.forEach(({ dialog, openSelector, closeSelector }) => {
+        // Pages without this dialog require no listeners or temporary modal state.
+        if (! dialog) {
+            return;
+        }
+
+        const panel = dialog.querySelector('[role="dialog"]');
+        let returnFocus = null;
+
+        // Closing a dashboard application dialog always returns the user to its originating command.
+        const closeDialog = () => {
+            dialog.hidden = true;
+            returnFocus?.focus();
+        };
+
+        // Each open command reveals its matching dialog and moves keyboard focus into the panel.
+        shell.querySelectorAll(openSelector).forEach((button) => {
+            button.addEventListener('click', () => {
+                returnFocus = button;
+                dialog.hidden = false;
+                panel?.focus();
+            });
+        });
+
+        // Every explicit close control shares the focus-restoring cleanup.
+        dialog.querySelectorAll(closeSelector).forEach((button) => {
+            button.addEventListener('click', closeDialog);
+        });
+
+        // A pointer click on the shaded backdrop closes without triggering a navigation or write.
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                closeDialog();
+            }
+        });
+
+        // Escape provides the keyboard-equivalent dialog close action.
+        dialog.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeDialog();
+            }
+        });
+    });
+
+    // Echo the local display filename while the server remains authoritative for type and size checks.
+    shell.querySelectorAll('[data-application-file]').forEach((input) => {
+        const form = input.closest('form');
+        const filename = form?.querySelector('[data-application-file-name]');
+
+        // Update only the local display label; no file data leaves the browser until form submission.
+        input.addEventListener('change', () => {
+            // A missing optional filename label does not prevent native upload behavior.
+            if (filename) {
+                filename.textContent = input.files?.[0]?.name ?? 'No file selected';
+            }
+        });
+    });
+
+    // Populate the secure viewer only with controller URLs already rendered into the triggering row.
+    const documentDialog = shell.querySelector('[data-document-dialog]');
+    const documentPanel = documentDialog?.querySelector('[role="dialog"]');
+    const documentTitle = documentDialog?.querySelector('[data-document-title]');
+    const documentMeta = documentDialog?.querySelector('[data-document-meta]');
+    const documentFrame = documentDialog?.querySelector('[data-document-frame]');
+    const documentFallback = documentDialog?.querySelector('[data-document-fallback]');
+    const documentDownload = documentDialog?.querySelector('[data-document-download]');
+    let documentTrigger = null;
+
+    // Clearing the iframe on close stops private document rendering and avoids retaining an obsolete URL.
+    const closeDocumentDialog = () => {
+        if (! documentDialog) {
+            return;
+        }
+
+        documentDialog.hidden = true;
+        documentFrame?.removeAttribute('src');
+        documentTrigger?.focus();
+    };
+
+    // Each View command opens the shared dialog using URLs already authorized by its role route.
+    shell.querySelectorAll('[data-document-open]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const previewUrl = button.dataset.documentPreviewUrl ?? '';
+            documentTrigger = button;
+
+            // Use textContent so original display filenames cannot create markup.
+            if (documentTitle) {
+                documentTitle.textContent = button.dataset.documentName ?? 'Document';
+            }
+
+            // Use textContent for requirement and upload metadata for the same reason.
+            if (documentMeta) {
+                documentMeta.textContent = button.dataset.documentMeta ?? 'Selected requirement document';
+            }
+
+            // Point the download command only to the controller route rendered by Blade.
+            if (documentDownload) {
+                documentDownload.href = button.dataset.documentDownloadUrl;
+            }
+
+            // Supported types load in the sandboxed frame; unsupported types leave no retained source.
+            if (documentFrame) {
+                documentFrame.hidden = previewUrl === '';
+                previewUrl === ''
+                    ? documentFrame.removeAttribute('src')
+                    : documentFrame.setAttribute('src', previewUrl);
+            }
+
+            // The fallback replaces the frame when no safe inline route was supplied.
+            if (documentFallback) {
+                documentFallback.hidden = previewUrl !== '';
+            }
+
+            // Reveal only after all display state and secure URLs have been populated.
+            documentDialog.hidden = false;
+            documentPanel?.focus();
+        });
+    });
+
+    // Explicit document close controls clear the frame and restore trigger focus.
+    documentDialog?.querySelectorAll('[data-document-close]').forEach((button) => {
+        button.addEventListener('click', closeDocumentDialog);
+    });
+
+    // Backdrop clicks close the viewer without navigating to the private document.
+    documentDialog?.addEventListener('click', (event) => {
+        if (event.target === documentDialog) {
+            closeDocumentDialog();
+        }
+    });
+
+    // Escape closes the viewer for keyboard users.
+    documentDialog?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeDocumentDialog();
+        }
+    });
+
+    // Disable write commands after native validation passes to prevent accidental duplicate requests.
+    shell.querySelectorAll('[data-application-submit-once]').forEach((form) => {
+        form.addEventListener('submit', () => {
+            form.querySelector('button[type="submit"]')?.setAttribute('disabled', 'disabled');
+        });
+    });
 }
 
 function initializeOnboardingGuide(shell) {
@@ -293,6 +456,69 @@ function initializeManagedAccountTools(shell) {
         }
     });
 
+    // Locate the shared restoration confirmation controls once for individual and bulk actions.
+    const restoreDialog = shell.querySelector('[data-restore-dialog]');
+    const restorePanel = restoreDialog?.querySelector('[role="dialog"]');
+    const restoreForm = restoreDialog?.querySelector('[data-restore-form]');
+    const restoreUserInput = restoreDialog?.querySelector('[data-restore-user-input]');
+    const restoreTitle = restoreDialog?.querySelector('[data-restore-title]');
+    const restoreMessage = restoreDialog?.querySelector('[data-restore-message]');
+    const restoreSubmit = restoreDialog?.querySelector('[data-restore-submit]');
+    let restoreTrigger = null;
+
+    // Close the restoration dialog and return focus to the exact triggering account or bulk button.
+    const closeRestoreDialog = () => {
+        if (! restoreDialog) {
+            return;
+        }
+
+        restoreDialog.hidden = true;
+        restoreTrigger?.focus();
+    };
+
+    // Populate only display text and the preview-verified target ID before opening the confirmation.
+    shell.querySelectorAll('[data-restore-confirm]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const count = Number.parseInt(button.dataset.restoreCount ?? '1', 10);
+            const isBulk = button.hasAttribute('data-restore-all');
+            const userId = button.dataset.restoreUserId ?? '';
+            const accountName = button.dataset.restoreAccountName ?? '';
+            const accountLabel = count === 1 ? 'account' : 'accounts';
+            restoreTrigger = button;
+            restoreForm.action = button.dataset.restoreAction;
+            restoreUserInput.value = userId;
+            restoreUserInput.disabled = userId === '';
+            restoreTitle.textContent = isBulk
+                ? 'Restore Flagged Archived Accounts'
+                : 'Restore Archived Account';
+            restoreMessage.textContent = isBulk
+                ? `You are about to restore ${count} archived ${accountLabel} identified in this import preview. The original accounts and their existing records will be preserved.`
+                : `You are about to reactivate ${accountName || 'this archived account'}. The original account will be restored and no duplicate will be created.`;
+            restoreSubmit.textContent = isBulk ? 'Restore Accounts' : 'Restore Account';
+            restoreSubmit.disabled = false;
+            restoreDialog.hidden = false;
+            restorePanel?.focus();
+        });
+    });
+
+    // Every cancel control shares the same focus-safe close behavior.
+    restoreDialog?.querySelectorAll('[data-restore-cancel]').forEach((button) => {
+        button.addEventListener('click', closeRestoreDialog);
+    });
+
+    // Clicking the shaded backdrop dismisses restoration without mutating the preview.
+    restoreDialog?.addEventListener('click', (event) => {
+        if (event.target === restoreDialog) {
+            closeRestoreDialog();
+        }
+    });
+
+    // Disable the final restoration command immediately to prevent rapid duplicate submissions.
+    restoreForm?.addEventListener('submit', () => {
+        restoreSubmit.disabled = true;
+        restoreSubmit.textContent = 'Restoring...';
+    });
+
     // Status changes require a final acknowledgement because deactivation immediately blocks sign-in.
     shell.querySelectorAll('[data-confirm-status]').forEach((form) => {
         form.addEventListener('submit', (event) => {
@@ -347,6 +573,9 @@ function initializeManagedAccountTools(shell) {
         }
         if (event.key === 'Escape' && importErrorsDialog && ! importErrorsDialog.hidden) {
             closeImportErrors();
+        }
+        if (event.key === 'Escape' && restoreDialog && ! restoreDialog.hidden) {
+            closeRestoreDialog();
         }
     });
 

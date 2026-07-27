@@ -6,11 +6,11 @@ Dashboard state is based on database records. Views do not replace missing data 
 
 ## Applicant
 
-Populated when the user has a non-archived research application. The newest status update is selected. Active requirements and current document versions determine completion. Without an application, the dashboard shows application, requirements, deadline, and timeline empty states as applicable.
+Populated when the user has an owned non-archived research application, including an editable draft. The newest status update is selected. Applicable active mandatory requirements and current document versions determine completion. Without an application, the dashboard shows application, requirements, deadline, and timeline empty states as applicable.
 
 ## Adviser
 
-Populated from applications whose `adviser_user_id` matches the authenticated user. The dashboard shows grouped status counts and up to five recent submissions. With no matching applications, the submitted-application section shows its empty state.
+Populated only from formally submitted, non-archived applications whose `adviser_user_id` matches the authenticated user. The dashboard shows grouped status counts and up to five recent submissions. Drafts, unsubmitted records, and another Adviser's records never populate the view.
 
 ## Reviewer
 
@@ -22,7 +22,7 @@ Populated from applications in active administrative statuses. Counts and the ac
 
 ## Timeline and Deadline States
 
-Active future `deadline_configurations` records drive alerts. Active `timeline_calendar_events` records drive milestones. Missing records render purpose-built empty states rather than fabricated dates.
+For Applicants, the highest-priority active deadline whose key ends in `application-submission` and whose audience is Applicant or all roles drives upcoming, open, and closed states. Other role alerts continue to use their scoped active deadline queries. Active `timeline_calendar_events` records drive milestones. Missing records render purpose-built empty states rather than fabricated dates.
 
 ## Local Demo Data
 

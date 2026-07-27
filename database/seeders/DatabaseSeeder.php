@@ -14,7 +14,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(ResLeadSeeder::class);
+        // Seed stable application requirements in every environment without guessing an administrative deadline.
+        $this->call([
+            ResLeadSeeder::class,
+            ApplicationConfigurationSeeder::class,
+        ]);
 
         if (app()->environment(['local', 'testing'])) {
             $this->call(TestingUserSeeder::class);

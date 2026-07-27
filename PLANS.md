@@ -60,6 +60,72 @@ Date:
 
 ## Active Plans
 
+## Plan: Account restoration and applicant-to-adviser submission
+
+### Goal
+Finish the July 27, 2026 user-management corrections and deliver a secure, functional Student/Faculty applicant workflow from idempotent draft creation through private document upload and final submission to the assigned Research Adviser.
+
+### Source Documents
+- Primary requirement: `PROMPT FOR USER MANAGEMENT.txt`, July 27, 2026.
+- Visual reference: `Copy of ECRATS High Fidelity.pdf`, especially pages 9, 10, 12-14, 16-17, and 29-30.
+- Existing implementation found: shared role dashboards, application/document/deadline models, application statuses, policy registration, private local storage, audit logging, database notifications, Excel-only account imports, bounded private import previews, profile options, and an initial requirement-gated submission service.
+- Missing functionality: applicant draft create/edit forms, configurable research-type requirements, secure upload/replace/view/download, submission-window enforcement, adviser notification, adviser-scoped list/filter/detail pages, archived-account preview separation, and real individual/bulk restoration.
+- Visual limitation: the local environment has no PDF renderer or connected browser, so visual matching remains implemented in code but pending manual verification.
+
+### Scope
+Included:
+- Correct shared summary-card horizontal composition, reusable internal-overflow wrappers, account-form heading spacing, and the exact Student Researcher workbook example.
+- Split active and archived import matches; allow RES Lead-only individual and current-preview bulk restoration with expiry, ownership, conflict checks, locking, audit history, and preserved user IDs.
+- Add an idempotent one-draft applicant flow, application information Form Requests, database-backed Adviser selection, active submission-window checks, research-type requirement resolution, private versioned document handling, and one idempotent final submission transaction.
+- Connect applicant dashboard details and requirement progress to the same completion service used by submission.
+- Add Adviser dashboard/list/detail visibility for formally submitted assigned applications only, with search, filters, pagination, and secure document access.
+- Add focused tests, documentation, and manual-validation checklists.
+
+Excluded:
+- Adviser endorsement/return decisions, RES screening actions, reviewer evaluation, revision decisions, certificate generation, and payment-gateway integration.
+- Public document URLs, arbitrary workbook restoration IDs, permanent account deletion changes, or installation of new packages.
+- Claims of PDF/browser visual acceptance without direct observation.
+
+### Implementation Approach
+- Backend: add focused applicant/adviser controllers, Form Requests, a requirement-progress service, a private document service, and a shared archived-account restoration service while keeping controllers thin.
+- Frontend: extend the existing dashboard layout and component language with application form, document workspace, details/checklist dialogs, adviser list/detail views, and reusable overflow regions.
+- Database: add application-information/workflow fields and requirement applicability/mandatory configuration through additive migrations; add only the approved Student template option defaults that are currently missing.
+- Authorization: expand `ResearchApplicationPolicy` for draft creation/update/upload/submission and submitted Adviser access; restrict restore actions to RES Lead and the actor-owned unexpired import preview.
+- Files/storage: store randomized files on the private `local` disk, validate MIME/extension/size, keep current/version history, stream authorized previews/downloads through controllers, and never expose stored paths.
+- Notifications/audit: persist the assigned Adviser's database notification in the same transaction as submission and record draft, update, upload, replace, submit, adviser notification, restoration, and blocked-restoration events without file contents or secrets.
+
+### Files Expected to Change
+- `app/Enums`, `app/Models`, `app/Policies`, `app/Http/Controllers`, `app/Http/Requests`, and `app/Services`
+- `database/migrations`, factories, and local/testing seed data
+- `routes/web.php`
+- Dashboard and identity Blade components/views, `resources/css/dashboard.css`, and `resources/js/dashboard.js`
+- Focused Dashboard and Identity feature tests
+- `PLANS.md`, changelogs, README, application/user-management/security/data-flow/routes/testing/UI/manual-validation documentation
+
+### Tests and Verification
+- Focused hero-card, workbook, restoration, applicant workflow, private document, adviser scope, notification, audit, deadline, idempotency, pagination, and responsive-structure tests.
+- `php artisan optimize:clear`, `php artisan migrate`, `php artisan migrate:status`, `php artisan route:list`, focused tests, full `php artisan test`, Pint, `npm.cmd run build`, and `git diff --check`.
+- Review migration rollback SQL/structure without running a destructive rollback against important local data.
+- Manual PDF/viewport verification remains pending unless a renderer or connected browser becomes available.
+
+### Risks and Rollback
+- Existing application rows receive nullable/defaulted fields, so the additive migration preserves current dashboard and seeded records.
+- Requirement applicability defaults to both research types and mandatory status to preserve current behavior.
+- Restoration reactivates the original row only after checking active identity conflicts; failures remain archived and are returned as structured conflicts.
+- File replacement preserves database history and removes no previously referenced private version.
+- Rollback removes only newly added schema. It deliberately leaves the two approved shared option values because older catalog rows have no reliable migration-ownership marker; avoiding team-data deletion is more important than removing harmless lookup values.
+
+### Verification Status (2026-07-27)
+- `php artisan test` passed 104 tests with 1,812 assertions.
+- The additive migration is applied in batch 8; baseline requirement seeding and a non-destructive pretend rollback both passed.
+- Cache clearing, all 90 registered routes, syntax checks for 124 PHP files, Pint, strict Composer validation, platform requirements, the Vite production build, and `git diff --check` passed.
+- `composer audit --locked` found no security advisories, and `npm.cmd audit --audit-level=moderate` found zero vulnerabilities.
+- The PDF comparison, Microsoft Excel opening check, and 1440/1280/1024/768/390 browser checks remain implemented in code but pending manual visual verification.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-27
+
 ## Plan: Account-management UI and verified workbook corrections
 
 ### Goal

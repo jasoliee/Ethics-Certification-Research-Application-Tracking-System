@@ -7,6 +7,7 @@ use App\Enums\ProfileOptionField;
 use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\ProfileOption;
+use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Notifications\AccountSetupNotification;
 use App\Notifications\UsernameChangedNotification;
@@ -23,7 +24,9 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use ZipArchive;
@@ -152,7 +155,7 @@ class UserManagementTest extends TestCase
         // Arrange an authorized actor and one database-backed option added after the default migration data.
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        app(ProfileOptionCatalog::class)->create($resLead, ProfileOptionField::Department, 'Computer Studies');
+        app(ProfileOptionCatalog::class)->create($resLead, ProfileOptionField::Department, 'Applied Computing Studies');
 
         // Act through the HTTP endpoint to retain coverage of successful attachment response headers.
         $response = $this->actingAs($resLead)->get(route('res.users.import.template', [
@@ -190,17 +193,38 @@ class UserManagementTest extends TestCase
         $optionsText = collect($spreadsheet->getSheetByName('Options')?->toArray() ?? [])->flatten()->implode(' ');
         $instructionsText = collect($spreadsheet->getSheetByName('Instructions')?->toArray() ?? [])->flatten()->implode(' ');
 
-        // Assert role headers, marker, dynamic options, validations, and safe instructions after reader decoding.
+        // Assert role headers and the complete approved realistic Student example after reader decoding.
         $this->assertSame(['First Name', 'Middle Name', 'Last Name'], [
             (string) $accounts?->getCell('A1')->getValue(),
             (string) $accounts?->getCell('B1')->getValue(),
             (string) $accounts?->getCell('C1')->getValue(),
         ]);
-        $this->assertSame('EXAMPLE-ROW-DO-NOT-IMPORT', (string) $accounts?->getCell('F2')->getValue());
+        $this->assertSame([
+            'Juan',
+            'Dela',
+            'Cruz',
+            'Jr.',
+            'juandelacruz@example.com',
+            '20260000',
+            '099999999999',
+            'Fourth Year',
+            'Institute of Computing and Digital Innovation',
+            'Computer Studies',
+            'Bachelor of Science in Computer Science',
+        ], array_map(
+            fn (string $column): string => (string) $accounts?->getCell($column.'2')->getValue(),
+            range('A', 'K'),
+        ));
+        $this->assertContains($accounts?->getCell('F2')->getDataType(), [DataType::TYPE_STRING, DataType::TYPE_INLINE]);
+        $this->assertContains($accounts?->getCell('G2')->getDataType(), [DataType::TYPE_STRING, DataType::TYPE_INLINE]);
+
+        // Assert dropdowns, database options, and the visible marker remain in their dedicated worksheets.
         $this->assertNotEmpty($accounts?->getDataValidationCollection());
         $this->assertTrue($accounts?->getStyle('A1')->getAlignment()->getWrapText());
         $this->assertStringContainsString('Computer Studies', $optionsText);
+        $this->assertStringContainsString('Applied Computing Studies', $optionsText);
         $this->assertStringContainsString('Institute of Engineering', $optionsText);
+        $this->assertStringContainsString(AccountTypeCatalog::EXAMPLE_MARKER, $instructionsText);
         $this->assertStringContainsString('server', strtolower($instructionsText));
         $this->assertStringContainsString('formula', strtolower($instructionsText));
         $this->assertStringNotContainsString('password-reset token', strtolower($instructionsText));
@@ -320,9 +344,9 @@ class UserManagementTest extends TestCase
 
     public function test_only_the_exact_example_marker_is_ignored_and_normal_row_two_is_validated(): void
     {
+        // Arrange a marked official template with one genuine account on Row 3.
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-
         $examplePath = $this->templatePath($resLead);
         $this->replaceSpreadsheetRow($examplePath, 3, $this->studentRow(
             firstName: 'Real',
@@ -330,11 +354,14 @@ class UserManagementTest extends TestCase
             email: 'real.student@ecrats.test',
             identifier: 'KLD-STU-901',
         ));
+
+        // Act and assert that only the marker-bound realistic Row 2 example is skipped.
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
             'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($examplePath),
-        ])->assertOk()->assertSee('real.student@ecrats.test')->assertDontSee('alexandra.reyes@example.com');
+        ])->assertOk()->assertSee('real.student@ecrats.test')->assertDontSee('juandelacruz@example.com');
 
+        // Arrange a different valid Row 2 and deliberately remove only the visible Instructions marker.
         $rowTwoPath = $this->templatePath($resLead);
         $this->replaceSpreadsheetRow($rowTwoPath, 2, $this->studentRow(
             firstName: 'Row Two',
@@ -342,10 +369,265 @@ class UserManagementTest extends TestCase
             email: 'row.two@ecrats.test',
             identifier: 'KLD-STU-902',
         ));
+        $this->removeExampleMarker($rowTwoPath);
+
+        // Act and assert that the unmarked physical Row 2 is validated as ordinary account data.
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
             'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($rowTwoPath, 'row-two.xlsx'),
         ])->assertOk()->assertSee('row.two@ecrats.test')->assertSee('Excel Row');
+    }
+
+    public function test_res_lead_preview_separates_active_and_archived_accounts_and_restores_original_record(): void
+    {
+        // Arrange one active match, one archived match, and a relationship owned by the archived user.
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $active = User::factory()->create([
+            'email' => 'active.match@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-ACTIVE',
+        ]);
+        $archived = User::factory()->create([
+            'email' => 'archived.match@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-ARCHIVED',
+        ]);
+        $relatedApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $archived,
+        ]);
+        $archivedId = $archived->id;
+        $archived->delete();
+        $path = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($path, 3, $this->studentRow(
+            email: $active->email,
+            identifier: $active->institutional_identifier,
+        ));
+        $this->replaceSpreadsheetRow($path, 4, $this->studentRow(
+            firstName: 'Archived',
+            lastName: 'Match',
+            email: $archived->email,
+            identifier: $archived->institutional_identifier,
+        ));
+
+        // Act by validating the workbook and inspecting the two separate result containers.
+        $previewResponse = $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path),
+        ]);
+
+        // Assert only the archived container exposes restoration controls.
+        $previewResponse->assertOk()
+            ->assertSee('Active Existing Accounts (1)')
+            ->assertSee('Archived Accounts Found (1)')
+            ->assertSee('Restore All Flagged Archived Accounts');
+        $content = (string) $previewResponse->getContent();
+        $activeStart = strpos($content, 'Active Existing Accounts');
+        $archivedStart = strpos($content, 'Archived Accounts Found');
+        $this->assertIsInt($activeStart);
+        $this->assertIsInt($archivedStart);
+        $this->assertStringNotContainsString(
+            'data-restore-confirm',
+            substr($content, $activeStart, $archivedStart - $activeStart),
+        );
+
+        // Act through the individual restore endpoint using the actor-owned opaque preview.
+        $token = $this->previewTokenFor($resLead);
+        $this->actingAs($resLead)->post(route('res.users.import.restore-account'), [
+            'import_token' => $token,
+            'archived_user_id' => $archivedId,
+        ])->assertRedirect(route('res.users.import.form', ['account_type' => 'student_researcher']));
+
+        // Assert soft deletion was reversed in place and all foreign-key history still resolves to the same ID.
+        $this->assertSame($archivedId, User::withTrashed()->findOrFail($archivedId)->id);
+        $this->assertNull(User::withTrashed()->findOrFail($archivedId)->deleted_at);
+        $this->assertSame($archivedId, $relatedApplication->fresh()->applicant_user_id);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_user_id' => $resLead->id,
+            'action' => 'user.archived_account_restored',
+            'subject_id' => $archivedId,
+        ]);
+
+        // Act on confirmation and assert the restored row is never inserted as a new account.
+        $this->actingAs($resLead)->post(route('res.users.import.confirm'), [
+            'import_token' => $token,
+        ])->assertRedirect(route('res.users.index'));
+        $this->assertSame(1, User::withTrashed()->where('email', $archived->email)->count());
+        $this->assertSame(1, User::withTrashed()->where('email', $active->email)->count());
+    }
+
+    public function test_restore_all_uses_only_archived_accounts_in_the_current_preview(): void
+    {
+        // Arrange two preview-listed archived accounts and one archived account absent from the workbook.
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $first = User::factory()->create([
+            'email' => 'first.archived@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-RESTORE-1',
+        ]);
+        $second = User::factory()->create([
+            'email' => 'second.archived@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-RESTORE-2',
+        ]);
+        $unlisted = User::factory()->create([
+            'email' => 'unlisted.archived@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-UNLISTED',
+        ]);
+        $first->delete();
+        $second->delete();
+        $unlisted->delete();
+        $path = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($path, 3, $this->studentRow(
+            email: $first->email,
+            identifier: $first->institutional_identifier,
+        ));
+        $this->replaceSpreadsheetRow($path, 4, $this->studentRow(
+            email: $second->email,
+            identifier: $second->institutional_identifier,
+        ));
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path),
+        ])->assertOk();
+        $token = $this->previewTokenFor($resLead);
+
+        // Act once through the bulk restoration endpoint.
+        $this->actingAs($resLead)->post(route('res.users.import.restore-all'), [
+            'import_token' => $token,
+        ])->assertRedirect();
+
+        // Assert only the two server-previewed rows were restored and every event was audited.
+        $this->assertNull($first->fresh()->deleted_at);
+        $this->assertNull($second->fresh()->deleted_at);
+        $this->assertNotNull(User::withTrashed()->findOrFail($unlisted->id)->deleted_at);
+        $this->assertDatabaseCount('audit_logs', 5);
+        $this->assertSame(2, AuditLog::where('action', 'user.archived_account_restored')->count());
+        $this->assertSame(1, AuditLog::where('action', 'user.bulk_archived_accounts_restored')->count());
+    }
+
+    public function test_restoration_rechecks_the_archived_accounts_exact_template_identity(): void
+    {
+        // Arrange a Student preview whose archived target is changed to a Faculty identity after validation.
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $archived = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
+            'email' => 'type.changed@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-TYPE-CHECK',
+        ]);
+        $archived->delete();
+        $path = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($path, 3, $this->studentRow(
+            email: $archived->email,
+            identifier: $archived->institutional_identifier,
+        ));
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path),
+        ])->assertOk();
+        $token = $this->previewTokenFor($resLead);
+
+        // Act after changing the authoritative archived role metadata behind the preview.
+        User::withTrashed()->whereKey($archived->id)->update([
+            'applicant_type' => ApplicantType::Faculty->value,
+        ]);
+        $this->actingAs($resLead)->post(route('res.users.import.restore-account'), [
+            'import_token' => $token,
+            'archived_user_id' => $archived->id,
+        ])->assertRedirect();
+
+        // Assert the account remains archived and the blocked identity mismatch is auditable.
+        $this->assertNotNull(User::withTrashed()->findOrFail($archived->id)->deleted_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_user_id' => $resLead->id,
+            'action' => 'user.archived_account_restore_blocked',
+            'subject_id' => $archived->id,
+        ]);
+    }
+
+    public function test_restoration_rejects_other_actors_expired_previews_and_unlisted_ids(): void
+    {
+        // Arrange one owner-bound preview and a second archived account not represented by that preview.
+        Storage::fake('local');
+        $owner = User::factory()->create(['role' => UserRole::ResLead]);
+        $otherActor = User::factory()->create(['role' => UserRole::ResLead]);
+        $listed = User::factory()->create([
+            'email' => 'listed.archived@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-LISTED',
+        ]);
+        $unlisted = User::factory()->create([
+            'email' => 'other.archived@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-OTHER',
+        ]);
+        $listed->delete();
+        $unlisted->delete();
+        $path = $this->templatePath($owner);
+        $this->replaceSpreadsheetRow($path, 3, $this->studentRow(
+            email: $listed->email,
+            identifier: $listed->institutional_identifier,
+        ));
+        $this->actingAs($owner)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path),
+        ])->assertOk();
+        $token = $this->previewTokenFor($owner);
+
+        // Act and assert that actor-directory isolation blocks a different RES Lead.
+        $this->actingAs($otherActor)->post(route('res.users.import.restore-all'), [
+            'import_token' => $token,
+        ])->assertSessionHasErrors('import_token');
+
+        // Act and assert that a browser-manipulated user ID cannot escape the server-stored archived category.
+        $this->actingAs($owner)->post(route('res.users.import.restore-account'), [
+            'import_token' => $token,
+            'archived_user_id' => $unlisted->id,
+        ])->assertSessionHasErrors('archived_user_id');
+        $this->assertNotNull(User::withTrashed()->findOrFail($unlisted->id)->deleted_at);
+
+        // Act after the fixed lifetime and assert even the rightful owner can no longer restore the listed row.
+        $this->travel(31)->minutes();
+        $this->actingAs($owner)->post(route('res.users.import.restore-all'), [
+            'import_token' => $token,
+        ])->assertSessionHasErrors('import_token');
+        $this->assertNotNull(User::withTrashed()->findOrFail($listed->id)->deleted_at);
+    }
+
+    public function test_adviser_sees_archived_guidance_without_restoration_controls_or_route_access(): void
+    {
+        // Arrange an Adviser-authorized Student import containing one archived match.
+        Storage::fake('local');
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $archived = User::factory()->create([
+            'email' => 'adviser.archived@ecrats.test',
+            'institutional_identifier' => 'KLD-STU-ADVISER',
+        ]);
+        $archived->delete();
+        $path = $this->templatePath($adviser);
+        $this->replaceSpreadsheetRow($path, 3, $this->studentRow(
+            email: $archived->email,
+            identifier: $archived->institutional_identifier,
+        ));
+
+        // Act through the Adviser preview and assert guidance replaces every restore command.
+        $response = $this->actingAs($adviser)->post(route('adviser.applicants.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path),
+        ]);
+        $response->assertOk()
+            ->assertSee('Archived Accounts Found (1)')
+            ->assertSee('Contact the RES Lead')
+            ->assertDontSee('data-restore-confirm', false)
+            ->assertDontSee('Restore All Flagged Archived Accounts');
+
+        // Act directly against the RES endpoint and assert role middleware denies the Adviser.
+        $token = $this->previewTokenFor($adviser);
+        $this->actingAs($adviser)->post(route('res.users.import.restore-all'), [
+            'import_token' => $token,
+        ])->assertRedirect(route('dashboard'));
+        $this->assertNotNull(User::withTrashed()->findOrFail($archived->id)->deleted_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_user_id' => $adviser->id,
+            'action' => 'auth.authorization_denied',
+        ]);
     }
 
     public function test_excel_validation_rejects_invalid_rows_formulas_unknown_sheets_and_external_links(): void
@@ -749,17 +1031,17 @@ class UserManagementTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.users.index'))
             ->assertOk()
-            ->assertSee('class="identity-table-scroll" role="region" aria-label="User account results" tabindex="0"', false);
+            ->assertSee('class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="User account results" tabindex="0"', false);
         $this->actingAs($adviser)
             ->get(route('adviser.applicants.index'))
             ->assertOk()
-            ->assertSee('class="identity-table-scroll" role="region" aria-label="User account results" tabindex="0"', false);
+            ->assertSee('class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="User account results" tabindex="0"', false);
 
         // Assert the audit table uses the same wrapper and individual forms expose one reusable section-title class.
         $this->actingAs($resLead)
             ->get(route('res.users.audit.index'))
             ->assertOk()
-            ->assertSee('class="identity-table-scroll" role="region" aria-label="Account audit results" tabindex="0"', false);
+            ->assertSee('class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Account audit results" tabindex="0"', false);
         $this->actingAs($resLead)
             ->get(route('res.users.create', ['mode' => 'individual', 'account_type' => 'student_researcher']))
             ->assertOk()
@@ -932,6 +1214,7 @@ class UserManagementTest extends TestCase
     /** @param array<int, string> $values */
     private function replaceSpreadsheetRow(string $path, int $rowNumber, array $values, ?int $formulaColumn = null): void
     {
+        // Replace one complete Accounts row while preserving all unrelated verified workbook parts.
         $zip = $this->openWorkbook($path);
         $sheet = (string) $zip->getFromName('xl/worksheets/sheet1.xml');
         $cells = '';
@@ -951,6 +1234,26 @@ class UserManagementTest extends TestCase
         $this->assertIsString($updated);
         $this->assertTrue($zip->addFromString('xl/worksheets/sheet1.xml', $updated));
         $zip->close();
+    }
+
+    private function removeExampleMarker(string $path): void
+    {
+        // Remove the visible marker through the supported reader/writer so Row 2 becomes ordinary input.
+        $spreadsheet = (new XlsxReader)->load($path);
+        $instructions = $spreadsheet->getSheetByName('Instructions');
+
+        foreach ($instructions?->getRowIterator() ?? [] as $row) {
+            $rowNumber = $row->getRowIndex();
+
+            if ((string) $instructions?->getCell('A'.$rowNumber)->getValue() === 'Example Row Marker') {
+                $instructions?->setCellValue('B'.$rowNumber, '');
+
+                break;
+            }
+        }
+
+        (new XlsxWriter($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
     }
 
     private function replaceZipEntry(string $path, string $entry, callable $replace): void

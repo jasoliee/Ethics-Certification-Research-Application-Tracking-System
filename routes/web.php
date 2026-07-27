@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Dashboard\AdviserApplicationController;
+use App\Http\Controllers\Dashboard\ApplicantApplicationController;
+use App\Http\Controllers\Dashboard\ApplicationDocumentController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\ModulePageController;
 use App\Http\Controllers\Dashboard\NotificationPageController;
@@ -53,22 +56,30 @@ Route::middleware('no-store')->group(function (): void {
             ->middleware('role:student_faculty_researcher')
             ->group(function (): void {
                 Route::redirect('/landing', '/dashboard')->name('landing');
-                Route::get('/applications', ModulePageController::class)
-                    ->defaults('pageTitle', 'Application')
-                    ->defaults('moduleTitle', 'Application Workspace')
-                    ->defaults('moduleMessage', 'Your research ethics applications will be managed here.')
-                    ->defaults('moduleIcon', 'file-text')
+                // Applicant application routes keep draft creation, information updates, documents, and submission explicit.
+                Route::get('/applications', [ApplicantApplicationController::class, 'index'])
                     ->name('applications.index');
-                Route::get('/applications/create', ModulePageController::class)
-                    ->defaults('pageTitle', 'Create Application')
-                    ->defaults('moduleTitle', 'Create Application')
-                    ->defaults('moduleMessage', 'The application form will be available in this workspace.')
-                    ->defaults('moduleIcon', 'file-plus')
+                Route::get('/applications/create', [ApplicantApplicationController::class, 'create'])
                     ->name('applications.create');
+                Route::post('/applications', [ApplicantApplicationController::class, 'store'])
+                    ->middleware('throttle:application-write')
+                    ->name('applications.store');
+                Route::get('/applications/{researchApplication}/edit', [ApplicantApplicationController::class, 'edit'])
+                    ->name('applications.edit');
+                Route::put('/applications/{researchApplication}', [ApplicantApplicationController::class, 'update'])
+                    ->middleware('throttle:application-write')
+                    ->name('applications.update');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');
                 Route::get('/applications/{researchApplication}/requirements', [ResearchApplicationPageController::class, 'requirements'])
                     ->name('applications.requirements');
+                Route::post('/applications/{researchApplication}/requirements/{documentRequirement}', [ApplicationDocumentController::class, 'store'])
+                    ->middleware('throttle:application-upload')
+                    ->name('applications.documents.store');
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/preview', [ApplicationDocumentController::class, 'preview'])
+                    ->name('applications.documents.preview');
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
+                    ->name('applications.documents.download');
                 Route::post('/applications/{researchApplication}/submit', [ResearchApplicationPageController::class, 'submit'])
                     ->middleware('throttle:application-submit')
                     ->name('applications.submit');
@@ -99,12 +110,13 @@ Route::middleware('no-store')->group(function (): void {
             ->middleware('role:adviser')
             ->group(function (): void {
                 Route::redirect('/landing', '/dashboard')->name('landing');
-                Route::get('/applications', ModulePageController::class)
-                    ->defaults('pageTitle', 'Application')
-                    ->defaults('moduleTitle', 'Submitted Applications')
-                    ->defaults('moduleMessage', 'Applications submitted for adviser endorsement will appear here.')
-                    ->defaults('moduleIcon', 'file-text')
+                // Adviser application routes expose only formally submitted, assigned records and protected files.
+                Route::get('/applications', [AdviserApplicationController::class, 'index'])
                     ->name('applications.index');
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/preview', [ApplicationDocumentController::class, 'preview'])
+                    ->name('applications.documents.preview');
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
+                    ->name('applications.documents.download');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');
                 Route::controller(UserManagementController::class)->prefix('applicants')->name('applicants.')->group(function (): void {
@@ -172,6 +184,11 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.index');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');
+                // RES detail access also streams protected documents through authorization-aware controller routes.
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/preview', [ApplicationDocumentController::class, 'preview'])
+                    ->name('applications.documents.preview');
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
+                    ->name('applications.documents.download');
                 Route::get('/review-monitoring', ModulePageController::class)
                     ->defaults('pageTitle', 'Review Monitoring')
                     ->defaults('moduleMessage', 'Reviewer assignments, capacity, and progress will be monitored here.')
@@ -193,6 +210,9 @@ Route::middleware('no-store')->group(function (): void {
                     Route::post('/', 'store')->middleware('throttle:account-write')->name('store');
                     Route::get('/import', 'importForm')->name('import.form');
                     Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
+                    // Restoration routes exist only in the RES Lead group and consume server-owned preview targets.
+                    Route::post('/import/restore-account', 'restoreImportAccount')->middleware('throttle:import-confirm')->name('import.restore-account');
+                    Route::post('/import/restore-all', 'restoreImportAccounts')->middleware('throttle:import-confirm')->name('import.restore-all');
                     Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
                     // Rate-limit verified workbook generation while retaining the RES Lead role and catalog checks.
                     Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');

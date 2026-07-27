@@ -4,9 +4,9 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 ## Current Status
 
-The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus Excel-only `.xlsx` preview and confirmation. Database-backed profile options, onboarding, mass account actions, filtered audit history, database-driven requirements, MIME-based icons, and guarded initial application submission are implemented and tested.
+The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus Excel-only `.xlsx` preview and confirmation. RES Leads can safely restore preview-matched archived accounts without replacing their original records. Database-backed profile options, onboarding, mass account actions, filtered audit history, Applicant draft creation and editing, private versioned requirement uploads, configured submission-window enforcement, Adviser-scoped submitted-application visibility, notifications, and guarded initial application submission are implemented and tested.
 
-Modules outside these areas still open shared temporary workspaces. Adviser decisions, RES screening, blind review, revisions, result release, certificate rendering, and QR verification are not yet complete end-to-end workflows. The maintained OVPRII background asset is prepared under `resources/assets/official`, but no official document generator currently consumes it.
+Adviser endorsement and return decisions, RES screening, blind review, revisions, result release, certificate rendering, and QR verification are not yet complete end-to-end workflows. The maintained OVPRII background asset is prepared under `resources/assets/official`, but no official document generator currently consumes it.
 
 The dashboard database tables are an initial implementation slice of the larger module-based ERD. They do not replace the remaining application, screening, review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
@@ -77,7 +77,9 @@ Normal local seeding keeps the dashboards empty. To inspect the populated refere
 php artisan db:seed --class=DashboardDemoSeeder
 ```
 
-Current Excel account templates are downloaded from User Management after selecting an authorized role. Only `.xlsx` is accepted. Imports are limited to 250 account rows and 2 MB, separate invalid, duplicate, and existing rows, allow confirmation of the valid preview rows, and use private actor-scoped temporary storage. Local setup/reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
+Current Excel account templates are downloaded from User Management after selecting an authorized role. Only `.xlsx` is accepted. Imports are limited to 250 account rows and 2 MB, separate invalid, duplicate, active-existing, and archived-account rows, allow confirmation of valid preview rows, and use private actor-scoped temporary storage. Only a RES Lead can restore an original archived row from the current preview. Local setup/reset notifications use the configured mail driver, which defaults to the Laravel log mailer until a real mail service is configured.
+
+Normal seeding creates the four baseline application requirements but intentionally does not invent a dated submission period. Before testing formal Applicant submission, configure an active `deadline_configurations` row whose key ends in `application-submission`, targets Applicants or all roles, and contains the approved opening and due dates.
 
 Start the application with `composer run dev` or `php artisan serve`, then open `http://127.0.0.1:8000/login`.
 

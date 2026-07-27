@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewerAssignmentStatus;
@@ -46,7 +47,7 @@ class RoleDashboardTest extends TestCase
     /**
      * Verify every role using shared summary cards renders zero counts in icon, number, then label order.
      */
-    public function test_shared_summary_cards_render_centered_vertical_order_for_zero_counts(): void
+    public function test_shared_summary_cards_render_left_icon_and_right_copy_order_for_zero_counts(): void
     {
         // Arrange the first expected card for each dashboard role that owns a summary-card grid.
         $cases = [
@@ -66,7 +67,7 @@ class RoleDashboardTest extends TestCase
             $this->assertIsInt($cardEnd);
             $card = substr($content, $cardStart, $cardEnd - $cardStart);
 
-            // Assert accessible labeling and the component's semantic icon, count, and text source order.
+            // Assert accessible labeling and the left-icon then right-copy semantic source order.
             $response->assertSee('aria-label="'.$label.': 0"', false);
             $iconPosition = strpos($card, 'dashboard-summary-icon');
             $countPosition = strpos($card, '<strong>0</strong>');
@@ -89,6 +90,7 @@ class RoleDashboardTest extends TestCase
             'adviser_user_id' => $adviser->id,
             'research_title' => 'Ethical Use of Learning Analytics',
             'application_status' => ApplicationStatus::UnderResScreening,
+            'current_stage' => ApplicationStage::ResScreening,
             'submitted_at' => now()->subDay(),
             'status_updated_at' => now(),
         ]);
@@ -117,7 +119,7 @@ class RoleDashboardTest extends TestCase
             'uploaded_at' => now(),
         ]);
         DeadlineConfiguration::create([
-            'deadline_key' => 'applicant-test-deadline',
+            'deadline_key' => 'applicant-test-application-submission',
             'title' => 'Application submission deadline',
             'audience_role' => UserRole::Applicant,
             'due_at' => now()->addDays(2),
@@ -140,7 +142,7 @@ class RoleDashboardTest extends TestCase
             ->assertSee('ECRATS-TEST-0001')
             ->assertSee('Ethical Use of Learning Analytics')
             ->assertSee('Under RES Screening')
-            ->assertSee('1 of 2 completed')
+            ->assertSee('1 of 2 mandatory completed')
             ->assertSee('Application submission deadline')
             ->assertSee('1st Semester, A.Y. 2026-2027')
             ->assertSee('dashboard-panel-header-meta', false)
@@ -267,7 +269,7 @@ class RoleDashboardTest extends TestCase
     }
 
     /**
-     * Verify every role that uses shared summary cards renders zero counts before centered labels.
+     * Verify every role that uses shared summary cards renders the icon before right-side zero-count copy.
      */
     public function test_shared_summary_cards_render_icon_count_and_label_order_for_zero_counts(): void
     {
@@ -296,6 +298,42 @@ class RoleDashboardTest extends TestCase
                 $response->assertSee('aria-label="'.$label.': 0"', false);
             }
         }
+    }
+
+    public function test_shared_layout_css_keeps_cards_overflow_and_form_spacing_within_approved_structure(): void
+    {
+        // Arrange the compiled-source stylesheet text used by every dashboard role.
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+
+        // Assert summary cards use a fixed left icon column and a centered stacked right copy group.
+        $this->assertMatchesRegularExpression(
+            '/\.dashboard-summary-card\s*\{[^}]*grid-template-columns:\s*58px minmax\(0,\s*1fr\);/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.dashboard-summary-copy\s*\{[^}]*display:\s*grid;[^}]*justify-items:\s*center;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.dashboard-summary-copy span\s*\{[^}]*text-align:\s*center;/s',
+            $css,
+        );
+
+        // Assert wide content scrolls internally while the application workspace itself stays width-bounded.
+        $this->assertMatchesRegularExpression(
+            '/\.dashboard-overflow-region\s*\{[^}]*overflow-x:\s*auto;/s',
+            $css,
+        );
+        preg_match('/\.application-workspace\s*\{(?<rules>[^}]*)\}/s', $css, $workspace);
+        $this->assertArrayHasKey('rules', $workspace);
+        $this->assertStringContainsString('max-width: 100%', $workspace['rules']);
+        $this->assertStringNotContainsString('overflow-x', $workspace['rules']);
+
+        // Assert shared account-section headings retain compact ten-pixel spacing before their first row.
+        $this->assertMatchesRegularExpression(
+            '/\.identity-form-section-title,\s*\.identity-form-section legend\s*\{[^}]*margin-bottom:\s*10px;/s',
+            $css,
+        );
     }
 
     public function test_role_dashboards_keep_database_query_counts_bounded(): void

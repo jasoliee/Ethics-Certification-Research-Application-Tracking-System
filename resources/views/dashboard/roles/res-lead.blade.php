@@ -24,7 +24,8 @@
                     message="There are currently no endorsed applications to screen, classify, or monitor."
                 />
             @else
-                <div class="dashboard-table-wrap">
+                {{-- The shared overflow class contains RES screening columns without widening the page. --}}
+                <div class="dashboard-table-wrap dashboard-overflow-region" role="region" aria-label="Recent RES applications" tabindex="0">
                     <table class="dashboard-table">
                         <thead><tr><th>Application Code</th><th>Applicant Category</th><th>Research Type</th><th class="dashboard-table-status">Current Status</th><th>Received Date</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>

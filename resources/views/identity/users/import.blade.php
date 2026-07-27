@@ -8,11 +8,22 @@
         $invalidRows = $preview['invalid_rows'] ?? [];
         $importWarnings = $preview['warnings'] ?? [];
         $duplicateRows = $preview['duplicate_rows'] ?? [];
-        $existingRows = $preview['existing_rows'] ?? [];
+        $activeExistingAccounts = $preview['active_existing_accounts'] ?? [];
+        $archivedAccounts = $preview['archived_accounts'] ?? [];
+        $restoredAccounts = $preview['restored_accounts'] ?? [];
+        $restorationConflicts = $preview['restoration_conflicts'] ?? [];
+        $canRestoreArchived = auth()->user()->role === \App\Enums\UserRole::ResLead
+            && filled($preview['preview_token'] ?? null);
 
         // An error state is reserved for failed request or row validation, while other categories remain reviewable results.
         $hasImportErrors = $requestValidationErrors !== [] || $invalidRows !== [];
-        $hasImportResults = $hasImportErrors || $importWarnings !== [] || $duplicateRows !== [] || $existingRows !== [];
+        $hasImportResults = $hasImportErrors
+            || $importWarnings !== []
+            || $duplicateRows !== []
+            || $activeExistingAccounts !== []
+            || $archivedAccounts !== []
+            || $restoredAccounts !== []
+            || $restorationConflicts !== [];
     @endphp
 
     <div class="dashboard-page identity-management-page">
@@ -35,7 +46,7 @@
                     <div><dt>Accepted format</dt><dd>.xlsx only</dd></div>
                     <div><dt>Limits</dt><dd>{{ \App\Services\Identity\UserBulkImportService::MAX_ROWS }} account rows and {{ \App\Services\Identity\UserBulkImportService::MAX_FILE_KILOBYTES / 1024 }} MB per file</dd></div>
                     <div><dt>Workbook rules</dt><dd>Keep Accounts, Options, and Instructions with their original headers. Do not add formulas, macros, embedded files, or external workbook links.</dd></div>
-                    <div><dt>Example row</dt><dd>Only the row carrying the official example marker is ignored. Enter accounts from Row 3.</dd></div>
+                    <div><dt>Example row</dt><dd>Row 2 is ignored only while the exact Example Row Marker remains in Instructions. Enter new accounts from Row 3.</dd></div>
                 </dl>
             </section>
 
@@ -83,13 +94,148 @@
                     <div><strong>{{ $preview['valid_count'] }}</strong><span>Valid</span></div>
                     <div><strong>{{ $preview['invalid_count'] }}</strong><span>Invalid</span></div>
                     <div><strong>{{ $preview['duplicate_count'] }}</strong><span>Duplicates</span></div>
-                    <div><strong>{{ $preview['existing_count'] }}</strong><span>Existing</span></div>
+                    <div><strong>{{ $preview['active_existing_count'] }}</strong><span>Active existing</span></div>
+                    <div><strong>{{ $preview['archived_count'] }}</strong><span>Archived found</span></div>
+                    <div><strong>{{ $preview['restored_count'] }}</strong><span>Restored</span></div>
                     <div><strong>{{ $preview['estimated_create_count'] }}</strong><span>Estimated create</span></div>
                 </div>
 
+                @if ($activeExistingAccounts !== [])
+                    {{-- Active matches remain visible in a dedicated non-restorable account container. --}}
+                    <section class="identity-existing-panel" aria-labelledby="active-existing-heading">
+                        <div class="identity-existing-heading">
+                            <div>
+                                <h3 id="active-existing-heading">Active Existing Accounts ({{ count($activeExistingAccounts) }})</h3>
+                                <p>These institutional identifiers, email addresses or usernames already belong to active accounts. They will not be recreated or overwritten.</p>
+                            </div>
+                        </div>
+                        <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Active existing accounts" tabindex="0">
+                            <table class="identity-user-table identity-existing-table">
+                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    @foreach ($activeExistingAccounts as $account)
+                                        @php
+                                            // Non-archived matches retain their authoritative active, inactive, or pending setup state.
+                                            $accountStatus = \App\Enums\AccountStatus::tryFrom($account['account_status']);
+                                            $accountStatusTone = match ($accountStatus) {
+                                                \App\Enums\AccountStatus::Active => 'success',
+                                                \App\Enums\AccountStatus::PendingSetup => 'amber',
+                                                default => 'red',
+                                            };
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $account['row'] }}</td>
+                                            <td>{{ $account['name'] }}</td>
+                                            <td>{{ $account['institutional_identifier'] }}</td>
+                                            <td>{{ $account['email'] }}</td>
+                                            <td>{{ $account['role'] }}</td>
+                                            <td><x-dashboard.status-badge :label="$accountStatus?->label() ?? 'Unknown'" :tone="$accountStatusTone" /></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                @endif
+
+                @if ($archivedAccounts !== [])
+                    {{-- Archived matches use a separate container and expose restoration only to the RES Lead. --}}
+                    <section class="identity-existing-panel identity-archived-panel" aria-labelledby="archived-existing-heading">
+                        <div class="identity-existing-heading">
+                            <div>
+                                <h3 id="archived-existing-heading">Archived Accounts Found ({{ count($archivedAccounts) }})</h3>
+                                <p>These credentials belong to accounts that were previously archived. Restore the original accounts to reactivate them and preserve their existing records.</p>
+                            </div>
+                            @if ($canRestoreArchived)
+                                <button
+                                    class="identity-button identity-button-secondary"
+                                    type="button"
+                                    data-restore-confirm
+                                    data-restore-all
+                                    data-restore-action="{{ route('res.users.import.restore-all') }}"
+                                    data-restore-count="{{ count($archivedAccounts) }}"
+                                >
+                                    <x-dashboard.icon name="refresh" size="17" />
+                                    <span>Restore All Flagged Archived Accounts</span>
+                                </button>
+                            @endif
+                        </div>
+                        <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Archived accounts found" tabindex="0">
+                            <table class="identity-user-table identity-existing-table">
+                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Archived Date</th><th>Status</th>@if ($canRestoreArchived)<th>Action</th>@endif</tr></thead>
+                                <tbody>
+                                    @foreach ($archivedAccounts as $account)
+                                        <tr>
+                                            <td>{{ $account['row'] }}</td>
+                                            <td>{{ $account['name'] }}</td>
+                                            <td>{{ $account['institutional_identifier'] }}</td>
+                                            <td>{{ $account['email'] }}</td>
+                                            <td>{{ $account['role'] }}</td>
+                                            <td>{{ filled($account['archived_at']) ? \Illuminate\Support\Carbon::parse($account['archived_at'])->format('M j, Y g:i A') : 'Unavailable' }}</td>
+                                            <td><x-dashboard.status-badge label="Archived" tone="neutral" /></td>
+                                            @if ($canRestoreArchived)
+                                                <td>
+                                                    <button
+                                                        class="identity-button identity-button-secondary identity-button-compact"
+                                                        type="button"
+                                                        data-restore-confirm
+                                                        data-restore-action="{{ route('res.users.import.restore-account') }}"
+                                                        data-restore-user-id="{{ $account['id'] }}"
+                                                        data-restore-account-name="{{ $account['name'] }}"
+                                                        data-restore-count="1"
+                                                    >
+                                                        <x-dashboard.icon name="refresh" size="16" />
+                                                        <span>Restore</span>
+                                                    </button>
+                                                </td>
+                                            @endif
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @unless ($canRestoreArchived)
+                            {{-- Advisers receive an escalation message and never receive restoration controls. --}}
+                            <p class="identity-archived-guidance">This account was previously archived. Contact the RES Lead to restore the original account.</p>
+                        @endunless
+                    </section>
+                @endif
+
+                @if ($restoredAccounts !== [])
+                    {{-- Restored rows move out of the archived category while retaining their original preview row. --}}
+                    <section class="identity-existing-panel identity-restored-panel" aria-labelledby="restored-existing-heading">
+                        <div class="identity-existing-heading"><div><h3 id="restored-existing-heading">Restored Accounts ({{ count($restoredAccounts) }})</h3><p>The original accounts are available again with their internal IDs and related records preserved.</p></div></div>
+                        <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Restored accounts" tabindex="0">
+                            <table class="identity-user-table identity-existing-table">
+                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    @foreach ($restoredAccounts as $account)
+                                        @php
+                                            // Restored setup-pending accounts retain an amber tone until password setup completes.
+                                            $restoredStatus = \App\Enums\AccountStatus::tryFrom($account['account_status']);
+                                            $restoredTone = $restoredStatus === \App\Enums\AccountStatus::Active ? 'success' : 'amber';
+                                        @endphp
+                                        <tr><td>{{ $account['row'] }}</td><td>{{ $account['name'] }}</td><td>{{ $account['institutional_identifier'] }}</td><td>{{ $account['email'] }}</td><td>{{ $account['role'] }}</td><td><x-dashboard.status-badge :label="$restoredStatus?->label() ?? 'Unknown'" :tone="$restoredTone" /></td></tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                @endif
+
+                @if ($restorationConflicts !== [])
+                    {{-- Restoration conflicts remain archived and show only a bounded safe reason. --}}
+                    <section class="identity-validation-summary" role="alert">
+                        <strong>Restoration conflicts ({{ count($restorationConflicts) }})</strong>
+                        @foreach ($restorationConflicts as $conflict)
+                            <span>Excel Row {{ $conflict['row'] ?? 'Unknown' }}: {{ $conflict['reason'] }}</span>
+                        @endforeach
+                    </section>
+                @endif
+
                 @if ($preview['valid_count'] > 0)
                     {{-- Valid rows use the shared focusable horizontal-scroll region without displaying error details. --}}
-                    <div class="identity-table-scroll" role="region" aria-label="Valid account rows" tabindex="0">
+                    <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Valid account rows" tabindex="0">
                         <table class="identity-user-table identity-import-preview-table"><thead><tr><th>Excel Row</th><th>Name</th><th>Email</th><th>Institutional ID</th><th>Generated Username</th></tr></thead><tbody>
                             @foreach ($preview['valid_rows'] as $row)
                                 <tr>
@@ -110,7 +256,8 @@
                         <button class="identity-button identity-button-primary" type="submit">Confirm Account Creation</button>
                     </form>
                 @else
-                    <div class="identity-validation-summary identity-validation-summary-neutral" role="status"><strong>No new accounts to create.</strong><span>Review the error categories, correct the workbook, and validate it again.</span></div>
+                    {{-- A no-create result distinguishes actionable archives from ordinary validation corrections. --}}
+                    <div class="identity-validation-summary identity-validation-summary-neutral" role="status"><strong>No new accounts to create.</strong><span>{{ $archivedAccounts !== [] ? 'Restore eligible archived accounts or validate another workbook.' : 'Review the result categories and validate another workbook when needed.' }}</span></div>
                 @endif
             </section>
         @endif
@@ -176,9 +323,14 @@
                         <section class="identity-import-category" aria-labelledby="duplicate-rows-heading" data-import-result-category><h3 id="duplicate-rows-heading">Duplicate Rows ({{ count($duplicateRows) }})</h3>@foreach ($duplicateRows as $row)<p><strong>Excel Row {{ $row['row'] }}:</strong> {{ $row['reason'] }}</p>@endforeach</section>
                     @endif
 
-                    @if ($existingRows !== [])
-                        {{-- Existing accounts are identified without exposing private account attributes or overwriting records. --}}
-                        <section class="identity-import-category" aria-labelledby="existing-rows-heading" data-import-result-category><h3 id="existing-rows-heading">Existing Accounts ({{ count($existingRows) }})</h3>@foreach ($existingRows as $row)<p><strong>Excel Row {{ $row['row'] }}:</strong> {{ $row['reason'] }}</p>@endforeach</section>
+                    @if ($activeExistingAccounts !== [])
+                        {{-- Active account messages remain separate from archived restoration candidates. --}}
+                        <section class="identity-import-category" aria-labelledby="active-results-heading" data-import-result-category><h3 id="active-results-heading">Active Existing Accounts ({{ count($activeExistingAccounts) }})</h3>@foreach ($activeExistingAccounts as $row)<p><strong>Excel Row {{ $row['row'] }}:</strong> {{ $row['reason'] }}</p>@endforeach</section>
+                    @endif
+
+                    @if ($archivedAccounts !== [])
+                        {{-- Archived result messages explain restoration without merging them into active matches. --}}
+                        <section class="identity-import-category" aria-labelledby="archived-results-heading" data-import-result-category><h3 id="archived-results-heading">Archived Accounts Found ({{ count($archivedAccounts) }})</h3>@foreach ($archivedAccounts as $row)<p><strong>Excel Row {{ $row['row'] }}:</strong> {{ $row['reason'] }}</p>@endforeach</section>
                     @endif
 
                     {{-- Empty state is shown initially, after a successful validation, or after the selected file changes. --}}
@@ -189,5 +341,31 @@
                 <div class="identity-dialog-actions"><button class="identity-button identity-button-primary" type="button" data-import-errors-close>Close</button></div>
             </div>
         </section>
+
+        @if ($canRestoreArchived)
+            {{-- One accessible confirmation dialog serves both individual and current-preview bulk restoration. --}}
+            <section class="identity-mode-overlay" data-restore-dialog hidden>
+                <div class="identity-mode-dialog identity-restore-dialog" role="dialog" aria-modal="true" aria-labelledby="restore-dialog-title" tabindex="-1">
+                    <button class="identity-mode-close" type="button" aria-label="Close restoration confirmation" data-restore-cancel><x-dashboard.icon name="x" size="20" /></button>
+                    <span class="identity-section-icon"><x-dashboard.icon name="refresh" size="25" /></span>
+                    <h2 id="restore-dialog-title" data-restore-title>Restore Archived Account</h2>
+                    <p data-restore-message>The original account will be reactivated without creating a duplicate.</p>
+                    <ul class="identity-restore-notes">
+                        <li>Existing applications and records will remain connected.</li>
+                        <li>The original internal user ID will be preserved.</li>
+                        <li>No password will be revealed or replaced.</li>
+                    </ul>
+                    <form method="POST" action="{{ route('res.users.import.restore-all') }}" data-restore-form>
+                        @csrf
+                        <input type="hidden" name="import_token" value="{{ $preview['preview_token'] }}">
+                        <input type="hidden" name="archived_user_id" value="" data-restore-user-input disabled>
+                        <div class="identity-dialog-actions">
+                            <button class="identity-button identity-button-secondary" type="button" data-restore-cancel>Cancel</button>
+                            <button class="identity-button identity-button-primary" type="submit" data-restore-submit>Restore Account</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        @endif
     </div>
 @endsection

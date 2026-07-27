@@ -3,8 +3,10 @@
 namespace Database\Seeders;
 
 use App\Enums\ApplicantType;
+use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
+use App\Enums\ResearchType;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
@@ -28,7 +30,12 @@ class DashboardDemoSeeder extends Seeder
             return;
         }
 
-        $this->call([ResLeadSeeder::class, TestingUserSeeder::class]);
+        // Reuse stable account and requirement seeders before adding local-only dashboard examples.
+        $this->call([
+            ResLeadSeeder::class,
+            TestingUserSeeder::class,
+            ApplicationConfigurationSeeder::class,
+        ]);
 
         $applicant = User::where('username', 'applicanttest')->firstOrFail();
         $adviser = User::where('username', 'advisertest')->firstOrFail();
@@ -55,19 +62,16 @@ class DashboardDemoSeeder extends Seeder
             ],
         ));
 
-        $requirements = collect([
-            ['code' => 'RESEARCH-PROPOSAL', 'name' => 'Research Proposal'],
-            ['code' => 'KLD-RES-04-001B', 'name' => 'Research Ethics Compliance Agreement'],
-            ['code' => 'KLD-RES-04-003', 'name' => 'Informed Consent'],
-            ['code' => 'PAYMENT-PROOF', 'name' => 'Payment Proof'],
-        ])->values()->map(fn (array $data, int $index): DocumentRequirement => DocumentRequirement::updateOrCreate(
-            ['code' => $data['code']],
-            [
-                'name' => $data['name'],
-                'sort_order' => $index + 1,
-                'is_active' => true,
-            ],
-        ));
+        // Load the four stable baseline requirements in their configured display order.
+        $requirements = DocumentRequirement::query()
+            ->whereIn('code', [
+                'RESEARCH-PROPOSAL',
+                'KLD-RES-04-001B',
+                'KLD-RES-04-003',
+                'PAYMENT-PROOF',
+            ])
+            ->orderBy('sort_order')
+            ->get();
 
         $primary = $this->application(
             'ECRATS-DEMO-0001',
@@ -183,13 +187,48 @@ class DashboardDemoSeeder extends Seeder
                 'adviser_user_id' => $adviser->id,
                 'applicant_type' => $applicantType,
                 'research_title' => $title,
+                'research_type' => ResearchType::Thesis,
+                'research_category' => 'Social and Behavioral Research',
+                'institution' => $applicant->institution,
+                'department' => $applicant->department ?? 'Computer Studies',
+                'program' => $applicant->program,
+                'abstract' => 'A local demonstration application used to verify role dashboards and application visibility.',
+                'target_participants' => 'Eligible KLD students, faculty members, or community participants.',
+                'expected_duration' => 'August 2026 to May 2027',
                 'application_type' => 'new_application',
                 'application_status' => $status,
+                'current_stage' => $this->stageFor($status),
                 'review_type' => $reviewType,
                 'submitted_at' => $submittedAt,
                 'status_updated_at' => now(),
             ],
         );
+    }
+
+    /**
+     * Keep local demonstration stages aligned with each authoritative application status.
+     */
+    private function stageFor(ApplicationStatus $status): ApplicationStage
+    {
+        return match ($status) {
+            ApplicationStatus::Draft, ApplicationStatus::Incomplete => ApplicationStage::ApplicationInformation,
+            ApplicationStatus::SubmittedToAdviser, ApplicationStatus::ReturnedByAdviser => ApplicationStage::AdviserReview,
+            ApplicationStatus::AdviserEndorsed,
+            ApplicationStatus::UnderResScreening,
+            ApplicationStatus::AwaitingReviewerAssignment => ApplicationStage::ResScreening,
+            ApplicationStatus::UnderExpeditedReview,
+            ApplicationStatus::UnderFullBoardReview,
+            ApplicationStatus::UnderReReview => ApplicationStage::EthicsReview,
+            ApplicationStatus::ResultReleasedMinorRevision,
+            ApplicationStatus::ResultReleasedMajorRevision,
+            ApplicationStatus::RevisionWindowOpen,
+            ApplicationStatus::RevisionSubmitted,
+            ApplicationStatus::FeedbackRequired => ApplicationStage::Revision,
+            ApplicationStatus::ReviewSubmittedPendingRelease,
+            ApplicationStatus::ResultReleasedAccepted,
+            ApplicationStatus::ResultReleasedDisapproved => ApplicationStage::DecisionRelease,
+            ApplicationStatus::CertificateReleased, ApplicationStatus::Archived => ApplicationStage::Completed,
+        };
     }
 
     private function seedDeadlines(): void

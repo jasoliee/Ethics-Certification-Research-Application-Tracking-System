@@ -419,7 +419,10 @@ class SafeSpreadsheet
      * Validate the complete workbook contract before returning only approved Accounts rows.
      *
      * @param  array<string, mixed>  $type
-     * @return array{rows: array<int, array{row: int, values: array<int, string>}>}
+     * @return array{
+     *     rows: array<int, array{row: int, values: array<int, string>}>,
+     *     example_row_marked: bool
+     * }
      */
     public function read(string $path, array $type): array
     {
@@ -453,10 +456,15 @@ class SafeSpreadsheet
             }
 
             $this->validateOptionsSheet($sheetXml['Options'], $sharedStrings);
-            $this->validateInstructionsSheet($sheetXml['Instructions'], $sharedStrings, $type);
+            $exampleRowMarked = $this->validateInstructionsSheet(
+                $sheetXml['Instructions'],
+                $sharedStrings,
+                $type,
+            );
 
             return [
                 'rows' => $this->validateAccountsSheet($sheetXml['Accounts'], $sharedStrings, $type),
+                'example_row_marked' => $exampleRowMarked,
             ];
         } finally {
             $zip->close();
@@ -641,7 +649,8 @@ class SafeSpreadsheet
             ['Student Number', 'Required for Student Researcher accounts. Use the official institutional value exactly.'],
             ['Employee ID', 'Required for employee-based accounts. Use the official institutional value exactly.'],
             ['Email', 'Use one valid, unique email address. Gmail, institutional, .edu, Outlook, Hotmail, Yahoo, and other valid domains are supported.'],
-            ['Example Row', 'Row 2 is ignored only while its identifier is exactly '.AccountTypeCatalog::EXAMPLE_MARKER.'. If changed, Row 2 is validated as account data.'],
+            ['Example Row Marker', AccountTypeCatalog::EXAMPLE_MARKER],
+            ['Example Row', 'Row 2 is ignored only while the Example Row Marker above remains exact. Remove the marker to validate Row 2 as ordinary account data.'],
             ['Maximum Upload Size', '2 MB'],
             ['Maximum Account Rows', (string) self::MAX_ACCOUNT_ROWS],
             ['Upload Steps', 'Download a current template, complete Accounts starting on Row 3, save as .xlsx, upload one file, then select Validate.'],
@@ -810,8 +819,13 @@ class SafeSpreadsheet
         }
     }
 
-    /** @param array<int, string> $sharedStrings @param array<string, mixed> $type */
-    private function validateInstructionsSheet(string $xml, array $sharedStrings, array $type): void
+    /**
+     * Validate stable workbook identity and report whether the visible Row 2 sentinel remains intact.
+     *
+     * @param  array<int, string>  $sharedStrings
+     * @param  array<string, mixed>  $type
+     */
+    private function validateInstructionsSheet(string $xml, array $sharedStrings, array $type): bool
     {
         $rows = $this->sheetRows($xml, $sharedStrings, 2, 100);
 
@@ -834,6 +848,12 @@ class SafeSpreadsheet
         if (($metadata['Account Type Key'] ?? null) !== $type['key']) {
             throw $this->invalid('The uploaded workbook belongs to a different account type. Download the correct official template.');
         }
+
+        // Removing this exact marker intentionally converts the realistic Row 2 example into normal validated data.
+        return hash_equals(
+            AccountTypeCatalog::EXAMPLE_MARKER,
+            (string) ($metadata['Example Row Marker'] ?? ''),
+        );
     }
 
     /**

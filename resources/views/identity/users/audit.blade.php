@@ -56,7 +56,7 @@
 
         <section class="identity-table-panel">
             {{-- Audit columns scroll within this focusable region instead of widening the complete dashboard page. --}}
-            <div class="identity-table-scroll" role="region" aria-label="Account audit results" tabindex="0">
+            <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Account audit results" tabindex="0">
                 <table class="identity-user-table identity-audit-table">
                     <thead><tr><th class="identity-col-date-time">Date and Time</th><th class="identity-col-actor">Actor</th><th class="identity-col-role">Role</th><th class="identity-col-audit-action">Action</th><th class="identity-col-status">Result</th></tr></thead>
                     <tbody>

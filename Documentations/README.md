@@ -14,16 +14,18 @@ This folder documents the implemented ECRATS system contract and clearly identif
 8. [Excel bulk account import](BULK_ACCOUNT_IMPORT.md)
 9. [Dropdown option management](DROPDOWN_OPTION_MANAGEMENT.md)
 10. [Audit log](AUDIT_LOG.md)
-11. [Application and requirements workflow](APPLICATION_AND_REQUIREMENTS_WORKFLOW.md)
-12. [Document and certificate generation](DOCUMENT_AND_CERTIFICATE_GENERATION.md)
-13. [Security implementation](SECURITY_IMPLEMENTATION.md)
-14. [Performance and scalability](PERFORMANCE_AND_SCALABILITY.md)
-15. [Database and data flow](DATABASE_AND_DATA_FLOW.md)
-16. [Deployment security checklist](DEPLOYMENT_SECURITY_CHECKLIST.md)
-17. [Testing guide](TESTING_GUIDE.md)
-18. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
-19. [Known issues and pending verification](KNOWN_ISSUES.md)
-20. [Changelog](CHANGELOG.md)
+11. [Applicant dashboard and application flow](APPLICANT_DASHBOARD.md)
+12. [Adviser application visibility](ADVISER_APPLICATION_VISIBILITY.md)
+13. [Application and requirements workflow](APPLICATION_AND_REQUIREMENTS_WORKFLOW.md)
+14. [Document and certificate generation](DOCUMENT_AND_CERTIFICATE_GENERATION.md)
+15. [Security implementation](SECURITY_IMPLEMENTATION.md)
+16. [Performance and scalability](PERFORMANCE_AND_SCALABILITY.md)
+17. [Database and data flow](DATABASE_AND_DATA_FLOW.md)
+18. [Deployment security checklist](DEPLOYMENT_SECURITY_CHECKLIST.md)
+19. [Testing guide](TESTING_GUIDE.md)
+20. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
+21. [Known issues and pending verification](KNOWN_ISSUES.md)
+22. [Changelog](CHANGELOG.md)
 
 ## Interface References
 
@@ -39,6 +41,6 @@ This folder documents the implemented ECRATS system contract and clearly identif
 
 ## Scope
 
-The documented implementation includes authentication, account setup, role onboarding, account administration, verified Excel-only `.xlsx` generation and preview/confirmation, shared dropdown catalogs, the canonical `/dashboard`, role data, applicant submission guards, shared navigation, notifications, profile/settings access, audit records, and local verification. Incomplete workflow, certificate-generation areas, Microsoft Excel confirmation, and manual responsive checks are explicitly identified.
+The documented implementation includes authentication, account setup, role onboarding, account administration, verified Excel-only `.xlsx` generation and preview/confirmation, RES-only preview-based archived-account restoration, shared dropdown catalogs, the canonical `/dashboard`, Applicant draft and document workflows, configured initial submission, Adviser-scoped visibility, shared navigation, notifications, profile/settings access, audit records, and local verification. Later review lifecycle, certificate-generation areas, Microsoft Excel confirmation, and manual responsive checks are explicitly identified.
 
 Keep these files synchronized whenever dashboard routes, role rules, data queries, or shared components change.

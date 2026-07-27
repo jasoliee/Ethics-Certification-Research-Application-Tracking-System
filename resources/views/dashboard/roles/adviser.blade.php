@@ -27,7 +27,8 @@
                     action-icon="refresh"
                 />
             @else
-                <div class="dashboard-table-wrap">
+                {{-- The shared overflow class keeps the complete Adviser table inside the dashboard workspace. --}}
+                <div class="dashboard-table-wrap dashboard-overflow-region" role="region" aria-label="Recently submitted Adviser applications" tabindex="0">
                     <table class="dashboard-table">
                         <thead><tr><th>Application ID</th><th>Applicant</th><th>Research Title</th><th>Date Submitted</th><th class="dashboard-table-status">Status</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>

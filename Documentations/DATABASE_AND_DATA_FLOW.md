@@ -22,20 +22,27 @@ Form Request -> policy/creation authority -> UserAccountService transaction
 ```text
 private .xlsx upload -> bounded OOXML and exact-contract validation
 -> active-option validation -> batched conflict and username lookup
--> categorized preview with valid rows in actor-scoped JSON
+-> categorized preview with valid, active-existing, and archived rows in actor-scoped JSON
+-> optional RES-only restoration of preview-matched original archived rows
 -> atomic single-use confirmation -> short transaction per valid account
 -> setup notifications after database writes
 ```
 
-No account rows are written during preview. Invalid, later duplicate, and existing-account rows are excluded from the confirmation payload. Source uploads are deleted after parsing. Preview payloads contain no password or reset token and expire after 30 minutes.
+No account rows are written during preview. Invalid, later duplicate, active-existing, archived, and restored-account rows are excluded from the confirmation payload. Restoration clears soft deletion on the original conflict-free row and preserves its ID and relationships. Source uploads are deleted after parsing. Preview payloads contain no password or reset token and expire after 30 minutes.
 
 ## Application Submission Flow
 
 ```text
-owner policy -> draft/incomplete check -> active requirement query
--> current completed-document query -> transaction
--> submitted_to_adviser + timestamps -> audit
+owner policy -> unique editable draft -> validated information
+-> private versioned requirement uploads -> shared completion calculation
+-> configured submission-window check -> locked final revalidation
+-> submitted_to_adviser + adviser_review + timestamps
+-> Adviser database notification + audit
 ```
+
+`research_applications` stores the nullable unique `draft_owner_user_id`, research type/category, institution, department, program, abstract, target participants, expected duration, and current stage. Releasing `draft_owner_user_id` at submission allows a later new draft while keeping the submitted application.
+
+`document_requirements` stores whether a requirement is mandatory and an optional JSON list of applicable research types. `application_documents` retains version rows and a single current pointer per requirement/application pair. Files remain on private storage and are authorized through their parent application.
 
 ## Audit Data
 

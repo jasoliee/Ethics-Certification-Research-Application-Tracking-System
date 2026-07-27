@@ -27,7 +27,8 @@
                     action-icon="refresh"
                 />
             @else
-                <div class="dashboard-table-wrap">
+                {{-- The shared overflow class contains reviewer assignment columns on narrow viewports. --}}
+                <div class="dashboard-table-wrap dashboard-overflow-region" role="region" aria-label="Recent reviewer assignments" tabindex="0">
                     <table class="dashboard-table">
                         <thead><tr><th>Application Code</th><th>Review Type</th><th>Research Title</th><th>Date Submitted</th><th>Date Assigned</th><th class="dashboard-table-status">Status</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>

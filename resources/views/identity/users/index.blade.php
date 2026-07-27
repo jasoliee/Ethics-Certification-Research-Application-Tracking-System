@@ -129,7 +129,7 @@
             </div>
 
             {{-- The focusable region contains wide columns and exposes native horizontal keyboard and touch scrolling. --}}
-            <div class="identity-table-scroll" role="region" aria-label="User account results" tabindex="0">
+            <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="User account results" tabindex="0">
                 <table class="identity-user-table">
                     <thead>
                         <tr>

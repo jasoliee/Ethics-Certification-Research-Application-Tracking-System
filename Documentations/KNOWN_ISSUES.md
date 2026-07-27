@@ -3,7 +3,8 @@
 ## Pending External Verification
 
 - Generated account templates pass automated ZIP, Open XML entry, worksheet, named-range, data-validation, PhpSpreadsheet reader, writer-resave, reopen, and HTTP binary checks. Manual Microsoft Excel verification is still pending and must confirm there is no corruption, repair, recovery, or removed-content warning.
-- Account Information, responsive tables, form spacing, dashboard summary-card alignment, and import-error interactions are implemented and covered by rendering/build checks where practical. Browser acceptance at 1440, 1280, 1024, 768, and 390 pixels remains pending manual visual verification.
+- Account Information, responsive tables, form spacing, dashboard summary-card alignment, import categories/restoration, and Applicant/Adviser application surfaces are implemented and covered by rendering/build checks where practical. Browser acceptance at 1440, 1280, 1024, 768, and 390 pixels remains pending manual visual verification because a browser runtime was unavailable.
+- The supplied high-fidelity PDF could not be rendered in the current environment, so side-by-side visual comparison and screenshot evidence remain pending.
 
 ## Product Scope Limitations
 

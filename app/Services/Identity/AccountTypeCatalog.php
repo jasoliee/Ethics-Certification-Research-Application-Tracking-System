@@ -47,15 +47,6 @@ class AccountTypeCatalog
         return $type;
     }
 
-    /** @param array<string, mixed> $type @param array<string, string> $row */
-    public function isExampleRow(array $type, array $row): bool
-    {
-        return hash_equals(
-            self::EXAMPLE_MARKER,
-            trim((string) ($row[$type['identifier_field']] ?? '')),
-        );
-    }
-
     /** @return array<string, mixed> */
     private function definition(string $key): array
     {
@@ -83,17 +74,17 @@ class AccountTypeCatalog
                     'Program' => 'program',
                 ],
                 'example_values' => [
-                    'first_name' => 'Alexandra',
-                    'middle_name' => 'M.',
-                    'last_name' => 'Reyes',
-                    'suffix' => '',
-                    'email' => 'alexandra.reyes@example.com',
-                    'student_number' => self::EXAMPLE_MARKER,
-                    'phone_number' => '09171234567',
+                    'first_name' => 'Juan',
+                    'middle_name' => 'Dela',
+                    'last_name' => 'Cruz',
+                    'suffix' => 'Jr.',
+                    'email' => 'juandelacruz@example.com',
+                    'student_number' => '20260000',
+                    'phone_number' => '099999999999',
                     'year_level' => 'Fourth Year',
                     'institution' => 'Institute of Computing and Digital Innovation',
                     'department' => 'Computer Studies',
-                    'program' => 'Bachelor of Science in Information Systems',
+                    'program' => 'Bachelor of Science in Computer Science',
                 ],
             ],
             'faculty_researcher' => [
@@ -124,7 +115,7 @@ class AccountTypeCatalog
                     'last_name' => 'Santos',
                     'suffix' => '',
                     'email' => 'marian.santos@example.com',
-                    'employee_id' => self::EXAMPLE_MARKER,
+                    'employee_id' => 'KLD-EMP-1001',
                     'phone_number' => '09181234567',
                     'institution' => 'Institute of Science and Mathematics',
                     'department' => 'Natural Sciences',
@@ -159,7 +150,7 @@ class AccountTypeCatalog
                     'last_name' => 'Garcia',
                     'suffix' => 'Jr.',
                     'email' => 'roberto.garcia@example.com',
-                    'employee_id' => self::EXAMPLE_MARKER,
+                    'employee_id' => 'KLD-EMP-1002',
                     'phone_number' => '09191234567',
                     'institution' => 'Institute of Engineering',
                     'department' => 'Engineering Studies',
@@ -194,7 +185,7 @@ class AccountTypeCatalog
                     'last_name' => 'Navarro',
                     'suffix' => '',
                     'email' => 'lourdes.navarro@example.com',
-                    'employee_id' => self::EXAMPLE_MARKER,
+                    'employee_id' => 'KLD-EMP-1003',
                     'phone_number' => '09201234567',
                     'institution' => 'Institute of Behavioral Sciences',
                     'department' => 'Behavioral Sciences',

@@ -51,6 +51,14 @@ class UserPolicy
         return $this->create($actor);
     }
 
+    /**
+     * Reserve all archived-account restoration actions for the RES Lead.
+     */
+    public function restoreArchivedAccounts(User $actor): bool
+    {
+        return $actor->role === UserRole::ResLead;
+    }
+
     public function completeOnboarding(User $actor, User $subject): bool
     {
         return $actor->is($subject);

@@ -1158,15 +1158,14 @@
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
-    /* Centers the complete icon, count, and label group vertically and horizontally in every card. */
+    /* Keeps the icon on the left and centers the number-label group in the remaining card width. */
     .dashboard-summary-card {
         min-width: 0;
-        min-height: 168px;
+        min-height: 132px;
         display: grid;
-        grid-template-rows: auto auto;
-        align-content: center;
-        justify-items: center;
-        gap: 10px;
+        grid-template-columns: 58px minmax(0, 1fr);
+        align-items: center;
+        gap: 16px;
         border: 1px solid #dce5e0;
         border-radius: 8px;
         padding: 18px;
@@ -1185,7 +1184,7 @@
         transform: translateY(-2px);
     }
 
-    /* Places the colored icon in the first centered row of the vertical card layout. */
+    /* Vertically centers the existing colored icon within the card's fixed left column. */
     .dashboard-summary-icon {
         width: 58px;
         height: 58px;
@@ -1196,7 +1195,7 @@
         background: #eaf6ee;
     }
 
-    /* Stacks the numerical count directly above its label and centers multiline text. */
+    /* Stacks the numerical count above its label in the complete right-side content area. */
     .dashboard-summary-copy {
         width: 100%;
         min-width: 0;
@@ -2374,9 +2373,9 @@
         flex-direction: column;
     }
 
-    /* Preserves the centered vertical card composition when two columns remain available. */
+    /* Preserves equal card height and the horizontal composition on tablet layouts. */
     .dashboard-summary-card {
-        min-height: 156px;
+        min-height: 126px;
     }
 
     /* Scales the icon slightly on tablets while retaining a stable circular footprint. */
@@ -3085,7 +3084,7 @@
     /* Gives every Personal, Institutional, and role-specific title consistent space before its first row. */
     .identity-form-section-title,
     .identity-form-section legend {
-        margin-bottom: 20px;
+        margin-bottom: 10px;
         padding: 0;
         color: #176f3d;
         font-size: 15px;
@@ -3578,6 +3577,1019 @@
         font-size: 11px;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+}
+
+@layer components {
+    /* Contains every wide structured region inside the available dashboard content width. */
+    .dashboard-overflow-region {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: visible;
+        overscroll-behavior-inline: contain;
+        scrollbar-gutter: stable;
+        touch-action: pan-x pan-y;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Gives keyboard users a visible boundary around horizontally scrollable data. */
+    .dashboard-overflow-region:focus-visible {
+        outline: 3px solid rgba(23, 118, 69, 0.28);
+        outline-offset: -3px;
+    }
+
+    /* Retains a practical scan width for complete wide records without widening the page. */
+    .dashboard-overflow-region.is-wide > table {
+        min-width: 920px;
+    }
+
+    /* Prevents the application workspace and its children from escaping the sidebar-adjusted content area. */
+    .application-workspace {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    /* Frames functional application lists, information, requirements, and submission controls consistently. */
+    .application-panel,
+    .application-form,
+    .application-empty-panel,
+    .application-record-header,
+    .application-submission-receipt {
+        max-width: 100%;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 5px 14px rgba(23, 56, 38, 0.05);
+    }
+
+    /* Keeps section headings compact and aligned with optional progress or result metadata. */
+    .application-panel-heading,
+    .application-progress-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 20px 22px;
+    }
+
+    /* Removes default heading spacing inside operational application panels. */
+    .application-panel-heading h2,
+    .application-panel-heading p,
+    .application-progress-heading h2,
+    .application-progress-heading p {
+        margin: 0;
+    }
+
+    /* Uses compact panel-scale typography for repeated workflow sections. */
+    .application-panel-heading h2,
+    .application-progress-heading h2 {
+        color: #1b2a22;
+        font-size: 17px;
+        line-height: 1.35;
+    }
+
+    /* Keeps supporting panel copy secondary and readable. */
+    .application-panel-heading p,
+    .application-progress-heading p {
+        margin-top: 4px;
+        color: #667085;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    /* Centers a bounded first-application empty state without creating page-level whitespace. */
+    .application-empty-panel {
+        min-height: 380px;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+    }
+
+    /* Maintains complete application and Adviser columns inside the shared scroll boundary. */
+    .application-table {
+        min-width: 920px;
+    }
+
+    /* Reserves additional width for the Adviser identity and filter result columns. */
+    .adviser-application-table {
+        min-width: 1120px;
+    }
+
+    /* Keeps row commands adjacent and prevents narrow columns from wrapping controls incoherently. */
+    .application-table-actions {
+        min-width: 112px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        white-space: nowrap;
+    }
+
+    /* Styles lightweight table commands as accessible text buttons or links. */
+    .dashboard-text-action {
+        appearance: none;
+        border: 0;
+        padding: 3px 0;
+        color: #176f3d;
+        background: transparent;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    /* Makes table commands visibly interactive for mouse and keyboard users. */
+    .dashboard-text-action:hover,
+    .dashboard-text-action:focus-visible {
+        color: #0e5a30;
+        text-decoration: underline;
+    }
+
+    /* Keeps the information form as one coherent operational surface. */
+    .application-form {
+        overflow: hidden;
+    }
+
+    /* Places spacing primarily after the preceding divider and keeps headings close to their fields. */
+    .application-form-section {
+        margin: 0;
+        border: 0;
+        border-bottom: 1px solid #e2e8e4;
+        padding: 28px 24px 24px;
+    }
+
+    /* Connects each form-section heading visually to its first input row. */
+    .application-form-section legend {
+        margin: 0 0 10px;
+        padding: 0;
+        color: #176f3d;
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+    /* Uses two flexible form columns with stable minimum field widths. */
+    .application-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 17px 20px;
+    }
+
+    /* Uses three equal columns for compact institutional selectors on wide screens. */
+    .application-form-grid-three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    /* Lets important long-form fields span the complete application form. */
+    .application-field-full {
+        grid-column: 1 / -1;
+    }
+
+    /* Gives prominent fields more room while retaining responsive wrapping. */
+    .application-field-wide {
+        min-width: 0;
+    }
+
+    /* Stacks application labels, controls, and field errors without layout shifts. */
+    .application-field {
+        min-width: 0;
+        display: grid;
+        align-content: start;
+        gap: 7px;
+    }
+
+    /* Uses the established dashboard label scale for application inputs. */
+    .application-field label {
+        color: #27364a;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    /* Normalizes application input dimensions and focus behavior across control types. */
+    .application-field input,
+    .application-field select,
+    .application-field textarea {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid #bdcbc3;
+        border-radius: 6px;
+        padding: 11px 12px;
+        color: #17211b;
+        background: #ffffff;
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    /* Prevents textarea resizing from creating page-level horizontal overflow. */
+    .application-field textarea {
+        resize: vertical;
+    }
+
+    /* Distinguishes derived read-only applicant values from editable application inputs. */
+    .application-field input[readonly] {
+        color: #596579;
+        background: #f4f6f5;
+    }
+
+    /* Gives keyboard focus a consistent green application-form treatment. */
+    .application-field input:focus,
+    .application-field select:focus,
+    .application-field textarea:focus {
+        border-color: #17884e;
+        outline: 3px solid rgba(23, 136, 78, 0.14);
+    }
+
+    /* Keeps cancel and progression controls aligned at the form footer. */
+    .application-form-actions,
+    .application-panel-actions,
+    .application-modal-actions,
+    .application-record-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Separates application form commands from the final information section. */
+    .application-form-actions {
+        padding: 20px 24px;
+    }
+
+    /* Separates panel-level progression controls from scrollable data. */
+    .application-panel-actions {
+        border-top: 1px solid #e5ebe7;
+        padding: 16px 22px;
+    }
+
+    /* Aligns application identity and record commands without hiding either group. */
+    .application-record-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 24px;
+    }
+
+    /* Uses a detail-page heading scale appropriate to the dashboard workspace. */
+    .application-record-header h1 {
+        max-width: 920px;
+        margin: 5px 0 8px;
+        color: #15221a;
+        font-size: 25px;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+
+    /* Keeps supporting record text visually subordinate. */
+    .application-record-header p {
+        margin: 0;
+        color: #667085;
+        line-height: 1.5;
+    }
+
+    /* Places current status and stage on one wrapping metadata row. */
+    .application-record-statuses {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        color: #526174;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    /* Uses two information columns with full-width rows for narrative content. */
+    .application-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 0;
+        border-top: 1px solid #e5ebe7;
+    }
+
+    /* Gives every application detail a stable scan height and divider. */
+    .application-detail-grid > div {
+        min-width: 0;
+        min-height: 76px;
+        display: grid;
+        align-content: start;
+        gap: 5px;
+        border-bottom: 1px solid #e5ebe7;
+        padding: 15px 22px;
+    }
+
+    /* Spans narrative application details across both columns. */
+    .application-detail-grid > .application-detail-full {
+        grid-column: 1 / -1;
+    }
+
+    /* Uses restrained labels for detail scanning. */
+    .application-detail-grid dt {
+        color: #667085;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    /* Allows long submitted values to wrap without escaping their cells. */
+    .application-detail-grid dd {
+        min-width: 0;
+        margin: 0;
+        color: #202b3c;
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    /* Preserves paragraphs and line breaks in submitted abstract content. */
+    .application-long-copy {
+        white-space: pre-line;
+    }
+
+    /* Highlights the shared completion percentage without overpowering the section heading. */
+    .application-progress-heading > strong {
+        color: #177645;
+        font-size: 25px;
+        line-height: 1;
+    }
+
+    /* Renders native progress with a stable height and project colors. */
+    .application-progress {
+        width: calc(100% - 44px);
+        height: 12px;
+        display: block;
+        margin: 0 22px 20px;
+        overflow: hidden;
+        border: 0;
+        border-radius: 6px;
+        accent-color: #17884e;
+    }
+
+    /* Uses a neutral track in WebKit browsers. */
+    .application-progress::-webkit-progress-bar {
+        background: #e8eeea;
+    }
+
+    /* Uses the ECRATS green for completed progress in WebKit browsers. */
+    .application-progress::-webkit-progress-value {
+        background: #17884e;
+    }
+
+    /* Summarizes completion states in a compact wrapping row. */
+    .application-progress-breakdown {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0 22px 20px;
+    }
+
+    /* Gives progress totals a restrained non-pill label treatment. */
+    .application-progress-breakdown span {
+        border-left: 3px solid #98a89f;
+        padding: 3px 10px;
+        color: #5c697c;
+        font-size: 12px;
+    }
+
+    /* Separates configured requirement rows without nesting decorative cards. */
+    .application-requirement-list {
+        display: grid;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    /* Aligns requirement identity, status, metadata, and commands in one responsive row. */
+    .application-requirement-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 46px minmax(240px, 1fr) auto minmax(240px, auto);
+        align-items: center;
+        gap: 16px;
+        border-bottom: 1px solid #e5ebe7;
+        padding: 18px 20px;
+    }
+
+    /* Removes the trailing divider from the final requirement row. */
+    .application-requirement-row:last-child {
+        border-bottom: 0;
+    }
+
+    /* Keeps requirement MIME icons in a stable circular visual anchor. */
+    .application-requirement-icon {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #176f3d;
+        background: #eaf6ee;
+    }
+
+    /* Prevents requirement text from forcing the row wider than its container. */
+    .application-requirement-copy {
+        min-width: 0;
+    }
+
+    /* Aligns required-state text with each compact requirement heading. */
+    .application-requirement-title {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Uses compact headings inside repeated requirement rows. */
+    .application-requirement-title h2 {
+        margin: 0;
+        color: #243126;
+        font-size: 15px;
+        line-height: 1.35;
+    }
+
+    /* Presents mandatory or optional state with text and a border, not color alone. */
+    .application-requirement-title > span {
+        border: 1px solid #bdcbc3;
+        border-radius: 4px;
+        padding: 2px 6px;
+        color: #5f6b7d;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    /* Keeps requirement descriptions compact and safely wrapped. */
+    .application-requirement-copy > p {
+        margin: 4px 0 0;
+        color: #667085;
+        font-size: 12px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    /* Arranges current private-file metadata without queries or hidden paths. */
+    .application-file-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin: 10px 0 0;
+    }
+
+    /* Keeps each metadata pair compact within the requirement row. */
+    .application-file-meta > div {
+        display: flex;
+        gap: 5px;
+        font-size: 11px;
+    }
+
+    /* Separates metadata labels from their values. */
+    .application-file-meta dt {
+        color: #7b8795;
+        font-weight: 700;
+    }
+
+    /* Allows original display filenames to wrap safely. */
+    .application-file-meta dd {
+        max-width: 32ch;
+        margin: 0;
+        color: #354255;
+        overflow-wrap: anywhere;
+    }
+
+    /* Keeps requirement actions reachable and wraps them before they can escape the row. */
+    .application-requirement-actions {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Groups native file selection and upload into one compact replacement workflow. */
+    .application-upload-form {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+
+    /* Visually hides the native file input while retaining its label and accessibility semantics. */
+    .application-upload-form input[type='file'] {
+        width: 1px;
+        height: 1px;
+        position: absolute;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    /* Shows the selected filename in a bounded area beside upload controls. */
+    .application-upload-form [data-application-file-name] {
+        max-width: 22ch;
+        color: #667085;
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Keeps requirement document tables wide enough for dates, status, and actions. */
+    .application-document-table {
+        min-width: 980px;
+    }
+
+    /* Stacks the server-enforced submission checklist above the final command. */
+    .application-submit-panel {
+        padding-bottom: 20px;
+    }
+
+    /* Lists submission conditions without decorative nested cards. */
+    .application-submit-checklist {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0 22px 20px;
+        list-style: none;
+    }
+
+    /* Aligns each condition icon and readable condition text. */
+    .application-submit-checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        color: #667085;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    /* Distinguishes satisfied checklist rows through icon and text color. */
+    .application-submit-checklist li.is-complete {
+        color: #176f3d;
+    }
+
+    /* Aligns the final submit form with the panel edge. */
+    .application-submit-panel > form {
+        display: flex;
+        justify-content: flex-end;
+        padding: 0 22px;
+    }
+
+    /* Makes disabled final submission visibly unavailable without hiding the command. */
+    .application-submit-panel button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    /* Presents immutable submission time and recipient as a compact receipt. */
+    .application-submission-receipt {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        color: #176f3d;
+        background: #edf8f1;
+    }
+
+    /* Stacks the receipt title and timestamp. */
+    .application-submission-receipt > div {
+        display: grid;
+        gap: 3px;
+    }
+
+    /* Keeps the receipt timestamp secondary. */
+    .application-submission-receipt span {
+        color: #5d6a62;
+        font-size: 12px;
+    }
+
+    /* Keeps Adviser search and filter controls dense, wrapping only when required. */
+    .application-filter-bar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.5fr) minmax(145px, 0.4fr) minmax(145px, 0.4fr) auto auto;
+        align-items: end;
+        gap: 10px;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        padding: 14px;
+        background: #ffffff;
+    }
+
+    /* Positions the search icon inside its stable input footprint. */
+    .application-search-field {
+        position: relative;
+    }
+
+    /* Anchors the search icon without intercepting input interaction. */
+    .application-search-field > span {
+        position: absolute;
+        top: 50%;
+        left: 11px;
+        z-index: 1;
+        display: grid;
+        color: #738075;
+        pointer-events: none;
+        transform: translateY(-50%);
+    }
+
+    /* Reserves space for the embedded search icon. */
+    .application-search-field input {
+        padding-left: 38px;
+    }
+
+    /* Covers the viewport and prevents the page behind a modal from receiving pointer input. */
+    .application-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(15, 28, 20, 0.58);
+    }
+
+    /* Keeps application and document dialogs inside every supported viewport. */
+    .application-modal {
+        width: min(100%, 760px);
+        max-height: calc(100svh - 40px);
+        position: relative;
+        display: grid;
+        gap: 16px;
+        overflow-y: auto;
+        border: 1px solid #d7e1db;
+        border-radius: 8px;
+        padding: 22px;
+        background: #ffffff;
+        box-shadow: 0 22px 56px rgba(12, 35, 22, 0.25);
+    }
+
+    /* Gives the secure document viewer enough room for meaningful PDF or image inspection. */
+    .application-document-modal {
+        width: min(100%, 980px);
+    }
+
+    /* Anchors the icon close button without taking heading width. */
+    .application-modal-close {
+        width: 34px;
+        height: 34px;
+        position: absolute;
+        top: 13px;
+        right: 13px;
+        display: grid;
+        place-items: center;
+        border: 1px solid transparent;
+        border-radius: 50%;
+        color: #4f5d52;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    /* Makes modal close state visible for pointer and keyboard interaction. */
+    .application-modal-close:hover,
+    .application-modal-close:focus-visible {
+        border-color: #b9c8bf;
+        color: #176f3d;
+        background: #edf7f0;
+    }
+
+    /* Aligns modal icon and title while reserving space for the close control. */
+    .application-modal-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-right: 38px;
+    }
+
+    /* Gives modal headings a compact circular application icon. */
+    .application-modal-icon {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #176f3d;
+        background: #eaf6ee;
+    }
+
+    /* Removes default modal heading spacing. */
+    .application-modal-heading h2,
+    .application-modal-heading p {
+        margin: 0;
+    }
+
+    /* Keeps modal titles at an appropriate dialog scale. */
+    .application-modal-heading h2 {
+        color: #1f2d23;
+        font-size: 19px;
+    }
+
+    /* Keeps modal metadata secondary. */
+    .application-modal-heading p {
+        margin-top: 3px;
+        color: #667085;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+    }
+
+    /* Bounds secure document rendering to an internal scrollable viewport. */
+    .application-document-preview {
+        min-height: 360px;
+        max-height: 62svh;
+        overflow: auto;
+        border: 1px solid #dce5e0;
+        border-radius: 6px;
+        background: #f3f6f4;
+    }
+
+    /* Lets supported files use the complete bounded preview surface. */
+    .application-document-preview iframe {
+        width: 100%;
+        min-height: 58svh;
+        display: block;
+        border: 0;
+        background: #ffffff;
+    }
+
+    /* Centers the secure download fallback when inline rendering is unsupported. */
+    .application-document-fallback {
+        min-height: 360px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+        padding: 24px;
+        color: #56645a;
+        text-align: center;
+    }
+
+    /* Removes default fallback text spacing. */
+    .application-document-fallback strong,
+    .application-document-fallback p {
+        margin: 0;
+    }
+
+    /* Keeps modal application details internally scrollable on short screens. */
+    .dashboard-application-modal .application-detail-grid {
+        max-height: 55svh;
+        overflow-y: auto;
+    }
+
+    /* Keeps the requirements modal list inside the available dialog height. */
+    .application-modal-requirements {
+        max-height: 48svh;
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        overflow-y: auto;
+        border: 1px solid #e0e7e3;
+        border-radius: 6px;
+        list-style: none;
+    }
+
+    /* Aligns requirement names and statuses within the completion modal. */
+    .application-modal-requirements li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid #e5ebe7;
+        padding: 12px 14px;
+    }
+
+    /* Removes the final modal checklist divider. */
+    .application-modal-requirements li:last-child {
+        border-bottom: 0;
+    }
+
+    /* Stacks requirement name and mandatory state. */
+    .application-modal-requirements li > span:first-child {
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+    }
+
+    /* Keeps requirement-state helper text secondary. */
+    .application-modal-requirements small {
+        color: #6c7889;
+    }
+
+    /* Separates active, archived, and restored import classifications into visible containers. */
+    .identity-existing-panel {
+        display: grid;
+        gap: 0;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    /* Uses a distinct border accent for archived records without relying on color alone. */
+    .identity-archived-panel {
+        border-color: #e7bd72;
+    }
+
+    /* Uses a success border accent after restoration while retaining the Restored heading. */
+    .identity-restored-panel {
+        border-color: #86be99;
+    }
+
+    /* Aligns classification descriptions and the wide-screen Restore All command. */
+    .identity-existing-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 17px 18px;
+    }
+
+    /* Removes default spacing from import classification headings and descriptions. */
+    .identity-existing-heading h3,
+    .identity-existing-heading p {
+        margin: 0;
+    }
+
+    /* Keeps import classification headings compact and explicit. */
+    .identity-existing-heading h3 {
+        color: #263448;
+        font-size: 15px;
+    }
+
+    /* Keeps classification explanations readable without dominating preview data. */
+    .identity-existing-heading p {
+        max-width: 78ch;
+        margin-top: 5px;
+        color: #667085;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    /* Preserves complete account details and optional restoration actions within internal scrolling. */
+    .identity-existing-table {
+        min-width: 920px;
+    }
+
+    /* Keeps individual Restore buttons compact inside table rows. */
+    .identity-button-compact {
+        min-height: 34px;
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    /* Gives Advisers an explicit archived-account escalation message. */
+    .identity-archived-guidance {
+        margin: 0;
+        border-top: 1px solid #ecd9b8;
+        padding: 12px 18px;
+        color: #76511b;
+        background: #fff9ed;
+        font-size: 12px;
+    }
+
+    /* Keeps restoration confirmation text left-aligned and bounded. */
+    .identity-restore-dialog {
+        width: min(100%, 560px);
+        justify-items: stretch;
+        text-align: left;
+    }
+
+    /* Presents restoration guarantees as a concise maintenance checklist. */
+    .identity-restore-notes {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding-left: 20px;
+        color: #526174;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+}
+
+@media (max-width: 1100px) {
+    /* Reduces the Adviser filter grid before controls need to stack on smaller screens. */
+    .application-filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* Lets requirement controls move below the requirement identity at tablet widths. */
+    .application-requirement-row {
+        grid-template-columns: 46px minmax(0, 1fr) auto;
+    }
+
+    /* Moves the complete requirement action group onto its own tablet row. */
+    .application-requirement-actions {
+        grid-column: 2 / -1;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Stacks application record headings while retaining reachable actions. */
+    .application-record-header {
+        flex-direction: column;
+        padding: 20px 18px;
+    }
+
+    /* Aligns record commands to the left after the mobile heading stack. */
+    .application-record-actions {
+        justify-content: flex-start;
+    }
+
+    /* Collapses all application information forms to one readable column. */
+    .application-form-grid,
+    .application-form-grid-three {
+        grid-template-columns: 1fr;
+    }
+
+    /* Resets spanning fields after the form becomes one column. */
+    .application-field-full {
+        grid-column: auto;
+    }
+
+    /* Uses one detail column in short-width modals and pages. */
+    .application-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Resets full-width detail rows after the grid becomes one column. */
+    .application-detail-grid > .application-detail-full {
+        grid-column: auto;
+    }
+
+    /* Stacks import classification headings and Restore All without clipping the command. */
+    .identity-existing-heading {
+        flex-direction: column;
+    }
+
+    /* Uses one filter control per row for touch-friendly Adviser searches. */
+    .application-filter-bar {
+        grid-template-columns: 1fr;
+    }
+
+    /* Lets every requirement action occupy the complete narrow row. */
+    .application-requirement-row {
+        grid-template-columns: 44px minmax(0, 1fr);
+        align-items: start;
+    }
+
+    /* Moves status below the requirement copy without hiding it. */
+    .application-requirement-row > .dashboard-status-badge {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    /* Keeps requirement controls in the content column on mobile. */
+    .application-requirement-actions {
+        grid-column: 2;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Uses compact application section padding on 390-pixel phone layouts. */
+    .application-form-section {
+        padding: 24px 16px 20px;
+    }
+
+    /* Stacks application form commands without overflowing long labels. */
+    .application-form-actions,
+    .application-modal-actions,
+    .application-record-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    /* Makes primary and secondary application commands full-width on phones. */
+    .application-form-actions > *,
+    .application-modal-actions > *,
+    .application-record-actions > * {
+        width: 100%;
+    }
+
+    /* Reduces requirement-row padding while preserving its stable icon footprint. */
+    .application-requirement-row {
+        gap: 11px;
+        padding: 16px 12px;
+    }
+
+    /* Stacks upload controls before their labels can clip at 390 pixels. */
+    .application-upload-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    /* Allows selected filenames to use the full phone width. */
+    .application-upload-form [data-application-file-name] {
+        max-width: 100%;
+    }
+
+    /* Reduces modal padding while preserving a reachable close control. */
+    .application-modal {
+        max-height: calc(100svh - 20px);
+        padding: 18px 14px;
     }
 }
 
@@ -4282,9 +5294,9 @@
         grid-template-columns: 1fr;
     }
 
-    /* Maintains balanced vertical card spacing at narrow phone widths. */
+    /* Retains the left-icon/right-copy structure while allowing one card per phone row. */
     .dashboard-summary-card {
-        min-height: 150px;
+        min-height: 122px;
     }
 }
 

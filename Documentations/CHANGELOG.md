@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-07-27
+
+### Added
+
+- Applicant-owned create, continue, edit, detail, requirements, private document, and formal submission workflows.
+- A unique editable-draft slot, Thesis/Capstone metadata, explicit application stage, mandatory/type-aware requirement configuration, and four baseline requirements.
+- Private versioned PDF, Word, JPEG, and PNG uploads with authorized preview/download and retained replacement history.
+- Shared requirement completion and server-enforced configured submission periods.
+- Adviser-scoped submitted-application dashboard data, searchable/filterable paginated list, details, private document access, and submission notifications.
+- RES-only individual and bulk restoration of actor-previewed archived accounts with conflict checks, preserved original records, and audit events.
+- Applicant/Adviser workflow tests and expanded workbook/restoration coverage.
+
+### Changed
+
+- Dashboard summary cards now place a stable icon column on the left and center the count above its label on the right.
+- Wide dashboard and administration tables now reuse one focusable internal-overflow behavior.
+- Student workbook Row 2 now contains the approved realistic example, controlled by the exact visible sentinel in Instructions.
+- Import preview now separates active existing, archived, restored, and restoration-conflict categories.
+- Applicant and Adviser dashboards now derive their application data from the formal initial-submission boundary.
+
+### Verification
+
+- `php artisan test` passed 104 tests with 1,812 assertions; all 90 routes compiled and all 124 project PHP files passed syntax checks.
+- The additive migration is applied in batch 8; baseline requirement seeding and a non-destructive pretend rollback passed.
+- Cache clearing, Pint, strict Composer validation, platform checks, the Vite production build, and `git diff --check` passed.
+- Composer reported no locked-package security advisories, and npm reported zero vulnerabilities at the moderate threshold.
+- The supplied PDF comparison and 1440/1280/1024/768/390 browser checks remain implemented in code but pending manual visual verification because the required runtimes were unavailable.
+
 ## 2026-07-24
 
 ### Added

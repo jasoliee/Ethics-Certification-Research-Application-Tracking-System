@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ResearchType;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\User;
@@ -19,8 +21,17 @@ class ResearchApplicationFactory extends Factory
             'adviser_user_id' => null,
             'applicant_type' => fake()->randomElement(['student', 'faculty']),
             'research_title' => fake()->sentence(7),
+            'research_type' => ResearchType::Thesis,
+            'research_category' => 'Social and Behavioral Research',
+            'institution' => 'Institute of Computing and Digital Innovation',
+            'department' => 'Computer Studies',
+            'program' => 'Bachelor of Science in Computer Science',
+            'abstract' => fake()->paragraphs(2, true),
+            'target_participants' => 'KLD students who meet the approved inclusion criteria.',
+            'expected_duration' => 'August 2026 to May 2027',
             'application_type' => 'new_application',
             'application_status' => ApplicationStatus::Draft,
+            'current_stage' => ApplicationStage::ApplicationInformation,
             'review_type' => null,
             'submitted_at' => null,
             'status_updated_at' => now(),
@@ -32,6 +43,7 @@ class ResearchApplicationFactory extends Factory
         return $this->state(fn (): array => [
             'adviser_user_id' => $adviser?->id ?? User::factory()->state(['role' => UserRole::Adviser]),
             'application_status' => ApplicationStatus::SubmittedToAdviser,
+            'current_stage' => ApplicationStage::AdviserReview,
             'submitted_at' => now()->subDay(),
         ]);
     }

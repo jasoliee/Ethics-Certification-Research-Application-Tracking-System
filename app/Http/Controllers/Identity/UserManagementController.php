@@ -13,6 +13,7 @@ use App\Http\Requests\Identity\ConfirmManagedUserImportRequest;
 use App\Http\Requests\Identity\ImportManagedUsersRequest;
 use App\Http\Requests\Identity\MassManagedUserActionRequest;
 use App\Http\Requests\Identity\RegenerateManagedUsernameRequest;
+use App\Http\Requests\Identity\RestoreArchivedImportRequest;
 use App\Http\Requests\Identity\StoreManagedUserRequest;
 use App\Http\Requests\Identity\StoreProfileOptionRequest;
 use App\Http\Requests\Identity\UpdateManagedUserRequest;
@@ -33,6 +34,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
@@ -300,8 +302,10 @@ class UserManagementController extends Controller
         return back()->with('status', 'A secure password reset link was sent to the account email.');
     }
 
-    public function importForm(Request $request): View|RedirectResponse
-    {
+    public function importForm(
+        Request $request,
+        UserBulkImportService $imports,
+    ): View|RedirectResponse {
         Gate::authorize('import', User::class);
         $accountType = (string) $request->query('account_type');
 
@@ -310,12 +314,18 @@ class UserManagementController extends Controller
         }
 
         $selectedType = $this->accountTypes->authorized($request->user(), $accountType);
+        $previewToken = $request->session()->get('import_preview_token');
+
+        // Restore redirects keep the authoritative preview token server-side in one flash session value.
+        $preview = is_string($previewToken)
+            ? $imports->previewFor($request->user(), $previewToken)
+            : null;
 
         return view('identity.users.import', [
             'pageTitle' => 'Bulk Account Import',
             'routeBase' => $this->routeBase($request->user()),
             'selectedType' => $selectedType,
-            'preview' => null,
+            'preview' => $preview,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'User Management', 'route' => $this->routeBase($request->user()).'.index'],
@@ -354,6 +364,46 @@ class UserManagementController extends Controller
         return redirect()
             ->route($this->routeBase($request->user()).'.index')
             ->with('status', "{$result['created']} accounts created; {$result['existing']} newly existing accounts skipped; {$result['failed']} rows failed. {$result['emails_sent']} setup emails sent; {$result['emails_failed']} failed or remain pending.");
+    }
+
+    /**
+     * Restore one archived account after confirming its ID belongs to the private preview.
+     */
+    public function restoreImportAccount(
+        RestoreArchivedImportRequest $request,
+        UserBulkImportService $imports,
+    ): RedirectResponse {
+        $archivedUserId = $request->validated('archived_user_id');
+
+        // HTML form integers arrive as strings, so require a value before casting the validated ID.
+        if ($archivedUserId === null) {
+            throw ValidationException::withMessages([
+                'archived_user_id' => 'Select one archived account to restore.',
+            ]);
+        }
+
+        $result = $imports->restore(
+            $request->user(),
+            $request->validated('import_token'),
+            (int) $archivedUserId,
+        );
+
+        return $this->restorationRedirect($request, $result);
+    }
+
+    /**
+     * Restore only the archived accounts listed by the current private preview.
+     */
+    public function restoreImportAccounts(
+        RestoreArchivedImportRequest $request,
+        UserBulkImportService $imports,
+    ): RedirectResponse {
+        $result = $imports->restore(
+            $request->user(),
+            $request->validated('import_token'),
+        );
+
+        return $this->restorationRedirect($request, $result);
     }
 
     /**
@@ -464,6 +514,31 @@ class UserManagementController extends Controller
                 ['label' => 'Audit Log'],
             ],
         ]);
+    }
+
+    /**
+     * Redirect restoration results through the import form while keeping the preview token out of the URL.
+     *
+     * @param  array{preview: array<string, mixed>, restored_now: int, conflicts_now: int}  $result
+     */
+    private function restorationRedirect(Request $request, array $result): RedirectResponse
+    {
+        $preview = $result['preview'];
+        $restored = $result['restored_now'];
+        $conflicts = $result['conflicts_now'];
+        $message = "{$restored} archived ".str('account')->plural($restored).' restored.';
+
+        // Include conflict totals without exposing internal database or exception details.
+        if ($conflicts > 0) {
+            $message .= " {$conflicts} ".str('account')->plural($conflicts).' remained archived because of conflicts.';
+        }
+
+        return redirect()
+            ->route($this->routeBase($request->user()).'.import.form', [
+                'account_type' => $preview['account_type']['key'],
+            ])
+            ->with('status', $message)
+            ->with('import_preview_token', $preview['preview_token']);
     }
 
     /** @return array<string, int> */

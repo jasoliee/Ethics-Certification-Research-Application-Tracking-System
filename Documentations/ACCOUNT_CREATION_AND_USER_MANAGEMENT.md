@@ -10,7 +10,7 @@ Research Adviser may create and manage Student or Faculty Researcher accounts on
 
 The full-page account selector opens a choice between Individual and Bulk creation. Individual forms collect split names and role-specific profile fields. Username, password, password confirmation, and Date Joined are not creator inputs. Form sections reuse one spacing class so divider lines, titles, and first field rows remain consistently separated for every account type.
 
-Year Level, Institution, Department, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. Department and Program intentionally begin without guessed values. Existing profile strings remain unchanged when catalog entries are renamed or deactivated.
+Year Level, Institution, Department, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. The initial-application migration adds the approved `Computer Studies` Department and `Bachelor of Science in Computer Science` Program when missing so the official Student workbook example validates. Existing profile strings remain unchanged when catalog entries are renamed or deactivated.
 
 Required role fields include:
 
@@ -23,7 +23,7 @@ Created accounts remain pending until password setup succeeds. Email failure nev
 
 ## Excel Creation
 
-Bulk creation accepts only official `.xlsx` workbooks. Each role has exact headers, an ignored sentinel example row, a hidden protected Options worksheet, an Instructions worksheet, and database-backed dropdowns. Preview separates valid, invalid, duplicate, existing, and warning rows. Confirmation creates only the valid preview rows and never overwrites an existing account. See [Bulk Account Import](BULK_ACCOUNT_IMPORT.md).
+Bulk creation accepts only official `.xlsx` workbooks. Each role has exact headers, a realistic Row 2 example controlled by an exact visible Instructions-sheet marker, a hidden protected Options worksheet, an Instructions worksheet, and database-backed dropdowns. Preview separates valid, invalid, duplicate, active-existing, archived, restored, conflict, and warning rows. Confirmation creates only valid preview rows and never overwrites or recreates an existing account. Only RES Lead can restore a preview-listed original archived row; Advisers receive guidance instead. See [Bulk Account Import](BULK_ACCOUNT_IMPORT.md).
 
 When validation fails, the upload surface shows only `An error occurred.` Complete safe details are available in the scrollable Show Errors modal. A red exclamation badge remains until the file changes or later validation succeeds; opening the modal stops only the brief attention animation.
 

@@ -3,34 +3,45 @@
 namespace App\Services\Dashboard;
 
 use App\Enums\ApplicationStatus;
-use App\Enums\RequirementStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Models\DeadlineConfiguration;
-use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\TimelineCalendarEvent;
 use App\Models\User;
-use App\Support\DocumentTypeIcon;
+use App\Services\Applications\ApplicationRequirementService;
+use App\Services\Applications\ApplicationSubmissionWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
+/**
+ * Builds bounded, role-scoped dashboard payloads outside Blade templates.
+ */
 class DashboardDataService
 {
+    public function __construct(
+        private readonly ApplicationRequirementService $requirementService,
+        private readonly ApplicationSubmissionWindow $submissionWindow,
+    ) {}
+
     /** @return array<string, mixed> */
     public function applicant(User $user): array
     {
+        // Select the newest non-archived applicant-owned application and its assigned Adviser in one query.
         $activeApplication = ResearchApplication::query()
             ->select([
                 'id',
                 'application_code',
                 'applicant_user_id',
                 'adviser_user_id',
+                'applicant_type',
                 'research_title',
+                'research_type',
                 'application_type',
                 'application_status',
+                'current_stage',
                 'submitted_at',
                 'status_updated_at',
                 'updated_at',
@@ -42,59 +53,37 @@ class DashboardDataService
             ->latest('id')
             ->first();
 
-        $requirements = collect();
+        // Reuse the same mandatory-requirement calculation used by final submission.
+        $requirementSummary = $activeApplication
+            ? $this->requirementService->summary($activeApplication)
+            : $this->emptyRequirementSummary();
+        $submissionWindow = $this->submissionWindow->status();
 
-        if ($activeApplication) {
-            $requirements = DocumentRequirement::query()
-                ->select(['id', 'code', 'name', 'sort_order'])
-                ->where('is_active', true)
-                ->with(['applicationDocuments' => fn ($query) => $query
-                    ->select([
-                        'id',
-                        'research_application_id',
-                        'document_requirement_id',
-                        'original_file_name',
-                        'document_version',
-                        'validation_status',
-                        'mime_type',
-                    ])
-                    ->where('research_application_id', $activeApplication->id)
-                    ->where('is_current', true)
-                    ->latest('document_version')])
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get()
-                ->map(function (DocumentRequirement $requirement): array {
-                    $document = $requirement->applicationDocuments->first();
-                    $status = $document?->validation_status ?? RequirementStatus::Missing;
-
-                    return [
-                        'code' => $requirement->code,
-                        'name' => $requirement->name,
-                        'status' => $status,
-                        'file_name' => $document?->original_file_name,
-                        'icon' => DocumentTypeIcon::fromMimeType($document?->mime_type),
-                    ];
-                });
-        }
-
+        // Share one deadline snapshot between the alert payload and final-submission availability.
         return [
             'activeApplication' => $activeApplication,
-            'hasSubmittedApplication' => $activeApplication?->submitted_at !== null
-                && ! in_array($activeApplication?->application_status, [ApplicationStatus::Draft, ApplicationStatus::Incomplete], true),
-            'requirements' => $requirements,
-            'completedRequirementCount' => $requirements
-                ->where('status', RequirementStatus::Completed)
-                ->count(),
-            'deadline' => $this->nextDeadline(UserRole::Applicant),
-            ...$this->timelineData(),
+            'hasSubmittedApplication' => $activeApplication?->isFormallySubmitted() ?? false,
+            'requirements' => $requirementSummary['items'],
+            'requirementSummary' => $requirementSummary,
+            'completedRequirementCount' => $requirementSummary['completed_count'],
+            'deadline' => $this->submissionWindow->dashboardPayload($submissionWindow),
+            'submissionWindow' => $submissionWindow,
+            ...$this->timelineData($activeApplication, true),
         ];
     }
 
     /** @return array<string, mixed> */
     public function adviser(User $user): array
     {
-        $base = ResearchApplication::query()->where('adviser_user_id', $user->id);
+        // Adviser dashboards exclude drafts, incomplete records, archived records, and other Advisers' assignments.
+        $base = ResearchApplication::query()
+            ->where('adviser_user_id', $user->id)
+            ->whereNotNull('submitted_at')
+            ->whereNotIn('application_status', [
+                ApplicationStatus::Draft->value,
+                ApplicationStatus::Incomplete->value,
+                ApplicationStatus::Archived->value,
+            ]);
         $statusCounts = $this->groupedCounts($base, 'application_status');
 
         return [
@@ -111,6 +100,7 @@ class DashboardDataService
                     'applicant_user_id',
                     'research_title',
                     'application_status',
+                    'current_stage',
                     'submitted_at',
                 ])
                 ->with('applicant:id,name')
@@ -245,28 +235,74 @@ class DashboardDataService
         ];
     }
 
-    /** @return array{timeline: Collection<int, array<string, mixed>>, termLabel: string|null} */
-    private function timelineData(): array
-    {
+    /**
+     * Return either calendar-relative milestones or application-stage-relative applicant milestones.
+     *
+     * @return array{timeline: Collection<int, array<string, mixed>>, termLabel: string|null}
+     */
+    private function timelineData(
+        ?ResearchApplication $application = null,
+        bool $applicationScoped = false,
+    ): array {
+        // Applicants without an application receive the explicit unavailable timeline state.
+        if ($applicationScoped && ! $application) {
+            return ['timeline' => collect(), 'termLabel' => null];
+        }
+
+        // Retrieve the configured six-stage calendar once and preserve its administrative ordering.
         $events = TimelineCalendarEvent::query()
-            ->select(['label', 'term_label', 'starts_at', 'ends_at', 'sort_order'])
+            ->select(['milestone_key', 'label', 'term_label', 'starts_at', 'ends_at', 'sort_order'])
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('starts_at')
             ->get();
+        $applicationTimelineIndex = $applicationScoped
+            ? ($application?->current_stage?->timelineIndex() ?? 0)
+            : null;
 
         return [
-            'timeline' => $events->map(fn (TimelineCalendarEvent $event): array => [
-                'label' => $event->label,
-                'starts_at' => $event->starts_at,
-                'ends_at' => $event->ends_at,
-                'date_label' => $event->starts_at->isSameDay($event->ends_at)
-                    ? $event->starts_at->format('M j, Y')
-                    : $event->starts_at->format('M j, Y').' - '.$event->ends_at->format('M j, Y'),
-                'is_complete' => $event->ends_at->isPast(),
-                'is_current' => now()->between($event->starts_at, $event->ends_at),
-            ]),
+            'timeline' => $events->values()->map(
+                function (TimelineCalendarEvent $event, int $index) use ($applicationScoped, $applicationTimelineIndex): array {
+                    // Applicant milestones follow actual workflow progress; general calendars remain date-relative.
+                    $isComplete = $applicationScoped
+                        ? $index < $applicationTimelineIndex
+                        : $event->ends_at->isPast();
+                    $isCurrent = $applicationScoped
+                        ? $index === $applicationTimelineIndex
+                        : now()->between($event->starts_at, $event->ends_at);
+
+                    return [
+                        'label' => $event->label,
+                        'starts_at' => $event->starts_at,
+                        'ends_at' => $event->ends_at,
+                        'date_label' => $event->starts_at->isSameDay($event->ends_at)
+                            ? $event->starts_at->format('M j, Y')
+                            : $event->starts_at->format('M j, Y').' - '.$event->ends_at->format('M j, Y'),
+                        'is_complete' => $isComplete,
+                        'is_current' => $isCurrent,
+                    ];
+                },
+            ),
             'termLabel' => $events->first()?->term_label,
+        ];
+    }
+
+    /**
+     * Return the same shape as a configured requirement summary for empty applicant dashboards.
+     *
+     * @return array<string, mixed>
+     */
+    private function emptyRequirementSummary(): array
+    {
+        return [
+            'items' => collect(),
+            'mandatory_total' => 0,
+            'completed_count' => 0,
+            'pending_count' => 0,
+            'rejected_count' => 0,
+            'missing_count' => 0,
+            'percentage' => 0,
+            'ready' => false,
         ];
     }
 

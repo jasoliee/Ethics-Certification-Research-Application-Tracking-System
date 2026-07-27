@@ -10,7 +10,7 @@ Individual account forms reuse `identity-form-section-title` for consistent spac
 
 ## Responsive Tables
 
-User Management, Adviser User Management, Dropdown Option Management, Audit Log, and import preview tables use `identity-table-scroll` as a focusable region. The wrapper stays within the main-content width and provides internal horizontal scrolling for mouse, trackpad, keyboard, and touch input. Tables retain practical minimum widths; important columns and row actions are not hidden merely to avoid scrolling.
+User Management, Adviser User Management, Dropdown Option Management, Audit Log, import preview, Applicant application, Adviser application, and requirement tables use the shared `dashboard-overflow-region` behavior. Identity tables retain `identity-table-scroll` alongside it. The wrapper stays within the main-content width and provides internal horizontal scrolling for mouse, trackpad, keyboard, and touch input. Tables retain practical minimum widths; important columns and row actions are not hidden merely to avoid scrolling.
 
 Filters remain outside the scrolling table and pagination remains in the same management panel. The page shell itself must not gain horizontal overflow from a wide table.
 
@@ -22,9 +22,15 @@ Adviser, Reviewer, and RES Lead dashboards reuse `x-dashboard.summary-card`. Its
 2. Database-derived numerical count
 3. Status label
 
-The complete group is centered vertically and horizontally. Counts remain directly above centered labels, including wrapped labels and zero states. Shared grid classes reduce column counts at responsive breakpoints while preserving equal card heights, existing tones, role-specific labels, authorization, and query scopes.
+The card content is vertically centered. Counts remain directly above centered labels, including wrapped labels and zero states. Shared grid classes reduce column counts at responsive breakpoints while preserving equal card heights, existing tones, role-specific labels, authorization, and query scopes.
+
+The icon occupies a stable left column. The count and label form a centered right column, with the count directly above its label. The two-column layout collapses responsively without changing the data or card height.
 
 The Student Researcher and Faculty Researcher dashboard currently uses application, requirement, deadline, and milestone panels rather than summary-count cards, so the shared summary-card alignment does not apply there.
+
+## Application Surfaces
+
+Applicant information, requirements, detail, and Adviser submitted-application views reuse the existing quiet dashboard shell. Fixed action areas wrap at narrow widths, modal content scrolls internally, file controls preserve their labels, and application tables keep their columns inside the shared overflow region.
 
 ## Import Error Presentation
 

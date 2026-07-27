@@ -6,6 +6,9 @@ use App\Enums\RequirementStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Stores one private, versioned requirement-document record.
+ */
 class ApplicationDocument extends Model
 {
     protected $fillable = [
@@ -44,5 +47,17 @@ class ApplicationDocument extends Model
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    /**
+     * Limit inline rendering to browser-safe formats; all other files remain download-only.
+     */
+    public function supportsInlinePreview(): bool
+    {
+        return in_array($this->mime_type, [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+        ], true);
     }
 }

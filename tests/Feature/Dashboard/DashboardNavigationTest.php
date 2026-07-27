@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
@@ -158,6 +159,7 @@ class DashboardNavigationTest extends TestCase
 
     public function test_record_policies_prevent_applications_and_assignments_from_leaking_between_users(): void
     {
+        // Arrange each role, one formally submitted application, and one assigned reviewer record.
         $owner = User::factory()->create(['role' => UserRole::Applicant]);
         $otherApplicant = User::factory()->create(['role' => UserRole::Applicant]);
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
@@ -170,18 +172,21 @@ class DashboardNavigationTest extends TestCase
             'applicant_user_id' => $owner->id,
             'adviser_user_id' => $adviser->id,
             'application_status' => ApplicationStatus::UnderExpeditedReview,
+            'current_stage' => ApplicationStage::EthicsReview,
+            'submitted_at' => now(),
         ]);
         $assignment = ReviewerAssignment::factory()->create([
             'research_application_id' => $application->id,
             'reviewer_user_id' => $reviewer->id,
         ]);
 
+        // Act across every record route and assert only owners, assignees, and the RES Lead receive access.
         $this->actingAs($owner)->get(route('applicant.applications.show', $application))->assertOk();
         $this->actingAs($owner)
             ->get(route('applicant.applications.requirements', $application))
             ->assertOk()
             ->assertSee('href="'.route('applicant.applications.show', $application).'"', false)
-            ->assertSee('<span aria-current="page">Submitted Requirements</span>', false);
+            ->assertSee('<span aria-current="page">Document Submission</span>', false);
         $this->actingAs($otherApplicant)->get(route('applicant.applications.show', $application))->assertForbidden();
         $this->actingAs($otherApplicant)->get(route('applicant.applications.requirements', $application))->assertForbidden();
         $this->actingAs($adviser)->get(route('adviser.applications.show', $application))->assertOk();

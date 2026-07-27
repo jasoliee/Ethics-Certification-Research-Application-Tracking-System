@@ -68,7 +68,7 @@
                 <span>Inactive values remain on existing accounts but are unavailable for new selections.</span>
             </div>
             {{-- Option-management columns use the shared focusable horizontal-scroll region. --}}
-            <div class="identity-table-scroll" role="region" aria-label="Dropdown option results" tabindex="0">
+            <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Dropdown option results" tabindex="0">
                 <table class="identity-user-table identity-option-table">
                     <thead><tr><th>Option Group</th><th>Option Value</th><th class="identity-col-usage">In Use</th><th class="identity-col-status">Status</th><th class="identity-col-action">Action</th></tr></thead>
                     <tbody>

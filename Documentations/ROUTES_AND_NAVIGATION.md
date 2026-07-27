@@ -40,6 +40,23 @@ The applicant sidebar contains Home, Application, Revision and Certificates, Rep
 
 The old applicant Reviewer and Certificates URLs redirect to the combined page for compatibility but are not sidebar items.
 
+## Application Routes
+
+Applicant routes under `/student-faculty-researcher/applications` provide index, create, store, edit, update, detail, requirements, private requirement upload, authorized preview/download, and formal submission. Application writes, uploads, and submissions have named throttles in addition to CSRF, role middleware, Form Requests, and record policies.
+
+Adviser routes under `/adviser/applications` provide a scoped submitted-application list, authorized read-only detail, and private current-document preview/download. The Adviser route group contains no application decision action yet.
+
+RES Lead application detail and private document routes use the existing RES prefix and record policy. Later screening and decision routes remain temporary module pages.
+
+## Import Restoration Routes
+
+Only the RES Lead user-management group defines:
+
+- `POST /res-lead/users/import/restore-account` as `res.users.import.restore-account`; and
+- `POST /res-lead/users/import/restore-all` as `res.users.import.restore-all`.
+
+Both routes require the current actor-owned preview token and use the import-confirm throttle. No equivalent Adviser restore route exists.
+
 ## Breadcrumbs
 
 Controllers provide arrays with `label`, named `route`, and optional `parameters`. Previous items render as links. The final item is plain text with `aria-current="page"` and green styling. Breadcrumbs render inside the shared top header.

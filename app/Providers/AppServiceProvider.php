@@ -50,6 +50,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('account-mass-action', fn (Request $request) => Limit::perMinute(3)->by($key($request)));
         RateLimiter::for('notification-actions', fn (Request $request) => Limit::perMinute(20)->by($key($request)));
         RateLimiter::for('onboarding', fn (Request $request) => Limit::perMinute(10)->by($key($request)));
+        // Bound applicant information writes separately from account-administration requests.
+        RateLimiter::for('application-write', fn (Request $request) => Limit::perMinute(12)->by($key($request)));
+        // Limit private document writes while allowing ordinary page and download access.
+        RateLimiter::for('application-upload', fn (Request $request) => Limit::perMinute(10)->by($key($request)));
         RateLimiter::for('application-submit', fn (Request $request) => Limit::perMinute(5)->by($key($request)));
     }
 }

@@ -6,8 +6,8 @@ The dashboard foundation gives each authenticated role a database-backed landing
 
 ## Role Dashboards
 
-- Student Researcher or Faculty Researcher: active application, requirements, deadline, and milestone timeline.
-- Adviser: scoped application counts and the five most recently submitted advised applications.
+- Student Researcher or Faculty Researcher: newest owned non-archived application, shared mandatory-requirement completion, configured submission-period state, and milestone timeline.
+- Adviser: formally submitted assigned-application counts and the five most recently submitted assigned applications.
 - Reviewer: scoped assignment counts, nearest review deadline, and the five most recent assignments.
 - RES Lead: administrative queue counts, five pending applications, active deadlines, and milestones.
 
@@ -22,6 +22,7 @@ Created or substantially updated areas include:
 - `app/Http/Middleware/ShareDashboardContext.php` for shared navigation, notification, profile, and role-label data.
 - `app/Models/`, `app/Policies/`, and `app/Services/Dashboard/` for records, authorization, and query composition.
 - `database/migrations/2026_07_18_*` for dashboard records, notifications, deadlines, timelines, and applicant category.
+- `database/migrations/2026_07_27_000000_complete_initial_application_submission_schema.php` for the unique draft slot, application information/stage, and requirement applicability.
 - `resources/views/layouts/dashboard.blade.php` and `resources/views/components/dashboard/` for the shared interface.
 - `resources/css/dashboard.css` and `resources/js/dashboard.js` for responsive layout and interactions.
 - `tests/Feature/Dashboard/` for role, route, authorization, notification, state, and query-bound coverage.
@@ -32,10 +33,10 @@ The timeline reads active `timeline_calendar_events` records ordered by `sort_or
 
 ## Known Limitations
 
-- Application creation, review workspaces, user management, reports, certificates, and settings remain temporary module pages where their full workflows are not yet implemented.
+- Adviser decision and later review workspaces, reports, certificates, and settings remain temporary module pages where their full workflows are not yet implemented.
 - The profile page is read-only and links to the current settings workspace.
 - Existing applicant accounts created before the applicant category migration default to Student Researcher and should be reviewed if they represent faculty.
-- This implementation does not add document preview, certificate generation, account-import, or review-form workflows.
+- This implementation provides authorized private application-document preview/download and account import, but it does not add certificate generation or review-form workflows.
 
 ## Maintenance
 

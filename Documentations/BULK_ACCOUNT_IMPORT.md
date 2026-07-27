@@ -16,9 +16,9 @@ composer check-platform-reqs
 
 1. Select an account type authorized for the signed-in RES Lead or Adviser.
 2. Download a new `.xlsx` template so it contains the latest active options.
-3. Keep Row 1 and all worksheet names unchanged; leave the marked Row 2 example intact.
+3. Keep Row 1 and all worksheet names unchanged; leave the Instructions-sheet `Example Row Marker` unchanged if Row 2 should remain an example.
 4. Enter accounts on Row 3 onward, save as `.xlsx`, and upload one file up to 2 MB.
-5. Review valid, invalid, duplicate, existing-account, and warning categories plus generated usernames.
+5. Review valid, invalid, duplicate, active-existing, archived-account, restored-account, conflict, and warning categories plus generated usernames.
 6. Confirm once to create only the valid preview rows. Invalid rows remain uncreated and can be corrected in a later workbook.
 7. ECRATS sends setup links after all account database writes finish and reports delivery separately.
 
@@ -32,7 +32,13 @@ Every official workbook contains exactly three worksheets in this order:
 - `Options`: hidden and protected sheet containing active Year Level, Institution, Department, Program, and Reviewer Classification values used by defined names.
 - `Instructions`: visible contract, accepted values, limits, warnings, and upload steps.
 
-Row 2 is ignored only when its identifier is exactly `EXAMPLE-ROW-DO-NOT-IMPORT`. If edited, it becomes ordinary account data and must validate.
+The Student Researcher example row is:
+
+| First Name | Middle Name | Last Name | Suffix | Email | Student Number | Phone Number | Year Level | Institution | Department | Program |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Juan | Dela | Cruz | Jr. | juandelacruz@example.com | 20260000 | 099999999999 | Fourth Year | Institute of Computing and Digital Innovation | Computer Studies | Bachelor of Science in Computer Science |
+
+The sentinel `EXAMPLE-ROW-DO-NOT-IMPORT` is stored as `Example Row Marker` in the visible Instructions sheet. Physical Row 2 is skipped only while that exact sentinel remains intact. Removing or changing the marker makes Row 2 ordinary account data that must pass every normal validation rule. The example row itself contains no hidden marker in an account field.
 
 ## Role Columns
 
@@ -47,7 +53,24 @@ Headers, order, account type, worksheet names, visibility, and worksheet count m
 
 Server validation is authoritative even when Excel shows a dropdown. It checks required fields, valid email syntax without domain allow-listing, controlled values against active database options, reviewer limits, exact identifiers, row and column bounds, and uniqueness.
 
-The first valid occurrence of an email or institutional identifier is eligible. Later identical workbook rows are categorized as duplicates. Existing active or archived identities are categorized as existing and never overwritten. Conflicting email/identifier combinations are invalid. Database unique indexes remain the final concurrency defense during confirmation.
+The first valid occurrence of an email or institutional identifier is eligible. Later identical workbook rows are categorized as duplicates. Active existing and soft-deleted archived identities appear in separate containers and are never overwritten. Conflicting email/identifier combinations are invalid. Database unique indexes remain the final concurrency defense during confirmation.
+
+## Archived Account Restoration
+
+An archived-account match means the original user row still exists through soft deletion. Import must never create a replacement identity for it.
+
+Only a RES Lead sees Restore and Restore All controls. An Adviser sees guidance to contact the RES Lead and has no restoration route in the Adviser group. Restoration is limited to archived IDs already present in the signed-in actor's unexpired 30-minute preview.
+
+Before restoring, the server:
+
+- locks and reloads the original row with archived records included;
+- verifies that its normalized email, institutional identifier, username, and expected account type still match the preview;
+- checks for active conflicts on email, identifier, and username; and
+- preserves the original user ID, relationships, timestamps, and history.
+
+The restored account becomes active when password setup was previously completed and pending setup otherwise. Individual restorations write `user.archived_account_restored`; Restore All also writes `user.bulk_archived_accounts_restored`. A conflict leaves the original record archived and reports it in the preview.
+
+Restoration refreshes the same preview. A restored row moves to Restored Accounts and is excluded from later import confirmation, so it cannot be recreated.
 
 ## Workbook Safety
 
