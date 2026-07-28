@@ -56,6 +56,8 @@ class AdviserApplicationVisibilityTest extends TestCase
         $listResponse->assertOk()
             ->assertSee('Assigned Formal Submission')
             ->assertSee('dashboard-overflow-region', false)
+            ->assertSee('dashboard-table-status', false)
+            ->assertSee('dashboard-table-action', false)
             ->assertDontSee('Private Assigned Draft')
             ->assertDontSee('Another Adviser Submission')
             ->assertDontSee('Missing Formal Timestamp')

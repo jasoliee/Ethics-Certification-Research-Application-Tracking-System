@@ -29,7 +29,6 @@ class StoreManagedUserRequest extends FormRequest
     {
         $isApplicant = $this->input('role') === UserRole::Applicant->value;
         $isStudent = $isApplicant && $this->input('applicant_type') === ApplicantType::Student->value;
-        $isAdviser = $this->input('role') === UserRole::Adviser->value;
         $isReviewer = $this->input('role') === UserRole::Reviewer->value;
         $options = app(ProfileOptionCatalog::class);
 
@@ -45,7 +44,7 @@ class StoreManagedUserRequest extends FormRequest
             'department' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Department))],
             'program' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Program))],
             'year_level' => [Rule::requiredIf($isStudent), 'nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::YearLevel))],
-            'position_title' => [Rule::requiredIf($isAdviser), 'nullable', 'string', 'max:150'],
+            'position_title' => ['nullable', 'string', 'max:150'],
             'reviewer_classification' => [
                 Rule::requiredIf($isReviewer),
                 'nullable',

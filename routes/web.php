@@ -13,6 +13,7 @@ use App\Http\Controllers\Dashboard\ProfilePageController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
 use App\Http\Controllers\Identity\UserManagementController;
+use App\Http\Controllers\Settings\ResLeadSettingsController;
 use App\Support\RoleHome;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,9 @@ Route::middleware('no-store')->group(function (): void {
                 Route::put('/applications/{researchApplication}', [ApplicantApplicationController::class, 'update'])
                     ->middleware('throttle:application-write')
                     ->name('applications.update');
+                Route::delete('/applications/{researchApplication}', [ApplicantApplicationController::class, 'destroy'])
+                    ->middleware('throttle:application-write')
+                    ->name('applications.destroy');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');
                 Route::get('/applications/{researchApplication}/requirements', [ResearchApplicationPageController::class, 'requirements'])
@@ -80,6 +84,9 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.documents.preview');
                 Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
                     ->name('applications.documents.download');
+                Route::delete('/applications/{researchApplication}/documents/{applicationDocument}', [ApplicationDocumentController::class, 'destroy'])
+                    ->middleware('throttle:application-write')
+                    ->name('applications.documents.destroy');
                 Route::post('/applications/{researchApplication}/submit', [ResearchApplicationPageController::class, 'submit'])
                     ->middleware('throttle:application-submit')
                     ->name('applications.submit');
@@ -227,15 +234,17 @@ Route::middleware('no-store')->group(function (): void {
                     Route::put('/{managedUser}', 'update')->middleware('throttle:account-write')->name('update');
                     Route::patch('/{managedUser}/username', 'regenerateUsername')->middleware('throttle:account-write')->name('username');
                     Route::patch('/{managedUser}/status', 'changeStatus')->middleware('throttle:account-write')->name('status');
+                    Route::delete('/{managedUser}', 'destroy')->middleware('throttle:account-write')->name('destroy');
                     Route::post('/{managedUser}/password-reset', 'sendPasswordReset')->middleware('throttle:setup-email')->name('password-reset');
                 });
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
-                Route::get('/settings', ModulePageController::class)
-                    ->defaults('pageTitle', 'Settings')
-                    ->defaults('moduleMessage', 'RES configuration and account settings will be managed here.')
-                    ->defaults('moduleIcon', 'settings')
-                    ->name('settings.index');
+                Route::controller(ResLeadSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::put('/deadlines', 'updateDeadlines')->middleware('throttle:account-write')->name('deadlines.update');
+                    Route::patch('/username', 'updateUsername')->middleware('throttle:account-write')->name('username.update');
+                    Route::patch('/password', 'updatePassword')->middleware('throttle:account-write')->name('password.update');
+                });
             });
     });
 });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ResearchApplication;
+use App\Services\Applications\ApplicationInformationService;
 use App\Services\Applications\ApplicationRequirementService;
 use App\Services\Applications\ApplicationSubmissionWindow;
 use App\Services\Applications\ResearchApplicationSubmissionService;
@@ -37,6 +38,7 @@ class ResearchApplicationPageController extends Controller
             'requirementSummary' => $requirements->summary($researchApplication),
             'submissionWindow' => $submissionWindow->status(),
             'canEdit' => $request->user()->can('update', $researchApplication),
+            'canDiscard' => $request->user()->can('discard', $researchApplication),
             'canSubmit' => $request->user()->can('submit', $researchApplication),
         ]);
     }
@@ -47,6 +49,7 @@ class ResearchApplicationPageController extends Controller
     public function requirements(
         Request $request,
         ResearchApplication $researchApplication,
+        ApplicationInformationService $information,
         ApplicationRequirementService $requirements,
         ApplicationSubmissionWindow $submissionWindow,
     ): View {
@@ -55,6 +58,7 @@ class ResearchApplicationPageController extends Controller
 
         return view('dashboard.applications.requirements', [
             ...$this->pageData($request, $researchApplication, 'Document Submission'),
+            'informationSummary' => $information->summary($researchApplication),
             'requirementSummary' => $requirements->summary($researchApplication),
             'submissionWindow' => $submissionWindow->status(),
             'canUpload' => $request->user()->can('upload', $researchApplication),

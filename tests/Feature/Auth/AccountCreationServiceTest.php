@@ -72,14 +72,16 @@ class AccountCreationServiceTest extends TestCase
         $this->assertLessThanOrEqual(30, strlen($second->username));
     }
 
-    public function test_role_specific_required_fields_are_enforced(): void
+    public function test_role_specific_required_fields_are_enforced_while_adviser_position_is_optional(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $service = app(UserAccountService::class);
 
         $this->expectValidation(fn () => $service->create($resLead, [...$this->studentAttributes(), 'year_level' => null]));
-        $this->expectValidation(fn () => $service->create($resLead, [...$this->adviserAttributes(), 'position_title' => null]));
         $this->expectValidation(fn () => $service->create($resLead, [...$this->reviewerAttributes(), 'reviewer_classification' => null]));
+
+        $adviser = $service->create($resLead, [...$this->adviserAttributes(), 'position_title' => null]);
+        $this->assertNull($adviser->position_title);
     }
 
     /** @param array<string, mixed> $overrides @return array<string, mixed> */

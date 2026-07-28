@@ -70,6 +70,31 @@ function initializeLoginPage() {
         window.setTimeout(syncPasswordToggle, 500);
     });
 
+    // Keep inactive-account recovery inside the login page without authenticating the blocked user.
+    const inactiveDialog = document.querySelector('[data-inactive-account-dialog]');
+    const inactivePanel = inactiveDialog?.querySelector('[role="dialog"]');
+    const inactiveClose = inactiveDialog?.querySelector('[data-inactive-account-close]');
+
+    if (inactiveDialog) {
+        const closeInactiveDialog = () => {
+            inactiveDialog.hidden = true;
+            document.querySelector('#username')?.focus();
+        };
+
+        inactiveClose?.addEventListener('click', closeInactiveDialog);
+        inactiveDialog.addEventListener('click', (event) => {
+            if (event.target === inactiveDialog) {
+                closeInactiveDialog();
+            }
+        });
+        inactiveDialog.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeInactiveDialog();
+            }
+        });
+        window.requestAnimationFrame(() => inactivePanel?.focus());
+    }
+
     const form = document.querySelector('[data-login-form]');
 
     if (! form) {

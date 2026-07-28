@@ -181,6 +181,21 @@ class UserAccountService
     }
 
     /**
+     * Archive one managed account through the existing soft-delete boundary.
+     */
+    public function archive(User $actor, User $subject): void
+    {
+        Gate::forUser($actor)->authorize('delete', $subject);
+
+        DB::transaction(function () use ($actor, $subject): void {
+            $this->auditLog->record($actor, 'user.archived', $subject, [
+                'result' => 'archived',
+            ]);
+            $subject->delete();
+        });
+    }
+
+    /**
      * Validate all account fields for direct creation and preflighted bulk imports.
      *
      * @param  array<string, mixed>  $attributes
@@ -269,7 +284,7 @@ class UserAccountService
                 'max:150',
                 Rule::in($this->profileOptions->values(ProfileOptionField::YearLevel, $subject?->year_level)),
             ],
-            'position_title' => [Rule::requiredIf($targetRole === UserRole::Adviser), 'nullable', 'string', 'max:150'],
+            'position_title' => ['nullable', 'string', 'max:150'],
             'reviewer_classification' => [
                 Rule::requiredIf($targetRole === UserRole::Reviewer),
                 'nullable',

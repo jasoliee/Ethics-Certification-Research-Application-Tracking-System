@@ -177,7 +177,9 @@ function initializeApplicationTools(shell) {
     const documentFrame = documentDialog?.querySelector('[data-document-frame]');
     const documentFallback = documentDialog?.querySelector('[data-document-fallback]');
     const documentDownload = documentDialog?.querySelector('[data-document-download]');
+    const documentReplace = documentDialog?.querySelector('[data-document-replace]');
     let documentTrigger = null;
+    let documentReplaceInput = null;
 
     // Clearing the iframe on close stops private document rendering and avoids retaining an obsolete URL.
     const closeDocumentDialog = () => {
@@ -187,6 +189,7 @@ function initializeApplicationTools(shell) {
 
         documentDialog.hidden = true;
         documentFrame?.removeAttribute('src');
+        documentReplaceInput = null;
         documentTrigger?.focus();
     };
 
@@ -211,6 +214,17 @@ function initializeApplicationTools(shell) {
                 documentDownload.href = button.dataset.documentDownloadUrl;
             }
 
+            // Resolve an applicant-only replacement input by ID and never accept an arbitrary selector.
+            const replaceInputId = button.dataset.documentReplaceInput ?? '';
+            const replacementCandidate = replaceInputId === '' ? null : document.getElementById(replaceInputId);
+            documentReplaceInput = replacementCandidate instanceof HTMLInputElement && shell.contains(replacementCandidate)
+                ? replacementCandidate
+                : null;
+
+            if (documentReplace) {
+                documentReplace.hidden = documentReplaceInput === null;
+            }
+
             // Supported types load in the sandboxed frame; unsupported types leave no retained source.
             if (documentFrame) {
                 documentFrame.hidden = previewUrl === '';
@@ -227,6 +241,21 @@ function initializeApplicationTools(shell) {
             // Reveal only after all display state and secure URLs have been populated.
             documentDialog.hidden = false;
             documentPanel?.focus();
+        });
+    });
+
+    // The modal Replace command opens the requirement-scoped native file picker.
+    documentReplace?.addEventListener('click', () => {
+        documentReplaceInput?.click();
+    });
+
+    // Selecting a replacement submits its CSRF-protected requirement form immediately.
+    shell.querySelectorAll('[data-document-replace-file]').forEach((input) => {
+        input.addEventListener('change', () => {
+            if (input.files?.length) {
+                closeDocumentDialog();
+                input.form?.requestSubmit();
+            }
         });
     });
 
@@ -247,6 +276,24 @@ function initializeApplicationTools(shell) {
         if (event.key === 'Escape') {
             closeDocumentDialog();
         }
+    });
+
+    // Removing a current document makes required checklist items incomplete again.
+    shell.querySelectorAll('[data-confirm-document-remove]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (! window.confirm('Remove this uploaded document? A replacement will be required before submission.')) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    // Draft discard archives only the current unsubmitted application after explicit confirmation.
+    shell.querySelectorAll('[data-confirm-draft-discard]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (! window.confirm('Discard this draft application? It will be removed from your application list.')) {
+                event.preventDefault();
+            }
+        });
     });
 
     // Disable write commands after native validation passes to prevent accidental duplicate requests.
@@ -523,6 +570,15 @@ function initializeManagedAccountTools(shell) {
     shell.querySelectorAll('[data-confirm-status]').forEach((form) => {
         form.addEventListener('submit', (event) => {
             if (! window.confirm(form.dataset.confirmStatus)) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    // Require explicit confirmation before one managed account moves into soft-deleted archived records.
+    shell.querySelectorAll('[data-confirm-account-archive]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (! window.confirm('Delete this account from active records and move it to the archive?')) {
                 event.preventDefault();
             }
         });

@@ -35,7 +35,7 @@
                 <x-dashboard.overflow label="Applicant application records" wide>
                     <table class="dashboard-table application-table">
                         <thead>
-                            <tr><th>Application ID</th><th>Research Title</th><th>Research Type</th><th>Current Stage</th><th>Status</th><th>Submitted</th><th>Action</th></tr>
+                            <tr><th>Application ID</th><th>Research Title</th><th>Research Type</th><th>Current Stage</th><th class="dashboard-table-status">Status</th><th>Submitted</th><th class="dashboard-table-action">Action</th></tr>
                         </thead>
                         <tbody>
                             @foreach ($applications as $application)
@@ -44,13 +44,10 @@
                                     <td><x-dashboard.research-title :title="$application->research_title" :href="route('applicant.applications.show', $application)" /></td>
                                     <td>{{ $application->research_type?->label() ?? 'Not set' }}</td>
                                     <td>{{ $application->current_stage?->label() ?? 'Application Information' }}</td>
-                                    <td><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
+                                    <td class="dashboard-table-status"><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
                                     <td>{{ $application->submitted_at?->format('M j, Y') ?? 'Not submitted' }}</td>
-                                    <td class="application-table-actions">
+                                    <td class="application-table-actions dashboard-table-action">
                                         <x-dashboard.action-link :href="route('applicant.applications.show', $application)">View</x-dashboard.action-link>
-                                        @can('update', $application)
-                                            <a class="dashboard-text-action" href="{{ route('applicant.applications.edit', $application) }}">Edit</a>
-                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach

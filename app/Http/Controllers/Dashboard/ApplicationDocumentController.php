@@ -39,6 +39,24 @@ class ApplicationDocumentController extends Controller
     }
 
     /**
+     * Detach the route-bound current document while preserving private version history.
+     */
+    public function destroy(
+        Request $request,
+        ResearchApplication $researchApplication,
+        ApplicationDocument $applicationDocument,
+        ApplicationDocumentService $documents,
+    ): RedirectResponse {
+        $documents->remove(
+            $request->user(),
+            $researchApplication,
+            $applicationDocument,
+        );
+
+        return back()->with('status', 'Requirement document removed. Upload a replacement before submission.');
+    }
+
+    /**
      * Stream browser-safe documents inline through an authorized controller route.
      */
     public function preview(

@@ -474,6 +474,86 @@
         text-decoration: underline;
     }
 
+    /* Covers the login surface only after valid credentials identify a deactivated account. */
+    .login-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(10, 24, 17, 0.58);
+    }
+
+    /* Presents a focused inactive-account explanation without revealing additional account data. */
+    .login-modal {
+        width: min(100%, 470px);
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        border-radius: 8px;
+        padding: 30px;
+        background: #ffffff;
+        box-shadow: 0 22px 65px rgba(7, 24, 15, 0.28);
+        text-align: center;
+        outline: none;
+    }
+
+    /* Uses a familiar locked-account symbol at a stable size. */
+    .login-modal-icon {
+        width: 52px;
+        height: 52px;
+        display: grid;
+        place-items: center;
+        color: #b42318;
+        border: 1px solid #efc2bd;
+        border-radius: 50%;
+        background: #fff1ef;
+    }
+
+    /* Keeps the lock artwork consistent with the login page stroke language. */
+    .login-modal-icon svg {
+        width: 26px;
+        height: 26px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* Reserves display scale for the modal title instead of hero-sized typography. */
+    .login-modal h2 {
+        margin: 0;
+        color: #17211b;
+        font-size: 22px;
+        font-weight: 750;
+    }
+
+    /* Keeps the recovery explanation readable and bounded. */
+    .login-modal p {
+        margin: 0;
+        color: #4b5851;
+        font-size: 14px;
+        line-height: 1.65;
+    }
+
+    /* Reuses the administrator destination with an explicit RES Coordinator label. */
+    .login-modal p a {
+        color: #177645;
+        font-weight: 750;
+    }
+
+    /* Prevents the modal command from inheriting an ambiguous intrinsic width. */
+    .login-modal .login-submit {
+        width: 100%;
+    }
+
+    /* Ensures the scripted close state fully removes the modal from interaction. */
+    .login-modal-backdrop[hidden] {
+        display: none;
+    }
+
 }
 
 @media (max-width: 900px) {

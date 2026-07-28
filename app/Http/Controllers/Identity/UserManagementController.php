@@ -158,6 +158,7 @@ class UserManagementController extends Controller
             'routeBase' => $this->routeBase($request->user()),
             'wasCreated' => $request->boolean('created'),
             'canChangeStatus' => $request->user()->can('changeStatus', $managedUser),
+            'canDelete' => $request->user()->can('delete', $managedUser),
             'canResetPassword' => $request->user()->can('initiatePasswordReset', $managedUser),
             'setupDeliveryStatus' => session('setup_delivery_status', $managedUser->setup_email_status),
             'breadcrumbs' => [
@@ -278,6 +279,21 @@ class UserManagementController extends Controller
         $accounts->changeStatus($request->user(), $managedUser, $request->validated('account_status'));
 
         return back()->with('status', 'Account status updated.');
+    }
+
+    /**
+     * Archive one authorized account without deleting its related history.
+     */
+    public function destroy(
+        Request $request,
+        User $managedUser,
+        UserAccountService $accounts,
+    ): RedirectResponse {
+        $accounts->archive($request->user(), $managedUser);
+
+        return redirect()
+            ->route('res.users.index')
+            ->with('status', 'Account moved to archived records.');
     }
 
     public function regenerateUsername(

@@ -131,7 +131,7 @@ class AccountTypeCatalog
                 'applicant_type' => null,
                 'icon' => 'user-check',
                 'identifier_field' => 'employee_id',
-                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id', 'position_title'],
+                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id'],
                 'template_columns' => [
                     'First Name' => 'first_name',
                     'Middle Name' => 'middle_name',

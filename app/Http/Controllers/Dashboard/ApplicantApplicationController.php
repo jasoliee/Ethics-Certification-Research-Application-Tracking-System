@@ -130,6 +130,21 @@ class ApplicantApplicationController extends Controller
     }
 
     /**
+     * Archive one owned unsubmitted draft and release its editable-draft slot.
+     */
+    public function destroy(
+        Request $request,
+        ResearchApplication $researchApplication,
+        ResearchApplicationDraftService $drafts,
+    ): RedirectResponse {
+        $drafts->discard($request->user(), $researchApplication);
+
+        return redirect()
+            ->route('applicant.applications.index')
+            ->with('status', 'Draft application discarded.');
+    }
+
+    /**
      * Assemble one shared high-fidelity form payload for create and edit routes.
      */
     private function form(

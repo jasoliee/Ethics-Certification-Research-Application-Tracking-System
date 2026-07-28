@@ -34,7 +34,7 @@ class UploadApplicationDocumentRequest extends FormRequest
                 'required',
                 'file',
                 'max:'.ApplicationDocumentService::MAX_FILE_KILOBYTES,
-                'mimes:pdf,doc,docx,jpg,jpeg,png',
+                'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             ],
         ];
     }

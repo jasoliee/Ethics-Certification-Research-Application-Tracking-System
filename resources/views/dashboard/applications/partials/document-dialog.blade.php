@@ -18,9 +18,12 @@
                 <p>This file type is available through the secure download action.</p>
             </div>
         </div>
-        {{-- Download and close remain reachable below an internally scrolling preview. --}}
+        {{-- Replace and Download remain reachable below an internally scrolling preview. --}}
         <div class="application-modal-actions">
-            <button class="dashboard-outline-action" type="button" data-document-close>Close</button>
+            <button class="dashboard-outline-action" type="button" data-document-replace hidden>
+                <x-dashboard.icon name="upload" size="18" />
+                <span>Replace</span>
+            </button>
             <a class="dashboard-primary-action" href="#" data-document-download>
                 <x-dashboard.icon name="download" size="18" />
                 <span>Download</span>

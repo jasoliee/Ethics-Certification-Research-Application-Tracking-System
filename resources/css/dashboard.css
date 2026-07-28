@@ -1534,7 +1534,8 @@
     }
 
     .dashboard-primary-action,
-    .dashboard-outline-action {
+    .dashboard-outline-action,
+    .dashboard-danger-action {
         min-height: 42px;
         display: inline-flex;
         align-items: center;
@@ -1577,6 +1578,19 @@
         color: #9ca3af;
         background: #ffffff;
         cursor: not-allowed;
+    }
+
+    .dashboard-danger-action {
+        color: #ffffff;
+        background: #b42318;
+        border-color: #b42318;
+    }
+
+    .dashboard-danger-action:hover,
+    .dashboard-danger-action:focus-visible {
+        background: #8f1c13;
+        border-color: #8f1c13;
+        box-shadow: 0 8px 18px rgba(180, 35, 24, 0.18);
     }
 
     .dashboard-lower-grid {
@@ -2571,6 +2585,10 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .identity-role-tabs.is-one {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .identity-role-tabs a {
         min-width: 0;
         min-height: 54px;
@@ -2629,7 +2647,7 @@
     }
 
     .identity-filter-bar.is-adviser-filter {
-        grid-template-columns: minmax(260px, 1.4fr) repeat(2, minmax(160px, 0.8fr)) auto;
+        grid-template-columns: minmax(240px, 1.3fr) repeat(3, minmax(150px, 0.8fr)) auto;
     }
 
     .identity-filter {
@@ -3680,9 +3698,7 @@
     /* Keeps row commands adjacent and prevents narrow columns from wrapping controls incoherently. */
     .application-table-actions {
         min-width: 112px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        text-align: center;
         white-space: nowrap;
     }
 
@@ -4056,6 +4072,81 @@
         margin: 0;
         color: #354255;
         overflow-wrap: anywhere;
+    }
+
+    /* Keeps the current filename and its remove command together as one stable document control. */
+    .application-current-document {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    /* Makes the uploaded document title the primary preview trigger without exposing its storage path. */
+    .application-document-title {
+        width: min(100%, 300px);
+        min-height: 38px;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #9fc5ad;
+        border-radius: 6px;
+        padding: 7px 10px;
+        color: #176f3d;
+        background: #f8fcf9;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    /* Truncates long display filenames while preserving the complete value in the modal heading. */
+    .application-document-title span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .application-document-title:hover,
+    .application-document-title:focus-visible {
+        color: #ffffff;
+        background: #177645;
+        border-color: #177645;
+    }
+
+    /* Uses the familiar X command beside the filename without introducing another text action. */
+    .application-document-remove {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border: 1px solid #e4a19a;
+        border-radius: 50%;
+        padding: 0;
+        color: #b42318;
+        background: #ffffff;
+        cursor: pointer;
+    }
+
+    .application-document-remove:hover,
+    .application-document-remove:focus-visible {
+        color: #ffffff;
+        background: #b42318;
+        border-color: #b42318;
+    }
+
+    /* Retains a native replacement picker for the modal command while keeping it out of the row layout. */
+    .application-document-replace-form,
+    .application-document-replace-form input[type='file'] {
+        width: 1px;
+        height: 1px;
+        position: absolute;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
     }
 
     /* Keeps requirement actions reachable and wraps them before they can escape the row. */
@@ -5073,6 +5164,10 @@
         margin-inline: auto;
     }
 
+    .identity-existing-table .identity-col-status .dashboard-status-badge {
+        width: 116px;
+    }
+
     .identity-role-badge {
         width: 132px;
     }
@@ -5647,5 +5742,339 @@
 
     .identity-table-summary > span {
         display: none;
+    }
+}
+
+@layer components {
+    /* Keeps the RES settings workspace dense, readable, and aligned with other administrative pages. */
+    .res-settings-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    /* Separates major settings domains with a full-width work band rather than nested cards. */
+    .settings-section {
+        min-width: 0;
+        padding: 24px 0;
+        border-top: 1px solid #dfe7e2;
+        border-bottom: 1px solid #dfe7e2;
+        background: #fff;
+    }
+
+    /* Aligns each section icon with a compact title and supporting copy. */
+    .settings-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 24px 20px;
+    }
+
+    /* Uses a restrained green icon tile for the Settings information hierarchy. */
+    .settings-section-heading > span {
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        display: grid;
+        place-items: center;
+        color: #177645;
+        border: 1px solid #b8d7c4;
+        border-radius: 6px;
+        background: #edf7f0;
+    }
+
+    /* Matches compact panel heading scale used across dashboard work surfaces. */
+    .settings-section-heading h2,
+    .settings-account-form h3 {
+        margin: 0;
+        color: #17211b;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    /* Keeps explanatory copy close to the control group it describes. */
+    .settings-section-heading p,
+    .settings-account-form p {
+        margin: 3px 0 0;
+        color: #667085;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    /* Gives the semester selector a stable width without stretching its label. */
+    .settings-semester-field {
+        max-width: 520px;
+        display: grid;
+        gap: 7px;
+        padding: 0 24px 22px;
+    }
+
+    /* Shares one practical field treatment across deadline and account controls. */
+    .settings-field {
+        min-width: 0;
+        display: grid;
+        gap: 7px;
+    }
+
+    /* Keeps labels readable at compact administrative form scale. */
+    .settings-field label,
+    .settings-semester-field label,
+    .settings-process-toggle > span {
+        color: #27342d;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    /* Normalizes Settings text and date inputs within their responsive tracks. */
+    .settings-field input,
+    .settings-semester-field input {
+        width: 100%;
+        min-width: 0;
+        height: 42px;
+        padding: 0 12px;
+        color: #17211b;
+        border: 1px solid #cbd7cf;
+        border-radius: 5px;
+        background: #fff;
+        outline: none;
+    }
+
+    /* Makes keyboard focus clear without resizing the field. */
+    .settings-field input:focus,
+    .settings-semester-field input:focus {
+        border-color: #177645;
+        box-shadow: 0 0 0 3px rgba(23, 118, 69, 0.13);
+    }
+
+    /* Keeps semester helper text subordinate to the editable value. */
+    .settings-semester-field small {
+        color: #78847c;
+        font-size: 11px;
+    }
+
+    /* Divides deadline processes into scan-friendly rows without floating nested panels. */
+    .settings-process-list {
+        border-top: 1px solid #e5ebe7;
+    }
+
+    /* Provides stable title and field columns for repeated deadline configuration. */
+    .settings-process-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(230px, 0.8fr) minmax(480px, 1.5fr);
+        gap: 24px;
+        padding: 20px 24px;
+        border: 0;
+        border-bottom: 1px solid #edf1ee;
+    }
+
+    /* Removes native fieldset legend positioning so the copy participates in the grid. */
+    .settings-process-row legend {
+        min-width: 0;
+        display: grid;
+        align-content: center;
+        gap: 5px;
+        padding: 0;
+    }
+
+    /* Gives process names enough emphasis for repeated scanning. */
+    .settings-process-row legend strong {
+        color: #1f2a24;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    /* Wraps process descriptions safely in the fixed title track. */
+    .settings-process-row legend span {
+        color: #6b766f;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    /* Reserves stable date and toggle tracks for every process row. */
+    .settings-process-fields {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(180px, 1fr)) minmax(150px, 0.65fr);
+        align-items: end;
+        gap: 14px;
+    }
+
+    /* Stacks the manual availability caption and switch consistently with date fields. */
+    .settings-process-toggle {
+        display: grid;
+        gap: 9px;
+    }
+
+    /* Presents a familiar binary switch with a persistent text state. */
+    .settings-switch {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        cursor: pointer;
+    }
+
+    /* Hides only the native checkbox visual while retaining focus and semantics. */
+    .settings-switch input {
+        width: 1px;
+        height: 1px;
+        position: absolute;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+    }
+
+    /* Draws the switch track at a stable size independent of its text. */
+    .settings-switch > span {
+        width: 42px;
+        height: 23px;
+        position: relative;
+        flex: 0 0 42px;
+        border-radius: 999px;
+        background: #a9b2ac;
+        transition: background-color 150ms ease;
+    }
+
+    /* Draws the switch thumb and keeps its motion within the track. */
+    .settings-switch > span::after {
+        content: '';
+        width: 17px;
+        height: 17px;
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25);
+        transition: transform 150ms ease;
+    }
+
+    /* Indicates an explicitly open process with the established action green. */
+    .settings-switch input:checked + span {
+        background: #18834c;
+    }
+
+    /* Moves the thumb to the open side without changing layout dimensions. */
+    .settings-switch input:checked + span::after {
+        transform: translateX(19px);
+    }
+
+    /* Exposes keyboard focus around the custom switch track. */
+    .settings-switch input:focus-visible + span {
+        outline: 3px solid rgba(23, 118, 69, 0.24);
+        outline-offset: 2px;
+    }
+
+    /* Keeps the open-state label visually aligned with its switch. */
+    .settings-switch strong {
+        color: #314039;
+        font-size: 12px;
+    }
+
+    /* Aligns the deadline save command with the right edge of the work band. */
+    .settings-form-actions {
+        display: flex;
+        justify-content: flex-end;
+        padding: 20px 24px 0;
+    }
+
+    /* Splits personal username and password workflows into balanced columns. */
+    .settings-account-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-top: 1px solid #e5ebe7;
+    }
+
+    /* Keeps each credential form internally aligned without card-on-card decoration. */
+    .settings-account-form {
+        min-width: 0;
+        display: grid;
+        align-content: start;
+        gap: 16px;
+        padding: 24px;
+    }
+
+    /* Uses a divider, not a nested card, between credential actions. */
+    .settings-account-form + .settings-account-form {
+        border-left: 1px solid #e5ebe7;
+    }
+
+    /* Prevents compact account commands from stretching across the full form. */
+    .settings-account-form > button {
+        justify-self: start;
+    }
+
+    /* Keeps password visibility controls inside Settings fields. */
+    .settings-field .password-input-wrapper {
+        width: 100%;
+    }
+
+    /* Keeps individual account lifecycle actions adjacent without nesting forms. */
+    .identity-account-lifecycle-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 9px;
+        padding-top: 18px;
+    }
+
+    /* Gives Reactivate the requested green hollow state and stable command height. */
+    .identity-button-reactivate {
+        color: #176f3d;
+        border-color: #5c9e74;
+        background: #ffffff;
+    }
+
+    /* Fills the Reactivate action on pointer and keyboard interaction. */
+    .identity-button-reactivate:hover,
+    .identity-button-reactivate:focus-visible {
+        color: #ffffff;
+        border-color: #176f3d;
+        background: #176f3d;
+    }
+
+    /* Centers the restoration icon and title while retaining a readable dialog width. */
+    .identity-restore-dialog > .identity-section-icon,
+    .identity-restore-dialog > h2 {
+        justify-self: center;
+        text-align: center;
+    }
+
+    /* Justifies the requested restoration explanation without affecting its bullet list. */
+    .identity-restore-dialog > p {
+        text-align: justify;
+        text-justify: inter-word;
+    }
+
+    /* Centers the Cancel and Restore commands as one adjacent pair. */
+    .identity-restore-dialog .identity-dialog-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 1080px) {
+    /* Stacks process titles above their controls before date tracks become cramped. */
+    .settings-process-row {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+}
+
+@media (max-width: 760px) {
+    /* Stacks deadline controls and personal account forms on tablet and phone widths. */
+    .settings-process-fields,
+    .settings-account-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Replaces the desktop vertical divider with a horizontal boundary. */
+    .settings-account-form + .settings-account-form {
+        border-top: 1px solid #e5ebe7;
+        border-left: 0;
+    }
+
+    /* Uses available phone width for the primary save command. */
+    .settings-form-actions .dashboard-primary-action {
+        width: 100%;
+        justify-content: center;
     }
 }

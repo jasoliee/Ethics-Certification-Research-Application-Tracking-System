@@ -112,26 +112,35 @@ class ApplicationInformationService
     {
         $application->loadMissing('applicant');
 
-        // Convert enum-backed attributes to request-equivalent scalar values before validation.
-        $data = [
-            'research_title' => $application->research_title,
-            'research_type' => $application->research_type?->value,
-            'research_category' => $application->research_category,
-            'institution' => $application->institution,
-            'department' => $application->department,
-            'program' => $application->program,
-            'adviser_user_id' => $application->adviser_user_id,
-            'abstract' => $application->abstract,
-            'target_participants' => $application->target_participants,
-            'expected_duration' => $application->expected_duration,
-        ];
-
         // Prefixing is handled by the caller's error display; validation keeps ordinary field keys.
         return Validator::make(
-            $data,
+            $this->applicationData($application),
             $this->rules($application->applicant, $application),
             $this->messages(),
         )->validate();
+    }
+
+    /**
+     * Report persisted information readiness without throwing during checklist rendering.
+     *
+     * @return array{complete: bool, adviser_ready: bool, invalid_fields: array<int, string>}
+     */
+    public function summary(ResearchApplication $application): array
+    {
+        $application->loadMissing('applicant');
+        $validator = Validator::make(
+            $this->applicationData($application),
+            $this->rules($application->applicant, $application),
+            $this->messages(),
+        );
+        $complete = $validator->passes();
+        $invalidFields = $validator->errors()->keys();
+
+        return [
+            'complete' => $complete,
+            'adviser_ready' => ! in_array('adviser_user_id', $invalidFields, true),
+            'invalid_fields' => $invalidFields,
+        ];
     }
 
     /**
@@ -146,6 +155,27 @@ class ApplicationInformationService
             'department.in' => 'Select an active Department option.',
             'program.in' => 'Select an active Program option.',
             'adviser_user_id.exists' => 'Select an active Research Adviser with completed account setup.',
+        ];
+    }
+
+    /**
+     * Convert enum-backed attributes to request-equivalent scalar values.
+     *
+     * @return array<string, mixed>
+     */
+    private function applicationData(ResearchApplication $application): array
+    {
+        return [
+            'research_title' => $application->research_title,
+            'research_type' => $application->research_type?->value,
+            'research_category' => $application->research_category,
+            'institution' => $application->institution,
+            'department' => $application->department,
+            'program' => $application->program,
+            'adviser_user_id' => $application->adviser_user_id,
+            'abstract' => $application->abstract,
+            'target_participants' => $application->target_participants,
+            'expected_duration' => $application->expected_duration,
         ];
     }
 }

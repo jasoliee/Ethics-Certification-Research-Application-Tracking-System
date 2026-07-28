@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\AccountStatus;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -46,6 +48,57 @@ class AuthenticationFlowTest extends TestCase
             ->assertDontSee('class="login-error"', false);
 
         $this->assertGuest();
+    }
+
+    public function test_valid_credentials_for_an_inactive_account_show_reactivation_guidance_without_authenticating(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'inactive.user',
+            'password' => 'correct-password',
+            'account_status' => AccountStatus::Inactive->value,
+        ]);
+
+        $this->from(route('login'))->post(route('login.store'), [
+            'username' => $user->username,
+            'password' => 'correct-password',
+        ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('inactive_account', true)
+            ->assertSessionDoesntHaveErrors('credentials');
+
+        $this->assertGuest();
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Account Deactivated')
+            ->assertSee('RES Coordinator')
+            ->assertSee('Back to Login Page')
+            ->assertSee('data-inactive-account-dialog', false);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'auth.login_blocked_inactive',
+            'subject_id' => $user->id,
+        ]);
+    }
+
+    public function test_wrong_password_for_an_inactive_account_keeps_the_generic_login_error(): void
+    {
+        User::factory()->create([
+            'username' => 'inactive.wrong',
+            'password' => 'correct-password',
+            'account_status' => AccountStatus::Inactive->value,
+        ]);
+
+        $this->from(route('login'))->post(route('login.store'), [
+            'username' => 'inactive.wrong',
+            'password' => 'wrong-password',
+        ])
+            ->assertRedirect(route('login'))
+            ->assertSessionMissing('inactive_account')
+            ->assertSessionHasErrors([
+                'credentials' => 'The username or password is incorrect.',
+            ]);
+
+        $this->assertGuest();
+        $this->assertSame(0, AuditLog::where('action', 'auth.login_blocked_inactive')->count());
     }
 
     public function test_testing_accounts_login_to_their_role_dashboard_at_the_canonical_url(): void

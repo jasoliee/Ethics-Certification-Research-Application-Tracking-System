@@ -3,6 +3,7 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\DeadlineManualStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ResearchType;
 use App\Enums\UserRole;
@@ -179,6 +180,58 @@ class ApplicationSubmissionTest extends TestCase
         $this->assertSame(1, $application->documents()->count());
     }
 
+    public function test_res_manual_open_and_closed_states_override_submission_dates(): void
+    {
+        // Arrange one complete application after its configured date and explicitly force the process open.
+        $firstApplicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $firstAdviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $firstApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $firstApplicant,
+            'adviser_user_id' => $firstAdviser,
+            'draft_owner_user_id' => $firstApplicant,
+        ]);
+        $firstRequirement = $this->requirement('MANUAL-OPEN', 'Manual Open Protocol');
+        $this->document($firstApplication, $firstRequirement, $firstApplicant, RequirementStatus::Completed);
+        $deadline = DeadlineConfiguration::create([
+            'deadline_key' => 'application-submission',
+            'title' => 'Application Submission Deadline',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subDays(10),
+            'due_at' => now()->subDay(),
+            'manual_status' => DeadlineManualStatus::Open,
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+
+        // Assert the explicit RES open state permits the otherwise expired complete submission.
+        $this->actingAs($firstApplicant)
+            ->post(route('applicant.applications.submit', $firstApplication))
+            ->assertRedirect(route('applicant.applications.show', $firstApplication));
+        $this->assertSame(ApplicationStatus::SubmittedToAdviser, $firstApplication->fresh()->application_status);
+
+        // Arrange another complete application inside the date range and explicitly close the process.
+        $secondApplicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $secondAdviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $secondApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $secondApplicant,
+            'adviser_user_id' => $secondAdviser,
+            'draft_owner_user_id' => $secondApplicant,
+        ]);
+        $secondRequirement = $this->requirement('MANUAL-CLOSED', 'Manual Closed Protocol');
+        $this->document($secondApplication, $secondRequirement, $secondApplicant, RequirementStatus::Completed);
+        $deadline->update([
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addWeek(),
+            'manual_status' => DeadlineManualStatus::Closed,
+        ]);
+
+        // Assert manual closure remains authoritative while the configured date range is otherwise open.
+        $this->actingAs($secondApplicant)
+            ->post(route('applicant.applications.submit', $secondApplication))
+            ->assertSessionHasErrors('submission_window');
+        $this->assertSame(ApplicationStatus::Draft, $secondApplication->fresh()->application_status);
+    }
+
     public function test_missing_information_and_ineligible_adviser_are_revalidated_at_submission(): void
     {
         // Arrange an open window, one complete requirement, and incomplete persisted application information.
@@ -205,6 +258,35 @@ class ApplicationSubmissionTest extends TestCase
             ->post(route('applicant.applications.submit', $application))
             ->assertSessionHasErrors('adviser_user_id');
         $this->assertNull($application->fresh()->submitted_at);
+    }
+
+    public function test_submission_checklist_uses_persisted_information_readiness(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'adviser_user_id' => $adviser,
+            'draft_owner_user_id' => $applicant,
+            'abstract' => null,
+        ]);
+        $requirement = $this->requirement('CHECKLIST', 'Checklist Protocol');
+        $this->document($application, $requirement, $applicant, RequirementStatus::Completed);
+        $this->openSubmissionWindow();
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.requirements', $application))
+            ->assertOk()
+            ->assertViewHas('informationSummary', fn (array $summary): bool => ! $summary['complete']
+                && in_array('abstract', $summary['invalid_fields'], true))
+            ->assertSee('All required application information is complete.')
+            ->assertSee('disabled', false);
+
+        $application->update(['abstract' => 'The completed persisted abstract.']);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.requirements', $application))
+            ->assertOk()
+            ->assertViewHas('informationSummary', fn (array $summary): bool => $summary['complete']);
     }
 
     public function test_requirement_completion_uses_only_active_items_for_selected_research_type(): void

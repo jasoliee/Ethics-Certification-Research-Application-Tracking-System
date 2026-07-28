@@ -61,6 +61,20 @@ class ResearchApplicationPolicy
     }
 
     /**
+     * Permit only the owner to archive an unsubmitted Draft or Incomplete application.
+     */
+    public function discard(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::Applicant
+            && $researchApplication->applicant_user_id === $user->id
+            && in_array($researchApplication->application_status, [
+                ApplicationStatus::Draft,
+                ApplicationStatus::Incomplete,
+            ], true)
+            && $researchApplication->submitted_at === null;
+    }
+
+    /**
      * Restrict protected document access to users already authorized for the parent application.
      */
     public function viewDocument(User $user, ResearchApplication $researchApplication): bool

@@ -56,7 +56,9 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index'))
             ->assertOk()
-            ->assertSee('dashboard-overflow-region', false);
+            ->assertSee('dashboard-overflow-region', false)
+            ->assertSee('>View<', false)
+            ->assertDontSee('>Edit<', false);
     }
 
     public function test_information_validation_preserves_student_and_faculty_differences_and_adviser_eligibility(): void
@@ -231,6 +233,151 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         // Assert rejected type, size, and category attempts never created a third document version.
         $this->assertSame(2, ApplicationDocument::count());
+    }
+
+    public function test_current_document_removal_updates_the_checklist_without_deleting_private_history(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+            'research_type' => ResearchType::Thesis,
+        ]);
+        $requirement = $this->requirement();
+
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => UploadedFile::fake()->create('remove-me.pdf', 10, 'application/pdf')],
+        )->assertRedirect();
+        $document = ApplicationDocument::firstOrFail();
+        Storage::disk('local')->assertExists($document->stored_file_path);
+
+        $this->actingAs($applicant)
+            ->delete(route('applicant.applications.documents.destroy', [$application, $document]))
+            ->assertRedirect();
+
+        $this->assertFalse($document->refresh()->is_current);
+        Storage::disk('local')->assertExists($document->stored_file_path);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'application.requirement_removed',
+            'subject_id' => $document->id,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.requirements', $application))
+            ->assertOk()
+            ->assertSee('0 of 1 mandatory requirements completed')
+            ->assertSee('Missing')
+            ->assertDontSee('remove-me.pdf');
+    }
+
+    public function test_document_workspace_uses_the_filename_modal_and_office_download_fallback(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+            'research_type' => ResearchType::Thesis,
+        ]);
+        $requirement = $this->requirement();
+        ApplicationDocument::create([
+            'research_application_id' => $application->id,
+            'document_requirement_id' => $requirement->id,
+            'uploaded_by_user_id' => $applicant->id,
+            'original_file_name' => 'participant-data.xlsx',
+            'stored_file_path' => 'applications/private/participant-data.xlsx',
+            'mime_type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'file_size_bytes' => 2048,
+            'document_version' => 1,
+            'validation_status' => RequirementStatus::Completed,
+            'is_current' => true,
+            'uploaded_at' => now(),
+        ]);
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.requirements', $application))
+            ->assertOk()
+            ->assertSee('participant-data.xlsx')
+            ->assertSee('data-document-open', false)
+            ->assertSee('data-document-replace', false)
+            ->assertSee('Preview unavailable')
+            ->assertSee('accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"', false)
+            ->assertDontSee('Choose Replacement');
+    }
+
+    public function test_excel_workbook_is_accepted_as_a_private_download_only_requirement_file(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+        ]);
+        $requirement = $this->requirement();
+
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            [
+                'document' => UploadedFile::fake()->create(
+                    'research-data.xlsx',
+                    12,
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ),
+            ],
+        )->assertRedirect()->assertSessionDoesntHaveErrors();
+
+        $document = ApplicationDocument::firstOrFail();
+        $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $document->mime_type);
+        $this->assertFalse($document->supportsInlinePreview());
+        Storage::disk('local')->assertExists($document->stored_file_path);
+    }
+
+    public function test_applicant_can_discard_only_their_own_unsubmitted_draft_as_an_archive(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $otherApplicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+            'research_title' => 'Draft To Archive',
+            'application_status' => ApplicationStatus::Incomplete,
+        ]);
+        $requirement = $this->requirement();
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => UploadedFile::fake()->create('preserved.pdf', 5, 'application/pdf')],
+        )->assertRedirect();
+        $document = ApplicationDocument::firstOrFail();
+
+        $this->actingAs($otherApplicant)
+            ->delete(route('applicant.applications.destroy', $application))
+            ->assertForbidden();
+        $this->actingAs($applicant)
+            ->delete(route('applicant.applications.destroy', $application))
+            ->assertRedirect(route('applicant.applications.index'));
+
+        $application->refresh();
+        $this->assertSame(ApplicationStatus::Archived, $application->application_status);
+        $this->assertSame(ApplicationStage::Completed, $application->current_stage);
+        $this->assertNull($application->draft_owner_user_id);
+        $this->assertTrue($document->refresh()->is_current);
+        Storage::disk('local')->assertExists($document->stored_file_path);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'application.draft_discarded',
+            'subject_id' => $application->id,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index'))
+            ->assertOk()
+            ->assertDontSee('Draft To Archive');
+
+        $submitted = ResearchApplication::factory()->submittedToAdviser()->create([
+            'applicant_user_id' => $applicant,
+        ]);
+        $this->actingAs($applicant)
+            ->delete(route('applicant.applications.destroy', $submitted))
+            ->assertForbidden();
     }
 
     public function test_document_routes_enforce_owner_and_formal_assigned_adviser_access(): void

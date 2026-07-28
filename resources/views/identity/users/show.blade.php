@@ -132,18 +132,29 @@
                     <x-dashboard.status-badge :label="Str::headline($managedUser->setup_email_status)" :tone="$managedUser->setup_email_status === 'sent' ? 'green' : ($managedUser->setup_email_status === 'failed' ? 'red' : 'neutral')" />
                 </div>
 
-                @if ($canChangeStatus)
-                    @php($nextStatus = $statusIsActive || $statusIsPending ? 'inactive' : 'active')
-                    @if ($nextStatus === 'inactive' || $canActivate)
-                    <form class="identity-status-form" method="POST" action="{{ route($routeBase.'.status', $managedUser) }}" data-confirm-status="{{ $nextStatus === 'inactive' ? 'Deactivate this account and prevent future sign-ins?' : 'Activate this account and allow sign-in?' }}">
-                        @csrf
-                        @method('PATCH')
-                        <input type="hidden" name="account_status" value="{{ $nextStatus }}">
-                        <button class="identity-button {{ $nextStatus === 'inactive' ? 'identity-button-danger' : 'identity-button-primary' }}" type="submit">
-                            {{ $nextStatus === 'inactive' ? 'Deactivate Account' : 'Activate Account' }}
-                        </button>
-                    </form>
-                    @endif
+                @if ($canChangeStatus || $canDelete)
+                    <div class="identity-account-lifecycle-actions">
+                        @if ($canChangeStatus)
+                            @php($nextStatus = $statusIsActive || $statusIsPending ? 'inactive' : 'active')
+                            @if ($nextStatus === 'inactive' || $canActivate)
+                            <form class="identity-status-form" method="POST" action="{{ route($routeBase.'.status', $managedUser) }}" data-confirm-status="{{ $nextStatus === 'inactive' ? 'Deactivate this account and prevent future sign-ins?' : 'Reactivate this account and allow sign-in?' }}">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="account_status" value="{{ $nextStatus }}">
+                                <button class="identity-button {{ $nextStatus === 'inactive' ? 'identity-button-danger' : 'identity-button-reactivate' }}" type="submit">
+                                    {{ $nextStatus === 'inactive' ? 'Deactivate' : 'Reactivate' }}
+                                </button>
+                            </form>
+                            @endif
+                        @endif
+                        @if ($canDelete)
+                            <form method="POST" action="{{ route('res.users.destroy', $managedUser) }}" data-confirm-account-archive>
+                                @csrf
+                                @method('DELETE')
+                                <button class="identity-button identity-button-danger" type="submit">Delete</button>
+                            </form>
+                        @endif
+                    </div>
                 @endif
             </section>
         </div>

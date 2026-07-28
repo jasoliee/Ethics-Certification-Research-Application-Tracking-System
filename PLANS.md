@@ -60,6 +60,74 @@ Date:
 
 ## Active Plans
 
+## Plan: RES settings and workflow reliability corrections
+
+### Goal
+Deliver a RES Lead-only settings workspace and correct the attached July 27, 2026 Adviser, Applicant, account-lifecycle, document, import, authentication, and shared-table behaviors without weakening existing authorization, private storage, or audit history.
+
+### Source Documents
+- Primary requirement: attached `pasted-text.txt`, July 27, 2026.
+- Project direction: `PROJECT_GUIDELINES.md`, the current application/account-management documentation, and the committed implementation at `a8b6c44`.
+- Visual references: `context_files/local/ECRATS High Fidelity.pdf` plus the existing dashboard settings and compact administrative form patterns.
+- Existing process definitions: application submission, Adviser endorsement, reviewer submission, RES screening/classification, and result/certificate release from `DashboardDemoSeeder`.
+- Prototype limitation: the available high-fidelity PDF includes RES Lead navigation but no dedicated RES Lead deadline-settings screen. The new screen will therefore reuse the established settings-page visual language rather than inventing an unrelated composition.
+
+### Scope
+Included:
+- Replace the RES Lead Settings placeholder with RES-only deadline, semester, username, and password controls.
+- Add additive deadline metadata so a manual `open` or `closed` state overrides configured dates; existing rows with no override retain automatic date behavior.
+- Synchronize the configured semester and mapped process dates with existing timeline calendar events, and keep Applicant submission enforced by the same server-side window resolver used by the dashboard.
+- Correct Adviser account navigation/filtering and application status/action alignment.
+- Correct Applicant list actions, progress-derived submission checklist, clickable document-title modal, secure replacement/download fallback, current-document removal, and archive-based draft discard.
+- Correct RES Lead individual deactivate/reactivate/archive controls, inactive-account login messaging, optional Position/Designation account creation, restore-dialog alignment, and repeat bulk-import validation.
+- Preserve the existing assisted password-reset architecture while proving active-account reset, single use, and seven-day expiry.
+- Apply reusable internal horizontal overflow and centered badge/action alignment to every current table.
+
+Excluded:
+- A public forgot-password request form, arbitrary document types, public document URLs, permanent account or application deletion, package installation, and changes to Adviser endorsement, RES screening, reviewer, revision, or certificate lifecycle transitions.
+- New deadline process names beyond the five already established in repository seed/configuration logic.
+- Claims of browser/PDF visual acceptance without direct observation.
+
+### Implementation Approach
+- Backend: add a focused RES settings controller, Form Requests, deadline configuration service, self-account update service, account archive action, document detach action, and draft archive action while retaining thin controllers.
+- Frontend: build the RES settings workspace from existing dashboard form controls; consolidate Applicant file actions into a title-triggered modal; add confirmation states and shared button/table refinements.
+- Database: add nullable `semester_label` and nullable `manual_status` to `deadline_configurations`. `manual_status = open|closed` overrides dates, while `null` preserves legacy automatic scheduling.
+- Authorization: keep settings routes inside the RES Lead middleware group; add explicit policy checks for draft discard, document removal, account status, and archive actions.
+- Files/storage: document removal clears only the current pointer and preserves the private version/file for audit history; replacement remains versioned and no private path is exposed.
+- Workflow: draft discard changes only eligible Draft/Incomplete records to Archived, clears the unique draft slot, preserves related history, and never touches formally submitted records.
+- Notifications/audit: retain assisted reset delivery and record deadline changes, self credential changes, blocked inactive login, document detach, draft discard, status/reactivation, and archive actions without sensitive values.
+
+### Files Expected to Change
+- `PLANS.md`, workflow/account/security/testing/UI documentation
+- Deadline and timeline migration/model/service/controller/request/view files
+- Authentication controller/login view and shared login assets
+- User-management policy/service/controller/query/view/import files
+- Applicant application/document policy/service/controller/view files
+- Shared dashboard CSS/JavaScript, routes, seed/demo configuration, and focused Feature tests
+
+### Tests and Verification
+- Focused tests for RES settings authorization and persistence, deadline/manual override submission behavior, self username/password updates, complete/incomplete submission, document detach, draft discard, optional designation, account deactivate/reactivate/archive, inactive login modal, repeat import validation, active-account assisted reset, reset single use/expiry, Adviser filters/actions, and structural table/modal behavior.
+- Run the affected Feature suites, full `php artisan test`, `php artisan route:list`, `php artisan migrate:status`, Pint, Composer validation/platform checks, `npm.cmd run build`, PHP syntax checks, and `git diff --check`.
+- Check the migration rollback in pretend mode only; do not run destructive migration or database commands.
+- Desktop, tablet, and smartphone visual checks remain pending unless a connected browser is available.
+
+### Implementation Checkpoint
+- Implemented on 2026-07-27 without a package installation, public reset request form, public document path, hard delete, or `.env` change.
+- Verified the complete Laravel suite at 123 passing tests and 1,999 assertions; focused settings, authentication, identity, Applicant, Adviser, document, deadline, and import tests also pass.
+- Verified all Blade templates compile, all current table elements are inside the shared horizontal-overflow boundary, all 96 routes register, the additive migration is applied and has valid pretend rollback SQL, Pint passes, the production Vite build succeeds, and `git diff --check` is clean.
+- Browser-driven desktop, tablet, and smartphone screenshots remain the only pending check because this Codex session had no controllable browser available.
+
+### Risks and Rollback
+- Manual deadline overrides are nullable so existing date-controlled records keep their current behavior until explicitly saved through Settings.
+- Canonical settings rows receive higher priority than demo rows; rollback removes only the additive metadata and leaves existing deadline/timeline records intact.
+- Document detach and draft discard preserve history intentionally; rollback can restore application/document current state from audited database records without recovering deleted files.
+- Username/password changes use uniqueness, current-password validation, hashing, remember-token rotation, rate limits, and audit metadata that excludes passwords.
+- Individual archive uses existing user soft deletes and the existing restore-import path; no hard deletion is introduced.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-27
+
 ## Plan: Account restoration and applicant-to-adviser submission
 
 ### Goal

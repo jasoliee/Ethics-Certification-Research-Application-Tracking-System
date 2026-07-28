@@ -125,6 +125,35 @@ class ResearchApplicationDraftService
     }
 
     /**
+     * Archive one unsubmitted draft while preserving its audit and private-document history.
+     */
+    public function discard(User $actor, ResearchApplication $application): ResearchApplication
+    {
+        Gate::forUser($actor)->authorize('discard', $application);
+
+        return DB::transaction(function () use ($actor, $application): ResearchApplication {
+            $locked = ResearchApplication::query()
+                ->whereKey($application->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            Gate::forUser($actor)->authorize('discard', $locked);
+
+            $locked->update([
+                'application_status' => ApplicationStatus::Archived->value,
+                'current_stage' => ApplicationStage::Completed->value,
+                'draft_owner_user_id' => null,
+                'status_updated_at' => now(),
+            ]);
+
+            $this->auditLog->record($actor, 'application.draft_discarded', $locked, [
+                'result' => 'archived',
+            ]);
+
+            return $locked->refresh();
+        }, 3);
+    }
+
+    /**
      * Generate a non-sequential public application code without exposing an internal database ID.
      */
     private function uniqueCode(): string

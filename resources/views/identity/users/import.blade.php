@@ -51,7 +51,7 @@
             </section>
 
             {{-- Upload form submits one CSRF-protected workbook to the authorized and rate-limited validation route. --}}
-            <form class="identity-import-form" method="POST" action="{{ route($routeBase.'.import.store') }}" enctype="multipart/form-data" data-import-validation-form>
+            <form class="identity-import-form" method="POST" action="{{ route($routeBase.'.import.store', ['account_type' => $selectedType['key']]) }}" enctype="multipart/form-data" data-import-validation-form>
                 @csrf
                 <input type="hidden" name="account_type" value="{{ $selectedType['key'] }}">
                 <span class="identity-import-icon"><x-dashboard.icon name="upload" size="34" /></span>
@@ -111,7 +111,7 @@
                         </div>
                         <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Active existing accounts" tabindex="0">
                             <table class="identity-user-table identity-existing-table">
-                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th class="identity-col-status">Status</th></tr></thead>
                                 <tbody>
                                     @foreach ($activeExistingAccounts as $account)
                                         @php
@@ -129,7 +129,7 @@
                                             <td>{{ $account['institutional_identifier'] }}</td>
                                             <td>{{ $account['email'] }}</td>
                                             <td>{{ $account['role'] }}</td>
-                                            <td><x-dashboard.status-badge :label="$accountStatus?->label() ?? 'Unknown'" :tone="$accountStatusTone" /></td>
+                                            <td class="identity-col-status"><x-dashboard.status-badge :label="$accountStatus?->label() ?? 'Unknown'" :tone="$accountStatusTone" /></td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -162,7 +162,7 @@
                         </div>
                         <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Archived accounts found" tabindex="0">
                             <table class="identity-user-table identity-existing-table">
-                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Archived Date</th><th>Status</th>@if ($canRestoreArchived)<th>Action</th>@endif</tr></thead>
+                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Archived Date</th><th class="identity-col-status">Status</th>@if ($canRestoreArchived)<th class="identity-col-action">Action</th>@endif</tr></thead>
                                 <tbody>
                                     @foreach ($archivedAccounts as $account)
                                         <tr>
@@ -172,9 +172,9 @@
                                             <td>{{ $account['email'] }}</td>
                                             <td>{{ $account['role'] }}</td>
                                             <td>{{ filled($account['archived_at']) ? \Illuminate\Support\Carbon::parse($account['archived_at'])->format('M j, Y g:i A') : 'Unavailable' }}</td>
-                                            <td><x-dashboard.status-badge label="Archived" tone="neutral" /></td>
+                                            <td class="identity-col-status"><x-dashboard.status-badge label="Archived" tone="neutral" /></td>
                                             @if ($canRestoreArchived)
-                                                <td>
+                                                <td class="identity-col-action">
                                                     <button
                                                         class="identity-button identity-button-secondary identity-button-compact"
                                                         type="button"
@@ -207,7 +207,7 @@
                         <div class="identity-existing-heading"><div><h3 id="restored-existing-heading">Restored Accounts ({{ count($restoredAccounts) }})</h3><p>The original accounts are available again with their internal IDs and related records preserved.</p></div></div>
                         <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Restored accounts" tabindex="0">
                             <table class="identity-user-table identity-existing-table">
-                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Excel Row</th><th>Name</th><th>Institutional ID</th><th>Email</th><th>Role</th><th class="identity-col-status">Status</th></tr></thead>
                                 <tbody>
                                     @foreach ($restoredAccounts as $account)
                                         @php
@@ -215,7 +215,7 @@
                                             $restoredStatus = \App\Enums\AccountStatus::tryFrom($account['account_status']);
                                             $restoredTone = $restoredStatus === \App\Enums\AccountStatus::Active ? 'success' : 'amber';
                                         @endphp
-                                        <tr><td>{{ $account['row'] }}</td><td>{{ $account['name'] }}</td><td>{{ $account['institutional_identifier'] }}</td><td>{{ $account['email'] }}</td><td>{{ $account['role'] }}</td><td><x-dashboard.status-badge :label="$restoredStatus?->label() ?? 'Unknown'" :tone="$restoredTone" /></td></tr>
+                                        <tr><td>{{ $account['row'] }}</td><td>{{ $account['name'] }}</td><td>{{ $account['institutional_identifier'] }}</td><td>{{ $account['email'] }}</td><td>{{ $account['role'] }}</td><td class="identity-col-status"><x-dashboard.status-badge :label="$restoredStatus?->label() ?? 'Unknown'" :tone="$restoredTone" /></td></tr>
                                     @endforeach
                                 </tbody>
                             </table>

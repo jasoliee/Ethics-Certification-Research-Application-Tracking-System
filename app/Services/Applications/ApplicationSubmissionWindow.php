@@ -2,6 +2,7 @@
 
 namespace App\Services\Applications;
 
+use App\Enums\DeadlineManualStatus;
 use App\Enums\UserRole;
 use App\Models\DeadlineConfiguration;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,6 +49,27 @@ class ApplicationSubmissionWindow
                 'state' => 'unconfigured',
                 'message' => 'Application submission is unavailable until the RES configures a submission period.',
                 'deadline' => null,
+            ];
+        }
+
+        // An explicit RES override wins over configured dates in either direction.
+        if ($deadline->manual_status === DeadlineManualStatus::Closed) {
+            return [
+                'configured' => true,
+                'open' => false,
+                'state' => 'manually_closed',
+                'message' => 'Application submission is currently closed by the RES Lead.',
+                'deadline' => $deadline,
+            ];
+        }
+
+        if ($deadline->manual_status === DeadlineManualStatus::Open) {
+            return [
+                'configured' => true,
+                'open' => true,
+                'state' => 'manually_open',
+                'message' => 'Application submission is currently open.',
+                'deadline' => $deadline,
             ];
         }
 

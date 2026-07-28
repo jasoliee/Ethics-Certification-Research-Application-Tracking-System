@@ -21,14 +21,14 @@
             </div>
         </header>
 
-        {{-- Role tabs provide one-click filtering while preserving a clear all-records view. --}}
-        <nav class="identity-role-tabs {{ $isResLead ? 'is-four' : 'is-two' }}" aria-label="Account category filters">
-            <a class="{{ empty($filters['role']) ? 'is-active' : '' }}" href="{{ route($routeBase.'.index') }}">
-                <x-dashboard.icon name="users" size="20" />
-                <span>All Users</span>
-                <small>{{ $counts['all'] }}</small>
-            </a>
+        {{-- RES Lead retains role tabs; Adviser receives one accurate applicant-count header. --}}
+        <nav class="identity-role-tabs {{ $isResLead ? 'is-four' : 'is-one' }}" aria-label="Account category filters">
             @if ($isResLead)
+                <a class="{{ empty($filters['role']) ? 'is-active' : '' }}" href="{{ route($routeBase.'.index') }}">
+                    <x-dashboard.icon name="users" size="20" />
+                    <span>All Users</span>
+                    <small>{{ $counts['all'] }}</small>
+                </a>
                 <a class="{{ ($filters['role'] ?? null) === \App\Enums\UserRole::Adviser->value ? 'is-active' : '' }}" href="{{ route($routeBase.'.index', ['role' => \App\Enums\UserRole::Adviser->value]) }}">
                     <x-dashboard.icon name="user-check" size="20" />
                     <span>Advisers</span>
@@ -40,7 +40,7 @@
                     <small>{{ $counts['reviewers'] }}</small>
                 </a>
             @endif
-            <a class="{{ ($filters['role'] ?? null) === \App\Enums\UserRole::Applicant->value ? 'is-active' : '' }}" href="{{ route($routeBase.'.index', ['role' => \App\Enums\UserRole::Applicant->value]) }}">
+            <a class="{{ ! $isResLead || ($filters['role'] ?? null) === \App\Enums\UserRole::Applicant->value ? 'is-active' : '' }}" href="{{ route($routeBase.'.index', ['role' => \App\Enums\UserRole::Applicant->value]) }}">
                 <x-dashboard.icon name="user" size="20" />
                 <span>Applicants</span>
                 <small>{{ $counts['applicants'] }}</small>
@@ -78,6 +78,17 @@
                     @endforeach
                 </select>
             </div>
+
+            @unless ($isResLead)
+                <div class="identity-filter">
+                    <label for="applicant-type-filter">Filter by Role</label>
+                    <select id="applicant-type-filter" name="applicant_type">
+                        <option value="">All applicants</option>
+                        <option value="{{ \App\Enums\ApplicantType::Student->value }}" @selected(($filters['applicant_type'] ?? null) === \App\Enums\ApplicantType::Student->value)>Student Researcher</option>
+                        <option value="{{ \App\Enums\ApplicantType::Faculty->value }}" @selected(($filters['applicant_type'] ?? null) === \App\Enums\ApplicantType::Faculty->value)>Faculty Researcher</option>
+                    </select>
+                </div>
+            @endunless
 
             <div class="identity-filter">
                 <label for="status-filter">Status</label>

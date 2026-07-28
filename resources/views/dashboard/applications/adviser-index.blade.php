@@ -49,7 +49,7 @@
             @else
                 <x-dashboard.overflow label="Adviser submitted application records" wide>
                     <table class="dashboard-table application-table adviser-application-table">
-                        <thead><tr><th>Application ID</th><th>Applicant</th><th>Student/Employee ID</th><th>Research Title</th><th>Program</th><th>Date Submitted</th><th>Status</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Application ID</th><th>Applicant</th><th>Student/Employee ID</th><th>Research Title</th><th>Program</th><th>Date Submitted</th><th class="dashboard-table-status">Status</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>
                             @foreach ($applications as $application)
                                 <tr>
@@ -59,8 +59,8 @@
                                     <td><x-dashboard.research-title :title="$application->research_title" :href="route('adviser.applications.show', $application)" /></td>
                                     <td>{{ $application->program ?: ($application->applicant->program ?: 'Not specified') }}</td>
                                     <td>{{ $application->submitted_at->format('M j, Y') }}</td>
-                                    <td><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
-                                    <td><x-dashboard.action-link :href="route('adviser.applications.show', $application)">View</x-dashboard.action-link></td>
+                                    <td class="dashboard-table-status"><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
+                                    <td class="dashboard-table-action"><x-dashboard.action-link :href="route('adviser.applications.show', $application)">View</x-dashboard.action-link></td>
                                 </tr>
                             @endforeach
                         </tbody>

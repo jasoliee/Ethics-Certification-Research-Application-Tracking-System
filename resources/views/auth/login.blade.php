@@ -124,5 +124,23 @@
             </div>
         </section>
     </main>
+
+    @if (session('inactive_account'))
+        {{-- Valid inactive credentials receive a focused recovery message without creating a session. --}}
+        <section class="login-modal-backdrop" data-inactive-account-dialog>
+            <div class="login-modal" role="dialog" aria-modal="true" aria-labelledby="inactive-account-title" tabindex="-1">
+                <span class="login-modal-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                </span>
+                <h2 id="inactive-account-title">Account Deactivated</h2>
+                <p>
+                    Your account has been deactivated. Please contact your
+                    <a href="https://kld.edu.ph/office_of_the_vice_president_for_research_mission_and_external_affairs.php" target="_blank" rel="noopener noreferrer">RES Coordinator</a>
+                    for further information and reactivation.
+                </p>
+                <button class="login-submit" type="button" data-inactive-account-close>Back to Login Page</button>
+            </div>
+        </section>
+    @endif
 </body>
 </html>

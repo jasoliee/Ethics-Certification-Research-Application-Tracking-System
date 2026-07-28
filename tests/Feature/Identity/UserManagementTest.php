@@ -108,6 +108,117 @@ class UserManagementTest extends TestCase
         }
     }
 
+    public function test_adviser_applicant_header_and_role_filter_match_the_visible_account_scope(): void
+    {
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $student = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
+            'created_by_user_id' => $adviser,
+            'name' => 'Visible Student Researcher',
+        ]);
+        $faculty = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Faculty,
+            'created_by_user_id' => $adviser,
+            'name' => 'Visible Faculty Researcher',
+        ]);
+
+        $response = $this->actingAs($adviser)->get(route('adviser.applicants.index'))
+            ->assertOk()
+            ->assertSee('Applicants')
+            ->assertSee('Filter by Role')
+            ->assertSee('Student Researcher')
+            ->assertSee('Faculty Researcher')
+            ->assertDontSee('All Users');
+        $content = $response->getContent();
+        $this->assertLessThan(
+            strpos($content, 'applicant-type-filter'),
+            strpos($content, 'institution-filter'),
+        );
+
+        $this->actingAs($adviser)
+            ->get(route('adviser.applicants.index', [
+                'applicant_type' => ApplicantType::Student->value,
+            ]))
+            ->assertOk()
+            ->assertSee($student->name)
+            ->assertDontSee($faculty->name);
+    }
+
+    public function test_res_lead_can_create_an_adviser_without_position_or_designation(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $response = $this->actingAs($resLead)->post(route('res.users.store'), $this->reviewerPayload([
+            'first_name' => 'Optional',
+            'last_name' => 'Position',
+            'email' => 'optional.position@ecrats.test',
+            'institutional_identifier' => 'KLD-EMP-OPTIONAL',
+            'role' => UserRole::Adviser->value,
+            'position_title' => null,
+            'reviewer_classification' => null,
+            'reviewer_capacity' => null,
+        ]));
+
+        $created = User::where('email', 'optional.position@ecrats.test')->firstOrFail();
+        $response->assertRedirect(route('res.users.show', ['managedUser' => $created, 'created' => 1]));
+        $this->assertNull($created->position_title);
+
+        $adviserType = collect(app(AccountTypeCatalog::class)->allowedFor($resLead))->firstWhere('key', 'adviser');
+        $this->assertNotContains('Position / Designation', $adviserType['required_headers']);
+        $this->assertContains('Position / Designation', $adviserType['optional_headers']);
+    }
+
+    public function test_res_lead_can_deactivate_and_reactivate_an_individual_account(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $subject = User::factory()->create([
+            'username' => 'reactivate.user',
+            'password' => 'reactivate-password',
+        ]);
+
+        $this->actingAs($resLead)->patch(route('res.users.status', $subject), [
+            'account_status' => 'inactive',
+        ])->assertRedirect();
+        $this->assertSame('inactive', $subject->refresh()->account_status);
+
+        $this->actingAs($resLead)->get(route('res.users.show', $subject))
+            ->assertOk()
+            ->assertSee('Reactivate')
+            ->assertSee('identity-button-reactivate', false)
+            ->assertSee('Delete');
+
+        $this->actingAs($resLead)->patch(route('res.users.status', $subject), [
+            'account_status' => 'active',
+        ])->assertRedirect();
+        $this->assertSame('active', $subject->refresh()->account_status);
+
+        $this->post(route('logout'));
+        $this->post(route('login.store'), [
+            'username' => $subject->username,
+            'password' => 'reactivate-password',
+        ])->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($subject);
+    }
+
+    public function test_res_lead_individual_delete_soft_deletes_the_account(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $subject = User::factory()->create();
+
+        $this->actingAs($resLead)
+            ->delete(route('res.users.destroy', $subject))
+            ->assertRedirect(route('res.users.index'));
+
+        $this->assertSoftDeleted('users', ['id' => $subject->id]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'user.archived',
+            'subject_id' => $subject->id,
+        ]);
+    }
+
     public function test_pending_setup_token_is_single_use_and_expires_after_one_week(): void
     {
         $user = User::factory()->pendingSetup()->create([
@@ -148,6 +259,74 @@ class UserManagementTest extends TestCase
             'password_confirmation' => 'newsecurepass',
         ])->assertSessionHasErrors('email');
         $this->assertSame('pending_setup', $expiredUser->refresh()->account_status);
+    }
+
+    public function test_res_lead_can_send_an_active_account_a_single_use_password_reset_link(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $activeUser = User::factory()->create([
+            'email' => 'active.reset@ecrats.test',
+            'password' => 'old-password',
+        ]);
+        $resetUrl = null;
+
+        $this->actingAs($resLead)
+            ->post(route('res.users.password-reset', $activeUser))
+            ->assertRedirect();
+
+        Notification::assertSentTo(
+            $activeUser,
+            AccountSetupNotification::class,
+            function (AccountSetupNotification $notification) use ($activeUser, &$resetUrl): bool {
+                $mail = $notification->toMail($activeUser);
+                $resetUrl = (string) $mail->actionUrl;
+
+                return $mail->subject === 'Reset your ECRATS password'
+                    && str_contains($resetUrl, '/reset-password/');
+            },
+        );
+
+        $this->assertIsString($resetUrl);
+        $path = parse_url($resetUrl, PHP_URL_PATH);
+        $token = basename((string) $path);
+        $this->post(route('logout'))->assertRedirect(route('login'));
+
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $activeUser->email,
+            'password' => 'new-active-password',
+            'password_confirmation' => 'new-active-password',
+        ])->assertRedirect(route('login'));
+
+        $this->assertTrue(Hash::check('new-active-password', $activeUser->refresh()->password));
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $activeUser->email,
+            'password' => 'another-password',
+            'password_confirmation' => 'another-password',
+        ])->assertSessionHasErrors('email');
+    }
+
+    public function test_adviser_can_send_an_active_managed_applicant_a_reset_link_but_not_an_unrelated_applicant(): void
+    {
+        Notification::fake();
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $managedApplicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'created_by_user_id' => $adviser,
+        ]);
+        $unrelatedApplicant = User::factory()->create(['role' => UserRole::Applicant]);
+
+        $this->actingAs($adviser)
+            ->post(route('adviser.applicants.password-reset', $managedApplicant))
+            ->assertRedirect();
+        Notification::assertSentTo($managedApplicant, AccountSetupNotification::class);
+
+        $this->actingAs($adviser)
+            ->post(route('adviser.applicants.password-reset', $unrelatedApplicant))
+            ->assertForbidden();
+        Notification::assertNotSentTo($unrelatedApplicant, AccountSetupNotification::class);
     }
 
     public function test_excel_template_has_exact_structure_role_headers_and_database_options(): void
@@ -248,6 +427,32 @@ class UserManagementTest extends TestCase
             ->assertSessionHasErrors('accounts_file');
 
         $this->assertSame([], Storage::disk('local')->allFiles('imports/user-accounts/uploads'));
+    }
+
+    public function test_bulk_import_revalidation_preserves_the_selected_account_type(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $validationUrl = route('res.users.import.store', [
+            'account_type' => 'student_researcher',
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.import.form', ['account_type' => 'student_researcher']))
+            ->assertOk()
+            ->assertSee('Excel Bulk Import: Student Researcher')
+            ->assertSee('action="'.$validationUrl.'"', false);
+
+        $this->actingAs($resLead)
+            ->from($validationUrl)
+            ->post($validationUrl, ['account_type' => 'student_researcher'])
+            ->assertRedirect($validationUrl)
+            ->assertSessionHasErrors('accounts_file');
+
+        $this->actingAs($resLead)
+            ->get($validationUrl)
+            ->assertOk()
+            ->assertSee('Excel Bulk Import: Student Researcher')
+            ->assertDontSee('Select Account Type');
     }
 
     /** @return array<string, array{string, string}> */

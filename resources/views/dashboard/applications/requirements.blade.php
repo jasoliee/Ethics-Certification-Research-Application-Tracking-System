@@ -40,10 +40,12 @@
             </div>
         </section>
 
-        {{-- Each configured requirement owns one upload or replace action and secure view/download actions. --}}
+        {{-- Each configured requirement exposes one document-title control instead of separate view/download/replace buttons. --}}
         <section class="application-requirement-list" aria-label="Document requirements">
             @forelse ($requirementSummary['items'] as $item)
-                @php($document = $item['document'])
+                @php
+                    $document = $item['document'];
+                @endphp
                 <article class="application-requirement-row">
                     <span class="application-requirement-icon"><x-dashboard.icon :name="$item['icon']" size="25" /></span>
                     <div class="application-requirement-copy">
@@ -54,7 +56,6 @@
                         <p>{{ $item['requirement']->description ?: $item['requirement']->code }}</p>
                         @if ($document)
                             <dl class="application-file-meta">
-                                <div><dt>File</dt><dd>{{ $document->original_file_name }}</dd></div>
                                 <div><dt>Uploaded</dt><dd>{{ $document->uploaded_at?->format('M j, Y g:i A') }}</dd></div>
                                 <div><dt>Version</dt><dd>{{ $document->document_version }}</dd></div>
                             </dl>
@@ -63,23 +64,44 @@
                     <x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" />
                     <div class="application-requirement-actions">
                         @if ($document)
-                            <button
-                                class="dashboard-outline-action"
-                                type="button"
-                                data-document-open
-                                data-document-name="{{ $document->original_file_name }}"
-                                data-document-meta="{{ $item['requirement']->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
-                                data-document-preview-url="{{ $document->supportsInlinePreview() ? route('applicant.applications.documents.preview', [$application, $document]) : '' }}"
-                                data-document-download-url="{{ route('applicant.applications.documents.download', [$application, $document]) }}"
-                            ><x-dashboard.icon name="eye" size="17" /><span>View</span></button>
-                            <a class="dashboard-outline-action" href="{{ route('applicant.applications.documents.download', [$application, $document]) }}"><x-dashboard.icon name="download" size="17" /><span>Download</span></a>
-                        @endif
-                        @if ($canUpload)
-                            {{-- File input and submit remain native, CSRF-protected, and scoped to this requirement. --}}
+                            <div class="application-current-document">
+                                <button
+                                    class="application-document-title"
+                                    type="button"
+                                    data-document-open
+                                    data-document-name="{{ $document->original_file_name }}"
+                                    data-document-meta="{{ $item['requirement']->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
+                                    data-document-preview-url="{{ $document->supportsInlinePreview() ? route('applicant.applications.documents.preview', [$application, $document]) : '' }}"
+                                    data-document-download-url="{{ route('applicant.applications.documents.download', [$application, $document]) }}"
+                                    data-document-replace-input="{{ $canUpload ? 'replace_document_'.$item['requirement']->id : '' }}"
+                                >
+                                    <x-dashboard.icon :name="$item['icon']" size="18" />
+                                    <span>{{ $document->original_file_name }}</span>
+                                </button>
+                                @if ($canUpload)
+                                    <form method="POST" action="{{ route('applicant.applications.documents.destroy', [$application, $document]) }}" data-confirm-document-remove>
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="application-document-remove" type="submit" aria-label="Remove {{ $document->original_file_name }}" title="Remove uploaded document">
+                                            <x-dashboard.icon name="x" size="17" />
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+
+                            @if ($canUpload)
+                                {{-- The modal Replace command opens this native private-file input. --}}
+                                <form class="application-document-replace-form" method="POST" action="{{ route('applicant.applications.documents.store', [$application, $item['requirement']]) }}" enctype="multipart/form-data" data-application-submit-once>
+                                    @csrf
+                                    <input id="replace_document_{{ $item['requirement']->id }}" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" required data-document-replace-file>
+                                </form>
+                            @endif
+                        @elseif ($canUpload)
+                            {{-- Missing requirements retain one direct upload control. --}}
                             <form class="application-upload-form" method="POST" action="{{ route('applicant.applications.documents.store', [$application, $item['requirement']]) }}" enctype="multipart/form-data" data-application-submit-once>
                                 @csrf
                                 <label class="dashboard-outline-action" for="document_{{ $item['requirement']->id }}"><x-dashboard.icon name="upload" size="17" /><span>{{ $document ? 'Choose Replacement' : 'Choose File' }}</span></label>
-                                <input id="document_{{ $item['requirement']->id }}" name="document" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required data-application-file>
+                                <input id="document_{{ $item['requirement']->id }}" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" required data-application-file>
                                 <span data-application-file-name>No file selected</span>
                                 <button class="dashboard-primary-action" type="submit">{{ $document ? 'Replace' : 'Upload' }}</button>
                             </form>
@@ -100,11 +122,17 @@
 
         {{-- The final checklist explains every server-enforced submission condition. --}}
         <section class="application-panel application-submit-panel">
+            @php
+                $submissionReady = $informationSummary['complete']
+                    && $requirementSummary['ready']
+                    && $informationSummary['adviser_ready']
+                    && $submissionWindow['open'];
+            @endphp
             <div class="application-panel-heading"><div><h2>Submission Checklist</h2><p>Formal submission sends this application to the assigned Research Adviser.</p></div></div>
             <ul class="application-submit-checklist">
-                <li class="is-complete"><x-dashboard.icon name="check" size="17" /><span>Application information is saved.</span></li>
+                <li class="{{ $informationSummary['complete'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$informationSummary['complete'] ? 'check' : 'clock'" size="17" /><span>All required application information is complete.</span></li>
                 <li class="{{ $requirementSummary['ready'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$requirementSummary['ready'] ? 'check' : 'clock'" size="17" /><span>Every mandatory requirement is uploaded and complete.</span></li>
-                <li class="{{ $application->adviser_user_id ? 'is-complete' : '' }}"><x-dashboard.icon :name="$application->adviser_user_id ? 'check' : 'clock'" size="17" /><span>An eligible Research Adviser is assigned.</span></li>
+                <li class="{{ $informationSummary['adviser_ready'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$informationSummary['adviser_ready'] ? 'check' : 'clock'" size="17" /><span>An eligible Research Adviser is assigned.</span></li>
                 <li class="{{ $submissionWindow['open'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$submissionWindow['open'] ? 'check' : 'clock'" size="17" /><span>{{ $submissionWindow['message'] }}</span></li>
             </ul>
 
@@ -121,7 +149,7 @@
                     <button
                         class="dashboard-primary-action"
                         type="submit"
-                        @disabled(! $canSubmit || ! $requirementSummary['ready'] || ! $submissionWindow['open'])
+                        @disabled(! $canSubmit || ! $submissionReady)
                     >
                         <x-dashboard.icon name="file-text" size="18" />
                         <span>Submit Application</span>

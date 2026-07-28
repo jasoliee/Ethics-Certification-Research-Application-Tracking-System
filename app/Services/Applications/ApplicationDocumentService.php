@@ -31,6 +31,8 @@ class ApplicationDocumentService
         'application/pdf' => 'pdf',
         'application/msword' => 'doc',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
     ];
@@ -68,7 +70,7 @@ class ApplicationDocumentService
 
         if ($extension === null) {
             throw ValidationException::withMessages([
-                'document' => 'Upload a PDF, Word document, JPEG image, or PNG image.',
+                'document' => 'Upload a PDF, Word document, Excel workbook, JPEG image, or PNG image.',
             ]);
         }
 
@@ -155,6 +157,51 @@ class ApplicationDocumentService
 
             throw $exception;
         }
+    }
+
+    /**
+     * Detach the current version from a requirement without deleting its private history.
+     */
+    public function remove(
+        User $actor,
+        ResearchApplication $application,
+        ApplicationDocument $document,
+    ): void {
+        $this->assertBelongsTo($application, $document);
+        Gate::forUser($actor)->authorize('upload', $application);
+
+        DB::transaction(function () use ($actor, $application, $document): void {
+            $lockedApplication = ResearchApplication::query()
+                ->whereKey($application->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            Gate::forUser($actor)->authorize('upload', $lockedApplication);
+
+            $lockedDocument = ApplicationDocument::query()
+                ->whereKey($document->id)
+                ->where('research_application_id', $lockedApplication->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedDocument->is_current) {
+                throw ValidationException::withMessages([
+                    'document' => 'This document is no longer the current requirement file.',
+                ]);
+            }
+
+            $lockedDocument->update(['is_current' => false]);
+            $lockedApplication->update([
+                'current_stage' => ApplicationStage::DocumentSubmission->value,
+                'status_updated_at' => now(),
+            ]);
+
+            $this->auditLog->record($actor, 'application.requirement_removed', $lockedDocument, [
+                'application_id' => $lockedApplication->id,
+                'requirement_code' => $lockedDocument->requirement?->code,
+                'document_version' => $lockedDocument->document_version,
+                'result' => 'detached',
+            ]);
+        }, 3);
     }
 
     /**
