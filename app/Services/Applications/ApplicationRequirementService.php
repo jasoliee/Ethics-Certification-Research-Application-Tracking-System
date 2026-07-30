@@ -66,13 +66,14 @@ class ApplicationRequirementService
             ->values();
 
         // Normalize each requirement and its current file into one display and validation payload.
-        $items = $requirements->map(function (DocumentRequirement $requirement): array {
+        $items = $requirements->map(function (DocumentRequirement $requirement) use ($application): array {
             $document = $requirement->applicationDocuments->first();
             $status = $document?->validation_status ?? RequirementStatus::Missing;
 
             return [
                 'requirement' => $requirement,
                 'document' => $document,
+                'version' => $document ? max(1, (int) $application->current_revision_cycle) : null,
                 'status' => $status,
                 'completed' => $status === RequirementStatus::Completed,
                 'icon' => DocumentTypeIcon::fromMimeType($document?->mime_type),

@@ -1,6 +1,6 @@
 # Excel Bulk Account Import
 
-CSV was replaced as the active account-import format because the approved workflow requires role-specific formatting, Excel dropdowns, protected option data, preserved text identifiers, and in-workbook instructions. Only a current ECRATS `.xlsx` template is accepted.
+CSV was replaced as the active account-import format because the approved workflow requires role-specific formatting, Excel dropdowns, protected option data, preserved text identifiers, and in-workbook instructions. Only an official ECRATS `.xlsx` workbook contract is accepted. Downloading a fresh template remains recommended, but a prior readable option label can survive a later rename when its active option identity is still known.
 
 ## Prerequisite
 
@@ -36,7 +36,7 @@ The Student Researcher example row is:
 
 | First Name | Middle Name | Last Name | Suffix | Email | Student Number | Phone Number | Year Level | Institution | Department | Program |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Juan | Dela | Cruz | Jr. | juandelacruz@example.com | 20260000 | 099999999999 | Fourth Year | Institute of Computing and Digital Innovation | Computer Studies | Bachelor of Science in Computer Science |
+| Juan | Dela | Cruz | Jr. | juandelacruz@example.com | 20260000 | 09999999999 | Fourth Year | Institute of Computing and Digital Innovation | Computer Studies | Bachelor of Science in Computer Science |
 
 The sentinel `EXAMPLE-ROW-DO-NOT-IMPORT` is stored as `Example Row Marker` in the visible Instructions sheet. Physical Row 2 is skipped only while that exact sentinel remains intact. Removing or changing the marker makes Row 2 ordinary account data that must pass every normal validation rule. The example row itself contains no hidden marker in an account field.
 
@@ -51,7 +51,23 @@ Headers, order, account type, worksheet names, visibility, and worksheet count m
 
 ## Validation and Duplicate Handling
 
-Server validation is authoritative even when Excel shows a dropdown. It checks required fields, valid email syntax without domain allow-listing, controlled values against active database options, reviewer limits, exact identifiers, row and column bounds, and uniqueness.
+Server validation is authoritative even when Excel shows a dropdown. It checks required fields, valid email syntax without domain allow-listing, controlled values against active database option identities, reviewer limits, row and column bounds, and uniqueness. Phone Number accepts digits only with a maximum of 11 digits. Student Number and Employee ID accept letters, numbers, periods, underscores, and hyphens.
+
+Each invalid row is reported with its Excel row number and, for every failed value, the field, safe submitted value, reason, and expected format. Valid alphanumeric institutional identifiers are not converted to numbers or rejected.
+
+## Stable Dropdown Identity
+
+The official workbook deliberately displays readable option labels. A standard macro-free Excel list-validation cell does not preserve a hidden database ID beside its selected label, and adding ID columns would break the approved role contracts.
+
+ECRATS uses this server-owned compatibility layer:
+
+- `profile_options.id` remains fixed when RES Lead corrects a visible label;
+- the outgoing label is recorded in `profile_option_aliases`;
+- preview resolves a current label, historical alias, or explicit numeric ID to one active option;
+- validation then stores the option's current canonical label; and
+- deactivated options and aliases fail new-import validation.
+
+This prevents ordinary label corrections from immediately invalidating an older workbook without trusting workbook-maintained mappings or rewriting historical user records.
 
 The first valid occurrence of an email or institutional identifier is eligible. Later identical workbook rows are categorized as duplicates. Active existing and soft-deleted archived identities appear in separate containers and are never overwritten. Conflicting email/identifier combinations are invalid. Database unique indexes remain the final concurrency defense during confirmation.
 

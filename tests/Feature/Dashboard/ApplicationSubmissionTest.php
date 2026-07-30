@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\DeadlineManualStatus;
 use App\Enums\RequirementStatus;
@@ -13,6 +14,7 @@ use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
+use App\Services\Applications\ApplicationSubmissionLimit;
 use App\Support\DocumentTypeIcon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -28,6 +30,7 @@ class ApplicationSubmissionTest extends TestCase
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
             'research_title' => 'Private Draft Research Title',
         ]);
 
@@ -54,6 +57,7 @@ class ApplicationSubmissionTest extends TestCase
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
             'adviser_user_id' => $adviser,
         ]);
         $protocol = $this->requirement('PROTOCOL', 'Research Protocol');
@@ -180,9 +184,49 @@ class ApplicationSubmissionTest extends TestCase
         $this->assertSame(1, $application->documents()->count());
     }
 
-    public function test_res_manual_open_and_closed_states_override_submission_dates(): void
+    public function test_application_landing_status_label_follows_automatic_and_manual_open_states(): void
     {
-        // Arrange one complete application after its configured date and explicitly force the process open.
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index'))
+            ->assertOk()
+            ->assertSee('Application Submission is Closed');
+
+        $deadline = DeadlineConfiguration::create([
+            'deadline_key' => 'landing-application-submission',
+            'title' => 'Application Submission Deadline',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subHour(),
+            'due_at' => now()->addDay(),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index'))
+            ->assertOk()
+            ->assertSee('Application Submission is Open');
+
+        $deadline->update([
+            'starts_at' => now()->subDays(3),
+            'due_at' => now()->subDay(),
+            'manual_status' => DeadlineManualStatus::Open,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index'))
+            ->assertOk()
+            ->assertSee('Application Submission is Open');
+
+        $deadline->update(['manual_status' => null]);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index'))
+            ->assertOk()
+            ->assertSee('Application Submission is Closed');
+    }
+
+    public function test_manual_availability_overrides_date_logic_and_manual_closure_remains_authoritative(): void
+    {
+        // Arrange one complete application after its configured date with the manual gate enabled.
         $firstApplicant = User::factory()->create(['role' => UserRole::Applicant]);
         $firstAdviser = User::factory()->create(['role' => UserRole::Adviser]);
         $firstApplication = ResearchApplication::factory()->create([
@@ -203,7 +247,7 @@ class ApplicationSubmissionTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Assert the explicit RES open state permits the otherwise expired complete submission.
+        // Assert the RES Lead can manually reopen an expired date range.
         $this->actingAs($firstApplicant)
             ->post(route('applicant.applications.submit', $firstApplication))
             ->assertRedirect(route('applicant.applications.show', $firstApplication));
@@ -239,6 +283,7 @@ class ApplicationSubmissionTest extends TestCase
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
             'adviser_user_id' => $adviser,
             'abstract' => null,
         ]);
@@ -327,6 +372,109 @@ class ApplicationSubmissionTest extends TestCase
         $this->assertSame('image', DocumentTypeIcon::fromMimeType('image/jpeg'));
         $this->assertSame('file-spreadsheet', DocumentTypeIcon::fromMimeType('text/csv'));
         $this->assertSame('file', DocumentTypeIcon::fromMimeType('application/octet-stream'));
+    }
+
+    public function test_submission_limit_ignores_drafts_then_blocks_a_fourth_formal_application(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+
+        // Unsubmitted records do not consume formal slots, so a new editable draft is still allowed.
+        ResearchApplication::factory()->count(3)->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => null,
+            'submitted_at' => null,
+        ]);
+        $this->actingAs($applicant)
+            ->post(route('applicant.applications.store'), [
+                'research_title' => 'Fourth Record But First Formal Candidate',
+                'research_type' => ResearchType::Thesis->value,
+                'research_category' => 'Social and Behavioral Research',
+                'institution' => 'Institute of Computing and Digital Innovation',
+                'department' => 'Computer Studies',
+                'program' => 'Bachelor of Science in Computer Science',
+                'adviser_user_id' => $adviser->id,
+                'abstract' => 'A complete abstract for limit verification.',
+                'target_participants' => 'Adult students who provide informed consent.',
+                'expected_start_date' => '2026-08-01',
+                'expected_end_date' => '2027-05-31',
+            ])
+            ->assertRedirect();
+        $candidate = ResearchApplication::query()
+            ->where('applicant_user_id', $applicant->id)
+            ->whereNotNull('draft_owner_user_id')
+            ->firstOrFail();
+
+        // Once three other records cross formal submission, this candidate cannot become a fourth.
+        ResearchApplication::query()
+            ->where('applicant_user_id', $applicant->id)
+            ->whereKeyNot($candidate->id)
+            ->update([
+                'application_status' => ApplicationStatus::SubmittedToAdviser,
+                'submitted_at' => now()->subDay(),
+            ]);
+        $requirement = $this->requirement('LIMIT-PROTOCOL', 'Limit Protocol');
+        $this->document($candidate, $requirement, $applicant, RequirementStatus::Completed);
+        $this->openSubmissionWindow();
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.requirements', $candidate))
+            ->assertOk()
+            ->assertSee(ApplicationSubmissionLimit::REACHED_MESSAGE)
+            ->assertSee('disabled', false);
+        $this->actingAs($applicant)
+            ->post(route('applicant.applications.submit', $candidate))
+            ->assertSessionHasErrors('application_limit');
+        $this->assertNull($candidate->fresh()->submitted_at);
+
+        // Removing the unsubmitted candidate exposes a genuinely disabled create boundary.
+        $this->actingAs($applicant)
+            ->delete(route('applicant.applications.destroy', $candidate))
+            ->assertRedirect();
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index'))
+            ->assertOk()
+            ->assertSee('Application Submission Limit Reached')
+            ->assertSee('Drafts do not count toward this limit.')
+            ->assertSee('disabled', false);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.create'))
+            ->assertRedirect(route('applicant.applications.index'))
+            ->assertSessionHasErrors('application_limit');
+    }
+
+    public function test_returned_application_resubmission_reuses_its_formal_slot(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $originalSubmittedAt = now()->subWeek()->startOfMinute();
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'adviser_user_id' => $adviser,
+            'draft_owner_user_id' => $applicant,
+            'application_status' => ApplicationStatus::Incomplete,
+            'current_stage' => ApplicationStage::DocumentSubmission,
+            'current_revision_cycle' => 1,
+            'submitted_at' => $originalSubmittedAt,
+        ]);
+        ResearchApplication::factory()->count(2)->submittedToAdviser($adviser)->create([
+            'applicant_user_id' => $applicant,
+        ]);
+        $requirement = $this->requirement('RESUBMIT-PROTOCOL', 'Resubmission Protocol');
+        $this->document($application, $requirement, $applicant, RequirementStatus::Completed);
+        $this->openSubmissionWindow();
+
+        $this->actingAs($applicant)
+            ->post(route('applicant.applications.submit', $application))
+            ->assertRedirect(route('applicant.applications.show', $application));
+
+        $application->refresh();
+        $this->assertSame(ApplicationStatus::SubmittedToAdviser, $application->application_status);
+        $this->assertTrue($application->submitted_at->equalTo($originalSubmittedAt));
+        $this->assertSame(3, ResearchApplication::query()
+            ->where('applicant_user_id', $applicant->id)
+            ->whereNotNull('submitted_at')
+            ->count());
     }
 
     private function requirement(string $code, string $name, bool $active = true): DocumentRequirement

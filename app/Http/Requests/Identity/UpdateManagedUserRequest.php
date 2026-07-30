@@ -33,7 +33,7 @@ class UpdateManagedUserRequest extends FormRequest
             'suffix' => ['nullable', 'string', 'max:30'],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($subject->id)],
             'institutional_identifier' => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i', Rule::unique('users', 'institutional_identifier')->ignore($subject->id)],
-            'phone_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]+$/'],
+            'phone_number' => ['nullable', 'string', 'max:11', 'regex:/^[0-9]{1,11}$/'],
             'institution' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Institution, $subject->institution))],
             'department' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Department, $subject->department))],
             'program' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Program, $subject->program))],
@@ -73,6 +73,8 @@ class UpdateManagedUserRequest extends FormRequest
         return [
             'email.email' => 'Email must be a valid address such as name@example.com.',
             'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
+            'phone_number.max' => 'Phone Number may contain at most 11 digits.',
+            'phone_number.regex' => 'Phone Number must contain digits only, with at most 11 digits.',
             'institution.in' => $options->validationMessage(ProfileOptionField::Institution),
             'department.in' => $options->validationMessage(ProfileOptionField::Department),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),

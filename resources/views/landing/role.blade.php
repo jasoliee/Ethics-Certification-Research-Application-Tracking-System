@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>{{ $title }}</title>
+    <link rel="icon" type="image/png" href="{{ Vite::asset('assets/logo-256.png') }}">
 </head>
 <body style="margin: 0; min-height: 100vh; display: grid; place-items: center; background: #ffffff; color: #000000; font-family: Arial, Helvetica, sans-serif;">
     <main style="display: grid; justify-items: center; gap: 28px; padding: 24px;">

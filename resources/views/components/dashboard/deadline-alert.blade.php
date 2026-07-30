@@ -8,7 +8,7 @@
         <div>
             <span>{{ $deadline['title'] }}</span>
             <strong>
-                @if ($deadlineState === 'closed')
+                @if (in_array($deadlineState, ['closed', 'manually_closed', 'inactive', 'outside_term', 'unscoped'], true))
                     Submission closed
                 @elseif ($deadlineState === 'upcoming')
                     Submission opens soon

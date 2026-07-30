@@ -15,6 +15,8 @@ Every role retains a valid named notification route. The shared Mark all as read
 
 The full page uses 20-record pagination instead of loading an unbounded history.
 
+Implemented workflow notifications include formal submission to the assigned Adviser, neutral Applicant updates when an Adviser returns or endorses the initial submission, and a neutral RES screening-queue update to every active RES Lead after endorsement. Inactive RES Lead accounts are excluded. Notification text does not expose private document paths, credentials, unnecessary Applicant details, or future Reviewer identity.
+
 ## Dropdown Behavior
 
 `resources/js/dashboard.js` keeps notification and profile menus mutually exclusive, closes them on outside click or Escape, and synchronizes `aria-expanded`. Mobile notification positioning uses fixed viewport margins.

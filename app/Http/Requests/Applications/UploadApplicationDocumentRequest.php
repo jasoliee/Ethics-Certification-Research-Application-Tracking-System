@@ -30,12 +30,22 @@ class UploadApplicationDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'document' => [
-                'required',
-                'file',
-                'max:'.ApplicationDocumentService::MAX_FILE_KILOBYTES,
-                'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
-            ],
+            'document' => self::documentRules(),
+        ];
+    }
+
+    /**
+     * Share the same per-file contract with the multi-requirement upload endpoint.
+     *
+     * @return array<int, string>
+     */
+    public static function documentRules(): array
+    {
+        return [
+            'required',
+            'file',
+            'max:'.ApplicationDocumentService::MAX_FILE_KILOBYTES,
+            'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
         ];
     }
 }

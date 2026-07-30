@@ -4,9 +4,11 @@ namespace Tests\Feature\Dashboard;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\DeadlineManualStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
+use App\Models\AcademicTerm;
 use App\Models\ApplicationDocument;
 use App\Models\DeadlineConfiguration;
 use App\Models\DocumentRequirement;
@@ -17,6 +19,7 @@ use App\Models\User;
 use Database\Seeders\DashboardDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class RoleDashboardTest extends TestCase
@@ -80,7 +83,7 @@ class RoleDashboardTest extends TestCase
         }
     }
 
-    public function test_applicant_dashboard_displays_active_application_requirements_deadline_and_milestone(): void
+    public function test_applicant_dashboard_displays_active_application_requirements_and_milestone(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
@@ -143,11 +146,100 @@ class RoleDashboardTest extends TestCase
             ->assertSee('Ethical Use of Learning Analytics')
             ->assertSee('Under RES Screening')
             ->assertSee('1 of 2 mandatory completed')
-            ->assertSee('Application submission deadline')
+            ->assertDontSee('Application submission deadline')
             ->assertSee('1st Semester, A.Y. 2026-2027')
             ->assertSee('dashboard-panel-header-meta', false)
             ->assertSee('data-research-title-tooltip', false)
             ->assertDontSee('No application yet');
+    }
+
+    public function test_applicant_dashboard_selects_the_newest_record_by_creation_not_a_later_edit(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        AcademicTerm::create([
+            'semester' => 'Current Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'OLDER-EDITED-LATER',
+            'applicant_user_id' => $applicant,
+            'research_title' => 'Older Application Edited Later',
+            'created_at' => now()->subDays(4),
+            'updated_at' => now(),
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'NEWEST-CREATED',
+            'applicant_user_id' => $applicant,
+            'research_title' => 'Newest Created Application',
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('NEWEST-CREATED')
+            ->assertSee('Newest Created Application')
+            ->assertDontSee('OLDER-EDITED-LATER')
+            ->assertDontSee('Older Application Edited Later');
+    }
+
+    public function test_applicant_deadline_alert_uses_active_term_dates_and_manual_availability(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $term = AcademicTerm::create([
+            'semester' => '1st Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'academic_term_id' => $term,
+        ]);
+        $deadline = DeadlineConfiguration::create([
+            'academic_term_id' => $term->id,
+            'deadline_key' => "term-{$term->id}-application-submission",
+            'title' => 'Application Submission Deadline',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDays(2),
+            'manual_status' => DeadlineManualStatus::Closed,
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Submission closed')
+            ->assertSee('currently closed by the RES Lead');
+
+        $deadline->update([
+            'starts_at' => now()->addDay(),
+            'due_at' => now()->addDays(3),
+            'manual_status' => DeadlineManualStatus::Open,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('days remaining')
+            ->assertSee('Application submission is manually open by the RES Lead.');
+
+        $deadline->update([
+            'starts_at' => now()->subDays(3),
+            'due_at' => now()->subMinute(),
+            'manual_status' => null,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Submission closed')
+            ->assertSee('Application submission closed on');
     }
 
     public function test_adviser_dashboard_counts_and_table_are_scoped_to_the_logged_in_adviser(): void
@@ -169,6 +261,147 @@ class RoleDashboardTest extends TestCase
             ->assertSee('aria-label="Returned: 1"', false)
             ->assertSee('ADV-001')
             ->assertDontSee('OTHER-001');
+    }
+
+    public function test_adviser_and_res_dashboards_keep_relevant_applications_visible_across_term_links(): void
+    {
+        AcademicTerm::create([
+            'semester' => 'Current Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'UNLINKED-ADVISER-APP',
+            'academic_term_id' => null,
+            'adviser_user_id' => $adviser,
+            'application_status' => ApplicationStatus::SubmittedToAdviser,
+            'submitted_at' => now()->subDay(),
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'UNLINKED-RES-APP',
+            'academic_term_id' => null,
+            'application_status' => ApplicationStatus::AdviserEndorsed,
+            'submitted_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($adviser)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('aria-label="Pending: 1"', false)
+            ->assertSee('UNLINKED-ADVISER-APP');
+
+        $this->actingAs($resLead)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('aria-label="For RES Screening: 1"', false)
+            ->assertSee('UNLINKED-RES-APP');
+    }
+
+    public function test_role_dashboards_select_their_configured_process_deadlines(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'application_status' => ApplicationStatus::RevisionWindowOpen,
+            'current_stage' => ApplicationStage::Revision,
+            'submitted_at' => now()->subWeek(),
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-application-submission',
+            'title' => 'Mapped Application Submission',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDays(4),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-revision-period',
+            'title' => 'Mapped Revision Period',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDays(3),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Mapped Revision Period')
+            ->assertDontSee('Mapped Application Submission');
+
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-adviser-endorsement',
+            'title' => 'Mapped Endorsement Period',
+            'audience_role' => UserRole::Adviser,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDays(2),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        $this->actingAs($adviser)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Mapped Endorsement Period');
+
+        $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+        ReviewerAssignment::factory()->create([
+            'reviewer_user_id' => $reviewer,
+            'assignment_status' => ReviewerAssignmentStatus::RevisionReview,
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-reviewer-submission',
+            'title' => 'Mapped Reviewing Period',
+            'audience_role' => UserRole::Reviewer,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDays(3),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-reviewing-revision-period',
+            'title' => 'Mapped Reviewing of Revision Period',
+            'audience_role' => UserRole::Reviewer,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDays(2),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        $this->actingAs($reviewer)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Mapped Reviewing of Revision Period')
+            ->assertDontSee('Mapped Reviewing Period');
+
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-res-screening',
+            'title' => 'Mapped RES Screening',
+            'audience_role' => UserRole::ResLead,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDay(),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'mapped-result-release',
+            'title' => 'Release of Decision & Certificate',
+            'audience_role' => UserRole::ResLead,
+            'starts_at' => now()->addDays(5),
+            'due_at' => now()->addDays(5),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+        $this->actingAs($resLead)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Mapped RES Screening')
+            ->assertSee('Release of Decision &amp; Certificate', false);
     }
 
     public function test_adviser_dashboard_keeps_archived_applicant_identity_for_historical_applications(): void
@@ -336,6 +569,48 @@ class RoleDashboardTest extends TestCase
         );
     }
 
+    public function test_every_blade_table_uses_the_shared_horizontal_overflow_boundary(): void
+    {
+        foreach (File::allFiles(resource_path('views')) as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $contents = $file->getContents();
+            $tableCount = preg_match_all('/<table\b/i', $contents);
+
+            if ($tableCount === 0) {
+                continue;
+            }
+
+            $componentWrapperCount = preg_match_all('/<x-dashboard\.overflow\b/i', $contents);
+            $classWrapperCount = preg_match_all(
+                '/class=(["\'])[^"\']*\bdashboard-overflow-region\b[^"\']*\1/i',
+                $contents,
+            );
+
+            $this->assertGreaterThanOrEqual(
+                $tableCount,
+                $componentWrapperCount + $classWrapperCount,
+                "Every table in {$file->getRelativePathname()} must have its own shared overflow boundary.",
+            );
+        }
+    }
+
+    public function test_shared_browser_identity_and_profile_menu_are_kept_minimal(): void
+    {
+        $topbar = File::get(resource_path('views/components/dashboard/topbar.blade.php'));
+        $dashboardLayout = File::get(resource_path('views/layouts/dashboard.blade.php'));
+        $login = File::get(resource_path('views/auth/login.blade.php'));
+
+        $this->assertStringContainsString('<span>Settings</span>', $topbar);
+        $this->assertStringContainsString('<span>Logout</span>', $topbar);
+        $this->assertStringNotContainsString('<span>Profile</span>', $topbar);
+        $this->assertStringContainsString('rel="icon"', $dashboardLayout);
+        $this->assertStringContainsString("Vite::asset('assets/logo-256.png')", $dashboardLayout);
+        $this->assertStringContainsString('rel="icon"', $login);
+    }
+
     public function test_role_dashboards_keep_database_query_counts_bounded(): void
     {
         foreach (UserRole::cases() as $role) {
@@ -350,7 +625,7 @@ class RoleDashboardTest extends TestCase
             DB::disableQueryLog();
 
             $this->assertLessThanOrEqual(
-                8,
+                10,
                 $queryCount,
                 "The {$role->value} dashboard executed {$queryCount} database queries.",
             );

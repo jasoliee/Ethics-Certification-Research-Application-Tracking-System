@@ -92,6 +92,7 @@ export function initializeDashboard() {
     initializeResearchTitleTooltips(shell);
     initializeManagedAccountTools(shell);
     initializeApplicationTools(shell);
+    initializeSettingsTools(shell);
     initializeOnboardingGuide(shell);
 }
 
@@ -107,6 +108,21 @@ function initializeApplicationTools(shell) {
             dialog: shell.querySelector('[data-requirements-details-dialog]'),
             openSelector: '[data-requirements-details-open]',
             closeSelector: '[data-requirements-details-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-adviser-endorse-dialog]'),
+            openSelector: '[data-adviser-endorse-open]',
+            closeSelector: '[data-adviser-endorse-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-adviser-return-dialog]'),
+            openSelector: '[data-adviser-return-open]',
+            closeSelector: '[data-adviser-return-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-final-submit-dialog]'),
+            openSelector: '[data-final-submit-open]',
+            closeSelector: '[data-final-submit-close]',
         },
     ];
 
@@ -153,20 +169,12 @@ function initializeApplicationTools(shell) {
                 closeDialog();
             }
         });
-    });
 
-    // Echo the local display filename while the server remains authoritative for type and size checks.
-    shell.querySelectorAll('[data-application-file]').forEach((input) => {
-        const form = input.closest('form');
-        const filename = form?.querySelector('[data-application-file-name]');
-
-        // Update only the local display label; no file data leaves the browser until form submission.
-        input.addEventListener('change', () => {
-            // A missing optional filename label does not prevent native upload behavior.
-            if (filename) {
-                filename.textContent = input.files?.[0]?.name ?? 'No file selected';
-            }
-        });
+        // Server validation reopens the relevant decision form without losing entered remarks.
+        if (dialog.hasAttribute('data-open-on-load')) {
+            dialog.hidden = false;
+            panel?.focus();
+        }
     });
 
     // Populate the secure viewer only with controller URLs already rendered into the triggering row.
@@ -193,70 +201,52 @@ function initializeApplicationTools(shell) {
         documentTrigger?.focus();
     };
 
-    // Each View command opens the shared dialog using URLs already authorized by its role route.
-    shell.querySelectorAll('[data-document-open]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const previewUrl = button.dataset.documentPreviewUrl ?? '';
-            documentTrigger = button;
+    const openDocumentDialog = (button) => {
+        const previewUrl = button.dataset.documentPreviewUrl ?? '';
+        documentTrigger = button;
 
-            // Use textContent so original display filenames cannot create markup.
-            if (documentTitle) {
-                documentTitle.textContent = button.dataset.documentName ?? 'Document';
-            }
+        if (documentTitle) {
+            const name = button.dataset.documentName ?? 'Document';
+            documentTitle.textContent = name;
+            documentTitle.dataset.tableTooltip = name;
+        }
 
-            // Use textContent for requirement and upload metadata for the same reason.
-            if (documentMeta) {
-                documentMeta.textContent = button.dataset.documentMeta ?? 'Selected requirement document';
-            }
+        if (documentMeta) {
+            documentMeta.textContent = button.dataset.documentMeta ?? 'Selected requirement document';
+        }
 
-            // Point the download command only to the controller route rendered by Blade.
-            if (documentDownload) {
-                documentDownload.href = button.dataset.documentDownloadUrl;
-            }
+        if (documentDownload) {
+            documentDownload.href = button.dataset.documentDownloadUrl;
+        }
 
-            // Resolve an applicant-only replacement input by ID and never accept an arbitrary selector.
-            const replaceInputId = button.dataset.documentReplaceInput ?? '';
-            const replacementCandidate = replaceInputId === '' ? null : document.getElementById(replaceInputId);
-            documentReplaceInput = replacementCandidate instanceof HTMLInputElement && shell.contains(replacementCandidate)
-                ? replacementCandidate
-                : null;
+        const replaceInputId = button.dataset.documentReplaceInput ?? '';
+        const replacementCandidate = replaceInputId === '' ? null : document.getElementById(replaceInputId);
+        documentReplaceInput = replacementCandidate instanceof HTMLInputElement && shell.contains(replacementCandidate)
+            ? replacementCandidate
+            : null;
 
-            if (documentReplace) {
-                documentReplace.hidden = documentReplaceInput === null;
-            }
+        if (documentReplace) {
+            documentReplace.hidden = documentReplaceInput === null;
+        }
 
-            // Supported types load in the sandboxed frame; unsupported types leave no retained source.
-            if (documentFrame) {
-                documentFrame.hidden = previewUrl === '';
-                previewUrl === ''
-                    ? documentFrame.removeAttribute('src')
-                    : documentFrame.setAttribute('src', previewUrl);
-            }
+        if (documentFrame) {
+            documentFrame.hidden = previewUrl === '';
+            previewUrl === ''
+                ? documentFrame.removeAttribute('src')
+                : documentFrame.setAttribute('src', previewUrl);
+        }
 
-            // The fallback replaces the frame when no safe inline route was supplied.
-            if (documentFallback) {
-                documentFallback.hidden = previewUrl !== '';
-            }
+        if (documentFallback) {
+            documentFallback.hidden = previewUrl !== '';
+        }
 
-            // Reveal only after all display state and secure URLs have been populated.
-            documentDialog.hidden = false;
-            documentPanel?.focus();
-        });
-    });
+        documentDialog.hidden = false;
+        documentPanel?.focus();
+    };
 
     // The modal Replace command opens the requirement-scoped native file picker.
     documentReplace?.addEventListener('click', () => {
         documentReplaceInput?.click();
-    });
-
-    // Selecting a replacement submits its CSRF-protected requirement form immediately.
-    shell.querySelectorAll('[data-document-replace-file]').forEach((input) => {
-        input.addEventListener('change', () => {
-            if (input.files?.length) {
-                closeDocumentDialog();
-                input.form?.requestSubmit();
-            }
-        });
     });
 
     // Explicit document close controls clear the frame and restore trigger focus.
@@ -278,29 +268,564 @@ function initializeApplicationTools(shell) {
         }
     });
 
-    // Removing a current document makes required checklist items incomplete again.
-    shell.querySelectorAll('[data-confirm-document-remove]').forEach((form) => {
-        form.addEventListener('submit', (event) => {
-            if (! window.confirm('Remove this uploaded document? A replacement will be required before submission.')) {
-                event.preventDefault();
+    const uploadAll = shell.querySelector('[data-upload-all]');
+    const uploadAllLabel = uploadAll?.querySelector('[data-upload-all-label]');
+    const uploadAllSummary = shell.querySelector('[data-upload-all-summary]');
+    const defaultUploadAllLabel = uploadAllLabel?.textContent ?? 'Upload All';
+
+    const selectedRequirementFiles = () => [...shell.querySelectorAll('[data-requirement-file]')]
+        .filter((input) => input.files?.length);
+
+    const syncUploadAll = () => {
+        if (uploadAll) {
+            uploadAll.disabled = selectedRequirementFiles().length === 0;
+        }
+    };
+
+    const setRequirementFeedback = (requirementId, message, isError = false) => {
+        const row = shell.querySelector(`[data-requirement-row][data-requirement-id="${requirementId}"]`);
+        const feedback = row?.querySelector('[data-upload-feedback]');
+
+        if (feedback) {
+            feedback.textContent = message;
+            feedback.classList.toggle('is-error', isError);
+        }
+    };
+
+    const replaceRequirementRow = (requirementId, html) => {
+        const currentRow = shell.querySelector(`[data-requirement-row][data-requirement-id="${requirementId}"]`);
+        const template = document.createElement('template');
+        template.innerHTML = html.trim();
+        const replacement = template.content.firstElementChild;
+
+        if (! currentRow || ! replacement?.matches('[data-requirement-row]')) {
+            return;
+        }
+
+        currentRow.replaceWith(replacement);
+        replacement.querySelectorAll('[data-table-tooltip]').forEach((target) => {
+            if (! target.matches('a, button, input, select, textarea, [tabindex]')) {
+                target.tabIndex = 0;
             }
         });
+    };
+
+    const updateRequirementProgress = (progress) => {
+        if (! progress) {
+            return;
+        }
+
+        const progressElement = shell.querySelector('[data-requirement-progress]');
+        const progressCopy = shell.querySelector('[data-requirement-progress-copy]');
+        const progressPercent = shell.querySelector('[data-requirement-progress-percent]');
+        const finalButton = shell.querySelector('[data-final-application-button]');
+
+        if (progressElement) {
+            progressElement.value = progress.completed_count;
+            progressElement.max = Math.max(1, progress.mandatory_total);
+            progressElement.textContent = `${progress.percentage}%`;
+        }
+        if (progressCopy) {
+            progressCopy.textContent = `${progress.completed_count} of ${progress.mandatory_total} mandatory requirements completed`;
+        }
+        if (progressPercent) {
+            progressPercent.textContent = `${progress.percentage}%`;
+        }
+        Object.entries(progress).forEach(([key, value]) => {
+            const count = shell.querySelector(`[data-requirement-count="${key}"]`);
+
+            if (count) {
+                count.textContent = value;
+            }
+        });
+        if (finalButton) {
+            const otherChecksPass = finalButton.dataset.otherChecksPass === 'true';
+            finalButton.disabled = ! (progress.ready && otherChecksPass);
+        }
+    };
+
+    const parseJson = async (response) => {
+        try {
+            return await response.json();
+        } catch {
+            return {};
+        }
+    };
+
+    const uploadOne = async (form) => {
+        const input = form.querySelector('[data-requirement-file]');
+        const requirementId = form.dataset.requirementId;
+
+        if (! input?.files?.length || ! requirementId) {
+            return;
+        }
+
+        const button = form.querySelector('button[type="submit"]');
+        button?.setAttribute('disabled', 'disabled');
+        setRequirementFeedback(requirementId, 'Uploading...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            const payload = await parseJson(response);
+
+            if (! response.ok) {
+                const message = payload.errors?.document?.[0]
+                    ?? payload.message
+                    ?? 'This document could not be uploaded.';
+                setRequirementFeedback(requirementId, message, true);
+
+                return;
+            }
+
+            replaceRequirementRow(requirementId, payload.row_html);
+            updateRequirementProgress(payload.progress);
+            setRequirementFeedback(requirementId, payload.message ?? 'Document uploaded.');
+        } catch {
+            setRequirementFeedback(requirementId, 'Upload failed. Check your connection and try again.', true);
+        } finally {
+            button?.removeAttribute('disabled');
+            syncUploadAll();
+        }
+    };
+
+    shell.addEventListener('click', (event) => {
+        const documentButton = event.target.closest?.('[data-document-open]');
+
+        if (documentButton && shell.contains(documentButton)) {
+            openDocumentDialog(documentButton);
+        }
     });
 
-    // Draft discard archives only the current unsubmitted application after explicit confirmation.
-    shell.querySelectorAll('[data-confirm-draft-discard]').forEach((form) => {
-        form.addEventListener('submit', (event) => {
-            if (! window.confirm('Discard this draft application? It will be removed from your application list.')) {
-                event.preventDefault();
+    shell.addEventListener('change', (event) => {
+        const input = event.target;
+
+        if (! input.matches?.('[data-requirement-file]')) {
+            if (input.matches?.('[data-document-replace-file]') && input.files?.length) {
+                closeDocumentDialog();
+                input.form?.requestSubmit();
             }
-        });
+
+            return;
+        }
+
+        const form = input.closest('form');
+        const filename = form?.querySelector('[data-application-file-name]');
+        const requirementId = input.dataset.requirementId;
+
+        if (filename) {
+            filename.textContent = input.files?.[0]?.name ?? 'No file selected';
+        }
+        if (requirementId) {
+            setRequirementFeedback(requirementId, '');
+        }
+        syncUploadAll();
+
+        if (input.matches('[data-document-replace-file]') && input.files?.length) {
+            closeDocumentDialog();
+            form?.requestSubmit();
+        }
     });
+
+    shell.addEventListener('submit', (event) => {
+        const form = event.target;
+
+        if (form.matches?.('[data-application-upload-form]')) {
+            event.preventDefault();
+            uploadOne(form);
+
+            return;
+        }
+
+        if (form.matches?.('[data-confirm-document-remove]')
+            && ! window.confirm('Remove this uploaded document? A replacement will be required before submission.')) {
+            event.preventDefault();
+        }
+
+        if (form.matches?.('[data-confirm-draft-discard]')
+            && ! window.confirm('Permanently discard this draft application and its uploaded files? This cannot be undone.')) {
+            event.preventDefault();
+        }
+    });
+
+    uploadAll?.addEventListener('click', async () => {
+        const selectedInputs = selectedRequirementFiles();
+
+        if (selectedInputs.length === 0) {
+            return;
+        }
+
+        const formData = new FormData();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (csrfToken) {
+            formData.append('_token', csrfToken);
+        }
+        selectedInputs.forEach((input) => {
+            formData.append(`documents[${input.dataset.requirementId}]`, input.files[0]);
+            setRequirementFeedback(input.dataset.requirementId, 'Uploading...');
+        });
+
+        uploadAll.disabled = true;
+        if (uploadAllLabel) {
+            uploadAllLabel.textContent = 'Uploading...';
+        }
+        uploadAllSummary.textContent = '';
+
+        try {
+            const response = await fetch(uploadAll.dataset.uploadAllUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            const payload = await parseJson(response);
+
+            if (! response.ok) {
+                uploadAllSummary.textContent = payload.message ?? 'The selected documents could not be uploaded.';
+                uploadAllSummary.classList.add('is-error');
+
+                return;
+            }
+
+            Object.entries(payload.successes ?? {}).forEach(([requirementId, result]) => {
+                replaceRequirementRow(requirementId, result.row_html);
+                setRequirementFeedback(requirementId, result.message ?? 'Document uploaded.');
+            });
+            Object.entries(payload.errors ?? {}).forEach(([requirementId, message]) => {
+                setRequirementFeedback(requirementId, message, true);
+            });
+            updateRequirementProgress(payload.progress);
+            uploadAllSummary.classList.toggle('is-error', Object.keys(payload.errors ?? {}).length > 0);
+            uploadAllSummary.textContent = payload.message ?? 'Selected documents processed.';
+        } catch {
+            uploadAllSummary.classList.add('is-error');
+            uploadAllSummary.textContent = 'Upload failed. Check your connection and try again.';
+        } finally {
+            if (uploadAllLabel) {
+                uploadAllLabel.textContent = defaultUploadAllLabel;
+            }
+            syncUploadAll();
+        }
+    });
+    syncUploadAll();
+
+    // Keep the ending-date boundary synchronized without replacing server-side validation.
+    const expectedStartDate = shell.querySelector('#expected_start_date');
+    const expectedEndDate = shell.querySelector('[data-expected-end-date]');
+    const syncExpectedDuration = () => {
+        if (expectedEndDate) {
+            expectedEndDate.min = expectedStartDate?.value ?? '';
+        }
+    };
+    expectedStartDate?.addEventListener('change', syncExpectedDuration);
+    syncExpectedDuration();
 
     // Disable write commands after native validation passes to prevent accidental duplicate requests.
     shell.querySelectorAll('[data-application-submit-once]').forEach((form) => {
-        form.addEventListener('submit', () => {
-            form.querySelector('button[type="submit"]')?.setAttribute('disabled', 'disabled');
+        form.addEventListener('submit', (event) => {
+            const submitter = event.submitter ?? form.querySelector('button[type="submit"]');
+            submitter?.setAttribute('disabled', 'disabled');
         });
+    });
+}
+
+function initializeSettingsTools(shell) {
+    const settings = shell.querySelector('[data-settings-tabs]');
+
+    if (! settings) {
+        return;
+    }
+
+    const tabs = [...settings.querySelectorAll('[data-settings-tab]')];
+    const panels = [...settings.querySelectorAll('[data-settings-panel]')];
+    const hashTab = window.location.hash.startsWith('#settings-')
+        ? window.location.hash.replace('#settings-', '')
+        : '';
+    let activeTab = tabs.some((tab) => tab.dataset.settingsTab === hashTab)
+        ? hashTab
+        : settings.dataset.settingsActiveTab;
+
+    if (! tabs.some((tab) => tab.dataset.settingsTab === activeTab)) {
+        activeTab = 'profile';
+    }
+
+    const activateTab = (name, updateLocation = false) => {
+        activeTab = name;
+
+        tabs.forEach((tab) => {
+            const selected = tab.dataset.settingsTab === name;
+            tab.setAttribute('aria-selected', String(selected));
+            tab.tabIndex = selected ? 0 : -1;
+        });
+        panels.forEach((panel) => {
+            panel.hidden = panel.dataset.settingsPanel !== name;
+        });
+
+        if (updateLocation) {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#settings-${name}`);
+        }
+    };
+
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => activateTab(tab.dataset.settingsTab, true));
+        tab.addEventListener('keydown', (event) => {
+            if (! ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                return;
+            }
+
+            event.preventDefault();
+            const nextIndex = event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                    ? tabs.length - 1
+                    : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+            tabs[nextIndex].focus();
+            activateTab(tabs[nextIndex].dataset.settingsTab, true);
+        });
+    });
+    activateTab(activeTab);
+
+    settings.querySelectorAll('[data-deadline-process]').forEach((process) => {
+        const start = process.querySelector('[data-deadline-start]');
+        const end = process.querySelector('[data-deadline-end]');
+        const toggle = process.querySelector('[data-deadline-toggle]');
+        const label = process.querySelector('[data-deadline-toggle-label]');
+        const syncProcessState = () => {
+            const manuallyOpen = Boolean(toggle?.checked);
+
+            if (label) {
+                label.textContent = manuallyOpen ? 'On' : 'Auto';
+            }
+
+            // Manual availability never relaxes the authoritative no-past-date input boundary.
+            if (start) {
+                start.min = start.dataset.minimumDeadline ?? '';
+            }
+            if (end) {
+                const absoluteMinimum = end.dataset.minimumDeadline ?? '';
+                end.min = start?.value && start.value > absoluteMinimum
+                    ? start.value
+                    : absoluteMinimum;
+            }
+        };
+
+        start?.addEventListener('change', syncProcessState);
+        toggle?.addEventListener('change', syncProcessState);
+        syncProcessState();
+    });
+
+    const termStart = settings.querySelector('#term_starts_on');
+    const termEnd = settings.querySelector('#term_ends_on');
+    termStart?.addEventListener('change', () => {
+        if (termEnd) {
+            const absoluteMinimum = termEnd.dataset.minimumDate ?? '';
+            termEnd.min = termStart.value && termStart.value > absoluteMinimum
+                ? termStart.value
+                : absoluteMinimum;
+        }
+    });
+    if (termEnd) {
+        const absoluteMinimum = termEnd.dataset.minimumDate ?? '';
+        termEnd.min = termStart?.value && termStart.value > absoluteMinimum
+            ? termStart.value
+            : absoluteMinimum;
+    }
+
+    const confirmationDialog = settings.querySelector('[data-settings-confirm-dialog]');
+    const confirmationPanel = confirmationDialog?.querySelector('[role="dialog"]');
+    const confirmationTitle = confirmationDialog?.querySelector('[data-settings-confirm-title]');
+    const confirmationMessage = confirmationDialog?.querySelector('[data-settings-confirm-message]');
+    const confirmationSubmit = confirmationDialog?.querySelector('[data-settings-confirm-submit]');
+    let pendingConfirmationForm = null;
+    let confirmationTrigger = null;
+
+    const passwordFieldsMatch = (form) => {
+        if (! form.matches('[data-settings-password-form]')) {
+            return true;
+        }
+
+        const password = form.elements.namedItem('password');
+        const confirmation = form.elements.namedItem('password_confirmation');
+
+        if (! (password instanceof HTMLInputElement)
+            || ! (confirmation instanceof HTMLInputElement)
+            || password.value === confirmation.value) {
+            return true;
+        }
+
+        [password, confirmation].forEach((input) => {
+            input.setAttribute('aria-invalid', 'true');
+            const error = form.querySelector(`[data-settings-error-for="${input.name}"]`);
+
+            if (error) {
+                error.textContent = 'The new password and confirmation do not match.';
+            }
+        });
+        password.focus();
+
+        return false;
+    };
+
+    const closeConfirmation = () => {
+        if (! confirmationDialog) {
+            return;
+        }
+
+        confirmationDialog.hidden = true;
+        pendingConfirmationForm = null;
+        confirmationTrigger?.focus();
+    };
+
+    settings.querySelectorAll('[data-settings-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (form.dataset.settingsConfirmationApproved === 'true') {
+                delete form.dataset.settingsConfirmationApproved;
+
+                return;
+            }
+
+            event.preventDefault();
+
+            if (! form.reportValidity() || ! passwordFieldsMatch(form) || ! confirmationDialog) {
+                return;
+            }
+
+            pendingConfirmationForm = form;
+            confirmationTrigger = event.submitter;
+            confirmationTitle.textContent = form.dataset.confirmTitle ?? 'Confirm Account Change';
+            confirmationMessage.textContent = form.dataset.confirmMessage ?? 'Confirm this account change.';
+            confirmationSubmit.textContent = form.dataset.confirmAction ?? 'Confirm';
+            confirmationDialog.hidden = false;
+            confirmationPanel?.focus();
+        });
+    });
+
+    confirmationDialog?.querySelectorAll('[data-settings-confirm-close]').forEach((button) => {
+        button.addEventListener('click', closeConfirmation);
+    });
+    confirmationDialog?.addEventListener('click', (event) => {
+        if (event.target === confirmationDialog) {
+            closeConfirmation();
+        }
+    });
+    confirmationDialog?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeConfirmation();
+        }
+    });
+    confirmationSubmit?.addEventListener('click', () => {
+        const form = pendingConfirmationForm;
+
+        if (! form) {
+            return;
+        }
+
+        confirmationDialog.hidden = true;
+        pendingConfirmationForm = null;
+        form.dataset.settingsConfirmationApproved = 'true';
+        form.requestSubmit();
+    });
+
+    const passwordForm = settings.querySelector('[data-settings-password-form]');
+
+    if (! passwordForm) {
+        return;
+    }
+
+    const passwordStatus = passwordForm.querySelector('[data-settings-password-status]');
+    const passwordInputs = [...passwordForm.querySelectorAll('input[type="password"]')];
+    const submitButton = passwordForm.querySelector('button[type="submit"]');
+    const submitLabel = submitButton?.querySelector('span');
+    const defaultSubmitLabel = submitLabel?.textContent ?? 'Change Password';
+
+    const clearFieldError = (input) => {
+        input.setAttribute('aria-invalid', 'false');
+        const error = passwordForm.querySelector(`[data-settings-error-for="${input.name}"]`);
+
+        if (error) {
+            error.textContent = '';
+        }
+    };
+
+    passwordInputs.forEach((input) => input.addEventListener('input', () => clearFieldError(input)));
+
+    passwordForm.addEventListener('submit', async (event) => {
+        if (event.defaultPrevented) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (! passwordForm.reportValidity()) {
+            return;
+        }
+
+        passwordInputs.forEach(clearFieldError);
+        passwordStatus.textContent = '';
+        submitButton.disabled = true;
+        if (submitLabel) {
+            submitLabel.textContent = 'Changing...';
+        }
+
+        try {
+            const response = await fetch(passwordForm.action, {
+                method: 'POST',
+                body: new FormData(passwordForm),
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            const payload = await response.json();
+
+            if (! response.ok) {
+                const errors = payload.errors ?? {};
+                let firstInvalid = null;
+
+                Object.entries(errors).forEach(([field, messages]) => {
+                    const input = passwordForm.elements.namedItem(field);
+                    const error = passwordForm.querySelector(`[data-settings-error-for="${field}"]`);
+
+                    if (input instanceof HTMLInputElement) {
+                        input.setAttribute('aria-invalid', 'true');
+                        firstInvalid ??= input;
+                    }
+
+                    if (error) {
+                        error.textContent = Array.isArray(messages) ? messages[0] : String(messages);
+                    }
+                });
+
+                passwordStatus.textContent = payload.message ?? 'Correct the highlighted password fields.';
+                passwordStatus.classList.add('is-error');
+                firstInvalid?.focus();
+
+                return;
+            }
+
+            passwordInputs.forEach((input) => {
+                input.value = '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            passwordStatus.classList.remove('is-error');
+            passwordStatus.textContent = payload.message ?? 'Your password was changed securely.';
+        } catch {
+            passwordStatus.classList.add('is-error');
+            passwordStatus.textContent = 'The password could not be changed. Check your connection and try again.';
+        } finally {
+            submitButton.disabled = false;
+            if (submitLabel) {
+                submitLabel.textContent = defaultSubmitLabel;
+            }
+        }
     });
 }
 
@@ -700,10 +1225,6 @@ function initializeManagedAccountTools(shell) {
 function initializeResearchTitleTooltips(shell) {
     const selector = '[data-research-title-tooltip], [data-table-tooltip]';
     const targets = [...shell.querySelectorAll(selector)];
-
-    if (targets.length === 0) {
-        return;
-    }
 
     const tooltip = document.createElement('div');
     const tooltipId = 'dashboard-research-title-tooltip';

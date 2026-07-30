@@ -46,7 +46,7 @@
         </div>
         <div class="identity-field">
             <label for="phone_number">Phone Number</label>
-            <input id="phone_number" name="phone_number" type="tel" value="{{ old('phone_number', $managedUser?->phone_number) }}" maxlength="30" autocomplete="tel">
+            <input id="phone_number" name="phone_number" type="tel" value="{{ old('phone_number', $managedUser?->phone_number) }}" maxlength="11" inputmode="numeric" pattern="[0-9]{1,11}" autocomplete="tel">
             @error('phone_number')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         <div class="identity-field">

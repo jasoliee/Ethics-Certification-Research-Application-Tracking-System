@@ -825,7 +825,7 @@ class UserBulkImportService
             'institutional_identifier' => 'The official unique Student Number or Employee ID using letters, numbers, periods, underscores, or hyphens.',
             'year_level', 'institution', 'department', 'program', 'reviewer_classification' => 'A current active value from the database-backed dropdown list.',
             'first_name', 'middle_name', 'last_name', 'suffix', 'position_title' => 'Plain text within the documented length limit.',
-            'phone_number' => 'Digits with optional spaces, +, parentheses, periods, or hyphens.',
+            'phone_number' => 'Digits only, with at most 11 digits.',
             default => 'A value accepted by the selected official account template.',
         };
     }

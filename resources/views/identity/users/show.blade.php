@@ -151,7 +151,7 @@
                             <form method="POST" action="{{ route('res.users.destroy', $managedUser) }}" data-confirm-account-archive>
                                 @csrf
                                 @method('DELETE')
-                                <button class="identity-button identity-button-danger" type="submit">Delete</button>
+                                <button class="identity-button identity-button-danger" type="submit">Delete Account</button>
                             </form>
                         @endif
                     </div>

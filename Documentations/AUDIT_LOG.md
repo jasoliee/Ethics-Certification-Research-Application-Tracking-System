@@ -2,7 +2,7 @@
 
 ## Recorded Data
 
-Security and account-management events record the actor when available, action, optional subject reference, bounded metadata, IP address, user agent, and timestamp. Authorization denials, option changes, import phases, account creation, status changes, identity correction, setup delivery, and password-reset requests are included.
+Security, account-management, and implemented workflow events record the actor when available, action, optional subject reference, bounded metadata, IP address, user agent, and timestamp. Authorization denials, option/alias changes, import phases, account creation, status changes, identity correction, setup delivery, password-reset requests, application drafts/information/documents/submission, deadline updates, and Adviser return/endorsement are included.
 
 `AuditLogService` recursively removes metadata whose keys indicate passwords, credentials, secrets, tokens, authorization headers, cookies, sessions, CSRF values, or API keys. Long metadata strings are bounded. Raw workbooks, complete imported rows, passwords, setup/reset tokens, and SMTP credentials must never be recorded.
 

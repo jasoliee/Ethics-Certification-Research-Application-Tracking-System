@@ -2,8 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AcademicTerm;
+use App\Models\ApplicationDocument;
 use App\Models\AuditLog;
+use App\Models\ResearchApplication;
 use App\Models\User;
+use App\Services\Settings\AcademicTermResolver;
 use BackedEnum;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -12,13 +16,26 @@ use Stringable;
 
 class AuditLogService
 {
+    public function __construct(
+        private readonly AcademicTermResolver $terms,
+    ) {}
+
     /** @param array<string, mixed> $metadata */
-    public function record(?User $actor, string $action, ?Model $subject = null, array $metadata = []): AuditLog
-    {
+    public function record(
+        ?User $actor,
+        string $action,
+        ?Model $subject = null,
+        array $metadata = [],
+        ?AcademicTerm $academicTerm = null,
+    ): AuditLog {
         $request = app()->bound('request') ? request() : null;
         $metadata = $this->sanitizeMetadata($metadata);
+        $subjectTerm = $this->subjectAcademicTerm($subject);
+        $academicTermId = $academicTerm?->id
+            ?? ($subjectTerm['resolved'] ? $subjectTerm['id'] : $this->terms->current()?->id);
 
         return AuditLog::create([
+            'academic_term_id' => $academicTermId,
             'actor_user_id' => $actor?->id,
             'action' => $action,
             'subject_type' => $subject?->getMorphClass(),
@@ -29,6 +46,28 @@ class AuditLogService
                 ? mb_substr((string) $request->userAgent(), 0, 1000)
                 : null,
         ]);
+    }
+
+    /** @return array{resolved: bool, id: int|null} */
+    private function subjectAcademicTerm(?Model $subject): array
+    {
+        if ($subject instanceof ResearchApplication) {
+            return [
+                'resolved' => true,
+                'id' => $subject->academic_term_id,
+            ];
+        }
+
+        if ($subject instanceof ApplicationDocument) {
+            return [
+                'resolved' => true,
+                'id' => ResearchApplication::query()
+                    ->whereKey($subject->research_application_id)
+                    ->value('academic_term_id'),
+            ];
+        }
+
+        return ['resolved' => false, 'id' => null];
     }
 
     /** @param array<array-key, mixed> $metadata */

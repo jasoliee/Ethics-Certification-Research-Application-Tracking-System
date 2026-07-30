@@ -37,7 +37,7 @@
         <div class="identity-import-grid">
             {{-- Official-template guidance describes the trusted workbook contract without exposing internal paths. --}}
             <section class="identity-import-guide">
-                <div class="identity-dialog-heading"><span class="identity-section-icon"><x-dashboard.icon name="file-spreadsheet" size="24" /></span><div><h2>Official Template</h2><p>Use the current template for {{ Str::lower($selectedType['label']) }} accounts only.</p></div></div>
+                <div class="identity-dialog-heading identity-template-heading"><div><h2>Official Template</h2><p>Use the current template for {{ Str::lower($selectedType['label']) }} accounts only.</p></div></div>
                 <div class="identity-template-actions">
                     <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.import.template', ['account_type' => $selectedType['key']]) }}"><x-dashboard.icon name="download" size="18" /><span>Download Excel Template</span></a>
                 </div>
@@ -350,11 +350,7 @@
                     <span class="identity-section-icon"><x-dashboard.icon name="refresh" size="25" /></span>
                     <h2 id="restore-dialog-title" data-restore-title>Restore Archived Account</h2>
                     <p data-restore-message>The original account will be reactivated without creating a duplicate.</p>
-                    <ul class="identity-restore-notes">
-                        <li>Existing applications and records will remain connected.</li>
-                        <li>The original internal user ID will be preserved.</li>
-                        <li>No password will be revealed or replaced.</li>
-                    </ul>
+                    <p class="identity-restore-notes">Existing applications and records remain connected, the original internal user ID is preserved, and no password is revealed or replaced.</p>
                     <form method="POST" action="{{ route('res.users.import.restore-all') }}" data-restore-form>
                         @csrf
                         <input type="hidden" name="import_token" value="{{ $preview['preview_token'] }}">

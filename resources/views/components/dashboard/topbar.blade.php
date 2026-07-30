@@ -88,10 +88,6 @@
             </button>
 
             <div class="dashboard-dropdown dashboard-profile-menu" id="dashboard-profile-menu" data-menu="profile" hidden>
-                <a href="{{ route($dashboardProfileRoute) }}">
-                    <x-dashboard.icon name="user" size="19" />
-                    <span>Profile</span>
-                </a>
                 <a href="{{ route($dashboardSettingsRoute) }}">
                     <x-dashboard.icon name="settings" size="19" />
                     <span>Settings</span>

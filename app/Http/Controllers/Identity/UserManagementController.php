@@ -29,6 +29,7 @@ use App\Services\Identity\SafeSpreadsheet;
 use App\Services\Identity\UserAccountService;
 use App\Services\Identity\UserBulkImportService;
 use App\Services\Identity\UserManagementQueryService;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -475,8 +476,10 @@ class UserManagementController extends Controller
         return back()->with('status', $message);
     }
 
-    public function auditIndex(Request $request): View
-    {
+    public function auditIndex(
+        Request $request,
+        AcademicTermResolver $terms,
+    ): View {
         Gate::authorize('viewAuditLog', User::class);
         $filters = validator($request->query(), [
             'search' => ['nullable', 'string', 'max:100'],
@@ -486,16 +489,20 @@ class UserManagementController extends Controller
             'target_type' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'semester' => ['nullable', 'string', 'max:50'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
         ])->validate();
         $hiddenActions = ['user.onboarding_completed', 'user.password_setup_completed'];
         $search = trim((string) ($filters['search'] ?? ''));
         $baseQuery = AuditLog::query()->whereNotIn('action', $hiddenActions);
         $actions = (clone $baseQuery)->distinct()->orderBy('action')->pluck('action');
         $targetTypes = (clone $baseQuery)->whereNotNull('subject_type')->distinct()->orderBy('subject_type')->pluck('subject_type');
-        $logs = AuditLog::query()
+        $logsQuery = AuditLog::query()
             ->select(['id', 'actor_user_id', 'action', 'subject_type', 'subject_id', 'metadata', 'created_at'])
             ->with('actor:id,name,username,role')
-            ->whereNotIn('action', $hiddenActions)
+            ->whereNotIn('action', $hiddenActions);
+        $terms->applyFilters($logsQuery, $filters);
+        $logs = $logsQuery
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($matches) use ($search): void {
                     $matches
@@ -523,6 +530,7 @@ class UserManagementController extends Controller
             'filters' => $filters,
             'actions' => $actions,
             'targetTypes' => $targetTypes,
+            'termOptions' => $terms->filterOptions(),
             'routeBase' => $this->routeBase($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],

@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-07-30
+
+### Added
+
+- RES-only Endorsed Applications landing page with protected navigation, safe search/status/term/date filters, 15-row pagination, and an internal horizontal-scroll table.
+- Neutral database notifications to every active RES Lead when an Adviser endorses an application for screening.
+- Focused coverage for RES queue visibility and authorization, active/inactive RES notifications, strict deadline dates, 11-digit phone validation, alphanumeric Student Numbers, and the corrected layout hooks.
+
+### Changed
+
+- Rebuilt Deadline Configuration as a bounded seven-phase table with Upcoming Deadline and Active Date Range summaries; removed the aggregate Manual Toggles On summary.
+- Every term start, process opening, deadline, and release value now rejects past input in the browser and backend even when Manual Open is selected. Manual `On` remains a runtime date override; `Auto` restores date evaluation.
+- Limited Phone Number to 11 digits and preserved alphanumeric Student Number/Employee ID validation in individual and Excel account creation.
+- Aligned Applicant header/checklist/upload/form controls, made Adviser Return for Correction red, removed duplicate detail-stage text, centered account application metrics, aligned account lifecycle actions, removed the edit-profile Dropdown Options shortcut, and left-aligned the import template guidance.
+- Adjusted latest-endorsement eager loading for SQLite/MySQL-compatible pagination after a cross-database ambiguity was found by the new queue test.
+
+### Preserved
+
+- Private application documents remain outside `public/` and stream only through authorized routes.
+- Drafts remain excluded from the three-formal-application limit and from Adviser/RES queues.
+- RES screening decisions and later Reviewer/result/certificate workflows remain pending.
+
+## 2026-07-29
+
+### Added
+
+- Required Applicant Starting Date and Ending Date fields with ordered-date validation, formatted detail display, and a legacy duration-text fallback for existing records.
+- `profile_option_aliases` so renamed Year Level, Institution, Department, Program, and Reviewer Classification labels retain one immutable option identity for older official workbooks.
+- Applicant final-submission confirmation, exact readiness checklist ordering, combined application/completion overview, Open/Closed submission label, and red formal-limit warning.
+- Regression coverage for newest Applicant selection, cross-term Adviser/RES dashboard visibility, date ranges, submission labels/dialog structure, complete deadline borders, and active/inactive historical workbook labels.
+- A maintained current-feature catalog and a dedicated deadline-configuration guide.
+
+### Changed
+
+- Applicant dashboard now selects the newest-created owned application instead of allowing a later edit to an older record to displace it.
+- Applicant, Adviser, and RES application dashboard queries no longer hide relevant stored records solely because their academic-term link is missing or historical; deadlines and timeline events remain current-term aware.
+- New/edited research information stores expected dates while preserving the old duration column only for historical compatibility.
+- Bulk account validation resolves current labels, historical aliases, or stable numeric IDs to one active option and stores its current canonical label.
+- Requirement upload controls, long document-modal values, Adviser decision alignment, application section spacing, deadline borders/On-Off labels, and narrow-screen behavior were refined.
+- Documentation now records the three-formal-application limit, private Excel requirement uploads, Adviser return/endorsement, manual-open versus automatic deadline behavior, and the remaining incomplete review/certificate modules.
+
+### Preserved
+
+- Draft applications do not consume the maximum of three formal application slots.
+- A returned application reuses its existing formal slot and original submission timestamp.
+- Private documents remain controller-authorized and outside `public/`.
+- The approved macro-free `.xlsx` Accounts columns remain unchanged; stable option resolution is server-owned.
+
+### Verification
+
+- `php artisan test` passed 149 tests with 2,271 assertions using an isolated compiled-view path to avoid the running Windows development server's Blade-cache lock.
+- All 169 project PHP files passed syntax checks; Pint, strict Composer validation, platform requirements, all 99 routes, Blade compilation, the Vite production build, Markdown local-link validation, and `git diff --check` passed.
+- Both July 29 additive migrations ran in batch 12. Pretend rollback confirmed that rollback removes only `profile_option_aliases` and the two expected-duration date columns.
+- Browser acceptance at the documented desktop/tablet/mobile widths remains pending because no controllable browser session was available.
+
 ## 2026-07-27
 
 ### Added

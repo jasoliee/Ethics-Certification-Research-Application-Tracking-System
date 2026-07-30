@@ -5,6 +5,7 @@ namespace Tests\Feature\Identity;
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
 use App\Enums\UserRole;
+use App\Models\AcademicTerm;
 use App\Models\AuditLog;
 use App\Models\ProfileOption;
 use App\Models\ResearchApplication;
@@ -385,7 +386,7 @@ class UserManagementTest extends TestCase
             'Jr.',
             'juandelacruz@example.com',
             '20260000',
-            '099999999999',
+            '09999999999',
             'Fourth Year',
             'Institute of Computing and Digital Innovation',
             'Computer Studies',
@@ -503,6 +504,58 @@ class UserManagementTest extends TestCase
         $this->actingAs($resLead)->post(route('res.users.import.confirm'), ['import_token' => $token])
             ->assertSessionHasErrors('import_token');
         $this->assertSame(1, User::where('email', 'excel.student@school.edu')->count());
+    }
+
+    public function test_phone_numbers_are_limited_to_eleven_digits_and_bulk_import_accepts_alphanumeric_student_ids(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $this->actingAs($resLead)
+            ->from(route('res.users.create', ['mode' => 'individual', 'account_type' => 'student_researcher']))
+            ->post(route('res.users.store'), $this->studentPayload([
+                'email' => 'invalid.phone@ecrats.test',
+                'institutional_identifier' => 'STU-PHONE-12',
+                'phone_number' => '091712345678',
+            ]))
+            ->assertSessionHasErrors('phone_number');
+        $this->assertDatabaseMissing('users', ['email' => 'invalid.phone@ecrats.test']);
+
+        $invalidPath = $this->templatePath($resLead);
+        $invalidRow = $this->studentRow(
+            email: 'bulk.invalid.phone@ecrats.test',
+            identifier: 'STU-BULK-A1',
+        );
+        $invalidRow[6] = '091712345678';
+        $this->replaceSpreadsheetRow($invalidPath, 3, $invalidRow);
+
+        $this->actingAs($resLead)
+            ->post(route('res.users.import.store'), [
+                'account_type' => 'student_researcher',
+                'accounts_file' => $this->uploadedWorkbook($invalidPath, 'invalid-phone.xlsx'),
+            ])
+            ->assertOk()
+            ->assertSee('Excel Row 3')
+            ->assertSee('Phone Number')
+            ->assertSee('Digits only, with at most 11 digits.');
+
+        $validPath = $this->templatePath($resLead);
+        $validRow = $this->studentRow(
+            email: 'bulk.alphanumeric@ecrats.test',
+            identifier: 'STU-2026-A1',
+        );
+        $validRow[6] = '09171234567';
+        $this->replaceSpreadsheetRow($validPath, 3, $validRow);
+
+        $this->actingAs($resLead)
+            ->post(route('res.users.import.store'), [
+                'account_type' => 'student_researcher',
+                'accounts_file' => $this->uploadedWorkbook($validPath, 'alphanumeric-student-id.xlsx'),
+            ])
+            ->assertOk()
+            ->assertSee('Import Preview')
+            ->assertSee('STU-2026-A1')
+            ->assertDontSee('Excel Row 3</strong>', false);
     }
 
     /**
@@ -1076,6 +1129,70 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['actor_user_id' => $resLead->id, 'action' => 'user.profile_option_restored']);
     }
 
+    public function test_old_workbook_label_resolves_to_the_same_active_option_after_rename(): void
+    {
+        Notification::fake();
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $catalog = app(ProfileOptionCatalog::class);
+        $option = $catalog->create($resLead, ProfileOptionField::Program, 'Applied Ethics');
+        $path = $this->templatePath($resLead);
+        $row = $this->studentRow(
+            'Alias',
+            'Import',
+            'alias.import@ecrats.test',
+            'KLD-STU-ALIAS',
+        );
+        $row[10] = 'Applied Ethics';
+        $this->replaceSpreadsheetRow($path, 3, $row);
+
+        $catalog->update($resLead, $option, 'Research Ethics');
+        $this->assertDatabaseHas('profile_option_aliases', [
+            'profile_option_id' => $option->id,
+            'field' => ProfileOptionField::Program->value,
+            'normalized_value' => 'applied ethics',
+        ]);
+
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path, 'older-template.xlsx'),
+        ])->assertOk()
+            ->assertSee('Confirm Account Creation')
+            ->assertDontSee('Select an accepted Program');
+
+        $token = $this->previewTokenFor($resLead);
+        $this->actingAs($resLead)
+            ->post(route('res.users.import.confirm'), ['import_token' => $token])
+            ->assertRedirect(route('res.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'institutional_identifier' => 'KLD-STU-ALIAS',
+            'program' => 'Research Ethics',
+        ]);
+        $this->assertSame(
+            $option->id,
+            $catalog->resolve(ProfileOptionField::Program, 'Applied Ethics')?->id,
+        );
+
+        $catalog->setActive($resLead, $option->refresh(), false);
+        $inactiveRow = $this->studentRow(
+            'Inactive',
+            'Alias',
+            'inactive.alias@ecrats.test',
+            'KLD-STU-INACTIVE-ALIAS',
+        );
+        $inactiveRow[10] = 'Applied Ethics';
+        $this->replaceSpreadsheetRow($path, 3, $inactiveRow);
+
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path, 'older-template-inactive.xlsx'),
+        ])->assertOk()
+            ->assertSee('Select an accepted Program')
+            ->assertDontSee('Confirm Account Creation');
+        $this->assertDatabaseMissing('users', ['institutional_identifier' => 'KLD-STU-INACTIVE-ALIAS']);
+    }
+
     public function test_required_option_configuration_is_reported_in_templates_and_import_validation(): void
     {
         Storage::fake('local');
@@ -1161,6 +1278,77 @@ class UserManagementTest extends TestCase
         $this->assertNotNull($visible->id);
     }
 
+    public function test_audit_log_filters_by_semester_and_academic_year(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $firstTerm = AcademicTerm::create([
+            'semester' => '1st Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->addMonth(),
+            'is_active' => true,
+        ]);
+        $secondTerm = AcademicTerm::create([
+            'semester' => '2nd Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->addMonths(2),
+            'ends_at' => now()->addMonths(5),
+            'is_active' => true,
+        ]);
+        AuditLog::create([
+            'academic_term_id' => $firstTerm->id,
+            'actor_user_id' => $resLead->id,
+            'action' => 'term.first.activity',
+            'metadata' => ['result' => 'recorded'],
+        ]);
+        AuditLog::create([
+            'academic_term_id' => $secondTerm->id,
+            'actor_user_id' => $resLead->id,
+            'action' => 'term.second.activity',
+            'metadata' => ['result' => 'recorded'],
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.audit.index', [
+                'semester' => '1st Semester',
+                'academic_year' => '2026-2027',
+            ]))
+            ->assertOk()
+            ->assertViewHas('logs', fn ($logs): bool => $logs->total() === 1
+                && $logs->first()->action === 'term.first.activity');
+    }
+
+    public function test_application_audit_events_retain_the_parent_application_term(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $historicalTerm = AcademicTerm::create([
+            'semester' => 'Historical Semester',
+            'academic_year' => '2025-2026',
+            'starts_at' => now()->subMonths(6),
+            'ends_at' => now()->subMonths(2),
+            'is_active' => true,
+        ]);
+        AcademicTerm::create([
+            'semester' => 'Current Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+        $application = ResearchApplication::factory()->create([
+            'academic_term_id' => $historicalTerm,
+        ]);
+
+        $audit = app(AuditLogService::class)->record(
+            $resLead,
+            'application.historical_action',
+            $application,
+            ['result' => 'recorded'],
+        );
+
+        $this->assertSame($historicalTerm->id, $audit->academic_term_id);
+    }
+
     public function test_user_management_interfaces_use_excel_and_shared_ui_text(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -1230,7 +1418,20 @@ class UserManagementTest extends TestCase
         $detailResponse
             ->assertSee('Back to User Management')
             ->assertSee('identity-button identity-button-secondary', false)
-            ->assertSee('Send Reset Link');
+            ->assertSee('Send Reset Link')
+            ->assertSee('identity-account-lifecycle-actions', false);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.edit', $managedUser))
+            ->assertOk()
+            ->assertSee('identity-edit-page', false)
+            ->assertDontSee('Dropdown Options');
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.import.form', ['account_type' => 'student_researcher']))
+            ->assertOk()
+            ->assertSee('identity-template-heading', false)
+            ->assertSee('identity-template-actions', false);
 
         // Assert RES Lead and Adviser account lists contain keyboard-focusable internal horizontal-scroll regions.
         $this->actingAs($resLead)
@@ -1335,7 +1536,7 @@ class UserManagementTest extends TestCase
             'suffix' => null,
             'email' => 'new.student@ecrats.test',
             'institutional_identifier' => 'KLD-STU-501',
-            'phone_number' => '+63 917 123 4567',
+            'phone_number' => '09171234567',
             'institution' => 'Institute of Engineering',
             'department' => null,
             'program' => null,

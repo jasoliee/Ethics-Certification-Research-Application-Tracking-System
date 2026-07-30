@@ -49,6 +49,7 @@ Applicant:
 - Confirm the same mandatory-requirement completion count appears on dashboard, details, and requirements.
 - Confirm missing, pending, or rejected requirements block initial submission.
 - Confirm submission is blocked when unconfigured, upcoming, or closed and succeeds only inside the configured period.
+- Confirm Submit Application stays aligned with the checklist heading and Target Participants remains beside the stacked Starting/Ending dates.
 - Submit twice and confirm one transition, one Adviser notification, and no duplicate audit event.
 - Open Application and Revision and Certificates; verify breadcrumbs and active states.
 - Hover a truncated research title or account value for about 0.5 seconds and repeat using keyboard focus.
@@ -60,7 +61,8 @@ Adviser:
 - Search and filter by status/submission dates; confirm filters cannot broaden the Adviser scope.
 - Confirm Status and Action columns are centered while other columns remain left-aligned.
 - Open an application and its current private documents; verify record authorization and breadcrumb links.
-- Confirm there are no endorsement or return controls until that workflow is implemented.
+- Confirm Return for Correction is red, Endorse Application is green, both are aligned, and only an assigned initial-cycle Adviser can use them during the configured period.
+- Confirm the submitted-application table exposes its bottom horizontal scrollbar when columns do not fit.
 - Confirm applicant account creation never asks for a password or Date Joined.
 
 Reviewer:
@@ -75,17 +77,21 @@ RES Lead:
 - Confirm Notifications is absent from the sidebar but available from the bell.
 - Confirm administrative application records open and other role prefixes redirect.
 - Download each role's `.xlsx` template and confirm the worksheets are exactly Accounts, hidden Options, and Instructions.
-- Confirm current active options appear as Excel dropdowns and inactive values fail server-side validation.
+- Confirm current active options appear as Excel dropdowns, a prior label resolves to the same active option after rename, the current canonical label is stored, and inactive option identities fail server-side validation.
 - Preview a workbook containing valid, invalid, duplicate, and existing rows; confirm only the valid rows once.
+- Confirm a 12-digit phone is rejected with row, field, reason, and expected format; confirm an 11-digit phone and alphanumeric Student Number validate.
 - Confirm the Student template Row 2 contains the approved Juan Dela Cruz example and the exact marker appears in Instructions.
 - Remove the Instructions marker and confirm Row 2 is validated as ordinary data.
 - Confirm active and archived account matches appear in separate containers.
 - Restore one and Restore All from the current preview; confirm original IDs and relationships remain, conflicts stay archived, actions are audited, and restored rows are never recreated on confirmation.
 - Confirm another RES Lead's preview, an expired preview, and a manipulated archived ID cannot restore an account.
 - Confirm CSV, XLS, XLSM, XLSB, renamed files, formulas, macros, external links, password protection, changed headers, extra sheets/columns, and excessive rows are rejected.
-- Add, rename, deactivate, and restore a dropdown option; confirm historical user values remain unchanged and advisers cannot manage options.
+- Add, rename, deactivate, and restore a dropdown option; confirm alias ownership remains stable, historical user values remain unchanged, and advisers cannot manage options.
 - Filter the audit report by search, actor role, action, result, target type, and date; confirm filters survive pagination.
 - Confirm mass deactivate/archive/resend actions require selection and confirmation.
+- Endorse an application and confirm every active RES Lead receives one neutral notification while inactive RES Leads do not.
+- Open Endorsed Applications and confirm pre-endorsement submissions and drafts are absent, filters stay scoped, pagination is 15 rows, and the table scrolls internally.
+- Confirm every term/process date rejects past values even with Manual Open selected; confirm `On` overrides runtime dates and `Auto` returns to date evaluation.
 
 All roles:
 
@@ -95,10 +101,10 @@ All roles:
 - Scroll to the footer and verify all four sections.
 - Confirm Settings is absent from the sidebar but present in the profile menu.
 - Confirm the footer says About ECRATS, has a Maps link, and has no KLD Login link.
-- Check approximately 1440, 1280, 1024, 768, and 390 pixel widths for clipping or whole-page horizontal overflow.
+- Check approximately 1440, 1280, 1024, 768, and 390 pixel widths for clipping or whole-page horizontal overflow. Include Applicant application/list/details/requirements, the document and submission dialogs, Adviser list/decision actions, and RES deadline sections.
 - Confirm wide account/audit tables scroll inside their wrapper, badges remain aligned, pagination is centered, and long values show a tooltip after about 0.5 seconds.
 - Check the browser console for errors.
 
 ## Verification Baseline
 
-The expanded automated suite covers authentication, role authorization, dashboards, onboarding, account creation, setup-link expiry/single use, Excel generation and import, workbook-structure rejection, marker-controlled example-row handling, active/archive separation and secure restoration, dropdown-option lifecycle, broad valid email domains, mass actions, username correction, Applicant draft and private-document behavior, shared completion, configured submission, Adviser visibility, MIME icons, audit filtering/sanitization, and rate limiting. Always report the exact current test count from command output instead of preserving a count in this document.
+The expanded automated suite covers authentication, role authorization, dashboard reflection across term links, onboarding, account creation, setup-link expiry/single use, Excel generation/import, workbook-structure rejection, marker-controlled example rows, active/archive separation and secure restoration, dropdown identities and historical aliases, mass actions, username correction, Applicant date-pair validation, formal-count limits, private-document behavior, shared completion, configured/manual-open submission, confirmation structure, Adviser visibility/decisions, MIME icons, audit filtering/sanitization, and rate limiting. Always report the exact current test count from command output instead of preserving a count in this document.

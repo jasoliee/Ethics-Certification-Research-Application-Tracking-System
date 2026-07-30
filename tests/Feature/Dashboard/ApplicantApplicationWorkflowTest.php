@@ -8,6 +8,7 @@ use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ResearchType;
 use App\Enums\UserRole;
+use App\Models\AcademicTerm;
 use App\Models\ApplicationDocument;
 use App\Models\AuditLog;
 use App\Models\DocumentRequirement;
@@ -15,6 +16,7 @@ use App\Models\ResearchApplication;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -56,9 +58,105 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index'))
             ->assertOk()
+            ->assertSee('application-heading-actions', false)
             ->assertSee('dashboard-overflow-region', false)
             ->assertSee('>View<', false)
             ->assertDontSee('>Edit<', false);
+    }
+
+    public function test_new_application_codes_use_approved_type_institution_date_and_unique_suffixes(): void
+    {
+        $this->travelTo(Carbon::parse('2026-08-10 09:30:00'));
+
+        try {
+            $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+            $institutions = [
+                'Institute of Behavioral Sciences' => 'IBS',
+                'Institute of Computing and Digital Innovation' => 'ICDI',
+                'Institute of Engineering' => 'IOE',
+                'Institute of Foundational Studies' => 'IFS',
+                'Institute of Governance and Development Studies' => 'IGDS',
+                'Institute of Medical Laboratory Science' => 'IMLS',
+                'Institute of Midwifery' => 'IOM',
+                'Institute of Nursing' => 'ION',
+                'Institute of Science and Mathematics' => 'ISM',
+            ];
+
+            foreach ($institutions as $institution => $acronym) {
+                $applicant = User::factory()->create([
+                    'role' => UserRole::Applicant,
+                    'applicant_type' => ApplicantType::Student,
+                ]);
+                $this->actingAs($applicant)
+                    ->post(route('applicant.applications.store'), [
+                        ...$this->applicationPayload($adviser),
+                        'institution' => $institution,
+                    ])
+                    ->assertRedirect();
+                $code = ResearchApplication::where('applicant_user_id', $applicant->id)
+                    ->value('application_code');
+                $this->assertMatchesRegularExpression(
+                    "/^RES-2026-S-{$acronym}-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\\d)[A-Z0-9]{6}$/",
+                    $code,
+                );
+            }
+
+            $faculty = User::factory()->create([
+                'role' => UserRole::Applicant,
+                'applicant_type' => ApplicantType::Faculty,
+            ]);
+            $this->actingAs($faculty)
+                ->post(route('applicant.applications.store'), $this->applicationPayload($adviser))
+                ->assertRedirect();
+            $this->assertMatchesRegularExpression(
+                '/^RES-2026-F-ICDI-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{6}$/',
+                ResearchApplication::where('applicant_user_id', $faculty->id)->value('application_code'),
+            );
+
+            $codes = ResearchApplication::query()->pluck('application_code');
+            $this->assertSame($codes->count(), $codes->unique()->count());
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_applicant_application_list_filters_by_semester_and_academic_year(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $firstTerm = AcademicTerm::create([
+            'semester' => '1st Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->addMonth(),
+            'is_active' => true,
+        ]);
+        $secondTerm = AcademicTerm::create([
+            'semester' => '2nd Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->addMonths(2),
+            'ends_at' => now()->addMonths(5),
+            'is_active' => true,
+        ]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'academic_term_id' => $firstTerm,
+            'research_title' => 'Visible First Term Study',
+        ]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'academic_term_id' => $secondTerm,
+            'research_title' => 'Hidden Second Term Study',
+        ]);
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.index', [
+                'semester' => '1st Semester',
+                'academic_year' => '2026-2027',
+            ]))
+            ->assertOk()
+            ->assertSee('Visible First Term Study')
+            ->assertDontSee('Hidden Second Term Study')
+            ->assertViewHas('applications', fn ($applications): bool => $applications->total() === 1);
     }
 
     public function test_information_validation_preserves_student_and_faculty_differences_and_adviser_eligibility(): void
@@ -99,6 +197,94 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $facultyApplication = ResearchApplication::where('applicant_user_id', $faculty->id)->firstOrFail();
         $this->assertNull($facultyApplication->program);
         $this->assertSame(ApplicantType::Faculty->value, $facultyApplication->applicant_type);
+    }
+
+    public function test_expected_duration_requires_an_ordered_date_pair_and_displays_the_saved_range(): void
+    {
+        $applicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
+        ]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+
+        $this->actingAs($applicant)
+            ->from(route('applicant.applications.create'))
+            ->post(route('applicant.applications.store'), [
+                ...$this->applicationPayload($adviser),
+                'expected_start_date' => '2027-05-31',
+                'expected_end_date' => '2026-08-01',
+            ])
+            ->assertRedirect(route('applicant.applications.create'))
+            ->assertSessionHasErrors('expected_end_date');
+
+        $this->actingAs($applicant)
+            ->post(route('applicant.applications.store'), $this->applicationPayload($adviser))
+            ->assertRedirect();
+
+        $application = ResearchApplication::where('applicant_user_id', $applicant->id)->firstOrFail();
+        $this->assertSame('2026-08-01', $application->expected_start_date?->format('Y-m-d'));
+        $this->assertSame('2027-05-31', $application->expected_end_date?->format('Y-m-d'));
+        $this->assertNull($application->expected_duration);
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.show', $application))
+            ->assertOk()
+            ->assertSee('Aug 1, 2026 to May 31, 2027');
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.edit', $application))
+            ->assertOk()
+            ->assertSee('application-duration-fields', false)
+            ->assertSeeInOrder(['Target Participants', 'Starting Date', 'Ending Date'])
+            ->assertSeeInOrder(['>Cancel<', '>Save and Continue<'], false);
+    }
+
+    public function test_requirement_workspace_combines_progress_and_requires_submit_confirmation_in_the_approved_order(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+            'research_title' => 'Submission Confirmation Study',
+        ]);
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.requirements', $application))
+            ->assertOk()
+            ->assertSee('application-submission-overview', false)
+            ->assertSee('application-record-header-integrated', false)
+            ->assertSee('application-submit-heading', false)
+            ->assertSeeInOrder([
+                'Submission Checklist',
+                'data-final-submit-open',
+                'Application submission is open by the RES Lead.',
+                'A formal application slot is available.',
+                'All required application information is complete.',
+                'An eligible Research Adviser is assigned.',
+                'Every mandatory requirement is uploaded and complete.',
+            ])
+            ->assertSee('data-final-submit-open', false)
+            ->assertSee('data-final-submit-dialog', false)
+            ->assertSee('Confirm Submission');
+    }
+
+    public function test_requested_application_action_groups_remain_horizontal_at_narrow_widths(): void
+    {
+        $css = file_get_contents(resource_path('css/dashboard.css'));
+
+        $this->assertIsString($css);
+        $this->assertMatchesRegularExpression(
+            '/\.application-record-actions,\s*\.application-heading-actions,\s*\.application-adviser-decision-actions\s*\{[^}]*flex-direction:\s*row;[^}]*flex-wrap:\s*nowrap;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.application-form-actions\s*\{[^}]*flex-direction:\s*row;[^}]*flex-wrap:\s*nowrap;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.application-submit-heading\s*\{[^}]*flex-direction:\s*row;[^}]*flex-wrap:\s*nowrap;/s',
+            $css,
+        );
     }
 
     public function test_applicant_can_update_only_their_own_eligible_draft(): void
@@ -168,6 +354,52 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertSame(ApplicationStatus::ReturnedByAdviser, $returned->fresh()->application_status);
     }
 
+    public function test_reopening_an_adviser_returned_application_preserves_initial_submission_and_cycle(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'adviser_user_id' => $adviser,
+            'draft_owner_user_id' => null,
+            'application_status' => ApplicationStatus::ReturnedByAdviser,
+            'submitted_at' => now()->subDay(),
+            'current_revision_cycle' => 1,
+        ]);
+        $originalSubmittedAt = $application->submitted_at;
+        $requirement = $this->requirement();
+
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => UploadedFile::fake()->create('too-early.pdf', 20, 'application/pdf')],
+        )->assertForbidden();
+        $this->actingAs($applicant)
+            ->post(route('applicant.applications.submit', $application))
+            ->assertForbidden();
+
+        $this->actingAs($applicant)
+            ->put(route('applicant.applications.update', $application), $this->applicationPayload($adviser))
+            ->assertRedirect(route('applicant.applications.requirements', $application));
+
+        $application->refresh();
+        $this->assertSame(ApplicationStatus::Incomplete, $application->application_status);
+        $this->assertTrue($application->submitted_at->equalTo($originalSubmittedAt));
+        $this->assertSame($applicant->id, $application->draft_owner_user_id);
+        $this->assertSame(1, $application->current_revision_cycle);
+
+        $this->actingAs($applicant)
+            ->put(route('applicant.applications.update', $application), $this->applicationPayload($adviser))
+            ->assertRedirect(route('applicant.applications.requirements', $application));
+        $this->assertSame(1, $application->fresh()->current_revision_cycle);
+
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => UploadedFile::fake()->create('revision.pdf', 20, 'application/pdf')],
+        )->assertRedirect();
+        $this->assertSame(1, ApplicationDocument::firstOrFail()->document_version);
+    }
+
     public function test_private_document_upload_replacement_and_validation_preserve_version_history(): void
     {
         // Arrange an editable owned draft and one active Thesis requirement on a fake private disk.
@@ -191,12 +423,13 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ['document' => UploadedFile::fake()->create('proposal-revised.pdf', 24, 'application/pdf')],
         )->assertRedirect();
 
-        // Assert both private files and metadata versions remain while only the latest is current.
-        $documents = ApplicationDocument::orderBy('document_version')->get();
+        // Assert replacements inside one revision cycle retain version 1 while preserving private history.
+        $documents = ApplicationDocument::query()->orderBy('id')->get();
         $this->assertCount(2, $documents);
         $this->assertFalse($documents[0]->is_current);
         $this->assertTrue($documents[1]->is_current);
-        $this->assertSame(2, $documents[1]->document_version);
+        $this->assertSame(1, $documents[0]->document_version);
+        $this->assertSame(1, $documents[1]->document_version);
         $this->assertSame(RequirementStatus::Completed, $documents[1]->validation_status);
         Storage::disk('local')->assertExists($documents[0]->stored_file_path);
         Storage::disk('local')->assertExists($documents[1]->stored_file_path);
@@ -204,7 +437,17 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertSame(1, $this->auditCount('application.requirement_uploaded', $documents[0]));
         $this->assertSame(1, $this->auditCount('application.requirement_replaced', $documents[1]));
 
-        // Act with an executable extension and assert validation prevents a third stored version.
+        // Start an explicit revision cycle and assert the next replacement advances the displayed version.
+        $application->update(['current_revision_cycle' => 2]);
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => UploadedFile::fake()->create('proposal-cycle-two.pdf', 24, 'application/pdf')],
+        )->assertRedirect();
+        $cycleTwoDocument = ApplicationDocument::query()->latest('id')->firstOrFail();
+        $this->assertSame(2, $cycleTwoDocument->document_version);
+        $this->assertTrue($cycleTwoDocument->is_current);
+
+        // Act with an executable extension and assert validation prevents another stored record.
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
             ['document' => UploadedFile::fake()->create('payload.php', 1, 'text/x-php')],
@@ -231,8 +474,77 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ['document' => UploadedFile::fake()->create('wrong-category.pdf', 4, 'application/pdf')],
         )->assertSessionHasErrors('document');
 
-        // Assert rejected type, size, and category attempts never created a third document version.
-        $this->assertSame(2, ApplicationDocument::count());
+        // Assert rejected type, size, and category attempts never created another document record.
+        $this->assertSame(3, ApplicationDocument::count());
+    }
+
+    public function test_upload_all_processes_each_selected_requirement_independently(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+            'research_type' => ResearchType::Thesis,
+        ]);
+        $proposal = DocumentRequirement::create([
+            'code' => 'BATCH-PROPOSAL',
+            'name' => 'Research Proposal',
+            'is_mandatory' => true,
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+        $consent = DocumentRequirement::create([
+            'code' => 'BATCH-CONSENT',
+            'name' => 'Informed Consent',
+            'is_mandatory' => true,
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+        $headers = [
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ];
+
+        $response = $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store-all', $application),
+            [
+                'documents' => [
+                    $proposal->id => UploadedFile::fake()->create('proposal.pdf', 20, 'application/pdf'),
+                    $consent->id => UploadedFile::fake()->create('unsafe.php', 1, 'text/x-php'),
+                ],
+            ],
+            $headers,
+        );
+
+        $response->assertOk()
+            ->assertJsonPath("successes.{$proposal->id}.message", 'Document uploaded.')
+            ->assertJsonPath('progress.completed_count', 1);
+        $this->assertNotEmpty($response->json("errors.{$consent->id}"));
+        $this->assertDatabaseHas('application_documents', [
+            'research_application_id' => $application->id,
+            'document_requirement_id' => $proposal->id,
+            'is_current' => true,
+        ]);
+        $this->assertDatabaseMissing('application_documents', [
+            'research_application_id' => $application->id,
+            'document_requirement_id' => $consent->id,
+        ]);
+
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store-all', $application),
+            [
+                'documents' => [
+                    $consent->id => UploadedFile::fake()->create('consent.pdf', 18, 'application/pdf'),
+                ],
+            ],
+            $headers,
+        )->assertOk()
+            ->assertJsonPath("successes.{$consent->id}.message", 'Document uploaded.')
+            ->assertJsonPath('progress.completed_count', 2)
+            ->assertJsonPath('progress.ready', true);
+
+        $this->assertSame(2, ApplicationDocument::query()->count());
     }
 
     public function test_current_document_removal_updates_the_checklist_without_deleting_private_history(): void
@@ -332,7 +644,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         Storage::disk('local')->assertExists($document->stored_file_path);
     }
 
-    public function test_applicant_can_discard_only_their_own_unsubmitted_draft_as_an_archive(): void
+    public function test_applicant_can_permanently_discard_only_their_own_unsubmitted_draft(): void
     {
         Storage::fake('local');
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
@@ -340,7 +652,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant,
             'draft_owner_user_id' => $applicant,
-            'research_title' => 'Draft To Archive',
+            'research_title' => 'Draft To Discard',
             'application_status' => ApplicationStatus::Incomplete,
         ]);
         $requirement = $this->requirement();
@@ -357,20 +669,19 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->delete(route('applicant.applications.destroy', $application))
             ->assertRedirect(route('applicant.applications.index'));
 
-        $application->refresh();
-        $this->assertSame(ApplicationStatus::Archived, $application->application_status);
-        $this->assertSame(ApplicationStage::Completed, $application->current_stage);
-        $this->assertNull($application->draft_owner_user_id);
-        $this->assertTrue($document->refresh()->is_current);
-        Storage::disk('local')->assertExists($document->stored_file_path);
-        $this->assertDatabaseHas('audit_logs', [
-            'action' => 'application.draft_discarded',
-            'subject_id' => $application->id,
-        ]);
+        $this->assertDatabaseMissing('research_applications', ['id' => $application->id]);
+        $this->assertDatabaseMissing('application_documents', ['id' => $document->id]);
+        Storage::disk('local')->assertMissing($document->stored_file_path);
+        $audit = AuditLog::query()
+            ->where('action', 'application.draft_discarded')
+            ->firstOrFail();
+        $this->assertNull($audit->subject_id);
+        $this->assertSame($application->id, $audit->metadata['application_id']);
+        $this->assertSame('deleted', $audit->metadata['result']);
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index'))
             ->assertOk()
-            ->assertDontSee('Draft To Archive');
+            ->assertDontSee('Draft To Discard');
 
         $submitted = ResearchApplication::factory()->submittedToAdviser()->create([
             'applicant_user_id' => $applicant,
@@ -450,7 +761,8 @@ class ApplicantApplicationWorkflowTest extends TestCase
             'adviser_user_id' => $adviser->id,
             'abstract' => 'This study examines privacy expectations in community-facing digital research.',
             'target_participants' => 'Adult KLD students who provide informed consent.',
-            'expected_duration' => 'August 2026 to May 2027',
+            'expected_start_date' => '2026-08-01',
+            'expected_end_date' => '2027-05-31',
         ];
     }
 

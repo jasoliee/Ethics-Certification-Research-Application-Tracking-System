@@ -258,7 +258,7 @@ class UserAccountService
                 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i',
                 $checkDatabaseUniqueness ? Rule::unique('users', 'institutional_identifier')->ignore($subject?->id) : null,
             ])),
-            'phone_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\s-]+$/'],
+            'phone_number' => ['nullable', 'string', 'max:11', 'regex:/^[0-9]{1,11}$/'],
             'institution' => [
                 'nullable',
                 'string',
@@ -313,6 +313,16 @@ class UserAccountService
                 : null;
         }
 
+        // Canonicalize current labels, immutable IDs, and historical aliases before shared validation.
+        foreach (ProfileOptionField::cases() as $field) {
+            $submitted = $attributes[$field->value] ?? null;
+            $resolved = $this->profileOptions->resolve($field, is_int($submitted) || is_string($submitted) ? $submitted : null);
+
+            if ($resolved) {
+                $attributes[$field->value] = $resolved->value;
+            }
+        }
+
         $attributes['email'] = Str::lower(trim((string) ($attributes['email'] ?? '')));
         $attributes['institutional_identifier'] = Str::upper(trim((string) ($attributes['institutional_identifier'] ?? '')));
 
@@ -325,6 +335,8 @@ class UserAccountService
         return [
             'email.email' => 'Email must be a valid address such as name@example.com.',
             'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
+            'phone_number.max' => 'Phone Number may contain at most 11 digits.',
+            'phone_number.regex' => 'Phone Number must contain digits only, with at most 11 digits.',
             'institution.in' => $this->profileOptions->validationMessage(ProfileOptionField::Institution),
             'department.in' => $this->profileOptions->validationMessage(ProfileOptionField::Department),
             'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),

@@ -10,7 +10,7 @@ Research Adviser may create and manage Student or Faculty Researcher accounts on
 
 The full-page account selector opens a choice between Individual and Bulk creation. Individual forms collect split names and role-specific profile fields. Username, password, password confirmation, and Date Joined are not creator inputs. Form sections reuse one spacing class so divider lines, titles, and first field rows remain consistently separated for every account type.
 
-Year Level, Institution, Department, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. The initial-application migration adds the approved `Computer Studies` Department and `Bachelor of Science in Computer Science` Program when missing so the official Student workbook example validates. Existing profile strings remain unchanged when catalog entries are renamed or deactivated.
+Year Level, Institution, Department, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. The initial-application migration adds the approved `Computer Studies` Department and `Bachelor of Science in Computer Science` Program when missing so the official Student workbook example validates. Existing profile strings remain unchanged when catalog entries are renamed or deactivated. Prior labels are retained as aliases of one immutable option ID so older official workbooks can resolve an active renamed option and store its current label.
 
 Required role fields include:
 
@@ -20,6 +20,8 @@ Required role fields include:
 - Ethics Reviewer: employee ID, classification, and capacity from 1 to 30.
 
 Created accounts remain pending until password setup succeeds. Email failure never activates the account.
+
+Phone Number is optional, digits-only, and limited to 11 digits in individual and workbook creation. Student Number and Employee ID permit letters, numbers, periods, underscores, and hyphens so valid alphanumeric institutional identifiers are retained.
 
 ## Excel Creation
 
@@ -31,7 +33,7 @@ When validation fails, the upload surface shows only `An error occurred.` Comple
 
 Ordinary profile edits cannot change surname or institutional identifier because both determine the username. A separate confirmed identity-correction action changes those values, regenerates the username, audits old/new usernames, and notifies the account email.
 
-The account-information header preserves three responsive regions: identity on the left, application count in the center, and Back to User Management on the right. Reset/setup resend actions reuse the shared green-outline button and retain authorization, CSRF, rate limiting, and neutral delivery responses.
+The account-information header preserves three responsive regions: identity on the left, a centered application icon/count, and Back to User Management on the right. Deactivate or Reactivate stays beside Delete Account as one horizontal lifecycle group. Reset/setup resend actions reuse the shared green-outline button and retain authorization, CSRF, rate limiting, and neutral delivery responses. Edit Profile Information aligns to the same form width and no longer duplicates the Dropdown Options shortcut.
 
 ## Status and Mass Actions
 

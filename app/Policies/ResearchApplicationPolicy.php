@@ -48,8 +48,8 @@ class ResearchApplicationPolicy
                 ApplicationStatus::Incomplete,
                 ApplicationStatus::ReturnedByAdviser,
             ], true)
-            && ($researchApplication->submitted_at === null
-                || $researchApplication->application_status === ApplicationStatus::ReturnedByAdviser);
+            && ($researchApplication->application_status === ApplicationStatus::ReturnedByAdviser
+                || $researchApplication->draft_owner_user_id === $user->id);
     }
 
     /**
@@ -57,7 +57,8 @@ class ResearchApplicationPolicy
      */
     public function upload(User $user, ResearchApplication $researchApplication): bool
     {
-        return $this->update($user, $researchApplication);
+        return $this->update($user, $researchApplication)
+            && $researchApplication->application_status !== ApplicationStatus::ReturnedByAdviser;
     }
 
     /**
@@ -87,14 +88,19 @@ class ResearchApplicationPolicy
      */
     public function submit(User $user, ResearchApplication $researchApplication): bool
     {
-        return $user->role === UserRole::Applicant
-            && $researchApplication->applicant_user_id === $user->id
-            && in_array($researchApplication->application_status, [
-                ApplicationStatus::Draft,
-                ApplicationStatus::Incomplete,
-                ApplicationStatus::ReturnedByAdviser,
-            ], true)
-            && ($researchApplication->submitted_at === null
-                || $researchApplication->application_status === ApplicationStatus::ReturnedByAdviser);
+        return $this->update($user, $researchApplication)
+            && $researchApplication->application_status !== ApplicationStatus::ReturnedByAdviser;
+    }
+
+    /**
+     * Restrict initial Adviser decisions to the currently assigned, formally submitted record.
+     */
+    public function decideAsAdviser(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::Adviser
+            && $researchApplication->adviser_user_id === $user->id
+            && $researchApplication->application_status === ApplicationStatus::SubmittedToAdviser
+            && $researchApplication->isFormallySubmitted()
+            && (int) $researchApplication->current_revision_cycle === 1;
     }
 }

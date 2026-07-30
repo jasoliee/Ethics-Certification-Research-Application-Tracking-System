@@ -10,7 +10,7 @@ Individual account forms reuse `identity-form-section-title` for consistent spac
 
 ## Responsive Tables
 
-User Management, Adviser User Management, Dropdown Option Management, Audit Log, import preview, Applicant application, Adviser application, and requirement tables use the shared `dashboard-overflow-region` behavior. Identity tables retain `identity-table-scroll` alongside it. The wrapper stays within the main-content width and provides internal horizontal scrolling for mouse, trackpad, keyboard, and touch input. Tables retain practical minimum widths; important columns and row actions are not hidden merely to avoid scrolling.
+User Management, Adviser User Management, Dropdown Option Management, Audit Log, import preview, Applicant application, Adviser application, RES Endorsed Applications, deadline configuration, and requirement tables use the shared `dashboard-overflow-region` behavior. Identity tables retain `identity-table-scroll` alongside it. The wrapper stays within the main-content width and provides internal horizontal scrolling for mouse, trackpad, keyboard, and touch input. Tables retain practical minimum widths; important columns and row actions are not hidden merely to avoid scrolling.
 
 Filters remain outside the scrolling table and pagination remains in the same management panel. The page shell itself must not gain horizontal overflow from a wide table.
 
@@ -30,7 +30,11 @@ The Student Researcher and Faculty Researcher dashboard currently uses applicati
 
 ## Application Surfaces
 
-Applicant information, requirements, detail, and Adviser submitted-application views reuse the existing quiet dashboard shell. Fixed action areas wrap at narrow widths, modal content scrolls internally, file controls preserve their labels, and application tables keep their columns inside the shared overflow region.
+Applicant information, requirements, detail, and Adviser submitted-application views reuse the existing quiet dashboard shell. The Applicant Application page keeps its Open/Closed state beside Create/Resume on wide screens and stacks the controls without overlap on narrow screens. The requirements page combines application identity and completion in one section, keeps upload controls stable, and stacks requirement actions at the mobile breakpoint.
+
+The final-submission confirmation and private document viewer use focus-restoring dialogs. Long document values are constrained with ellipsis and use the shared delayed tooltip for the complete value. Submit Application is aligned with the Submission Checklist heading. Target Participants occupies the left study-scope column while Starting Date and Ending Date stack in the right column. The Adviser Decision section aligns red Return and green Endorse controls on desktop and stacks full-width actions on smartphones. Application detail section headings use compact top/bottom spacing rather than oversized gaps.
+
+Deadline Configuration aligns its page heading, tab strip, term summary, two summary areas, and process table to one workspace width. The seven phases remain inside a bordered table with a bottom horizontal scrollbar. Date/time fields use stable spacing and manual switches label their stored override as `On` or `Auto`; no Manual Toggles On summary is rendered.
 
 ## Import Error Presentation
 

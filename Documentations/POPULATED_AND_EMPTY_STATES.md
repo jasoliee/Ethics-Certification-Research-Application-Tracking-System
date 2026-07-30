@@ -6,11 +6,11 @@ Dashboard state is based on database records. Views do not replace missing data 
 
 ## Applicant
 
-Populated when the user has an owned non-archived research application, including an editable draft. The newest status update is selected. Applicable active mandatory requirements and current document versions determine completion. Without an application, the dashboard shows application, requirements, deadline, and timeline empty states as applicable.
+Populated when the user has an owned non-archived research application, including an editable draft. The newest-created record is selected; later edits to an older application do not displace it. Applicable active mandatory requirements and current document versions determine completion. Without an application, the dashboard shows application, requirements, deadline, and timeline empty states as applicable.
 
 ## Adviser
 
-Populated only from formally submitted, non-archived applications whose `adviser_user_id` matches the authenticated user. The dashboard shows grouped status counts and up to five recent submissions. Drafts, unsubmitted records, and another Adviser's records never populate the view.
+Populated only from formally submitted, non-archived applications whose `adviser_user_id` matches the authenticated user. The dashboard shows grouped status counts and up to five recent submissions. Relevant records are not hidden solely because their academic-term link is absent or historical. Drafts, unsubmitted records, and another Adviser's records never populate the view.
 
 ## Reviewer
 
@@ -18,11 +18,11 @@ Populated from assignments whose `reviewer_user_id` matches the authenticated us
 
 ## RES Lead
 
-Populated from applications in active administrative statuses. Counts and the action table cover screening, assignment, review, and result-release queues. With no matching applications, the administrative-action section shows its empty state.
+Populated from applications in active administrative statuses. Counts and the action table cover screening, assignment, review, and result-release queues, including relevant stored records without a current term link. With no matching applications, the administrative-action section shows its empty state.
 
 ## Timeline and Deadline States
 
-For Applicants, the highest-priority active deadline whose key ends in `application-submission` and whose audience is Applicant or all roles drives upcoming, open, and closed states. Other role alerts continue to use their scoped active deadline queries. Active `timeline_calendar_events` records drive milestones. Missing records render purpose-built empty states rather than fabricated dates.
+For Applicants, the highest-priority active current-term deadline whose key ends in `application-submission` and whose audience is Applicant or all roles drives upcoming, open, manual-open, and closed states. Other role alerts continue to use their scoped active current-term deadline queries. Current-term active `timeline_calendar_events` records drive milestones. Missing records render purpose-built empty states rather than fabricated dates.
 
 ## Local Demo Data
 

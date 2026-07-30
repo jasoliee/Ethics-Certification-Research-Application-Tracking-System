@@ -4,9 +4,9 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 ## Current Status
 
-The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus Excel-only `.xlsx` preview and confirmation. RES Leads can safely restore preview-matched archived accounts without replacing their original records. Database-backed profile options, onboarding, mass account actions, filtered audit history, Applicant draft creation and editing, private versioned requirement uploads, configured submission-window enforcement, Adviser-scoped submitted-application visibility, notifications, and guarded initial application submission are implemented and tested.
+The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus Excel-only `.xlsx` preview and confirmation. RES Leads can safely restore preview-matched archived accounts without replacing their original records. Database-backed profile options retain immutable identities and historical label aliases so older workbooks can resolve renamed active options.
 
-Adviser endorsement and return decisions, RES screening, blind review, revisions, result release, certificate rendering, and QR verification are not yet complete end-to-end workflows. The maintained OVPRII background asset is prepared under `resources/assets/official`, but no official document generator currently consumes it.
+Applicant draft creation/editing, validated Starting/Ending Dates, private versioned requirement uploads, selected-file batch upload, the maximum of three formally submitted applications, configured Philippine-time submission windows, confirmation before formal submission, current dashboard reflection, and assigned-Adviser return/endorsement decisions are implemented and tested. RES screening decisions, blind review, later revisions, result release, certificate rendering, and QR verification are not yet complete end-to-end workflows. The maintained OVPRII background asset is prepared under `resources/assets/official`, but no official document generator currently consumes it.
 
 The dashboard database tables are an initial implementation slice of the larger module-based ERD. They do not replace the remaining application, screening, review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
@@ -92,6 +92,7 @@ Start with:
 - `PROJECT_GUIDELINES.md` for project and coding rules
 - `CONTRIBUTING.md` for branch, commit, PR, and review rules
 - `Documentations/README.md` for the implemented dashboard, navigation, components, performance work, and testing guide
+- `Documentations/FEATURES_AND_FUNCTIONALITY.md` for the current role-by-role feature catalog and incomplete modules
 - `docs/setup/` for local development and workflow setup
 - `docs/requirements/` for source-of-truth summaries
 - `docs/architecture/` for module boundaries and database design

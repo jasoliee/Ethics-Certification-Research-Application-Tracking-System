@@ -34,7 +34,7 @@ enum ApplicationStage: string
     }
 
     /**
-     * Map the workflow stage to the six configured applicant timeline milestones.
+     * Map the workflow stage to the seven configured applicant timeline milestones.
      */
     public function timelineIndex(): int
     {
@@ -44,8 +44,8 @@ enum ApplicationStage: string
             self::ResScreening => 2,
             self::EthicsReview => 3,
             self::Revision => 4,
-            self::DecisionRelease => 5,
-            self::Completed => 6,
+            self::DecisionRelease => 6,
+            self::Completed => 7,
         };
     }
 }

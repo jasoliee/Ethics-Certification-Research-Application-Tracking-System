@@ -9,7 +9,10 @@ use App\Http\Requests\Applications\StoreResearchApplicationRequest;
 use App\Http\Requests\Applications\UpdateResearchApplicationRequest;
 use App\Models\ResearchApplication;
 use App\Services\Applications\ApplicationInformationService;
+use App\Services\Applications\ApplicationSubmissionLimit;
+use App\Services\Applications\ApplicationSubmissionWindow;
 use App\Services\Applications\ResearchApplicationDraftService;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -23,10 +26,19 @@ class ApplicantApplicationController extends Controller
     /**
      * List only applications belonging to the authenticated applicant.
      */
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request,
+        AcademicTermResolver $terms,
+        ApplicationSubmissionLimit $submissionLimit,
+        ApplicationSubmissionWindow $submissionWindow,
+    ): View {
+        $filters = validator($request->query(), [
+            'semester' => ['nullable', 'string', 'max:50'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+        ])->validate();
+
         // Paginate applicant-owned records and eager load Adviser identity for a bounded list query.
-        $applications = ResearchApplication::query()
+        $applicationsQuery = ResearchApplication::query()
             ->select([
                 'id',
                 'application_code',
@@ -40,16 +52,26 @@ class ApplicantApplicationController extends Controller
                 'updated_at',
             ])
             ->where('applicant_user_id', $request->user()->id)
-            ->where('application_status', '!=', ApplicationStatus::Archived->value)
+            ->where('application_status', '!=', ApplicationStatus::Archived->value);
+        $terms->applyFilters($applicationsQuery, $filters);
+        $applications = $applicationsQuery
             ->with('adviser:id,name')
             ->latest('updated_at')
             ->latest('id')
             ->paginate(10)
             ->withQueryString();
+        $editableApplication = $this->editableApplication($request);
+        $limitStatus = $submissionLimit->status($request->user());
 
         return view('dashboard.applications.applicant-index', [
             'pageTitle' => 'Application',
             'applications' => $applications,
+            'filters' => $filters,
+            'termOptions' => $terms->filterOptions(),
+            'editableApplication' => $editableApplication,
+            'submissionLimit' => $limitStatus,
+            'submissionWindow' => $submissionWindow->status(),
+            'canStartApplication' => $editableApplication !== null || ! $limitStatus['reached'],
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Application'],
@@ -63,21 +85,22 @@ class ApplicantApplicationController extends Controller
     public function create(
         Request $request,
         ApplicationInformationService $information,
-    ): View {
-        // Apply role-level draft creation authorization before revealing form options.
-        Gate::authorize('create', ResearchApplication::class);
+        ApplicationSubmissionLimit $submissionLimit,
+    ): View|RedirectResponse {
+        $application = $this->editableApplication($request);
 
-        // Prefer the database-enforced draft slot before considering a formally returned record.
-        $application = ResearchApplication::query()
-            ->where('draft_owner_user_id', $request->user()->id)
-            ->first();
+        // Existing corrections remain reachable after the limit because they do not consume another slot.
+        if ($application) {
+            Gate::authorize('update', $application);
+        } else {
+            Gate::authorize('create', ResearchApplication::class);
 
-        // Reopen only the newest returned record when the applicant has no current draft.
-        $application ??= ResearchApplication::query()
-            ->where('applicant_user_id', $request->user()->id)
-            ->where('application_status', ApplicationStatus::ReturnedByAdviser->value)
-            ->latest('updated_at')
-            ->first();
+            if (! $submissionLimit->canCreate($request->user())) {
+                return redirect()
+                    ->route('applicant.applications.index')
+                    ->withErrors(['application_limit' => ApplicationSubmissionLimit::REACHED_MESSAGE]);
+            }
+        }
 
         return $this->form($request, $information, $application);
     }
@@ -130,7 +153,7 @@ class ApplicantApplicationController extends Controller
     }
 
     /**
-     * Archive one owned unsubmitted draft and release its editable-draft slot.
+     * Permanently discard one owned unsubmitted draft and its private files.
      */
     public function destroy(
         Request $request,
@@ -164,5 +187,21 @@ class ApplicantApplicationController extends Controller
                 ['label' => $application ? 'Edit Application' : 'Create Application'],
             ],
         ]);
+    }
+
+    /**
+     * Prefer the database draft slot, then the newest Adviser-returned initial submission.
+     */
+    private function editableApplication(Request $request): ?ResearchApplication
+    {
+        $application = ResearchApplication::query()
+            ->where('draft_owner_user_id', $request->user()->id)
+            ->first();
+
+        return $application ?? ResearchApplication::query()
+            ->where('applicant_user_id', $request->user()->id)
+            ->where('application_status', ApplicationStatus::ReturnedByAdviser->value)
+            ->latest('updated_at')
+            ->first();
     }
 }

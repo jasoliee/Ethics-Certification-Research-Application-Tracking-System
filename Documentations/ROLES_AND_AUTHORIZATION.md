@@ -17,12 +17,12 @@ Each role prefix uses `EnsureUserHasRole`. A user entering another role area is 
 
 ## Record Authorization
 
-- Applicants may view only their own research applications.
-- Advisers may view only applications assigned to them.
+- Applicants may view only their own research applications and may modify/upload only while the record is in an approved editable state.
+- Advisers may view formally submitted applications assigned to them and may decide only a complete initial-cycle submission during the Adviser Endorsement period.
 - Reviewers may view only their reviewer assignments.
 - RES Lead users may view administrative application records.
 
-`ResearchApplicationPolicy` and `ReviewerAssignmentPolicy` enforce these record rules. Controllers call `Gate::authorize` before returning record pages.
+`ResearchApplicationPolicy` and `ReviewerAssignmentPolicy` enforce these record rules. Controllers call `Gate::authorize` before returning record pages or performing workflow writes. Private document routes also verify that the nested document belongs to the route-bound application.
 
 ## Account Creation
 

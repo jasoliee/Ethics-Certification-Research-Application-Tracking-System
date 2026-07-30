@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateDeadlineSettingsRequest;
 use App\Http\Requests\Settings\UpdateOwnPasswordRequest;
 use App\Http\Requests\Settings\UpdateOwnUsernameRequest;
+use App\Services\Settings\AcademicTermResolver;
 use App\Services\Settings\DeadlineConfigurationService;
 use App\Services\Settings\SelfAccountSettingsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,17 +22,24 @@ class ResLeadSettingsController extends Controller
     public function index(
         Request $request,
         DeadlineConfigurationService $deadlines,
+        AcademicTermResolver $terms,
     ): View {
-        $settings = $deadlines->settings();
-        $semester = collect($settings)
-            ->pluck('configuration.semester_label')
-            ->filter()
+        $configuredTerm = $terms->latestConfigured();
+        $currentTerm = $terms->current();
+        $settings = $deadlines->settings($configuredTerm);
+        $upcomingDeadline = collect($settings)
+            ->filter(fn (array $process): bool => $process['configuration']?->due_at?->isFuture() === true)
+            ->sortBy(fn (array $process): int => $process['configuration']->due_at->timestamp)
             ->first();
 
         return view('settings.res-lead', [
             'pageTitle' => 'Settings',
             'settings' => $settings,
-            'semesterLabel' => $semester,
+            'configuredTerm' => $configuredTerm,
+            'activeTermLabel' => $currentTerm?->label() ?? AcademicTermResolver::FALLBACK_LABEL,
+            'upcomingDeadline' => $upcomingDeadline,
+            'minimumDate' => now()->toDateString(),
+            'minimumDeadline' => now()->addMinute()->startOfMinute()->format('Y-m-d\TH:i'),
             'settingsUser' => $request->user(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
@@ -45,7 +54,7 @@ class ResLeadSettingsController extends Controller
     ): RedirectResponse {
         $deadlines->update($request->user(), $request->validated());
 
-        return back()->with('status', 'Semester deadlines and process availability were updated.');
+        return back()->with('status', 'Semester, academic year, deadlines, and process availability were updated.');
     }
 
     public function updateUsername(
@@ -60,8 +69,14 @@ class ResLeadSettingsController extends Controller
     public function updatePassword(
         UpdateOwnPasswordRequest $request,
         SelfAccountSettingsService $settings,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $settings->updatePassword($request->user(), $request->validated('password'));
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Your password was changed securely.',
+            ]);
+        }
 
         return back()->with('status', 'Your password was changed securely.');
     }

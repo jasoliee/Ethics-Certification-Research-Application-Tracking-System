@@ -4,6 +4,7 @@ namespace Tests\Feature\Dashboard;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
+use App\Models\AcademicTerm;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -118,6 +119,43 @@ class AdviserApplicationVisibilityTest extends TestCase
             ->assertSee($searchable->application_code)
             ->assertSee('Searchable Applicant')
             ->assertDontSee('Outside Scope')
+            ->assertViewHas('applications', fn (LengthAwarePaginator $applications): bool => $applications->total() === 1);
+    }
+
+    public function test_adviser_application_list_filters_assigned_records_by_term(): void
+    {
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $firstTerm = AcademicTerm::create([
+            'semester' => '1st Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->addMonth(),
+            'is_active' => true,
+        ]);
+        $secondTerm = AcademicTerm::create([
+            'semester' => '2nd Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->addMonths(2),
+            'ends_at' => now()->addMonths(5),
+            'is_active' => true,
+        ]);
+        ResearchApplication::factory()->submittedToAdviser($adviser)->create([
+            'academic_term_id' => $firstTerm,
+            'research_title' => 'First Term Assigned Study',
+        ]);
+        ResearchApplication::factory()->submittedToAdviser($adviser)->create([
+            'academic_term_id' => $secondTerm,
+            'research_title' => 'Second Term Assigned Study',
+        ]);
+
+        $this->actingAs($adviser)
+            ->get(route('adviser.applications.index', [
+                'semester' => '1st Semester',
+                'academic_year' => '2026-2027',
+            ]))
+            ->assertOk()
+            ->assertSee('First Term Assigned Study')
+            ->assertDontSee('Second Term Assigned Study')
             ->assertViewHas('applications', fn (LengthAwarePaginator $applications): bool => $applications->total() === 1);
     }
 }

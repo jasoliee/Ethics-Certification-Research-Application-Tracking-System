@@ -2,10 +2,9 @@
 
 namespace App\Services\Applications;
 
-use App\Enums\DeadlineManualStatus;
 use App\Enums\UserRole;
 use App\Models\DeadlineConfiguration;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Settings\DeadlineProcessAvailability;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -13,23 +12,16 @@ use Illuminate\Validation\ValidationException;
  */
 class ApplicationSubmissionWindow
 {
+    public function __construct(
+        private readonly DeadlineProcessAvailability $availability,
+    ) {}
+
     /**
      * Return the highest-priority configured application-submission deadline.
      */
     public function configuration(): ?DeadlineConfiguration
     {
-        // Match the stable key suffix so local/demo prefixes do not bypass the submission window.
-        return DeadlineConfiguration::query()
-            ->where('is_active', true)
-            ->where('deadline_key', 'like', '%application-submission%')
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereNull('audience_role')
-                    ->orWhere('audience_role', UserRole::Applicant->value);
-            })
-            ->orderByDesc('priority')
-            ->orderByDesc('due_at')
-            ->first();
+        return $this->availability->configuration('application-submission', UserRole::Applicant);
     }
 
     /**
@@ -39,70 +31,11 @@ class ApplicationSubmissionWindow
      */
     public function status(): array
     {
-        $deadline = $this->configuration();
-
-        // Absence of approved configuration fails closed while preserving existing drafts.
-        if (! $deadline) {
-            return [
-                'configured' => false,
-                'open' => false,
-                'state' => 'unconfigured',
-                'message' => 'Application submission is unavailable until the RES configures a submission period.',
-                'deadline' => null,
-            ];
-        }
-
-        // An explicit RES override wins over configured dates in either direction.
-        if ($deadline->manual_status === DeadlineManualStatus::Closed) {
-            return [
-                'configured' => true,
-                'open' => false,
-                'state' => 'manually_closed',
-                'message' => 'Application submission is currently closed by the RES Lead.',
-                'deadline' => $deadline,
-            ];
-        }
-
-        if ($deadline->manual_status === DeadlineManualStatus::Open) {
-            return [
-                'configured' => true,
-                'open' => true,
-                'state' => 'manually_open',
-                'message' => 'Application submission is currently open.',
-                'deadline' => $deadline,
-            ];
-        }
-
-        // A future start date exposes the configured deadline without opening formal submission early.
-        if ($deadline->starts_at?->isFuture()) {
-            return [
-                'configured' => true,
-                'open' => false,
-                'state' => 'upcoming',
-                'message' => 'Application submission opens on '.$deadline->starts_at->format('M j, Y \a\t g:i A').'.',
-                'deadline' => $deadline,
-            ];
-        }
-
-        // An elapsed due date closes submission even if a browser retained an enabled button.
-        if ($deadline->due_at->isPast()) {
-            return [
-                'configured' => true,
-                'open' => false,
-                'state' => 'closed',
-                'message' => 'The application submission period closed on '.$deadline->due_at->format('M j, Y \a\t g:i A').'.',
-                'deadline' => $deadline,
-            ];
-        }
-
-        // The current time is inside the configured inclusive submission window.
-        return [
-            'configured' => true,
-            'open' => true,
-            'state' => 'open',
-            'message' => 'Application submission is open.',
-            'deadline' => $deadline,
-        ];
+        return $this->availability->status(
+            'application-submission',
+            UserRole::Applicant,
+            'Application submission',
+        );
     }
 
     /**

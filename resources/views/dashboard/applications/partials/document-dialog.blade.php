@@ -7,7 +7,7 @@
         </button>
         <header class="application-modal-heading">
             <span class="application-modal-icon"><x-dashboard.icon name="file-search" size="24" /></span>
-            <div><h2 id="document-dialog-title" data-document-title>Document</h2><p data-document-meta>Selected requirement document</p></div>
+            <div class="application-document-heading-copy"><h2 id="document-dialog-title" data-document-title data-table-tooltip="Document" tabindex="0">Document</h2><p data-document-meta>Selected requirement document</p></div>
         </header>
         {{-- The iframe receives only a secure preview-controller URL and never a private storage path. --}}
         <div class="application-document-preview" data-document-preview>

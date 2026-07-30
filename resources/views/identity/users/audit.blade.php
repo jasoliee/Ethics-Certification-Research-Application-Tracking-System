@@ -1,6 +1,10 @@
 @extends('layouts.dashboard')
 
 @section('content')
+    @php
+        $semesterOptions = $termOptions->pluck('semester')->unique()->values();
+        $academicYearOptions = $termOptions->pluck('academic_year')->unique()->values();
+    @endphp
     <div class="dashboard-page identity-management-page">
         <header class="dashboard-page-heading-row identity-page-heading">
             <div class="dashboard-page-heading"><h1>Account Audit Log</h1><p>Review security-relevant account and access events without exposing credentials or tokens.</p></div>
@@ -43,6 +47,24 @@
                     <option value="">All targets</option>
                     @foreach ($targetTypes as $targetType)
                         <option value="{{ $targetType }}" @selected(($filters['target_type'] ?? null) === $targetType)>{{ class_basename($targetType) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="identity-filter">
+                <label for="audit-semester">Semester</label>
+                <select id="audit-semester" name="semester">
+                    <option value="">All semesters</option>
+                    @foreach ($semesterOptions as $semester)
+                        <option value="{{ $semester }}" @selected(($filters['semester'] ?? null) === $semester)>{{ $semester }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="identity-filter">
+                <label for="audit-academic-year">Academic Year</label>
+                <select id="audit-academic-year" name="academic_year">
+                    <option value="">All academic years</option>
+                    @foreach ($academicYearOptions as $academicYear)
+                        <option value="{{ $academicYear }}" @selected(($filters['academic_year'] ?? null) === $academicYear)>{{ $academicYear }}</option>
                     @endforeach
                 </select>
             </div>

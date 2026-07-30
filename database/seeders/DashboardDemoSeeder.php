@@ -195,6 +195,8 @@ class DashboardDemoSeeder extends Seeder
                 'abstract' => 'A local demonstration application used to verify role dashboards and application visibility.',
                 'target_participants' => 'Eligible KLD students, faculty members, or community participants.',
                 'expected_duration' => 'August 2026 to May 2027',
+                'expected_start_date' => '2026-08-01',
+                'expected_end_date' => '2027-05-31',
                 'application_type' => 'new_application',
                 'application_status' => $status,
                 'current_stage' => $this->stageFor($status),

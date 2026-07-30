@@ -68,8 +68,11 @@ class ApplicationInformationService
      *
      * @return array<string, array<int, mixed>>
      */
-    public function rules(User $applicant, ?ResearchApplication $application = null): array
-    {
+    public function rules(
+        User $applicant,
+        ?ResearchApplication $application = null,
+        bool $allowLegacyDuration = false,
+    ): array {
         $options = $this->profileOptions($applicant, $application);
         $isStudent = ($applicant->applicant_type ?? ApplicantType::Student) === ApplicantType::Student;
 
@@ -81,6 +84,29 @@ class ApplicationInformationService
                 ->whereNull('deleted_at')
                 ->whereNotNull('password_setup_completed_at'),
         );
+
+        // New writes require dates; persisted legacy records may retain their historical duration text.
+        $durationRules = $allowLegacyDuration
+            ? [
+                'expected_start_date' => [
+                    'nullable',
+                    'date',
+                    'required_without:expected_duration',
+                    'required_with:expected_end_date',
+                ],
+                'expected_end_date' => [
+                    'nullable',
+                    'date',
+                    'required_without:expected_duration',
+                    'required_with:expected_start_date',
+                    'after_or_equal:expected_start_date',
+                ],
+                'expected_duration' => ['nullable', 'string', 'max:120'],
+            ]
+            : [
+                'expected_start_date' => ['required', 'date'],
+                'expected_end_date' => ['required', 'date', 'after_or_equal:expected_start_date'],
+            ];
 
         // Every required information field is shared by save and final-submit validation.
         return [
@@ -99,7 +125,7 @@ class ApplicationInformationService
             'adviser_user_id' => ['required', 'integer', $adviserRule],
             'abstract' => ['required', 'string', 'max:5000'],
             'target_participants' => ['required', 'string', 'max:2000'],
-            'expected_duration' => ['required', 'string', 'max:120'],
+            ...$durationRules,
         ];
     }
 
@@ -115,7 +141,7 @@ class ApplicationInformationService
         // Prefixing is handled by the caller's error display; validation keeps ordinary field keys.
         return Validator::make(
             $this->applicationData($application),
-            $this->rules($application->applicant, $application),
+            $this->rules($application->applicant, $application, true),
             $this->messages(),
         )->validate();
     }
@@ -130,7 +156,7 @@ class ApplicationInformationService
         $application->loadMissing('applicant');
         $validator = Validator::make(
             $this->applicationData($application),
-            $this->rules($application->applicant, $application),
+            $this->rules($application->applicant, $application, true),
             $this->messages(),
         );
         $complete = $validator->passes();
@@ -155,6 +181,9 @@ class ApplicationInformationService
             'department.in' => 'Select an active Department option.',
             'program.in' => 'Select an active Program option.',
             'adviser_user_id.exists' => 'Select an active Research Adviser with completed account setup.',
+            'expected_start_date.required' => 'Enter the expected research starting date.',
+            'expected_end_date.required' => 'Enter the expected research ending date.',
+            'expected_end_date.after_or_equal' => 'The ending date must be on or after the starting date.',
         ];
     }
 
@@ -176,6 +205,8 @@ class ApplicationInformationService
             'abstract' => $application->abstract,
             'target_participants' => $application->target_participants,
             'expected_duration' => $application->expected_duration,
+            'expected_start_date' => $application->expected_start_date?->format('Y-m-d'),
+            'expected_end_date' => $application->expected_end_date?->format('Y-m-d'),
         ];
     }
 }

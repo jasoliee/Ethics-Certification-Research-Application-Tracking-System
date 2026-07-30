@@ -1,7 +1,7 @@
 @extends('layouts.dashboard')
 
 @section('content')
-    <div class="dashboard-page identity-management-page">
+    <div class="dashboard-page identity-management-page identity-edit-page">
         <header class="dashboard-page-heading identity-page-heading">
             <h1>Edit Profile Information</h1>
             <p>Update the authorized identity and institutional fields for {{ $managedUser->name }}.</p>
@@ -15,9 +15,6 @@
             <div class="identity-form-heading">
                 <div><span class="identity-eyebrow">{{ $managedUser->displayRoleLabel() }}</span><h2>Profile Information</h2></div>
                 <div class="identity-form-heading-actions">
-                    @if ($canManageProfileOptions)
-                        <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}">Dropdown Options</a>
-                    @endif
                     <dl class="identity-readonly-summary"><div><dt>Username</dt><dd>{{ $managedUser->username }}</dd></div><div><dt>Status</dt><dd>{{ Str::headline($managedUser->account_status) }}</dd></div></dl>
                 </div>
             </div>

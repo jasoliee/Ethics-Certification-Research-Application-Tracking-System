@@ -8,6 +8,7 @@
 - User lists use database filters and pagination.
 - Bulk preflight batches existing email, institutional identifier, and generated-username checks instead of querying for each row.
 - Profile-option usage totals are grouped per field rather than queried once per option row.
+- Active option IDs, current labels, and aliases are loaded into one request-local identity map so a 250-row import does not query once per controlled cell.
 - Imports cap compressed size, account rows, columns, option rows, shared strings, archive entries, and expanded archive bytes before bounded XML processing.
 - Mass setup resend iterates with `lazyById(50)` instead of loading all pending users at once.
 - Vite builds versioned production assets and uses the reduced dashboard logo.

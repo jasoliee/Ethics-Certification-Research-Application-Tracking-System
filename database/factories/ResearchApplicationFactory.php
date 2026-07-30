@@ -29,10 +29,13 @@ class ResearchApplicationFactory extends Factory
             'abstract' => fake()->paragraphs(2, true),
             'target_participants' => 'KLD students who meet the approved inclusion criteria.',
             'expected_duration' => 'August 2026 to May 2027',
+            'expected_start_date' => now()->addMonth()->startOfDay(),
+            'expected_end_date' => now()->addMonths(10)->startOfDay(),
             'application_type' => 'new_application',
             'application_status' => ApplicationStatus::Draft,
             'current_stage' => ApplicationStage::ApplicationInformation,
             'review_type' => null,
+            'current_revision_cycle' => 1,
             'submitted_at' => null,
             'status_updated_at' => now(),
         ];

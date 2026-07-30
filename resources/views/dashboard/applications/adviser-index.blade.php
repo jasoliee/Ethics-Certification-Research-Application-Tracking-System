@@ -1,6 +1,10 @@
 @extends('layouts.dashboard')
 
 @section('content')
+    @php
+        $semesterOptions = $termOptions->pluck('semester')->unique()->values();
+        $academicYearOptions = $termOptions->pluck('academic_year')->unique()->values();
+    @endphp
     <div class="dashboard-page application-workspace">
         {{-- Adviser heading and filter controls mirror the submitted-application hierarchy in the reference. --}}
         <header class="dashboard-page-heading">
@@ -9,7 +13,7 @@
         </header>
 
         {{-- GET filters remain bookmarkable and cannot escape the authenticated Adviser scope. --}}
-        <form class="application-filter-bar" method="GET" action="{{ route('adviser.applications.index') }}">
+        <form class="application-filter-bar application-filter-bar-wide" method="GET" action="{{ route('adviser.applications.index') }}">
             <div class="application-field application-search-field">
                 <label class="sr-only" for="q">Search applications</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -21,6 +25,24 @@
                     <option value="">All statuses</option>
                     @foreach ($statuses as $status)
                         <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>{{ $status->label() }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="application-field">
+                <label class="sr-only" for="adviser-semester">Semester</label>
+                <select id="adviser-semester" name="semester">
+                    <option value="">All semesters</option>
+                    @foreach ($semesterOptions as $semester)
+                        <option value="{{ $semester }}" @selected(($filters['semester'] ?? '') === $semester)>{{ $semester }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="application-field">
+                <label class="sr-only" for="adviser-academic-year">Academic Year</label>
+                <select id="adviser-academic-year" name="academic_year">
+                    <option value="">All academic years</option>
+                    @foreach ($academicYearOptions as $academicYear)
+                        <option value="{{ $academicYear }}" @selected(($filters['academic_year'] ?? '') === $academicYear)>{{ $academicYear }}</option>
                     @endforeach
                 </select>
             </div>

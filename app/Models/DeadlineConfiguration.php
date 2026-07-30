@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DeadlineManualStatus;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Stores one configured process schedule and optional RES manual override.
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 class DeadlineConfiguration extends Model
 {
     protected $fillable = [
+        'academic_term_id',
         'deadline_key',
         'title',
         'audience_role',
@@ -32,5 +34,10 @@ class DeadlineConfiguration extends Model
             'manual_status' => DeadlineManualStatus::class,
             'is_active' => 'boolean',
         ];
+    }
+
+    public function academicTerm(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class);
     }
 }

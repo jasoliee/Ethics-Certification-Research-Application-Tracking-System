@@ -18,17 +18,45 @@
                 <h1>{{ $application->research_title }}</h1>
                 <div class="application-record-statuses">
                     <x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" dot />
-                    <span>{{ $application->current_stage?->label() ?? 'Application Information' }}</span>
                 </div>
             </div>
             <div class="application-record-actions">
                 <a class="dashboard-outline-action" href="{{ route($indexRoute) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to List</span></a>
                 @if ($canEdit)
                     <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
+                @endif
+                @if ($canUpload)
                     <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}"><x-dashboard.icon name="upload" size="17" /><span>Manage Documents</span></a>
                 @endif
             </div>
         </header>
+
+        @if ($application->latestEndorsement)
+            @php
+                $latestDecision = $application->latestEndorsement;
+                $decisionAt = $latestDecision->endorsed_at ?? $latestDecision->returned_at;
+            @endphp
+            {{-- Keep the latest Adviser action visible to every role authorized for this application. --}}
+            <section class="application-decision-summary">
+                <div>
+                    <x-dashboard.status-badge
+                        :label="$latestDecision->endorsement_status->label()"
+                        :tone="$latestDecision->endorsement_status->tone()"
+                        dot
+                    />
+                    <strong>{{ $latestDecision->adviser?->name ?? 'Research Adviser' }}</strong>
+                    @if ($decisionAt)
+                        <span>{{ $decisionAt->format('M j, Y \a\t g:i A') }}</span>
+                    @endif
+                </div>
+                @if ($latestDecision->return_reason)
+                    <p><strong>{{ $latestDecision->return_reason->label() }}</strong></p>
+                @endif
+                @if ($latestDecision->endorsement_remarks)
+                    <p>{{ $latestDecision->endorsement_remarks }}</p>
+                @endif
+            </section>
+        @endif
 
         {{-- Research information is arranged for rapid applicant and Adviser review. --}}
         <section class="application-panel">
@@ -41,7 +69,7 @@
                 <div><dt>Institution or College</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
                 <div><dt>Department</dt><dd>{{ $application->department ?: 'Not specified' }}</dd></div>
                 <div><dt>Program</dt><dd>{{ $application->program ?: 'Not applicable' }}</dd></div>
-                <div><dt>Expected Duration</dt><dd>{{ $application->expected_duration ?: 'Not specified' }}</dd></div>
+                <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
                 <div class="application-detail-full"><dt>Target Participants</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>
                 <div class="application-detail-full"><dt>Brief Description or Abstract</dt><dd class="application-long-copy">{{ $application->abstract ?: 'Not specified' }}</dd></div>
             </dl>
@@ -70,16 +98,15 @@
 
             <x-dashboard.overflow label="Application requirement documents" wide>
                 <table class="dashboard-table application-document-table">
-                    <thead><tr><th>Requirement</th><th>Required</th><th>Document</th><th>Version</th><th>Uploaded</th><th class="dashboard-table-status">Status</th></tr></thead>
+                    <thead><tr><th>Requirement</th><th class="application-document-column">Document</th><th class="application-document-version">Version</th><th class="application-document-uploaded">Uploaded</th><th class="dashboard-table-status">Status</th></tr></thead>
                     <tbody>
                         @foreach ($requirementSummary['items'] as $item)
                             @php
                                 $document = $item['document'];
                             @endphp
                             <tr>
-                                <td><strong>{{ $item['requirement']->name }}</strong><small>{{ $item['requirement']->code }}</small></td>
-                                <td>{{ $item['requirement']->is_mandatory ? 'Yes' : 'Optional' }}</td>
-                                <td>
+                                <td><strong>{{ $item['requirement']->name }}</strong></td>
+                                <td class="application-document-column">
                                     @if ($document)
                                         <div class="application-current-document">
                                             <button
@@ -93,7 +120,7 @@
                                                 data-document-replace-input="{{ $role === \App\Enums\UserRole::Applicant && $canEdit ? 'detail_replace_document_'.$item['requirement']->id : '' }}"
                                             >
                                                 <x-dashboard.icon :name="$item['icon']" size="18" />
-                                                <span>{{ $document->original_file_name }}</span>
+                                                <span data-table-tooltip="{{ $document->original_file_name }}">{{ $document->original_file_name }}</span>
                                             </button>
                                             @if ($role === \App\Enums\UserRole::Applicant && $canEdit)
                                                 <form method="POST" action="{{ route('applicant.applications.documents.destroy', [$application, $document]) }}" data-confirm-document-remove>
@@ -116,8 +143,8 @@
                                         <span>No file uploaded</span>
                                     @endif
                                 </td>
-                                <td>{{ $document ? 'v'.$document->document_version : '-' }}</td>
-                                <td>{{ $document?->uploaded_at?->format('M j, Y g:i A') ?? '-' }}</td>
+                                <td class="application-document-version">{{ $document ? 'v'.$item['version'] : '-' }}</td>
+                                <td class="application-document-uploaded">{{ $document?->uploaded_at?->format('M j, Y g:i A') ?? '-' }}</td>
                                 <td class="dashboard-table-status"><x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" /></td>
                             </tr>
                         @endforeach
@@ -143,11 +170,123 @@
             @endif
         </section>
 
+        @if ($role === \App\Enums\UserRole::Adviser && $canAdviserDecide)
+            {{-- Adviser decisions remain disabled whenever the RES-configured endorsement period is closed. --}}
+            <section class="application-panel application-adviser-decision-panel">
+                <div class="application-panel-heading">
+                    <div>
+                        <h2>Adviser Decision</h2>
+                        <p>{{ $adviserDecisionWindow['message'] }}</p>
+                    </div>
+                </div>
+                <div class="application-adviser-decision-actions">
+                    <button
+                        class="dashboard-danger-action"
+                        type="button"
+                        data-adviser-return-open
+                        @disabled(! $adviserDecisionWindow['open'])
+                    >
+                        <x-dashboard.icon name="refresh" size="18" />
+                        <span>Return for Correction</span>
+                    </button>
+                    <button
+                        class="dashboard-primary-action"
+                        type="button"
+                        data-adviser-endorse-open
+                        @disabled(! $adviserDecisionWindow['open'])
+                    >
+                        <x-dashboard.icon name="check" size="18" />
+                        <span>Endorse Application</span>
+                    </button>
+                </div>
+            </section>
+        @endif
+
         {{-- Formal submission metadata appears only after the server has accepted the transition. --}}
         @if ($application->isFormallySubmitted())
             <section class="application-submission-receipt" role="status">
                 <x-dashboard.icon name="check" size="22" />
                 <div><strong>Submitted to {{ $application->adviser?->name ?? 'Research Adviser' }}</strong><span>{{ $application->submitted_at->format('M j, Y \a\t g:i A') }}</span></div>
+            </section>
+        @endif
+
+        @if ($role === \App\Enums\UserRole::Adviser && $canAdviserDecide)
+            <section
+                class="application-modal-backdrop"
+                data-adviser-return-dialog
+                @if ($errors->adviserReturn->any()) data-open-on-load @else hidden @endif
+            >
+                <div class="application-modal application-decision-modal" role="dialog" aria-modal="true" aria-labelledby="adviser-return-title" tabindex="-1">
+                    <button class="application-modal-close" type="button" aria-label="Close return form" data-adviser-return-close>
+                        <x-dashboard.icon name="x" size="20" />
+                    </button>
+                    <header class="application-modal-heading">
+                        <span class="application-modal-icon"><x-dashboard.icon name="refresh" size="24" /></span>
+                        <div>
+                            <h2 id="adviser-return-title">Return for Correction</h2>
+                            <p>Tell the applicant exactly what must be corrected before resubmission.</p>
+                        </div>
+                    </header>
+                    <form method="POST" action="{{ route('adviser.applications.return', $application) }}" data-application-submit-once>
+                        @csrf
+                        <div class="application-decision-fields">
+                            <label>
+                                <span>Reason</span>
+                                <select name="return_reason" required>
+                                    <option value="">Select a reason</option>
+                                    @foreach ($adviserReturnReasons as $reason)
+                                        <option value="{{ $reason->value }}" @selected(old('return_reason') === $reason->value)>{{ $reason->label() }}</option>
+                                    @endforeach
+                                </select>
+                                @error('return_reason', 'adviserReturn')<small class="application-field-error">{{ $message }}</small>@enderror
+                            </label>
+                            <label>
+                                <span>Remarks and Instructions</span>
+                                <textarea name="endorsement_remarks" rows="5" maxlength="500" required>{{ old('endorsement_remarks') }}</textarea>
+                                <small>Maximum 500 characters.</small>
+                                @error('endorsement_remarks', 'adviserReturn')<small class="application-field-error">{{ $message }}</small>@enderror
+                            </label>
+                        </div>
+                        <div class="application-modal-actions">
+                            <button class="dashboard-outline-action" type="button" data-adviser-return-close>Cancel</button>
+                            <button class="dashboard-danger-action" type="submit">Return Application</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section
+                class="application-modal-backdrop"
+                data-adviser-endorse-dialog
+                @if ($errors->adviserEndorse->any()) data-open-on-load @else hidden @endif
+            >
+                <div class="application-modal application-decision-modal" role="dialog" aria-modal="true" aria-labelledby="adviser-endorse-title" tabindex="-1">
+                    <button class="application-modal-close" type="button" aria-label="Close endorsement form" data-adviser-endorse-close>
+                        <x-dashboard.icon name="x" size="20" />
+                    </button>
+                    <header class="application-modal-heading">
+                        <span class="application-modal-icon"><x-dashboard.icon name="check" size="24" /></span>
+                        <div>
+                            <h2 id="adviser-endorse-title">Endorse Application</h2>
+                            <p>Confirm that this complete initial submission is ready for RES screening.</p>
+                        </div>
+                    </header>
+                    <form method="POST" action="{{ route('adviser.applications.endorse', $application) }}" data-application-submit-once>
+                        @csrf
+                        <div class="application-decision-fields">
+                            <label>
+                                <span>Remarks (optional)</span>
+                                <textarea name="endorsement_remarks" rows="4" maxlength="1000">{{ old('endorsement_remarks') }}</textarea>
+                                <small>The decision cannot be edited after confirmation.</small>
+                                @error('endorsement_remarks', 'adviserEndorse')<small class="application-field-error">{{ $message }}</small>@enderror
+                            </label>
+                        </div>
+                        <div class="application-modal-actions">
+                            <button class="dashboard-outline-action" type="button" data-adviser-endorse-close>Cancel</button>
+                            <button class="dashboard-primary-action" type="submit">Confirm Endorsement</button>
+                        </div>
+                    </form>
+                </div>
             </section>
         @endif
 

@@ -6,13 +6,14 @@
 - Active-account login filter and generic invalid-credential response.
 - Session regeneration on login and invalidation on logout.
 - Role middleware plus record policies for applications and user management.
-- Applicant application access limited to the owning account while Adviser access additionally requires formal submission and assignment.
+- Applicant application access is limited to the owning account while Adviser access additionally requires formal submission and assignment.
+- Adviser decisions repeat assignment, initial-cycle, completeness, deadline, and status checks inside a row-locked transaction before changing workflow state.
 - RES Lead cannot create or manage another RES Lead through these flows.
 - No two-factor authentication controls were added because the requirement explicitly excludes them.
 
 ## Abuse Controls
 
-Named rate limits cover account writes, import preview/confirm/restore, setup email, mass actions, notifications, onboarding, application writes/uploads, and submission. Login and password-reset routes have independent limits.
+Named rate limits cover account writes, import preview/confirm/restore, setup email, mass actions, notifications, onboarding, application writes/uploads, formal submission, and Adviser decisions. Login and password-reset routes have independent limits.
 
 ## Data and Files
 
@@ -21,7 +22,7 @@ Named rate limits cover account writes, import preview/confirm/restore, setup em
 - Bulk sources and previews are private, actor-scoped, bounded, single-use, and cleaned up after parsing, confirmation, or expiry.
 - Archived-account restoration is RES Lead-only, preview-ID-bound, actor-bound, time-bound, row-locked, identity-rechecked, and blocked by active email, identifier, or username conflicts.
 - Only structurally valid `.xlsx` is accepted. Parsing rejects renamed files, encryption/password protection, formulas, macros, embedded/ActiveX/OLE content, external relationships, unexpected sheets, changed headers, excessive columns/rows, and oversized archives.
-- Excel dropdowns are convenience controls only; every controlled value is checked against current active database options on the server.
+- Excel dropdowns are convenience controls only; every controlled value must resolve to a current active database option ID through its current label or server-owned historical alias.
 - Email validation follows standards-compatible syntax and does not impose a Gmail-only or fixed-domain rule.
 - Application requirement files use randomized names on the private `local` disk. Preview and download are controller-streamed only after parent-application policy checks.
 - Private research files, certificates, and payment proofs must never use `public/` storage.

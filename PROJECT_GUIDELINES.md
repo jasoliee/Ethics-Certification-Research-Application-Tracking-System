@@ -138,6 +138,15 @@ npm.cmd run build
 
 Use `npm.cmd` in PowerShell.
 
+## Documentation Maintenance
+
+- Every implemented behavior change must update `Documentations/FEATURES_AND_FUNCTIONALITY.md` and the affected topic guide in the same change.
+- Update `Documentations/CHANGELOG.md` for completed feature batches, fixes, workflow changes, schema changes, and user-visible interface changes.
+- Keep `README.md` and `Documentations/README.md` aligned with the actual implemented and incomplete scope.
+- Document current authorization, validation, storage, deadline, dashboard, import, and workflow behavior rather than only describing the intended final system.
+- Do not mark a later module complete merely because its navigation page, dashboard card, schedule, enum, or database placeholder exists.
+- When verification is unavailable, record it as pending in the manual-validation or known-issues guide instead of claiming acceptance.
+
 ## Git Workflow
 
 - Do not commit directly to `main`.
@@ -164,5 +173,6 @@ A task is done only when:
 - Implementation is scoped to the request.
 - Validation and authorization are handled server-side.
 - Relevant tests or verification commands have run, or the reason they could not run is documented.
+- Current features, affected topic guides, and the changelog are synchronized with the implementation.
 - New conflicts or unclear requirements are recorded.
 - Changed files and remaining risks are summarized.

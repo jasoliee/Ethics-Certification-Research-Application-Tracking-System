@@ -107,7 +107,8 @@ class ApplicationDocumentService
                     ->lockForUpdate()
                     ->get();
                 $current = $currentDocuments->firstWhere('is_current', true);
-                $nextVersion = ((int) $currentDocuments->max('document_version')) + 1;
+                // Replacements within one revision cycle retain the same displayed document version.
+                $documentVersion = max(1, (int) $lockedApplication->current_revision_cycle);
 
                 // Retain previous private files and database history while moving the current pointer atomically.
                 ApplicationDocument::query()
@@ -123,7 +124,7 @@ class ApplicationDocumentService
                     'stored_file_path' => $storedPath,
                     'mime_type' => $mimeType,
                     'file_size_bytes' => $file->getSize(),
-                    'document_version' => $nextVersion,
+                    'document_version' => $documentVersion,
                     'validation_status' => RequirementStatus::Completed,
                     'is_current' => true,
                     'uploaded_at' => now(),
@@ -142,7 +143,7 @@ class ApplicationDocumentService
                     [
                         'application_id' => $lockedApplication->id,
                         'requirement_code' => $requirement->code,
-                        'document_version' => $nextVersion,
+                        'document_version' => $documentVersion,
                         'mime_type' => $mimeType,
                         'file_size_bytes' => $file->getSize(),
                         'result' => $current ? 'replaced' : 'uploaded',

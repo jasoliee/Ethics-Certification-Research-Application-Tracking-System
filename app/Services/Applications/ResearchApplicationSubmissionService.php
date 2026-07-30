@@ -23,6 +23,7 @@ class ResearchApplicationSubmissionService
         private readonly ApplicationInformationService $information,
         private readonly ApplicationRequirementService $requirements,
         private readonly ApplicationSubmissionWindow $submissionWindow,
+        private readonly ApplicationSubmissionLimit $submissionLimit,
         private readonly AuditLogService $auditLog,
     ) {}
 
@@ -32,7 +33,10 @@ class ResearchApplicationSubmissionService
     public function submit(User $actor, ResearchApplication $application): ResearchApplication
     {
         return DB::transaction(function () use ($actor, $application): ResearchApplication {
-            // Lock the authoritative row so repeated clicks cannot create duplicate transitions or notifications.
+            // Match draft creation's lock order and serialize the Applicant's formal-submission count.
+            User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+
+            // Lock the authoritative application so repeated clicks cannot duplicate transitions or notifications.
             $locked = ResearchApplication::query()
                 ->whereKey($application->id)
                 ->lockForUpdate()
@@ -48,6 +52,7 @@ class ResearchApplicationSubmissionService
 
             // Policy authorization is repeated after locking so stale browser state cannot cross the draft boundary.
             Gate::forUser($actor)->authorize('submit', $locked);
+            $this->submissionLimit->assertCanSubmit($actor, $locked);
             $this->submissionWindow->assertOpen();
             $this->information->validateApplication($locked);
             $this->requirements->assertReady($locked);
@@ -71,7 +76,7 @@ class ResearchApplicationSubmissionService
                 'application_status' => ApplicationStatus::SubmittedToAdviser->value,
                 'current_stage' => ApplicationStage::AdviserReview->value,
                 'draft_owner_user_id' => null,
-                'submitted_at' => now(),
+                'submitted_at' => $locked->submitted_at ?? now(),
                 'status_updated_at' => now(),
             ]);
 

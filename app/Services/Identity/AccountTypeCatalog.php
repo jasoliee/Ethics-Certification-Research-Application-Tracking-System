@@ -80,7 +80,7 @@ class AccountTypeCatalog
                     'suffix' => 'Jr.',
                     'email' => 'juandelacruz@example.com',
                     'student_number' => '20260000',
-                    'phone_number' => '099999999999',
+                    'phone_number' => '09999999999',
                     'year_level' => 'Fourth Year',
                     'institution' => 'Institute of Computing and Digital Innovation',
                     'department' => 'Computer Studies',

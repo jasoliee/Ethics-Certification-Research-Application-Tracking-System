@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Represents the Applicant-owned ethics application across its approved workflow states.
@@ -20,6 +21,7 @@ class ResearchApplication extends Model
     use HasFactory;
 
     protected $fillable = [
+        'academic_term_id',
         'application_code',
         'applicant_user_id',
         'draft_owner_user_id',
@@ -34,10 +36,13 @@ class ResearchApplication extends Model
         'abstract',
         'target_participants',
         'expected_duration',
+        'expected_start_date',
+        'expected_end_date',
         'application_type',
         'application_status',
         'current_stage',
         'review_type',
+        'current_revision_cycle',
         'submitted_at',
         'status_updated_at',
     ];
@@ -48,6 +53,9 @@ class ResearchApplication extends Model
             'application_status' => ApplicationStatus::class,
             'current_stage' => ApplicationStage::class,
             'research_type' => ResearchType::class,
+            'current_revision_cycle' => 'integer',
+            'expected_start_date' => 'date',
+            'expected_end_date' => 'date',
             'submitted_at' => 'datetime',
             'status_updated_at' => 'datetime',
         ];
@@ -56,6 +64,11 @@ class ResearchApplication extends Model
     public function applicant(): BelongsTo
     {
         return $this->belongsTo(User::class, 'applicant_user_id')->withTrashed();
+    }
+
+    public function academicTerm(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class);
     }
 
     public function adviser(): BelongsTo
@@ -81,6 +94,16 @@ class ResearchApplication extends Model
         return $this->hasMany(ReviewerAssignment::class);
     }
 
+    public function endorsements(): HasMany
+    {
+        return $this->hasMany(Endorsement::class);
+    }
+
+    public function latestEndorsement(): HasOne
+    {
+        return $this->hasOne(Endorsement::class)->latestOfMany();
+    }
+
     /**
      * Determine whether this record has crossed the formal applicant-submission boundary.
      */
@@ -93,5 +116,48 @@ class ResearchApplication extends Model
                 ApplicationStatus::Incomplete,
                 ApplicationStatus::Archived,
             ], true);
+    }
+
+    /**
+     * Preserve whether this record has ever crossed formal submission, including returned corrections.
+     */
+    public function hasBeenFormallySubmitted(): bool
+    {
+        return $this->submitted_at !== null;
+    }
+
+    /**
+     * Prefer structured dates while keeping historical free-text duration readable.
+     */
+    public function expectedDurationLabel(): string
+    {
+        if ($this->expected_start_date && $this->expected_end_date) {
+            return $this->expected_start_date->format('M j, Y')
+                .' to '
+                .$this->expected_end_date->format('M j, Y');
+        }
+
+        return $this->expected_duration ?: 'Not specified';
+    }
+
+    /**
+     * Resolve progress against all seven configured milestones, including reviewer re-review.
+     */
+    public function timelineIndex(): int
+    {
+        return match ($this->application_status) {
+            ApplicationStatus::ResultReleasedMinorRevision,
+            ApplicationStatus::ResultReleasedMajorRevision,
+            ApplicationStatus::RevisionWindowOpen => 4,
+            ApplicationStatus::RevisionSubmitted,
+            ApplicationStatus::UnderReReview => 5,
+            ApplicationStatus::ReviewSubmittedPendingRelease,
+            ApplicationStatus::ResultReleasedAccepted,
+            ApplicationStatus::ResultReleasedDisapproved,
+            ApplicationStatus::FeedbackRequired => 6,
+            ApplicationStatus::CertificateReleased,
+            ApplicationStatus::Archived => 7,
+            default => $this->current_stage?->timelineIndex() ?? 0,
+        };
     }
 }

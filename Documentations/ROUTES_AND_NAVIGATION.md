@@ -42,11 +42,11 @@ The old applicant Reviewer and Certificates URLs redirect to the combined page f
 
 ## Application Routes
 
-Applicant routes under `/student-faculty-researcher/applications` provide index, create, store, edit, update, detail, requirements, private requirement upload, authorized preview/download, and formal submission. Application writes, uploads, and submissions have named throttles in addition to CSRF, role middleware, Form Requests, and record policies.
+Applicant routes under `/student-faculty-researcher/applications` provide index, create, store, edit, update, detail, draft discard, requirements, individual/batch private requirement upload, current-document removal, authorized preview/download, and formal submission. Application writes, uploads, and submissions have named throttles in addition to CSRF, role middleware, Form Requests, and record policies.
 
-Adviser routes under `/adviser/applications` provide a scoped submitted-application list, authorized read-only detail, and private current-document preview/download. The Adviser route group contains no application decision action yet.
+Adviser routes under `/adviser/applications` provide a scoped submitted-application list, authorized detail, private current-document preview/download, `POST /{researchApplication}/return`, and `POST /{researchApplication}/endorse`. Decision routes require dedicated Form Requests, assignment policy checks, a complete initial submission, and an available Adviser Endorsement deadline.
 
-RES Lead application detail and private document routes use the existing RES prefix and record policy. Later screening and decision routes remain temporary module pages.
+`GET /res-lead/applications` (`res.applications.index`) is the RES-only Endorsed Applications landing page. It lists 15 records per page only after they enter an Adviser-endorsed or later RES status and supports search, status, term, and endorsement-date filters. RES Lead detail and private document routes use the same RES prefix and record policy. Later screening and decision write routes remain temporary module pages.
 
 ## Import Restoration Routes
 

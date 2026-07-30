@@ -60,6 +60,256 @@ Date:
 
 ## Active Plans
 
+## Plan: RES workflow visibility, validation, and responsive layout completion
+
+### Goal
+Complete the July 30, 2026 cross-role correction batch so RES Lead deadline controls are authoritative and readable, adviser endorsements become visible and notify the RES Lead, account imports report precise validation failures, and shared application and user-management pages remain usable from desktop through smartphone widths.
+
+### Source Documents
+- Primary requirement: attached `pasted-text.txt`, July 30, 2026.
+- Visual references: the supplied RES Lead deadline-configuration redesign and current RES Lead, Adviser, Applicant, account-management, bulk-import, and application screenshots.
+- Project direction: `PROJECT_GUIDELINES.md`, current active plans, existing role policies/services/tests, and the high-fidelity prototype under `context_files/`.
+- Existing approved decisions retained: private files stay controller-authorized; application limits count formal submissions rather than drafts; deadline availability is enforced server-side; teammate documentation and dirty work are preserved.
+- Clarification for this batch: a checked manual process toggle forces that process open regardless of its configured open/deadline range; an unchecked toggle returns the process to automatic date-based availability. Configured dates must still be valid, ordered, and non-past when saved.
+
+### Scope
+Included:
+- Redesign Deadline Configuration around one term summary, Upcoming Deadline and Active Date Range summaries, and a responsive seven-phase table. Do not render a Manual Toggles On summary.
+- Reject past term/process dates and times in the browser and backend; keep process rows bounded, date/time values readable, and tabs/content aligned at all supported widths.
+- Confirm manual-open priority in the shared deadline resolver and protect all workflow actions with the same server-side availability contract.
+- Add or complete a RES Lead endorsed-applications landing page with route, navigation, authorization, pagination, and access to every application that has entered the RES flow through Adviser endorsement.
+- Persist a neutral database notification for active RES Leads when an Adviser endorses an application, without exposing private document paths, reviewer identity, or unnecessary applicant details.
+- Correct individual user detail/edit alignment, application-count centering, horizontal account-status actions, Reactivate labeling, and removal of the edit-page Dropdown Options shortcut.
+- Keep the active `.xlsx` workbook flow, left-align the Official Template block, accept alphanumeric student numbers, cap phone numbers at 11 digits, and report workbook errors with row, field, reason, and expected format.
+- Correct Adviser detail decisions/status spacing and horizontal table overflow.
+- Correct Applicant detail, submission checklist, duration-date, landing-header, and upload-control alignment while preserving predictable narrow-screen stacking.
+- Add concise maintenance comments only where workflow or validation intent is not self-evident, and synchronize current documentation.
+
+Excluded:
+- New packages, destructive schema rewrites, public document URLs, reviewer-identity disclosure, `.env` changes, hard deletion outside existing approved account lifecycle behavior, or changes beyond the established seven deadline processes.
+
+### Implementation Approach
+- Backend: reuse the existing deadline, endorsement, notification, import, and policy boundaries; extend them only where the audited behavior is missing. Keep controllers thin and validate every authoritative rule on the server.
+- Frontend: reuse the existing dashboard layout, icon component, dialog patterns, shared overflow wrapper, and responsive CSS. Keep same-row controls at matching heights and allow horizontal scrolling at the table boundary.
+- Database: prefer the existing notification and endorsement schema. Add no migration unless the audit proves current persisted structures cannot satisfy the approved behavior.
+- Authorization: RES Lead pages remain RES Lead-only; Adviser actions remain assigned-application-only; Applicant document and application actions remain owner-only.
+- Notifications/audit: notify all eligible active RES Leads after a committed Adviser endorsement and retain existing Applicant notification/audit behavior.
+
+### Files Expected to Change
+- `PLANS.md`, deadline request/service/resolver/settings view, dashboard CSS/JavaScript, and focused settings tests
+- Adviser endorsement service/controller/views, RES Lead applications route/controller/view/navigation, policy/query logic, and focused notification/access tests
+- User-management controller/service/views and workbook validation/import tests
+- Applicant and Adviser application views plus shared responsive structural tests
+- Current feature, workflow, route, testing, UI, notification, import, and changelog documentation
+
+### Tests and Verification
+- Prove every saved term/process timestamp rejects past values, ordered ranges remain required, and manual-open overrides date-based closure.
+- Prove endorsement creates one neutral notification per active RES Lead and the endorsed-applications page is inaccessible to other roles.
+- Prove workbook validation accepts alphanumeric student numbers, rejects phone numbers over 11 digits, and identifies row, field, reason, and expected format.
+- Retain Adviser action authorization tests and add structural assertions for aligned actions, nonredundant status labels, responsive upload controls, and reusable table overflow.
+- Run focused suites, full `php artisan test`, `php artisan route:list`, Blade compilation, Pint, Composer checks, `npm.cmd run build`, and `git diff --check`.
+- Inspect desktop, tablet, and smartphone layouts through a controllable browser when available; otherwise document the unavailable manual check.
+
+### Risks and Rollback
+- A force-open toggle intentionally bypasses the process date window at runtime, so only RES Lead-authorized settings changes may control it and every change remains audited.
+- Notification dispatch must occur after a successful endorsement transaction and remain idempotent with the single eligible workflow transition.
+- Layout changes stay within existing role views/shared CSS and can be reverted independently from workflow behavior.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-30
+
+### Implementation Status
+- Completed on 2026-07-30 without adding packages, changing `.env`, or adding a migration for this correction batch.
+- Full Laravel suite: 154 tests passed with 2,345 assertions. The responsive-action adjustment also passed its focused 17-test, 182-assertion suite.
+- Routes, Blade compilation, Pint, Composer validation/platform requirements, migration status, the Vite production build, and `git diff --check` passed.
+- Desktop, tablet, and smartphone browser observation remains pending because no controllable browser session was available; the acceptance cases are recorded in `Documentations/MANUAL_VISUAL_VALIDATION.md`.
+
+## Plan: Dashboard reflection, dated research duration, and stable import options
+
+### Goal
+Complete the July 29, 2026 Applicant, Adviser, RES Lead, deadline, document-submission, and bulk-import correction batch so role dashboards reflect relevant stored applications, new research durations use validated dates, deadline controls remain understandable and authoritative, and renamed dropdown labels do not invalidate older official workbooks.
+
+### Source Documents
+- Primary requirement: attached `pasted-text.txt`, July 29, 2026.
+- Project direction: `PROJECT_GUIDELINES.md`, current implementation plans, existing dashboard/application/settings/user-management code, and the high-fidelity prototype under `context_files/`.
+- Visual evidence: supplied Applicant, Adviser, RES Lead, document modal, application detail, import, and deadline screenshots showing missing dashboard data, separated application/progress sections, long modal-title overflow, and native fieldset border gaps.
+- Existing approved decisions retained: the maximum of three counts formally submitted applications only; a checked deadline toggle forces a process open while an unchecked toggle returns it to automatic date-based behavior; private documents remain controller-authorized.
+- Workbook limitation: an Excel list-validation cell stores only its visible selected label. The current macro-free, formula-free Accounts worksheet cannot safely carry a hidden stable ID beside every selection without changing its approved columns or trusting editable workbook mappings.
+- Approved-compatible fallback: keep `profile_options.id` as immutable identity, record prior labels in a server-owned alias table whenever a label changes, and resolve current labels or historical aliases to that ID during import before storing the current canonical label.
+
+### Scope
+Included:
+- Keep the existing reusable horizontal-overflow boundary on every table and preserve responsive Applicant, Adviser, RES Lead, and import layouts.
+- Select the Applicant's newest non-archived application without hiding it because of term linkage; include all relevant assigned/submitted Adviser records and administrative RES records in dashboard counts and recent lists. Deadline alerts and timeline calendars remain tied to the active configured term.
+- Add an Applicant submission open/closed label, a real confirmation dialog before formal submission, the exact approved checklist order, a combined research-title/completion section, and a red left-aligned submission-limit warning.
+- Replace new/edit research-duration text entry with required Starting Date and Ending Date fields, requiring the end date to be on or after the start date.
+- Add nullable date columns while retaining the legacy duration string only as a historical display/validation fallback so already-submitted records are not corrupted or made unusable.
+- Keep document filenames/titles bounded inside the viewing modal and expose the complete truncated value through the existing delayed tooltip.
+- Render each deadline process heading inside its complete bordered section, display the manual switch as On/Off, and preserve manual-open priority over automatic Philippine-time date evaluation.
+- Align Adviser decision copy and actions horizontally on desktop, stack them predictably on narrow screens, and refine application section spacing.
+- Preserve centered Official Template content and horizontal Deactivate/Delete controls already present.
+- Add server-owned profile-option aliases and canonicalize bulk-import dropdown labels through stable option identities; inactive and unknown options remain invalid.
+- Update current project documentation for dashboard, deadline, application, upload, user-management, and import behavior.
+
+Excluded:
+- Dropping or rewriting legacy `expected_duration` data, guessing dates from prose, updating historical user/application snapshots automatically after an option rename, adding formulas/macros to templates, changing the approved `.xlsx` column contract, package installation, `.env` changes, or implementing a manual forced-closed state.
+
+### Implementation Approach
+- Backend: adjust role dashboard query scope; pass the shared application-submission window to the application index; extend application information validation with date-pair rules and a legacy persisted-record fallback; canonicalize controlled bulk fields through the profile-option catalog.
+- Frontend: reuse accessible project dialogs, status/error patterns, delayed tooltip behavior, shared overflow regions, stable control dimensions, and responsive grid/flex boundaries.
+- Database: add nullable `expected_start_date` and `expected_end_date` columns; add `profile_option_aliases` linked to immutable `profile_options.id`, uniquely constrained by field and normalized historical label.
+- Authorization: preserve all existing Applicant ownership, Adviser assignment, RES Lead settings/options, private-document, and final-submission policy checks.
+- Files/storage: do not change private upload storage or workbook temporary-storage boundaries.
+- Notifications/audit: retain existing submission and user-management events; include stable option identity in option-update audit metadata without exposing workbook or private-file paths.
+
+### Files Expected to Change
+- `PLANS.md`, additive migration/model/relationship for duration dates and profile-option aliases
+- Application model, information/draft services, controllers, form/list/requirements/detail views, dashboard data service, CSS, and JavaScript
+- Profile option catalog and bulk account validation/import tests
+- Deadline settings view/JavaScript/CSS and related tests
+- Applicant/Adviser/RES dashboard, application workflow, and documentation tests/files
+
+### Tests and Verification
+- Prove newest Applicant data appears even when a configured term exists; Adviser/RES dashboards include relevant legacy or differently linked records while remaining role/status scoped.
+- Prove open/closed status labels and server submission availability follow automatic dates and manual-open priority.
+- Prove new duration dates are required, reject an ending date before the starting date, persist correctly, and retain readable legacy duration display.
+- Prove formal submission opens a confirmation dialog structurally and keeps the server-side transition authoritative.
+- Prove an old workbook label remains valid after its option is renamed, resolves to the same immutable option ID, stores the current canonical label, and fails if that option is inactive.
+- Retain the all-Blade-table overflow assertion and add structural checks for merged submission overview, bounded modal title, deadline borders, On/Off labels, and Adviser decision alignment.
+- Run focused suites, full `php artisan test`, migrations/status, route listing, Blade cache, Pint, Composer checks, `npm.cmd run build`, and `git diff --check`.
+- Inspect desktop, tablet, and smartphone layouts through a controllable browser when available; otherwise report that check as unavailable.
+
+### Risks and Rollback
+- Both schema changes are additive. Rollback removes only the two date columns and alias table; legacy duration strings and current option rows remain intact.
+- Alias uniqueness is enforced within each option field, preventing one historical label from resolving to two identities. Renaming to another option's current or historical label is rejected.
+- Dashboard application records intentionally stop using academic-term exclusion because the supplied screenshots and requirement explicitly require existing relevant records to appear. Timeline and deadline configuration remain current-term aware.
+- Final submission, deadline availability, and import creation remain server-validated even when client controls are bypassed.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-29
+
+## Plan: Deadline, application, and adviser-endorsement completion
+
+### Goal
+Complete the July 28, 2026 Applicant, Adviser, dashboard, RES Settings, deadline, and shared-interface batch so current records and Philippine-time deadlines are reflected consistently, application identifiers follow the approved public format, and complete initial submissions can be securely returned or endorsed by their assigned adviser.
+
+### Source Documents
+- Primary requirement: attached `pasted-text.txt`, July 28, 2026.
+- Project direction: `PROJECT_GUIDELINES.md`, the consolidated system documentation, the module-based ERD, and the existing uncommitted term/document/settings implementation.
+- Workflow references: `context_files/[DRAFT] ECRATS_System_Project_Documentation.docx`, `context_files/RSU-MEMO-PROCESS OF ETHICS_FINAL_1-2.pdf`, and `context_files/local/ECRATS COMPLETE MODULE-BASED ERD DA.txt`.
+- Visual reference: `context_files/local/ECRATS High Fidelity.pdf`, especially Adviser pages 35-45.
+- Superseded decisions: new application codes use `RES-Year-ApplicantType-InstitutionAcronym-MMDDYYYY-Random` instead of the previously planned monthly sequence format; a manual-open deadline override may keep a process available outside its date range instead of remaining date-bounded.
+- Confirmed user decision: the maximum of three counts formally submitted applications, not drafts. Returning and resubmitting the same application remains one application slot.
+
+### Scope
+Included:
+- Preserve reusable bottom horizontal scrolling for every table and complete the requested Applicant, Adviser, user-action, import-template, modal, and responsive alignment corrections.
+- Generate collision-checked application codes containing the applicant type and approved institution acronym without exposing database identifiers.
+- Configure seven role-mapped deadline processes, including Reviewer revision review; use Asia/Manila comparisons; allow manual-open override; and model decision/certificate release as one exact date.
+- Keep dashboard counts, recent records, deadline alerts, and timeline information sourced from current application and RES configuration data.
+- Move username changes beside password changes in Security and Privacy, add confirmation for both actions, and present mismatch errors on both password fields.
+- Refine Applicant document headers, upload queue controls, Upload All placement, fixed-width uploaded filenames, private previews, and authorized download fallback.
+- Add Adviser-only access to assigned, complete initial submissions; record each return or endorsement with a reason/remarks contract; transition endorsed records to RES screening; notify the applicant; and audit both actions.
+
+Excluded:
+- Returning post-review revision cycles to the Adviser, public document URLs, unsafe Office-document embedding, package installation, `.env` changes, reviewer workflow implementation, or certificate generation/release implementation.
+- Inventing additional adviser decision fields not supported by the ERD/prototype.
+
+### Implementation Approach
+- Backend: centralize application-code composition, Philippine-time deadline resolution, role-specific dashboard deadlines, and Adviser endorsement transitions in focused services with thin controllers and Form Requests.
+- Frontend: retain established dashboard patterns while using unframed responsive sections, consistent table overflow, stable upload-control geometry, accessible confirmation/decision modals, and clear authorized preview fallback.
+- Database: add an `endorsements` history table with application/adviser foreign keys, `returned|endorsed` status, return reason, optional remarks, and action timestamps. Keep all changes additive and preserve existing application/document rows.
+- Authorization: extend the application policy so only the assigned active Adviser can inspect or decide an eligible application; recheck assignment, status, completeness, and initial-submission eligibility under a transaction lock.
+- Files/storage: retain private storage and controller-streamed previews/downloads. No private path or unsupported executable content becomes public.
+- Notifications/audit: notify only the owning Applicant with neutral workflow text and record actor, application, action, and non-sensitive decision metadata through the existing audit infrastructure.
+
+### Files Expected to Change
+- `PLANS.md`, additive endorsement migration/model/service/request/controller/routes, application policy/status workflow, notifications, and focused tests
+- Application-code generator/draft service and Applicant application tests/views
+- Deadline catalog/resolver/configuration service/settings/dashboard services and related tests/views
+- RES Security and Privacy, deadline configuration, shared dashboard CSS/JavaScript, Applicant document submission, Adviser application details, and user-management/import views
+
+### Tests and Verification
+- Focused tests for code format/uniqueness, Philippine-time automatic state, manual-open priority, role deadline mapping, exact release dates, current dashboard records, credential confirmation/mismatch handling, upload queue preservation, preview authorization/fallback, and shared table overflow.
+- Adviser tests must prove assigned-only access, complete-initial-submission eligibility, return/endorse persistence and transitions, revision bypass, notification/audit effects, and rejection of incomplete or ineligible records.
+- Add policy/service/UI tests proving drafts do not count, a fourth formal application is rejected under the applicant row lock, and resubmitting one of the same three records does not consume another slot.
+- Run affected suites, full `php artisan test`, `php artisan route:list`, `php artisan migrate:status`, Blade compilation, Pint, Composer validation/platform checks, `npm.cmd run build`, PHP syntax checks, and `git diff --check`.
+- Inspect desktop, tablet, and smartphone layouts through a controllable browser when available; otherwise document the unavailable visual check and retain structural responsive assertions.
+
+### Risks and Rollback
+- Endorsement history is additive. Rollback removes only the new table; existing applications and private files remain intact.
+- Application status transitions are transaction-locked and policy-protected so double decisions, stale pages, and cross-Adviser access cannot create conflicting workflow history.
+- Manual-open override is intentionally stronger than date bounds; automatic mode still follows the active academic term and configured Philippine-time range.
+- Existing application codes remain valid historical identifiers; only newly created applications receive the new public format.
+- The formal-submission limit is enforced under the applicant row lock and excludes the current record during resubmission, preventing concurrent fourth submissions without penalizing returned corrections.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-28
+
+## Plan: Term-aware settings, application records, and document submission corrections
+
+### Goal
+Complete the July 28, 2026 cross-role settings and application batch so deadlines are date-bound and term-aware, application and audit records can be filtered historically, document versions follow revision cycles, and all shared interfaces remain usable at narrow viewports without weakening private-file authorization.
+
+### Source Documents
+- Primary requirement: attached `pasted-text.txt`, July 28, 2026.
+- Project direction: `PROJECT_GUIDELINES.md`, the current application/account-management architecture, and committed implementation at `a1c32d4`.
+- Visual references: `context_files/local/ECRATS High Fidelity.pdf` and existing dashboard, settings, account-management, table, modal, tooltip, and form patterns.
+- Prior plan superseded in two places: eligible unsubmitted draft discard now permanently removes the draft and its private files instead of archiving it; an enabled manual deadline toggle remains bounded by its configured opening/deadline dates instead of overriding elapsed dates.
+
+### Scope
+Included:
+- Add Profile, Deadline Configuration, and Security and Privacy tabs to RES Lead Settings, with Profile as the default and validation returning users to the affected tab.
+- Add one normalized academic-term record containing semester, academic year, start, and end; link current deadline configurations, newly created applications, and new audit events to that term.
+- Show the configured term label only while its timeframe is active; otherwise use the neutral `Semester and Academic Year` label.
+- Add the Revision Period process, reject past process dates on both client and server, and make all process availability the conjunction of active term, opening date, deadline, active flag, and manual toggle.
+- Filter application lists/dashboard records and audit logs by semester and academic year through stable term identifiers while retaining explicit date filters.
+- Make document display versions equal the application's current revision cycle: initial cycle is Version 1, replacements in the same cycle keep the same version, and reopening a formally Adviser-returned application advances the cycle once before resubmission.
+- Add authorized multi-requirement upload, per-file feedback, retained browser selections when one file is uploaded, fixed-width filename controls/tooltips, and safe inline PDF/image preview with authorized download fallback for unsupported office formats.
+- Permanently delete only owner-controlled Draft/Incomplete applications that never crossed formal Adviser or RES review, including their private document files, after explicit confirmation.
+- Generate unique public application codes as `MM-YYYY-Sequence-Random`, using a month/year sequence and a collision-checked uppercase alphanumeric suffix without exposing a raw database ID.
+- Complete requested password-validation presentation, user reactivate/action alignment, restoration/import layout, reusable table overflow, favicon, and profile-menu cleanup.
+
+Excluded:
+- Implementing the full reviewer revision lifecycle, incrementing revision cycles outside an approved revision transition, converting private Office documents to HTML/PDF, public file URLs, or installing a document-conversion package.
+- Reassigning historical records to a guessed term. Existing records remain nullable/unscoped until an explicit term can be determined; date filters continue to work for them.
+- Changing `.env`, authentication architecture, reviewer anonymity, certificate access, or private storage disks.
+
+### Implementation Approach
+- Backend: introduce an `AcademicTerm` model/resolver; stamp new applications and audit events with the active term; add reusable term filters; centralize deadline state calculation; keep controllers thin and policy checks authoritative.
+- Frontend: use accessible settings tabs, stable error slots, native picker constraints with visible focus/hover treatment, reusable overflow regions, fixed-width ellipsis controls, and one JavaScript upload queue that submits selected files without reloading the page.
+- Database: add `academic_terms`; nullable indexed `academic_term_id` links on deadlines, research applications, and audit logs; and `current_revision_cycle` defaulting to 1 on research applications. Preserve existing rows and foreign-key safety in rollback.
+- Authorization: keep settings RES Lead-only, batch upload Applicant-owner-only, previews parent-application-authorized, and permanent discard restricted to unsubmitted Draft/Incomplete records.
+- Files/storage: continue private local storage and response streaming. Permanently discarded draft files are collected inside the locked transaction and deleted only after database commit; unsupported inline types receive an authorized download fallback.
+- Workflow: `manual_status = closed` always closes a process; `open` or legacy `null` can operate only while the active term and configured start/deadline window are current. Document replacement does not advance `current_revision_cycle`; the existing `ReturnedByAdviser` to editable transition advances it exactly once.
+- Notifications/audit: new audit events receive the active term automatically; draft deletion records only non-sensitive identifying metadata without retaining a morph reference to the deleted draft.
+
+### Files Expected to Change
+- `PLANS.md`, additive migrations, academic-term/deadline/application/audit models and services
+- RES settings controller, requests, view, CSS, and JavaScript
+- Application/audit list controllers, filters, dashboards, views, and shared table components
+- Applicant document request/controller/service/routes/views and private preview fallback
+- Draft/application-code services, navigation layout, favicon markup, user-management views, and focused Feature tests
+
+### Tests and Verification
+- Focused tests for past-date rejection, active-term labels, date-bounded manual availability, dashboard alerts, term filters, inactive-account reactivation, revision-cycle document versions, batch upload behavior, authorized preview/fallback, permanent draft deletion/file cleanup, and application-code format/uniqueness.
+- Structural tests for settings tabs, stable password errors, user-management alignment, filename controls/tooltips, profile-menu cleanup, favicon use, and every table residing in the shared overflow boundary.
+- Run affected Feature suites, full `php artisan test`, `php artisan route:list`, `php artisan migrate:status`, PHP syntax checks, Pint, Composer validation/platform checks, Blade compilation, `npm.cmd run build`, and `git diff --check`.
+- Run migration rollback only in pretend mode. Perform desktop, tablet, and smartphone browser checks when a controllable browser is available.
+
+### Risks and Rollback
+- Term links are nullable and additive, so legacy records remain readable; rollback removes only new links, cycle metadata, and the term table.
+- Permanent draft discard is intentionally irreversible. Eligibility is rechecked under a database lock, submitted records are forbidden, and private-file deletion occurs only after the committed database deletion.
+- Monthly sequence allocation is serialized against matching month/year codes and still protected by the existing unique index plus bounded collision retries.
+- Browser preview remains intentionally limited to PDF and safe image MIME types; Word and Excel files are never rendered as executable public content.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-07-28
+
 ## Plan: RES settings and workflow reliability corrections
 
 ### Goal

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Dashboard\AdviserApplicationController;
+use App\Http\Controllers\Dashboard\AdviserEndorsementController;
 use App\Http\Controllers\Dashboard\ApplicantApplicationController;
 use App\Http\Controllers\Dashboard\ApplicationDocumentController;
 use App\Http\Controllers\Dashboard\DashboardController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Dashboard\NotificationPageController;
 use App\Http\Controllers\Dashboard\OnboardingController;
 use App\Http\Controllers\Dashboard\ProfilePageController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
+use App\Http\Controllers\Dashboard\ResLeadApplicationController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
 use App\Http\Controllers\Identity\UserManagementController;
 use App\Http\Controllers\Settings\ResLeadSettingsController;
@@ -77,6 +79,9 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.show');
                 Route::get('/applications/{researchApplication}/requirements', [ResearchApplicationPageController::class, 'requirements'])
                     ->name('applications.requirements');
+                Route::post('/applications/{researchApplication}/requirements/upload-all', [ApplicationDocumentController::class, 'storeMany'])
+                    ->middleware('throttle:application-upload')
+                    ->name('applications.documents.store-all');
                 Route::post('/applications/{researchApplication}/requirements/{documentRequirement}', [ApplicationDocumentController::class, 'store'])
                     ->middleware('throttle:application-upload')
                     ->name('applications.documents.store');
@@ -126,6 +131,12 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.documents.download');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');
+                Route::post('/applications/{researchApplication}/endorse', [AdviserEndorsementController::class, 'endorse'])
+                    ->middleware('throttle:application-write')
+                    ->name('applications.endorse');
+                Route::post('/applications/{researchApplication}/return', [AdviserEndorsementController::class, 'returnForCorrection'])
+                    ->middleware('throttle:application-write')
+                    ->name('applications.return');
                 Route::controller(UserManagementController::class)->prefix('applicants')->name('applicants.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/create', 'create')->name('create');
@@ -183,11 +194,7 @@ Route::middleware('no-store')->group(function (): void {
             ->middleware('role:res_lead')
             ->group(function (): void {
                 Route::redirect('/landing', '/dashboard')->name('landing');
-                Route::get('/applications', ModulePageController::class)
-                    ->defaults('pageTitle', 'Applications')
-                    ->defaults('moduleTitle', 'Application Screening')
-                    ->defaults('moduleMessage', 'Endorsed applications awaiting RES action will appear here.')
-                    ->defaults('moduleIcon', 'file-text')
+                Route::get('/applications', [ResLeadApplicationController::class, 'index'])
                     ->name('applications.index');
                 Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
                     ->name('applications.show');

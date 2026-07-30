@@ -6,6 +6,8 @@
         $fieldValue = fn (string $field, mixed $fallback = null) => old($field, $application?->{$field} ?? $fallback);
         $isEditing = $application !== null;
         $selectedResearchType = old('research_type', $application?->research_type?->value);
+        $expectedStartDate = old('expected_start_date', $application?->expected_start_date?->format('Y-m-d'));
+        $expectedEndDate = old('expected_end_date', $application?->expected_end_date?->format('Y-m-d'));
     @endphp
 
     <div class="dashboard-page application-workspace">
@@ -125,10 +127,17 @@
                         <textarea id="target_participants" name="target_participants" rows="4" maxlength="2000" required>{{ $fieldValue('target_participants') }}</textarea>
                         @error('target_participants')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
-                    <div class="application-field">
-                        <label for="expected_duration">Expected Research Duration <span aria-hidden="true">*</span></label>
-                        <input id="expected_duration" name="expected_duration" value="{{ $fieldValue('expected_duration') }}" maxlength="120" placeholder="e.g., August 2026 to May 2027" required>
-                        @error('expected_duration')<span class="identity-field-error">{{ $message }}</span>@enderror
+                    <div class="application-duration-fields">
+                        <div class="application-field">
+                            <label for="expected_start_date">Starting Date <span aria-hidden="true">*</span></label>
+                            <input id="expected_start_date" name="expected_start_date" type="date" value="{{ $expectedStartDate }}" required>
+                            @error('expected_start_date')<span class="identity-field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="application-field">
+                            <label for="expected_end_date">Ending Date <span aria-hidden="true">*</span></label>
+                            <input id="expected_end_date" name="expected_end_date" type="date" value="{{ $expectedEndDate }}" min="{{ $expectedStartDate }}" required data-expected-end-date>
+                            @error('expected_end_date')<span class="identity-field-error">{{ $message }}</span>@enderror
+                        </div>
                     </div>
                 </div>
             </fieldset>

@@ -118,6 +118,11 @@ class User extends Authenticatable
         return $this->hasMany(ResearchApplication::class, 'adviser_user_id');
     }
 
+    public function endorsements(): HasMany
+    {
+        return $this->hasMany(Endorsement::class, 'adviser_user_id');
+    }
+
     public function reviewerAssignments(): HasMany
     {
         return $this->hasMany(ReviewerAssignment::class, 'reviewer_user_id');

@@ -62,6 +62,9 @@
         @case('clock')
             <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
             @break
+        @case('alert-triangle')
+            <path d="M10.3 2.9 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>
+            @break
         @case('circle-help')
             <circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"/>
             @break

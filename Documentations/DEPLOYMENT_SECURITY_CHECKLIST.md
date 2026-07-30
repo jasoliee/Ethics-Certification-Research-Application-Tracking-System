@@ -4,7 +4,7 @@
 
 - [ ] Use PHP 8.3 and satisfy `composer check-platform-reqs`.
 - [ ] Keep `.env` outside version control and generate a production `APP_KEY` securely.
-- [ ] Set `APP_ENV=production`, `APP_DEBUG=false`, and a real HTTPS `APP_URL`.
+- [ ] Set `APP_ENV=production`, `APP_DEBUG=false`, a real HTTPS `APP_URL`, and `APP_TIMEZONE=Asia/Manila`.
 - [ ] Configure secure database credentials with least privilege.
 - [ ] Configure an approved institutional SMTP account; do not use localhost links.
 - [ ] Keep password reset expiry at the approved seven-day value unless policy changes.

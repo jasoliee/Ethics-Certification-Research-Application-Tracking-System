@@ -4,7 +4,7 @@
 
 `users` retains split names plus a generated compatibility `name`. Account identity includes unique username, email, institutional identifier, role, optional applicant type, role-specific fields, creator, status, setup/onboarding timestamps, email-delivery state, and soft deletion.
 
-`profile_options` stores normalized, active/inactive shared values for Year Level, Institution, Department, Program, and Reviewer Classification with ordering and creator attribution. User profile fields remain strings so renamed or deactivated catalog values do not silently rewrite historical records. Reviewer classification is likewise stored as a bounded string rather than a PHP enum.
+`profile_options` stores normalized, active/inactive shared values for Year Level, Institution, Department, Program, and Reviewer Classification with ordering and creator attribution. Its primary key is the stable option identity. `profile_option_aliases` preserves prior visible labels against that identity and enforces one normalized label owner per field. User profile fields remain canonical strings so renamed or deactivated catalog values do not silently rewrite historical records. Reviewer classification is likewise stored as a bounded string rather than a PHP enum.
 
 The additive onboarding migration backfills existing users as already set up so a deployment does not lock out established accounts. Fresh seeders explicitly mark their active test/admin accounts the same way.
 
@@ -21,7 +21,8 @@ Form Request -> policy/creation authority -> UserAccountService transaction
 
 ```text
 private .xlsx upload -> bounded OOXML and exact-contract validation
--> active-option validation -> batched conflict and username lookup
+-> active option ID/current-label/historical-alias resolution
+-> canonical active-option validation -> batched conflict and username lookup
 -> categorized preview with valid, active-existing, and archived rows in actor-scoped JSON
 -> optional RES-only restoration of preview-matched original archived rows
 -> atomic single-use confirmation -> short transaction per valid account
@@ -35,14 +36,19 @@ No account rows are written during preview. Invalid, later duplicate, active-exi
 ```text
 owner policy -> unique editable draft -> validated information
 -> private versioned requirement uploads -> shared completion calculation
--> configured submission-window check -> locked final revalidation
+-> configured submission-window + formal-slot check -> locked final revalidation
 -> submitted_to_adviser + adviser_review + timestamps
 -> Adviser database notification + audit
+-> assigned Adviser deadline/completeness revalidation
+-> returned_by_adviser for correction OR adviser_endorsed + res_screening
+-> Applicant notification + endorsement history + audit
 ```
 
-`research_applications` stores the nullable unique `draft_owner_user_id`, research type/category, institution, department, program, abstract, target participants, expected duration, and current stage. Releasing `draft_owner_user_id` at submission allows a later new draft while keeping the submitted application.
+`research_applications` stores the nullable unique `draft_owner_user_id`, optional academic-term link, research type/category, institution, department, program, abstract, target participants, nullable legacy duration text, expected start/end dates, formal submission time, revision cycle, and current stage/status. Releasing `draft_owner_user_id` at submission allows a later new draft while keeping the submitted application. The three-application limit counts non-null formal submission timestamps, not draft rows.
 
 `document_requirements` stores whether a requirement is mandatory and an optional JSON list of applicable research types. `application_documents` retains version rows and a single current pointer per requirement/application pair. Files remain on private storage and are authorized through their parent application.
+
+`academic_terms` provides current semester/year boundaries. Deadline rows and timeline events can reference one term; deadline updates synchronize both sets in one transaction. `endorsements` records each initial Adviser return/endorsement with the assigned Adviser, decision, controlled return reason, remarks, and returned/endorsed timestamp.
 
 ## Audit Data
 

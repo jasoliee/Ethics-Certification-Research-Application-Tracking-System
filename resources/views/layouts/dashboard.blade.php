@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $pageTitle ?? 'Dashboard' }} | ECRATS</title>
+    <link rel="icon" type="image/png" href="{{ Vite::asset('assets/logo-256.png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

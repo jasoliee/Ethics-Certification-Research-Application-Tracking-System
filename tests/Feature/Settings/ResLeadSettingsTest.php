@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Enums\DeadlineManualStatus;
 use App\Enums\UserRole;
+use App\Models\AcademicTerm;
 use App\Models\AuditLog;
 use App\Models\DeadlineConfiguration;
 use App\Models\TimelineCalendarEvent;
@@ -24,8 +25,24 @@ class ResLeadSettingsTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.settings.index'))
             ->assertOk()
+            ->assertSee('Profile')
             ->assertSee('Deadline Configuration')
-            ->assertSee('Personal Account Management');
+            ->assertSee('Security and Privacy')
+            ->assertSee('Revision Period')
+            ->assertSee('Reviewing of Revision Period')
+            ->assertSee('Release Date')
+            ->assertSee('Upcoming Deadline')
+            ->assertSee('Active Date Range')
+            ->assertDontSee('Manual Toggles On')
+            ->assertSee('settings-deadline-table', false)
+            ->assertSee('data-deadline-process', false)
+            ->assertSee('data-minimum-deadline', false)
+            ->assertSee('data-deadline-toggle-label', false)
+            ->assertSee('>Auto<', false)
+            ->assertDontSee('settings-process-row', false)
+            ->assertSee('data-settings-confirm-dialog', false)
+            ->assertDontSee('result-release_starts_at');
+        $this->assertSame('Asia/Manila', config('app.timezone'));
 
         foreach ([UserRole::Applicant, UserRole::Adviser, UserRole::Reviewer] as $role) {
             $user = User::factory()->create(['role' => $role]);
@@ -49,19 +66,103 @@ class ResLeadSettingsTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('status');
 
+        $term = AcademicTerm::query()
+            ->where('semester', '1st Semester')
+            ->where('academic_year', '2026-2027')
+            ->firstOrFail();
+
         foreach (DeadlineProcessCatalog::definitions() as $key => $definition) {
-            $configuration = DeadlineConfiguration::where('deadline_key', $key)->firstOrFail();
+            $configuration = DeadlineConfiguration::query()
+                ->where('academic_term_id', $term->id)
+                ->where('deadline_key', 'like', "%{$key}")
+                ->firstOrFail();
             $this->assertSame('1st Semester, A.Y. 2026-2027', $configuration->semester_label);
             $this->assertSame(DeadlineManualStatus::Open, $configuration->manual_status);
             $this->assertSame($definition['audience_role'], $configuration->audience_role);
             $this->assertSame(100, $configuration->priority);
 
-            $event = TimelineCalendarEvent::where('milestone_key', $definition['timeline_key'])->firstOrFail();
+            if ($definition['exact_date']) {
+                $this->assertTrue($configuration->starts_at->equalTo($configuration->due_at));
+            }
+
+            $event = TimelineCalendarEvent::query()
+                ->where('academic_term_id', $term->id)
+                ->where('milestone_key', 'like', "%{$definition['timeline_key']}")
+                ->firstOrFail();
             $this->assertSame('1st Semester, A.Y. 2026-2027', $event->term_label);
             $this->assertSame($definition['timeline_label'], $event->label);
         }
 
-        $this->assertSame(1, AuditLog::where('action', 'settings.deadlines_updated')->count());
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'settings.deadlines_updated',
+            'academic_term_id' => $term->id,
+        ]);
+    }
+
+    public function test_deadline_configuration_rejects_past_ranges_even_when_manually_open(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $processKey = DeadlineProcessCatalog::keys()[0];
+
+        foreach (['1', '0'] as $manualOpen) {
+            $payload = $this->deadlinePayload();
+            $payload['processes'][$processKey] = [
+                'starts_at' => now()->subHours(2)->format('Y-m-d\TH:i'),
+                'due_at' => now()->subHour()->format('Y-m-d\TH:i'),
+                'is_open' => $manualOpen,
+            ];
+
+            $this->actingAs($resLead)
+                ->from(route('res.settings.index'))
+                ->put(route('res.settings.deadlines.update'), $payload)
+                ->assertRedirect(route('res.settings.index'))
+                ->assertSessionHasErrors([
+                    "processes.{$processKey}.starts_at",
+                    "processes.{$processKey}.due_at",
+                ]);
+        }
+
+        $this->assertSame(0, AcademicTerm::query()->count());
+    }
+
+    public function test_deadline_configuration_rejects_a_past_term_start_date(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $payload = $this->deadlinePayload();
+        $payload['term_starts_on'] = now()->subDay()->toDateString();
+
+        $this->actingAs($resLead)
+            ->from(route('res.settings.index'))
+            ->put(route('res.settings.deadlines.update'), $payload)
+            ->assertRedirect(route('res.settings.index'))
+            ->assertSessionHasErrors('term_starts_on');
+
+        $this->assertSame(0, AcademicTerm::query()->count());
+    }
+
+    public function test_settings_term_label_uses_only_the_current_configured_timeframe(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $term = AcademicTerm::create([
+            'semester' => 'Current Semester',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addDay(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.settings.index'))
+            ->assertOk()
+            ->assertSee('Current Semester, A.Y. 2026-2027');
+
+        $term->update(['ends_at' => now()->subMinute()]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.settings.index'))
+            ->assertOk()
+            ->assertSee('<dt>Active Term</dt><dd>Semester and Academic Year</dd>', false)
+            ->assertDontSee('Current Semester, A.Y. 2026-2027');
     }
 
     public function test_res_lead_can_update_own_username_and_password_with_current_password(): void
@@ -114,21 +215,66 @@ class ResLeadSettingsTest extends TestCase
         $this->assertTrue(Hash::check('current-password', $resLead->fresh()->password));
     }
 
+    public function test_password_mismatch_reports_both_new_password_fields(): void
+    {
+        $resLead = User::factory()->create([
+            'role' => UserRole::ResLead,
+            'password' => Hash::make('current-password'),
+        ]);
+
+        $this->actingAs($resLead)
+            ->patch(route('res.settings.password.update'), [
+                'current_password' => 'current-password',
+                'password' => 'first-secure-password',
+                'password_confirmation' => 'different-secure-password',
+            ])
+            ->assertSessionHasErrors(['password', 'password_confirmation']);
+
+        $this->assertTrue(Hash::check('current-password', $resLead->fresh()->password));
+    }
+
+    public function test_automatic_deadlines_store_no_manual_override(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $payload = $this->deadlinePayload();
+
+        foreach (DeadlineProcessCatalog::keys() as $key) {
+            $payload['processes'][$key]['is_open'] = '0';
+        }
+
+        $this->actingAs($resLead)
+            ->put(route('res.settings.deadlines.update'), $payload)
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(DeadlineProcessCatalog::keys(), DeadlineConfiguration::query()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (DeadlineConfiguration $deadline): string => DeadlineProcessCatalog::keyForDeadlineKey($deadline->deadline_key))
+            ->all());
+        $this->assertSame(0, DeadlineConfiguration::query()->whereNotNull('manual_status')->count());
+    }
+
     /** @return array<string, mixed> */
     private function deadlinePayload(): array
     {
         $processes = [];
+        $startsAt = now()->addDay()->startOfHour();
+        $dueAt = $startsAt->copy()->addWeeks(2);
 
         foreach (DeadlineProcessCatalog::keys() as $key) {
             $processes[$key] = [
-                'starts_at' => '2026-08-01T08:00',
-                'due_at' => '2026-08-15T17:00',
+                'starts_at' => $startsAt->format('Y-m-d\TH:i'),
+                'due_at' => $dueAt->format('Y-m-d\TH:i'),
                 'is_open' => '1',
             ];
         }
 
         return [
-            'semester_label' => '1st Semester, A.Y. 2026-2027',
+            'semester' => '1st Semester',
+            'academic_year' => '2026-2027',
+            'term_starts_on' => now()->toDateString(),
+            'term_ends_on' => now()->addMonths(5)->toDateString(),
             'processes' => $processes,
         ];
     }

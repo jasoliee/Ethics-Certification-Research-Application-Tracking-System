@@ -8,18 +8,23 @@ use App\Enums\ApplicationStatus;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 /**
  * Creates or updates the applicant's single editable application draft.
  */
 class ResearchApplicationDraftService
 {
-    public function __construct(private readonly AuditLogService $auditLog) {}
+    public function __construct(
+        private readonly AuditLogService $auditLog,
+        private readonly AcademicTermResolver $terms,
+        private readonly ApplicationCodeGenerator $codes,
+        private readonly ApplicationSubmissionLimit $submissionLimit,
+    ) {}
 
     /**
      * Persist validated information and advance the editable draft to document submission.
@@ -39,6 +44,9 @@ class ResearchApplicationDraftService
         }
 
         return DB::transaction(function () use ($actor, $attributes, $requestedApplication): ResearchApplication {
+            // Serialize draft creation and the submitted-application limit for one Applicant.
+            User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
+
             // Lock the unique draft slot first so every save follows the same row-lock order.
             $existingDraft = ResearchApplication::query()
                 ->where('draft_owner_user_id', $actor->id)
@@ -66,13 +74,20 @@ class ResearchApplicationDraftService
 
             // Create-or-resolve the unique draft slot so concurrent Start requests converge on one row.
             if (! $application) {
+                // The applicant row lock makes the formal-submission count authoritative under concurrent requests.
+                $this->submissionLimit->assertCanCreate($actor);
+                $applicantType = $actor->applicant_type ?? ApplicantType::Student;
                 $candidate = ResearchApplication::query()->createOrFirst(
                     ['draft_owner_user_id' => $actor->id],
                     [
                         ...$attributes,
-                        'application_code' => $this->uniqueCode(),
+                        'academic_term_id' => $this->terms->current()?->id,
+                        'application_code' => $this->codes->next(
+                            $applicantType,
+                            (string) $attributes['institution'],
+                        ),
                         'applicant_user_id' => $actor->id,
-                        'applicant_type' => ($actor->applicant_type ?? ApplicantType::Student)->value,
+                        'applicant_type' => $applicantType->value,
                         'application_type' => 'new_application',
                         'application_status' => ApplicationStatus::Draft,
                         'current_stage' => ApplicationStage::ApplicationInformation,
@@ -91,15 +106,16 @@ class ResearchApplicationDraftService
                 }
             }
 
-            // A formally returned record re-enters the draft boundary before it becomes visible for resubmission.
+            // Adviser corrections remain part of the initial submission and do not consume a review-revision cycle.
             if ($application->application_status === ApplicationStatus::ReturnedByAdviser) {
                 $application->application_status = ApplicationStatus::Incomplete;
-                $application->submitted_at = null;
             }
 
             // Copy only Form Request-validated fields and never accept applicant/adviser email snapshots.
             $application->fill([
                 ...$attributes,
+                // Structured dates replace legacy prose whenever an Applicant saves the current form.
+                'expected_duration' => null,
                 'draft_owner_user_id' => $actor->id,
                 'applicant_type' => ($actor->applicant_type ?? ApplicantType::Student)->value,
                 'current_stage' => ApplicationStage::DocumentSubmission,
@@ -125,48 +141,30 @@ class ResearchApplicationDraftService
     }
 
     /**
-     * Archive one unsubmitted draft while preserving its audit and private-document history.
+     * Permanently remove one unsubmitted draft and its private application directory.
      */
-    public function discard(User $actor, ResearchApplication $application): ResearchApplication
+    public function discard(User $actor, ResearchApplication $application): void
     {
         Gate::forUser($actor)->authorize('discard', $application);
 
-        return DB::transaction(function () use ($actor, $application): ResearchApplication {
+        $applicationId = DB::transaction(function () use ($actor, $application): int {
             $locked = ResearchApplication::query()
                 ->whereKey($application->id)
                 ->lockForUpdate()
                 ->firstOrFail();
             Gate::forUser($actor)->authorize('discard', $locked);
 
-            $locked->update([
-                'application_status' => ApplicationStatus::Archived->value,
-                'current_stage' => ApplicationStage::Completed->value,
-                'draft_owner_user_id' => null,
-                'status_updated_at' => now(),
-            ]);
+            $this->auditLog->record($actor, 'application.draft_discarded', metadata: [
+                'application_id' => $locked->id,
+                'application_code' => $locked->application_code,
+                'document_count' => $locked->documents()->count(),
+                'result' => 'deleted',
+            ], academicTerm: $locked->academicTerm()->first());
+            $locked->delete();
 
-            $this->auditLog->record($actor, 'application.draft_discarded', $locked, [
-                'result' => 'archived',
-            ]);
-
-            return $locked->refresh();
+            return $locked->id;
         }, 3);
-    }
 
-    /**
-     * Generate a non-sequential public application code without exposing an internal database ID.
-     */
-    private function uniqueCode(): string
-    {
-        // Retry a bounded number of random candidates before surfacing an exceptional database condition.
-        for ($attempt = 0; $attempt < 10; $attempt++) {
-            $code = 'ECRATS-'.now()->format('Y').'-'.Str::upper(Str::random(8));
-
-            if (! ResearchApplication::query()->where('application_code', $code)->exists()) {
-                return $code;
-            }
-        }
-
-        throw new RuntimeException('Unable to generate a unique application code.');
+        Storage::disk('local')->deleteDirectory("applications/{$applicationId}");
     }
 }

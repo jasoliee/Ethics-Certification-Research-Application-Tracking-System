@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TimelineCalendarEvent extends Model
 {
     protected $fillable = [
+        'academic_term_id',
         'milestone_key',
         'label',
         'term_label',
@@ -23,5 +25,10 @@ class TimelineCalendarEvent extends Model
             'ends_at' => 'datetime',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function academicTerm(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class);
     }
 }

@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Enums\AdviserReturnReason;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ResearchApplication;
 use App\Services\Applications\ApplicationInformationService;
 use App\Services\Applications\ApplicationRequirementService;
+use App\Services\Applications\ApplicationSubmissionLimit;
 use App\Services\Applications\ApplicationSubmissionWindow;
 use App\Services\Applications\ResearchApplicationSubmissionService;
+use App\Services\Settings\DeadlineProcessAvailability;
 use App\Support\DashboardNavigation;
 use App\Support\RoleHome;
 use Illuminate\Http\RedirectResponse;
@@ -29,17 +32,26 @@ class ResearchApplicationPageController extends Controller
         ResearchApplication $researchApplication,
         ApplicationRequirementService $requirements,
         ApplicationSubmissionWindow $submissionWindow,
+        DeadlineProcessAvailability $deadlines,
     ): View {
         // Apply the role-aware record policy before loading Applicant or Adviser detail data.
         Gate::authorize('view', $researchApplication);
+        $role = $request->user()->role;
+        $adviserDecisionWindow = $role === UserRole::Adviser
+            ? $deadlines->status('adviser-endorsement', UserRole::Adviser, 'Adviser endorsement')
+            : null;
 
         return view('dashboard.applications.show', [
             ...$this->pageData($request, $researchApplication, 'Application Details'),
             'requirementSummary' => $requirements->summary($researchApplication),
             'submissionWindow' => $submissionWindow->status(),
             'canEdit' => $request->user()->can('update', $researchApplication),
+            'canUpload' => $request->user()->can('upload', $researchApplication),
             'canDiscard' => $request->user()->can('discard', $researchApplication),
             'canSubmit' => $request->user()->can('submit', $researchApplication),
+            'canAdviserDecide' => $request->user()->can('decideAsAdviser', $researchApplication),
+            'adviserDecisionWindow' => $adviserDecisionWindow,
+            'adviserReturnReasons' => AdviserReturnReason::cases(),
         ]);
     }
 
@@ -52,6 +64,7 @@ class ResearchApplicationPageController extends Controller
         ApplicationInformationService $information,
         ApplicationRequirementService $requirements,
         ApplicationSubmissionWindow $submissionWindow,
+        ApplicationSubmissionLimit $submissionLimit,
     ): View {
         // Keep the upload checklist private to the owner even if its URL is guessed.
         Gate::authorize('view', $researchApplication);
@@ -61,6 +74,10 @@ class ResearchApplicationPageController extends Controller
             'informationSummary' => $information->summary($researchApplication),
             'requirementSummary' => $requirements->summary($researchApplication),
             'submissionWindow' => $submissionWindow->status(),
+            'submissionLimit' => [
+                ...$submissionLimit->status($request->user()),
+                'can_submit' => $submissionLimit->canSubmit($request->user(), $researchApplication),
+            ],
             'canUpload' => $request->user()->can('upload', $researchApplication),
             'canSubmit' => $request->user()->can('submit', $researchApplication),
         ]);
@@ -113,6 +130,7 @@ class ResearchApplicationPageController extends Controller
             'application' => $application->loadMissing(
                 'applicant:id,name,email,institutional_identifier,institution,department,program,role,applicant_type',
                 'adviser:id,name,email,institution,department',
+                'latestEndorsement.adviser:id,name',
             ),
             'indexRoute' => DashboardNavigation::applicationsRoute($role),
             'role' => $role,

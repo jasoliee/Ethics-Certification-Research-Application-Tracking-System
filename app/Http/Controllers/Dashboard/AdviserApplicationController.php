@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\ApplicationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ResearchApplication;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,8 +19,10 @@ class AdviserApplicationController extends Controller
     /**
      * Apply search, status, and date filters to one paginated Adviser-owned query.
      */
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request,
+        AcademicTermResolver $terms,
+    ): View {
         // Limit status input to states that can appear in the formally submitted Adviser workspace.
         $visibleStatuses = collect(ApplicationStatus::cases())
             ->reject(fn (ApplicationStatus $status): bool => in_array($status, [
@@ -32,11 +35,13 @@ class AdviserApplicationController extends Controller
             'status' => ['nullable', Rule::in($visibleStatuses->pluck('value')->all())],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'semester' => ['nullable', 'string', 'max:50'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
         ]);
         $selectedStatus = $visibleStatuses->firstWhere('value', $filters['status'] ?? null);
 
         // Exclude drafts and other Advisers before applying user-entered filters.
-        $applications = ResearchApplication::query()
+        $applicationsQuery = ResearchApplication::query()
             ->select([
                 'id',
                 'application_code',
@@ -55,7 +60,9 @@ class AdviserApplicationController extends Controller
                 ApplicationStatus::Draft->value,
                 ApplicationStatus::Incomplete->value,
                 ApplicationStatus::Archived->value,
-            ])
+            ]);
+        $terms->applyFilters($applicationsQuery, $filters);
+        $applications = $applicationsQuery
             ->with('applicant:id,name,institutional_identifier,program')
             ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
                 $search = trim((string) $filters['q']);
@@ -88,6 +95,7 @@ class AdviserApplicationController extends Controller
             'applications' => $applications,
             'statuses' => $visibleStatuses,
             'filters' => $filters,
+            'termOptions' => $terms->filterOptions(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Submitted Applications'],
