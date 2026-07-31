@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-31
+
+### Changed
+
+- Made the RES Endorsed Applications filters respond to the sidebar-adjusted content container, with four-column, two-column, and compact paired phone arrangements.
+- Aligned the RES filter actions in the rightmost column by moving Apply Filters above Clear and Academic Year into the lower filter row.
+- Compacted RES application columns and placed horizontal-only overflow directly under the table, while retaining the page's existing vertical scrollbar.
+- Contained the RES application panel and wide table within a zero-minimum page grid so phone layouts remain complete at default zoom and the table scrollbar no longer escapes the viewport.
+- Allowed the RES application table to fill wider panels at reduced browser zoom while preserving its mobile overflow minimum.
+- Reset standalone status-form spacing inside the account lifecycle row so Deactivate or Reactivate aligns exactly with Delete Account.
+- Matched the Security and Privacy heading to the left-aligned Profile heading throughout RES Lead Settings.
+- Restyled Applicant create/edit forms as three responsive icon-headed information sections with an unframed action row, while preserving existing fields and validation.
+
 ## 2026-07-30
 
 ### Added

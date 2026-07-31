@@ -18,7 +18,7 @@
                 <span><x-dashboard.icon name="search" size="18" /></span>
                 <input id="res-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Applicant, adviser, ID, or title">
             </div>
-            <div class="application-field">
+            <div class="application-field res-filter-status">
                 <label class="sr-only" for="res-status">Status</label>
                 <select id="res-status" name="status">
                     <option value="">All statuses</option>
@@ -27,7 +27,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="application-field">
+            <div class="application-field res-filter-semester">
                 <label class="sr-only" for="res-semester">Semester</label>
                 <select id="res-semester" name="semester">
                     <option value="">All semesters</option>
@@ -36,7 +36,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="application-field">
+            <div class="application-field res-filter-academic-year">
                 <label class="sr-only" for="res-academic-year">Academic Year</label>
                 <select id="res-academic-year" name="academic_year">
                     <option value="">All academic years</option>
@@ -45,19 +45,21 @@
                     @endforeach
                 </select>
             </div>
-            <div class="application-field">
+            <div class="application-field res-filter-date-from">
                 <label class="sr-only" for="res-date-from">Endorsed from</label>
                 <input id="res-date-from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}" title="Endorsed from">
             </div>
-            <div class="application-field">
+            <div class="application-field res-filter-date-to">
                 <label class="sr-only" for="res-date-to">Endorsed to</label>
                 <input id="res-date-to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}" title="Endorsed to">
             </div>
-            <button class="dashboard-primary-action" type="submit">Apply Filters</button>
-            <a class="dashboard-outline-action" href="{{ route('res.applications.index') }}">Clear</a>
+            <div class="res-application-filter-actions">
+                <button class="dashboard-primary-action res-filter-apply" type="submit">Apply Filters</button>
+                <a class="dashboard-outline-action res-filter-clear" href="{{ route('res.applications.index') }}">Clear</a>
+            </div>
         </form>
 
-        <section class="application-panel">
+        <section class="application-panel res-application-panel">
             <div class="application-panel-heading">
                 <div>
                     <h2>Applications in RES Flow</h2>
@@ -73,7 +75,7 @@
                     message="Applications will appear here after a Research Adviser endorses them for RES screening."
                 />
             @else
-                <x-dashboard.overflow label="RES endorsed application records" wide>
+                <x-dashboard.overflow class="res-application-scroll" label="RES endorsed application records" wide>
                     <table class="dashboard-table application-table res-application-table">
                         <thead>
                             <tr>

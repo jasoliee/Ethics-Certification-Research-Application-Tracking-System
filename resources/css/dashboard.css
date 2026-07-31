@@ -655,11 +655,6 @@
         align-items: end;
     }
 
-    .settings-section-heading-centered {
-        justify-content: center;
-        text-align: center;
-    }
-
     .settings-validation-summary {
         width: min(calc(100% - 48px), 760px);
         margin: 0 auto 20px;
@@ -867,16 +862,10 @@
         border-bottom: 0;
     }
 
-    .settings-section-heading,
-    .settings-section-heading-centered {
+    .settings-section-heading {
         align-items: flex-start;
         justify-content: flex-start;
         text-align: left;
-    }
-
-    .settings-section-heading-centered {
-        justify-content: center;
-        text-align: center;
     }
 
     .settings-process-row,
@@ -3979,8 +3968,16 @@
 
     /* Prevents the application workspace and its children from escaping the sidebar-adjusted content area. */
     .application-workspace {
+        width: 100%;
         min-width: 0;
         max-width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+        container-name: application-workspace;
+        container-type: inline-size;
+    }
+
+    .application-workspace > * {
+        min-width: 0;
     }
 
     /* Frames functional application lists, information, requirements, and submission controls consistently. */
@@ -4077,26 +4074,59 @@
         text-decoration: underline;
     }
 
-    /* Keeps the information form as one coherent operational surface. */
-    .application-form {
-        overflow: hidden;
-    }
-
-    /* Places spacing primarily after the preceding divider and keeps headings close to their fields. */
-    .application-form-section {
-        margin: 0;
+    /* Keeps the form unframed so its functional sections remain the primary surfaces. */
+    .application-form.application-information-form {
+        display: grid;
+        gap: 12px;
+        overflow: visible;
         border: 0;
-        border-bottom: 1px solid #e2e8e4;
-        padding: 28px 24px 24px;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
     }
 
-    /* Connects each form-section heading visually to its first input row. */
-    .application-form-section legend {
-        margin: 0 0 10px;
+    /* Frames each logical information group as one compact form tool. */
+    .application-form-section {
+        min-width: 0;
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
         padding: 0;
-        color: #176f3d;
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(23, 56, 38, 0.045);
+    }
+
+    .application-form-section-heading {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid #e2e8e4;
+        padding: 10px 16px;
+    }
+
+    .application-form-section-heading > span {
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #17884e;
+        background: #e9f6ee;
+    }
+
+    .application-form-section-heading h2 {
+        margin: 0;
+        color: #1b2a22;
         font-size: 15px;
+        line-height: 1.35;
         font-weight: 800;
+    }
+
+    .application-form-section-body {
+        padding: 18px 16px 20px;
     }
 
     /* Uses two flexible form columns with stable minimum field widths. */
@@ -4185,7 +4215,7 @@
 
     /* Separates application form commands from the final information section. */
     .application-form-actions {
-        padding: 20px 24px;
+        padding: 4px 0 0;
     }
 
     /* Separates panel-level progression controls from scrollable data. */
@@ -4995,9 +5025,21 @@
 }
 
 @media (max-width: 480px) {
-    /* Uses compact application section padding on 390-pixel phone layouts. */
+    /* Uses compact section surfaces on 390-pixel phone layouts. */
     .application-form-section {
-        padding: 24px 16px 20px;
+        padding: 0;
+    }
+
+    .application-form-section-heading {
+        padding-inline: 14px;
+    }
+
+    .application-form-section-body {
+        padding: 16px 14px 18px;
+    }
+
+    .application-duration-fields {
+        grid-template-columns: 1fr;
     }
 
     /* Stacks application form commands without overflowing long labels. */
@@ -6366,10 +6408,23 @@
     /* Keeps individual account lifecycle actions adjacent without nesting forms. */
     .identity-account-lifecycle-actions {
         display: flex;
+        align-items: stretch;
         justify-content: flex-end;
         flex-wrap: wrap;
         gap: 9px;
         padding-top: 18px;
+    }
+
+    /* Removes standalone status-form spacing so sibling lifecycle buttons share one baseline. */
+    .identity-account-lifecycle-actions > form {
+        display: flex;
+        align-items: stretch;
+        margin: 0;
+        padding: 0;
+    }
+
+    .identity-account-lifecycle-actions > form > .identity-button {
+        min-height: 42px;
     }
 
     /* Gives Reactivate the requested green hollow state and stable command height. */
@@ -6487,12 +6542,6 @@
 
     .settings-process-fields .settings-field > label,
     .settings-process-toggle > span {
-        text-align: center;
-    }
-
-    .settings-section-heading-centered {
-        flex-direction: column;
-        justify-content: center;
         text-align: center;
     }
 
@@ -7287,6 +7336,7 @@
     .application-duration-fields {
         min-width: 0;
         display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 17px;
     }
 
@@ -7327,11 +7377,96 @@
     }
 
     .application-filter-bar-res {
-        grid-template-columns: minmax(220px, 1fr) repeat(5, minmax(135px, 0.5fr)) auto auto;
+        width: 100%;
+        max-width: 100%;
+        grid-template-columns:
+            minmax(240px, 2fr)
+            repeat(3, minmax(135px, 1fr))
+            repeat(2, minmax(145px, 1fr))
+            minmax(190px, auto);
+        align-items: stretch;
+    }
+
+    .application-filter-bar-res > * {
+        min-width: 0;
+    }
+
+    .res-application-filter-actions {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .res-application-filter-actions > * {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding-inline: 14px;
     }
 
     .res-application-table {
-        min-width: 1260px;
+        width: 100%;
+        max-width: none;
+        min-width: 1180px;
+        table-layout: fixed;
+    }
+
+    .res-application-table th,
+    .res-application-table td {
+        padding-inline: 12px;
+    }
+
+    .res-application-table th:nth-child(1) { width: 135px; }
+    .res-application-table th:nth-child(2) { width: 110px; }
+    .res-application-table th:nth-child(3) { width: 140px; }
+    .res-application-table th:nth-child(4) { width: 245px; }
+    .res-application-table th:nth-child(5) { width: 120px; }
+    .res-application-table th:nth-child(6) { width: 115px; }
+    .res-application-table th:nth-child(7) { width: 95px; }
+    .res-application-table th:nth-child(8) { width: 150px; }
+    .res-application-table th:nth-child(9) { width: 70px; }
+
+    .res-application-table td:nth-child(1),
+    .res-application-table td:nth-child(2),
+    .res-application-table td:nth-child(3),
+    .res-application-table td:nth-child(5),
+    .res-application-table td:nth-child(6) {
+        overflow-wrap: anywhere;
+    }
+
+    .res-application-panel {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    /* Contains the wide table so its horizontal scrollbar stays directly under the rows. */
+    .res-application-scroll {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        display: block;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-top: 1px solid #e6ece8;
+        scrollbar-color: #6f8f7a #eef3f0;
+        scrollbar-width: auto;
+    }
+
+    .res-application-scroll::-webkit-scrollbar {
+        height: 14px;
+    }
+
+    .res-application-scroll::-webkit-scrollbar-track {
+        background: #eef3f0;
+    }
+
+    .res-application-scroll::-webkit-scrollbar-thumb {
+        border: 3px solid #eef3f0;
+        border-radius: 7px;
+        background: #6f8f7a;
     }
 
     /* Keeps user-profile metrics and account lifecycle commands visually centered. */
@@ -7503,5 +7638,72 @@
     .identity-account-lifecycle-actions > form > .identity-button {
         width: 100%;
         padding-inline: 12px;
+    }
+}
+
+/* Responds to the sidebar-adjusted application workspace instead of the outer browser width. */
+@container application-workspace (max-width: 1280px) {
+    .application-filter-bar.application-filter-bar-res {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-areas:
+            "search status semester apply"
+            "from to year clear";
+    }
+
+    .application-filter-bar-res > .application-search-field { grid-area: search; }
+    .application-filter-bar-res > .res-filter-status { grid-area: status; }
+    .application-filter-bar-res > .res-filter-semester { grid-area: semester; }
+    .application-filter-bar-res > .res-filter-academic-year { grid-area: year; }
+    .application-filter-bar-res > .res-filter-date-from { grid-area: from; }
+    .application-filter-bar-res > .res-filter-date-to { grid-area: to; }
+
+    .res-application-filter-actions {
+        display: contents;
+    }
+
+    .res-filter-apply { grid-area: apply; }
+    .res-filter-clear { grid-area: clear; }
+}
+
+@container application-workspace (max-width: 840px) {
+    .application-filter-bar.application-filter-bar-res {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+            "search search"
+            "status semester"
+            "year from"
+            "to to"
+            "apply clear";
+    }
+}
+
+@container application-workspace (max-width: 520px) {
+    .application-filter-bar.application-filter-bar-res {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+            "search search"
+            "status semester"
+            "year year"
+            "from to"
+            "apply clear";
+        gap: 8px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 620px) {
+    .application-workspace .dashboard-page-heading,
+    .application-workspace .dashboard-page-heading h1,
+    .application-workspace .dashboard-page-heading p {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .application-workspace .dashboard-page-heading p {
+        overflow-wrap: anywhere;
+    }
+
+    .res-application-panel .application-panel-heading {
+        padding: 16px;
     }
 }

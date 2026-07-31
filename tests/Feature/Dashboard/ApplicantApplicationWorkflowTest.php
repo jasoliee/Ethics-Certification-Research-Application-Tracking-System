@@ -234,9 +234,31 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.edit', $application))
             ->assertOk()
+            ->assertSee('application-information-form', false)
+            ->assertSee('application-form-section-heading', false)
+            ->assertSee('institutional-information-title', false)
+            ->assertSee('study-scope-title', false)
             ->assertSee('application-duration-fields', false)
             ->assertSeeInOrder(['Target Participants', 'Starting Date', 'Ending Date'])
             ->assertSeeInOrder(['>Cancel<', '>Save and Continue<'], false);
+
+        $formView = (string) file_get_contents(resource_path('views/dashboard/applications/form.blade.php'));
+        $this->assertStringContainsString('name="building-2"', $formView);
+        $this->assertStringContainsString('name="target"', $formView);
+
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.application-form\.application-information-form\s*\{[^}]*display:\s*grid;[^}]*border:\s*0;[^}]*background:\s*transparent;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.application-form-section\s*\{[^}]*border:\s*1px solid #dce5e0;[^}]*border-radius:\s*8px;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.application-form-actions\s*\{\s*padding:\s*4px 0 0;\s*\}/s',
+            $css,
+        );
     }
 
     public function test_requirement_workspace_combines_progress_and_requires_submit_confirmation_in_the_approved_order(): void

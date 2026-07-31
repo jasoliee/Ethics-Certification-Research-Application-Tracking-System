@@ -68,7 +68,11 @@ class ResLeadApplicationVisibilityTest extends TestCase
             ->assertSee($underScreening->research_title)
             ->assertDontSee($beforeEndorsement->research_title)
             ->assertDontSee($draft->research_title)
-            ->assertSee('class="dashboard-overflow-region is-wide"', false);
+            ->assertSee('res-application-filter-actions', false)
+            ->assertSee('res-filter-academic-year', false)
+            ->assertSee('res-filter-apply', false)
+            ->assertSee('res-application-panel', false)
+            ->assertSee('res-application-scroll', false);
 
         $this->actingAs($resLead)
             ->get(route('res.applications.index', [
@@ -100,5 +104,36 @@ class ResLeadApplicationVisibilityTest extends TestCase
                 ->get(route('res.applications.index'))
                 ->assertRedirect(route('dashboard'));
         }
+    }
+
+    public function test_res_application_filters_and_table_have_container_responsive_overflow_rules(): void
+    {
+        $css = file_get_contents(resource_path('css/dashboard.css'));
+
+        $this->assertIsString($css);
+        $this->assertMatchesRegularExpression(
+            '/\.res-application-scroll\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*min-width:\s*0;[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/s',
+            $css,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.res-application-scroll\s*\{[^}]*max-height:/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.res-application-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1180px;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@container application-workspace \(max-width:\s*1280px\)\s*\{[^}]*\.application-filter-bar\.application-filter-bar-res\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s',
+            $css,
+        );
+        $this->assertStringContainsString('"search status semester apply"', $css);
+        $this->assertStringContainsString('"from to year clear"', $css);
+        $this->assertStringContainsString('"status semester"', $css);
+        $this->assertStringContainsString('"from to"', $css);
+        $this->assertMatchesRegularExpression(
+            '/@container application-workspace \(max-width:\s*520px\)/',
+            $css,
+        );
     }
 }

@@ -28,6 +28,7 @@ class ResLeadSettingsTest extends TestCase
             ->assertSee('Profile')
             ->assertSee('Deadline Configuration')
             ->assertSee('Security and Privacy')
+            ->assertDontSee('settings-section-heading-centered', false)
             ->assertSee('Revision Period')
             ->assertSee('Reviewing of Revision Period')
             ->assertSee('Release Date')

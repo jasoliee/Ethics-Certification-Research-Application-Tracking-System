@@ -255,7 +255,7 @@
             @if ($initialTab !== 'security') hidden @endif
         >
             <section class="settings-section" aria-labelledby="security-settings-title">
-                <div class="settings-section-heading settings-section-heading-centered">
+                <div class="settings-section-heading">
                     <span><x-dashboard.icon name="lock" size="23" /></span>
                     <div>
                         <h2 id="security-settings-title">Security and Privacy</h2>

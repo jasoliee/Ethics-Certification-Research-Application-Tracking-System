@@ -19,7 +19,7 @@
 
         {{-- The server chooses create or update semantics while preserving all validation input. --}}
         <form
-            class="application-form"
+            class="application-form application-information-form"
             method="POST"
             action="{{ $isEditing ? route('applicant.applications.update', $application) : route('applicant.applications.store') }}"
             data-application-submit-once
@@ -36,9 +36,13 @@
             @endif
 
             {{-- Research identity fields establish the application category and assigned Adviser. --}}
-            <fieldset class="application-form-section">
-                <legend>Research Information</legend>
-                <div class="application-form-grid">
+            <section class="application-form-section" aria-labelledby="research-information-title">
+                <header class="application-form-section-heading">
+                    <span aria-hidden="true"><x-dashboard.icon name="file-text" size="18" /></span>
+                    <h2 id="research-information-title">Research Information</h2>
+                </header>
+                <div class="application-form-section-body">
+                    <div class="application-form-grid">
                     <div class="application-field application-field-wide">
                         <label for="research_title">Research Title <span aria-hidden="true">*</span></label>
                         <input id="research_title" name="research_title" value="{{ $fieldValue('research_title') }}" maxlength="255" required>
@@ -63,7 +67,7 @@
                         <input id="research_category" name="research_category" value="{{ $fieldValue('research_category') }}" maxlength="150" required>
                         @error('research_category')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
-                    <div class="application-field">
+                    <div class="application-field application-field-full">
                         <label for="adviser_user_id">Research Adviser <span aria-hidden="true">*</span></label>
                         <select id="adviser_user_id" name="adviser_user_id" required>
                             <option value="">Select Adviser</option>
@@ -73,13 +77,18 @@
                         </select>
                         @error('adviser_user_id')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
+                    </div>
                 </div>
-            </fieldset>
+            </section>
 
             {{-- Institutional fields capture a submission-time snapshot from managed dropdown options. --}}
-            <fieldset class="application-form-section">
-                <legend>Institutional Information</legend>
-                <div class="application-form-grid application-form-grid-three">
+            <section class="application-form-section" aria-labelledby="institutional-information-title">
+                <header class="application-form-section-heading">
+                    <span aria-hidden="true"><x-dashboard.icon name="building-2" size="18" /></span>
+                    <h2 id="institutional-information-title">Institutional Information</h2>
+                </header>
+                <div class="application-form-section-body">
+                    <div class="application-form-grid application-form-grid-three">
                     <div class="application-field">
                         <label for="institution">Institution or College <span aria-hidden="true">*</span></label>
                         <select id="institution" name="institution" required>
@@ -110,13 +119,18 @@
                         </select>
                         @error('program')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
+                    </div>
                 </div>
-            </fieldset>
+            </section>
 
             {{-- Study-scope fields provide the concise information the assigned Adviser needs for initial review. --}}
-            <fieldset class="application-form-section">
-                <legend>Study Scope</legend>
-                <div class="application-form-grid">
+            <section class="application-form-section" aria-labelledby="study-scope-title">
+                <header class="application-form-section-heading">
+                    <span aria-hidden="true"><x-dashboard.icon name="target" size="18" /></span>
+                    <h2 id="study-scope-title">Study Scope</h2>
+                </header>
+                <div class="application-form-section-body">
+                    <div class="application-form-grid">
                     <div class="application-field application-field-full">
                         <label for="abstract">Brief Description or Abstract <span aria-hidden="true">*</span></label>
                         <textarea id="abstract" name="abstract" rows="7" maxlength="5000" required>{{ $fieldValue('abstract') }}</textarea>
@@ -139,8 +153,9 @@
                             @error('expected_end_date')<span class="identity-field-error">{{ $message }}</span>@enderror
                         </div>
                     </div>
+                    </div>
                 </div>
-            </fieldset>
+            </section>
 
             {{-- Cancel never writes a draft; Save and Continue is the only state-changing command. --}}
             <div class="application-form-actions">

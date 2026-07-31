@@ -1421,6 +1421,12 @@ class UserManagementTest extends TestCase
             ->assertSee('Send Reset Link')
             ->assertSee('identity-account-lifecycle-actions', false);
 
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.identity-account-lifecycle-actions\s*>\s*form\s*\{[^}]*align-items:\s*stretch;[^}]*margin:\s*0;[^}]*padding:\s*0;/s',
+            $css,
+        );
+
         $this->actingAs($resLead)
             ->get(route('res.users.edit', $managedUser))
             ->assertOk()

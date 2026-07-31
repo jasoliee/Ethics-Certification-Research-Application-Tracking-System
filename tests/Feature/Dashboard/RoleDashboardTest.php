@@ -560,6 +560,7 @@ class RoleDashboardTest extends TestCase
         preg_match('/\.application-workspace\s*\{(?<rules>[^}]*)\}/s', $css, $workspace);
         $this->assertArrayHasKey('rules', $workspace);
         $this->assertStringContainsString('max-width: 100%', $workspace['rules']);
+        $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $workspace['rules']);
         $this->assertStringNotContainsString('overflow-x', $workspace['rules']);
 
         // Assert shared account-section headings retain compact ten-pixel spacing before their first row.
