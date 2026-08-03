@@ -44,7 +44,9 @@ Applicant:
 - Start the application twice and confirm the same editable draft is continued instead of creating duplicates.
 - Complete Student and Faculty forms; confirm Program is required only for the Student flow and only eligible active Advisers appear.
 - Confirm the dashboard, application list, details, and requirements use only the signed-in Applicant's records.
-- Upload and replace each accepted private file type; confirm the current version changes and prior version history remains.
+- Upload and replace each accepted private file type up to 100 MB; confirm the current version changes and prior version history remains.
+- Select several requirement files, use Upload All, and confirm progress/checklist state updates immediately. Confirm a failed selected file remains selected and a final refresh occurs only after all files succeed.
+- Open PDF/image and Word/Excel documents; confirm browser-safe formats render inline and Office formats show the authorized fallback/download without exposing a private path.
 - Confirm another Applicant cannot edit, view, preview, download, upload to, or submit the record.
 - Confirm the same mandatory-requirement completion count appears on dashboard, details, and requirements.
 - Confirm missing, pending, or rejected requirements block initial submission.
@@ -68,7 +70,10 @@ Adviser:
 Reviewer:
 
 - Confirm assignment counts, deadlines, and table rows are scoped to the current reviewer.
-- Open an assignment, notifications, and profile pages.
+- Search and filter Assigned Applications, confirm pagination and empty state, and verify all displayed records belong to the signed-in Reviewer.
+- Open an assignment and confirm Applicant/Adviser profile identities are absent while current private document preview/download remains authorized.
+- Check the assignment list and detail at desktop, tablet, and phone widths; horizontal overflow must stay inside the document/table region.
+- Open notifications and profile pages.
 - Confirm another reviewer's assignment returns 403.
 
 RES Lead:
@@ -90,7 +95,11 @@ RES Lead:
 - Filter the audit report by search, actor role, action, result, target type, and date; confirm filters survive pagination.
 - Confirm mass deactivate/archive/resend actions require selection and confirmation.
 - Endorse an application and confirm every active RES Lead receives one neutral notification while inactive RES Leads do not.
-- Open Endorsed Applications and confirm pre-endorsement submissions and drafts are absent, filters stay scoped, pagination is 15 rows, and the table scrolls internally.
+- Open the RES Applications Queue and confirm pre-endorsement submissions and drafts are absent, all approved filters stay scoped, pagination is 15 rows, and the table scrolls internally.
+- Open a ready screening record and verify incomplete administrative gates or stale mandatory-document state cannot be classified.
+- Verify Expedited accepts exactly one eligible reviewer, Full Board exactly three distinct eligible reviewers, full-capacity rows cannot be selected, and Exempted exposes no assignment action.
+- Confirm department matches appear before institution/other eligible reviewers, Department filtering works, and no Availability column or filter is present.
+- Re-edit a saved screening: compatible assignments remain, incompatible pending assignments are removed, and a started assignment prevents the correction.
 - Confirm every term/process date rejects past values even with Manual Open selected; confirm `On` overrides runtime dates and `Auto` returns to date evaluation.
 
 All roles:

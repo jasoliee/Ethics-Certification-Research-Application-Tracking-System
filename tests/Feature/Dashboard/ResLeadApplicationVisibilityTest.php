@@ -5,6 +5,7 @@ namespace Tests\Feature\Dashboard;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\EndorsementStatus;
+use App\Enums\ResearchType;
 use App\Enums\UserRole;
 use App\Models\Endorsement;
 use App\Models\ResearchApplication;
@@ -63,13 +64,19 @@ class ResLeadApplicationVisibilityTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.applications.index'))
             ->assertOk()
-            ->assertSee('Endorsed Applications')
+            ->assertSee('Applications Queue')
             ->assertSee($endorsed->research_title)
             ->assertSee($underScreening->research_title)
             ->assertDontSee($beforeEndorsement->research_title)
             ->assertDontSee($draft->research_title)
             ->assertSee('res-application-filter-actions', false)
-            ->assertSee('res-filter-academic-year', false)
+            ->assertSee('res-filter-applicant-type', false)
+            ->assertSee('res-filter-research-type', false)
+            ->assertSee('res-filter-review-type', false)
+            ->assertSee('res-filter-affiliation', false)
+            ->assertSee('res-filter-date-range', false)
+            ->assertSee('id="res-date-from"', false)
+            ->assertSee('id="res-date-to"', false)
             ->assertSee('res-filter-apply', false)
             ->assertSee('res-application-panel', false)
             ->assertSee('res-application-scroll', false);
@@ -94,7 +101,7 @@ class ResLeadApplicationVisibilityTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.applications.index'))
             ->assertOk()
-            ->assertSee('aria-label="RES endorsed application pages"', false);
+            ->assertSee('aria-label="RES application queue pages"', false);
     }
 
     public function test_non_res_roles_cannot_open_the_res_endorsed_application_landing_page(): void
@@ -104,6 +111,91 @@ class ResLeadApplicationVisibilityTest extends TestCase
                 ->get(route('res.applications.index'))
                 ->assertRedirect(route('dashboard'));
         }
+    }
+
+    public function test_res_queue_searches_every_approved_identity_field_and_combines_workflow_filters(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $targetApplicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'name' => 'Queue Needle Applicant',
+        ]);
+        $targetAdviser = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'name' => 'Queue Needle Adviser',
+        ]);
+        $target = ResearchApplication::factory()->create([
+            'application_code' => 'ECRATS-QUEUE-NEEDLE',
+            'applicant_user_id' => $targetApplicant->id,
+            'adviser_user_id' => $targetAdviser->id,
+            'applicant_type' => 'student',
+            'research_title' => 'Queue Needle Privacy Study',
+            'research_type' => ResearchType::Capstone,
+            'institution' => 'Needle Institute',
+            'program' => 'Needle Research Program',
+            'review_type' => 'expedited',
+            'application_status' => ApplicationStatus::AwaitingReviewerAssignment,
+            'current_stage' => ApplicationStage::ResScreening,
+            'submitted_at' => '2026-07-10 08:00:00',
+        ]);
+        Endorsement::create([
+            'research_application_id' => $target->id,
+            'adviser_user_id' => $targetAdviser->id,
+            'endorsement_status' => EndorsementStatus::Endorsed,
+            'endorsed_at' => '2026-07-15 10:00:00',
+        ]);
+
+        $otherApplicant = User::factory()->create(['role' => UserRole::Applicant, 'name' => 'Other Applicant']);
+        $otherAdviser = User::factory()->create(['role' => UserRole::Adviser, 'name' => 'Other Adviser']);
+        $other = ResearchApplication::factory()->create([
+            'application_code' => 'ECRATS-QUEUE-OTHER',
+            'applicant_user_id' => $otherApplicant->id,
+            'adviser_user_id' => $otherAdviser->id,
+            'applicant_type' => 'faculty',
+            'research_title' => 'Different Research Record',
+            'research_type' => ResearchType::Thesis,
+            'institution' => 'Other Institute',
+            'program' => 'Other Program',
+            'review_type' => 'full_board',
+            'application_status' => ApplicationStatus::UnderFullBoardReview,
+            'current_stage' => ApplicationStage::EthicsReview,
+            'submitted_at' => '2026-06-01 08:00:00',
+        ]);
+        Endorsement::create([
+            'research_application_id' => $other->id,
+            'adviser_user_id' => $otherAdviser->id,
+            'endorsement_status' => EndorsementStatus::Endorsed,
+            'endorsed_at' => '2026-06-05 10:00:00',
+        ]);
+
+        foreach ([
+            $target->application_code,
+            'Needle Privacy',
+            'Needle Applicant',
+            'Needle Adviser',
+            'Needle Institute',
+            'Needle Research Program',
+        ] as $search) {
+            $this->actingAs($resLead)
+                ->get(route('res.applications.index', ['q' => $search]))
+                ->assertOk()
+                ->assertSee($target->research_title)
+                ->assertDontSee($other->research_title);
+        }
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.index', [
+                'status' => ApplicationStatus::AwaitingReviewerAssignment->value,
+                'applicant_type' => 'student',
+                'research_type' => ResearchType::Capstone->value,
+                'review_type' => 'expedited',
+                'affiliation' => 'Needle Research Program',
+                'date_from' => '2026-07-01',
+                'date_to' => '2026-07-31',
+            ]))
+            ->assertOk()
+            ->assertSee($target->research_title)
+            ->assertDontSee($other->research_title);
     }
 
     public function test_res_application_filters_and_table_have_container_responsive_overflow_rules(): void
@@ -120,19 +212,20 @@ class ResLeadApplicationVisibilityTest extends TestCase
             $css,
         );
         $this->assertMatchesRegularExpression(
-            '/\.res-application-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1180px;/s',
+            '/\.res-application-table\s*\{[^}]*min-width:\s*1120px;/s',
             $css,
         );
         $this->assertMatchesRegularExpression(
-            '/@container application-workspace \(max-width:\s*1280px\)\s*\{[^}]*\.application-filter-bar\.application-filter-bar-res\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s',
+            '/@container application-workspace \(max-width:\s*1120px\)\s*\{[^}]*\.application-filter-bar\.application-filter-bar-res\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s',
             $css,
         );
-        $this->assertStringContainsString('"search status semester apply"', $css);
-        $this->assertStringContainsString('"from to year clear"', $css);
-        $this->assertStringContainsString('"status semester"', $css);
-        $this->assertStringContainsString('"from to"', $css);
+        $this->assertStringContainsString('"search search"', $css);
+        $this->assertStringContainsString('"status applicant"', $css);
+        $this->assertStringContainsString('"research review"', $css);
+        $this->assertStringContainsString('"affiliation affiliation"', $css);
+        $this->assertStringContainsString('"date date"', $css);
         $this->assertMatchesRegularExpression(
-            '/@container application-workspace \(max-width:\s*520px\)/',
+            '/@container application-workspace \(max-width:\s*560px\)/',
             $css,
         );
     }

@@ -42,6 +42,8 @@ owner policy -> unique editable draft -> validated information
 -> assigned Adviser deadline/completeness revalidation
 -> returned_by_adviser for correction OR adviser_endorsed + res_screening
 -> Applicant notification + endorsement history + audit
+-> RES administrative screening + expedited/full_board/exempted classification
+-> exact eligible reviewer assignment OR exempted direct-release boundary
 ```
 
 `research_applications` stores the nullable unique `draft_owner_user_id`, optional academic-term link, research type/category, institution, department, program, abstract, target participants, nullable legacy duration text, expected start/end dates, formal submission time, revision cycle, and current stage/status. Releasing `draft_owner_user_id` at submission allows a later new draft while keeping the submitted application. The three-application limit counts non-null formal submission timestamps, not draft rows.
@@ -49,6 +51,10 @@ owner policy -> unique editable draft -> validated information
 `document_requirements` stores whether a requirement is mandatory and an optional JSON list of applicable research types. `application_documents` retains version rows and a single current pointer per requirement/application pair. Files remain on private storage and are authorized through their parent application.
 
 `academic_terms` provides current semester/year boundaries. Deadline rows and timeline events can reference one term; deadline updates synchronize both sets in one transaction. `endorsements` records each initial Adviser return/endorsement with the assigned Adviser, decision, controlled return reason, remarks, and returned/endorsed timestamp.
+
+`application_screenings` stores one current RES decision per application through a unique foreign key. It records the latest RES actor, bounded administrative states and confirmations, optional notes, Expedited/Full Board/Exempted classification, required reason, and classification time. Corrections update this row under locks and write a separate bounded audit event. Compatible assignments remain; only pending unstarted incompatible assignments may be removed. `research_applications.review_type`, status, and stage remain the queue-optimized workflow projection.
+
+`reviewer_assignments` remains the assignment source of truth. Its `review_type` column distinguishes `initial_review` from later `revision_review`; the application's `review_type` independently stores Expedited or Full Board classification. The unique application/reviewer/cycle key prevents assigning one Reviewer twice in the same cycle. Active assignment statuses provide the current capacity count.
 
 ## Audit Data
 

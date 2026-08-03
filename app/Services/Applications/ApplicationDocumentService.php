@@ -38,9 +38,9 @@ class ApplicationDocumentService
     ];
 
     /**
-     * Limit each requirement upload to ten megabytes.
+     * Limit each requirement upload to one hundred megabytes.
      */
-    public const MAX_FILE_KILOBYTES = 10240;
+    public const MAX_FILE_KILOBYTES = 102400;
 
     public function __construct(
         private readonly AuditLogService $auditLog,

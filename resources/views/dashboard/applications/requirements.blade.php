@@ -46,7 +46,7 @@
         <section class="application-requirement-container" aria-label="Document requirements">
             @if ($canUpload && $requirementSummary['items']->isNotEmpty())
                 <div class="application-requirement-toolbar">
-                    <div><h2>Document Requirements</h2><p>Select one or more files, then upload individually or together.</p></div>
+                    <div><h2>Document Requirements</h2><p>PDF, Word, Excel, JPEG, or PNG; up to 100 MB per file.</p></div>
                     <div class="application-upload-all-controls">
                         <button
                             class="dashboard-primary-action"
@@ -118,7 +118,11 @@
                 <li class="{{ $submissionLimit['can_submit'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$submissionLimit['can_submit'] ? 'check' : 'clock'" size="17" /><span>{{ $submissionLimit['can_submit'] ? 'A formal application slot is available.' : \App\Services\Applications\ApplicationSubmissionLimit::REACHED_MESSAGE }}</span></li>
                 <li class="{{ $informationSummary['complete'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$informationSummary['complete'] ? 'check' : 'clock'" size="17" /><span>All required application information is complete.</span></li>
                 <li class="{{ $informationSummary['adviser_ready'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$informationSummary['adviser_ready'] ? 'check' : 'clock'" size="17" /><span>An eligible Research Adviser is assigned.</span></li>
-                <li class="{{ $requirementSummary['ready'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$requirementSummary['ready'] ? 'check' : 'clock'" size="17" /><span>Every mandatory requirement is uploaded and complete.</span></li>
+                <li class="{{ $requirementSummary['ready'] ? 'is-complete' : '' }}" data-requirement-readiness>
+                    <span data-requirement-ready-icon @unless ($requirementSummary['ready']) hidden @endunless><x-dashboard.icon name="check" size="17" /></span>
+                    <span data-requirement-pending-icon @if ($requirementSummary['ready']) hidden @endif><x-dashboard.icon name="clock" size="17" /></span>
+                    <span>Every mandatory requirement is uploaded and complete.</span>
+                </li>
             </ul>
 
             @if ($application->isFormallySubmitted())

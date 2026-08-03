@@ -31,7 +31,7 @@ ECRATS centralizes the KLD ethics certification process from application submiss
 4. Applicant submits to adviser.
 5. Adviser reviews, verifies receipt image, returns or endorses.
 6. RES screens and classifies the application.
-7. RES assigns reviewers by review type, discipline, availability, and capacity.
+7. RES assigns reviewers by review type, active status, department/institution priority, and capacity. Calendar availability remains a later workflow concern.
 8. Reviewer works only in an anonymized assigned workspace.
 9. Reviewer submits decision and comments.
 10. RES releases held results.

@@ -94,6 +94,14 @@ class ResearchApplication extends Model
         return $this->hasMany(ReviewerAssignment::class);
     }
 
+    /**
+     * Resolve the database-enforced single initial RES screening decision.
+     */
+    public function screening(): HasOne
+    {
+        return $this->hasOne(ApplicationScreening::class);
+    }
+
     public function endorsements(): HasMany
     {
         return $this->hasMany(Endorsement::class);
@@ -154,6 +162,7 @@ class ResearchApplication extends Model
             ApplicationStatus::ReviewSubmittedPendingRelease,
             ApplicationStatus::ResultReleasedAccepted,
             ApplicationStatus::ResultReleasedDisapproved,
+            ApplicationStatus::Exempted,
             ApplicationStatus::FeedbackRequired => 6,
             ApplicationStatus::CertificateReleased,
             ApplicationStatus::Archived => 7,

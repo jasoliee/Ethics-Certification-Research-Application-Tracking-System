@@ -166,14 +166,15 @@ Route::middleware('no-store')->group(function (): void {
             ->middleware('role:reviewer')
             ->group(function (): void {
                 Route::redirect('/landing', '/dashboard')->name('landing');
-                Route::get('/assignments', ModulePageController::class)
-                    ->defaults('pageTitle', 'Assignments')
-                    ->defaults('moduleTitle', 'Assigned Reviews')
-                    ->defaults('moduleMessage', 'Your assigned ethics reviews will appear here.')
-                    ->defaults('moduleIcon', 'clipboard')
+                Route::get('/assignments', [ReviewerAssignmentPageController::class, 'index'])
                     ->name('assignments.index');
-                Route::get('/assignments/{reviewerAssignment}', ReviewerAssignmentPageController::class)
+                Route::get('/assignments/{reviewerAssignment}', [ReviewerAssignmentPageController::class, 'show'])
                     ->name('assignments.show');
+                // Reviewer document access remains nested, assignment-gated, and private-disk backed.
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/preview', [ApplicationDocumentController::class, 'preview'])
+                    ->name('applications.documents.preview');
+                Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
+                    ->name('applications.documents.download');
                 Route::get('/reviews', ModulePageController::class)
                     ->defaults('pageTitle', 'Review')
                     ->defaults('moduleTitle', 'Review Workspace')
@@ -196,8 +197,20 @@ Route::middleware('no-store')->group(function (): void {
                 Route::redirect('/landing', '/dashboard')->name('landing');
                 Route::get('/applications', [ResLeadApplicationController::class, 'index'])
                     ->name('applications.index');
-                Route::get('/applications/{researchApplication}', [ResearchApplicationPageController::class, 'show'])
+                Route::get('/applications/{researchApplication}', [ResLeadApplicationController::class, 'show'])
                     ->name('applications.show');
+                Route::post('/applications/{researchApplication}/classification', [ResLeadApplicationController::class, 'classify'])
+                    ->middleware('throttle:res-workflow')
+                    ->name('applications.classification.store');
+                // Screening corrections use a separate idempotent route and the same bounded write throttle.
+                Route::put('/applications/{researchApplication}/classification', [ResLeadApplicationController::class, 'updateScreening'])
+                    ->middleware('throttle:res-workflow')
+                    ->name('applications.classification.update');
+                Route::get('/applications/{researchApplication}/reviewers', [ResLeadApplicationController::class, 'reviewers'])
+                    ->name('applications.reviewers.index');
+                Route::post('/applications/{researchApplication}/reviewers', [ResLeadApplicationController::class, 'assignReviewers'])
+                    ->middleware('throttle:res-workflow')
+                    ->name('applications.reviewers.store');
                 // RES detail access also streams protected documents through authorization-aware controller routes.
                 Route::get('/applications/{researchApplication}/documents/{applicationDocument}/preview', [ApplicationDocumentController::class, 'preview'])
                     ->name('applications.documents.preview');

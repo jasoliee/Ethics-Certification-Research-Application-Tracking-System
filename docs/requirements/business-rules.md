@@ -29,7 +29,7 @@ These rules are derived from the consolidated project documentation, supporting 
 - RES Lead/Admin screens adviser-endorsed applications.
 - RES Lead/Admin classifies applications as Expedited, Full Board, or Exempted.
 - Exempted applications are documented and screened by RES, bypass standard reviewer assignment/review, and proceed through the approved direct certificate/documentation path after RES confirms eligibility.
-- RES Lead/Admin assigns reviewers based on discipline, fixed classification, availability, active status, and capacity.
+- RES Lead/Admin assigns reviewers using fixed classification, active status, department/institution priority, conflict exclusion, and capacity. Calendar availability remains pending.
 - RES Lead/Admin controls official result release.
 - RES Lead/Admin generates and releases certificates only after all prerequisites are complete.
 

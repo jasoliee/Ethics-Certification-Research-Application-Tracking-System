@@ -1,6 +1,6 @@
 # Features and Functionality
 
-This file is the current implemented-feature catalog for ECRATS as of July 30, 2026. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface, and relevant automated coverage. Later ethics-review stages remain listed separately so dashboard placeholders are not mistaken for complete workflows.
+This file is the current implemented-feature catalog for ECRATS as of August 3, 2026. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface, and relevant automated coverage. Later ethics-review stages remain listed separately so dashboard placeholders are not mistaken for complete workflows.
 
 ## Authentication and Account Access
 
@@ -49,9 +49,11 @@ This file is the current implemented-feature catalog for ECRATS as of July 30, 2
 ## Requirement Documents and Submission
 
 - Active requirements are filtered by research type and summarized as Completed, Missing, Pending, and Rejected.
-- PDF, DOC, DOCX, XLS, XLSX, JPEG, and PNG files up to 10 MB are accepted after server-side MIME inspection.
+- PDF, DOC, DOCX, XLS, XLSX, JPEG, and PNG files up to 100 MB are accepted after server-side MIME inspection.
 - Files use randomized private-storage paths. Original names are display metadata only.
 - Applicants can choose files per requirement, upload individually, upload selected requirements together, replace a current document, remove its current pointer, preview browser-supported content, and download authorized files.
+- Upload responses immediately update completion counts, the final checklist, and submit readiness. A completed upload set refreshes only when no selected browser file would be lost.
+- Word and Excel files open an authorized no-store viewer fallback with a secure download when native browser rendering is unavailable.
 - Replacement history remains private and retained. Versions follow the application's revision cycle.
 - The document viewer constrains long titles/filenames with ellipsis and exposes the full value through a delayed accessible tooltip.
 - Application identity and requirement completion share one responsive overview.
@@ -67,7 +69,7 @@ This file is the current implemented-feature catalog for ECRATS as of July 30, 2
 - During an available Adviser Endorsement period, the assigned Adviser can return a complete initial submission with a required reason and correction instructions or endorse it with optional remarks.
 - A return records an endorsement-history row, preserves the original formal submission timestamp and slot, notifies the Applicant, and reopens the same application for correction.
 - An endorsement records the decision once, advances the application to RES Screening, notifies the Applicant, and makes repeated Adviser decisions unavailable.
-- An endorsement also sends a neutral database notification to every active RES Lead and places the record on the RES Endorsed Applications page.
+- An endorsement also sends a neutral database notification to every active RES Lead and places the record on the RES Applications Queue.
 - Decisions require the initial revision cycle, current assignment, complete information/documents, an available deadline process, authorization, transaction locking, notification, and audit logging.
 
 ## Dashboards and Deadline Configuration
@@ -76,7 +78,7 @@ This file is the current implemented-feature catalog for ECRATS as of July 30, 2
 - Adviser dashboard shows assigned formal-submission counts and five recent assigned submissions.
 - Reviewer dashboard shows current-term assignment counts, near deadlines, revisions, and recent assignments.
 - RES Lead dashboard shows stored administrative queue counts, recent pending actions, active deadlines, and timeline data.
-- RES Lead Endorsed Applications lists all formally submitted records that have entered the RES workflow, with bounded pagination, safe filters, protected detail links, and an internal horizontal-scroll table.
+- RES Lead Applications Queue lists all formally submitted records that have entered the RES workflow, with bounded pagination, full approved search/filter coverage, protected detail links, and an internal horizontal-scroll table.
 - Application dashboard queries do not hide relevant Applicant, Adviser, or RES records solely because a term link is absent or historical. Deadline and timeline queries remain tied to the current active term.
 - RES Lead configures Semester, Academic Year, term dates, and seven process rows; the result/certificate release row uses one exact date/time.
 - ECRATS evaluates workflow dates in `Asia/Manila`.
@@ -84,6 +86,26 @@ This file is the current implemented-feature catalog for ECRATS as of July 30, 2
 - Automatic mode is open only from the configured opening time through its deadline; missing, future, expired, inactive, or outside-term configurations fail closed.
 - Term dates and every process opening, deadline, or release value reject past values in both browser and server validation, including manually open rows.
 - Saving deadline settings also synchronizes role timeline events used by dashboards.
+
+## RES Screening and Initial Reviewer Assignment
+
+- RES Lead sees the application overview, research information, current private requirement checklist, administrative checks, screening notes, and classification controls on one protected detail page.
+- The server requires current mandatory-document readiness, complete/accepted administrative states, three affirmative eligibility checks, and a classification reason.
+- One `application_screenings` row preserves the initial Expedited, Full Board, or Exempted decision and actor.
+- RES Leads can correct persisted screening details; compatible assignments remain, incompatible pending assignments are removed, and started review work blocks destructive correction.
+- Expedited requires exactly one eligible reviewer; Full Board requires exactly three distinct eligible reviewers.
+- Eligibility is repeated inside the locked assignment transaction and includes active/setup-complete status, matching classification, Applicant/Adviser exclusion, and remaining active capacity.
+- All eligible classification-matched reviewers are listed, with department and institution matches prioritized. Department filtering and name/position/department search are available. Full-load reviewers are visible but disabled.
+- Assignment uses the existing `reviewer_assignments` table and advances to `under_expedited_review` or `under_full_board_review`.
+- Exempted bypasses assignment and advances to the additive `exempted` status at the direct-release boundary.
+- Classification and assignment produce bounded audit events and neutral Applicant/Reviewer notifications.
+
+## Reviewer Assigned Applications
+
+- Reviewers receive an owner-scoped Assigned Applications page with search, review type, status, research type, and deadline filters.
+- The six-column table uses 15-row pagination, an empty state, and contained responsive overflow.
+- Assignment details omit Applicant and Adviser profile identities, show research context, and provide assignment-gated current-document preview/download.
+- PDF/images stream inline. Word/Excel use the authorized fallback. Automated document redaction, conflict declaration, and decision forms remain pending.
 
 ## Interface and Accessibility
 
@@ -101,10 +123,9 @@ This file is the current implemented-feature catalog for ECRATS as of July 30, 2
 
 ## Not Yet Complete End to End
 
-- RES completeness screening and ethics classification decisions.
-- Reviewer assignment, conflict declaration, anonymized review worksheet, and full blind-review lifecycle.
+- Reviewer conflict declaration, anonymized review worksheet, reviewer decisions, reassignment, and the full blind-review lifecycle.
 - Applicant revision workflow after official RES result release.
-- Final result release, feedback gate, certificate rendering, protected certificate download, and QR verification.
+- Final result release, Exempted direct release, feedback gate, certificate rendering, protected certificate download, and QR verification.
 - Production deployment, production mail provider configuration, backup/restore operations, and final browser acceptance evidence.
 
 Update this catalog and the affected topic guide in the same change whenever behavior, validation, role access, workflow status, storage, or user-visible functionality changes.

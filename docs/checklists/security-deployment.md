@@ -23,9 +23,9 @@ Use this before production deployment and before any school-facing pilot.
 ## File Uploads
 
 - Upload file types are allowlisted.
-- File sizes are limited.
-- CSV account imports verify extension, MIME type, text content, required headers, row count, and every row before creating accounts.
-- CSV imports are stored on the private local disk during processing and deleted after success or failure.
+- Application documents are limited to 100 MB per file, and production PHP/proxy settings (`upload_max_filesize`, `post_max_size`, and any reverse-proxy body limit) are configured above that boundary.
+- XLSX account imports verify extension, MIME type, workbook structure, required headers, row count, and every row before creating accounts.
+- XLSX imports are stored on the private local disk during processing and deleted after success or failure.
 - Private documents are stored outside `public/`.
 - Certificate files are stored privately.
 - Download routes enforce authorization.
@@ -38,7 +38,7 @@ Use this before production deployment and before any school-facing pilot.
 - Production mail delivery is configured and tested before administrator reset links are enabled for school use.
 - Role middleware is active.
 - Policies enforce record ownership and assignments.
-- Reviewer workspace hides applicant identity.
+- Reviewer assignment details omit Applicant and Adviser profile identity. Automated identity redaction inside uploaded documents remains blocked from production use until implemented and verified.
 - Applicant views hide reviewer identity.
 - Certificate access is protected.
 

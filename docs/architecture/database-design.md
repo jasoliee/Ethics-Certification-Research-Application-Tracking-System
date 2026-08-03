@@ -10,11 +10,12 @@ The role dashboard implementation introduces the first additive domain migration
 - `document_requirements`
 - `application_documents`
 - `reviewer_assignments`
+- `application_screenings`
 - `deadline_configurations`
 - `timeline_calendar_events`
 - `notifications`
 
-These tables currently contain the fields required to calculate dashboard states, queues, requirement completion, reviewer assignments, deadlines, milestones, and notification menus. They are an initial implementation slice, not the complete ERD. Later module plans must extend them through additive reviewed migrations and must not silently reinterpret the documented workflow or confidentiality rules.
+These tables currently contain the fields required to calculate dashboard states, queues, requirement completion, RES classification, reviewer assignments, deadlines, milestones, and notification menus. They are an additive implementation slice, not the complete ERD. Later module plans must extend them through reviewed migrations and must not silently reinterpret the documented workflow or confidentiality rules.
 
 The account-management slice also adds normalized identity fields to `users`, including first/middle/last/suffix names, institutional identifier, optional institutional profile fields, creator tracking, and password-change time. `audit_logs` records account security actions using actor and subject references plus secret-free metadata.
 
@@ -66,7 +67,7 @@ Implementation convention adjustments:
 6. Create document tables: `application_documents`, `anonymized_documents`.
 7. Create timeline tables: `deadline_configurations`, `timeline_calendar_events`.
 8. Create adviser tables: `payment_verifications`, `endorsements`, `adviser_monitoring_records`.
-9. Create RES screening and assignment tables: `screenings`, `reviewer_assignments`, `reviewer_capacity_snapshots`.
+9. Create RES screening and assignment tables: `application_screenings` and `reviewer_assignments` are implemented; reviewer capacity snapshots remain a later extension because current capacity is calculated from active assignments.
 10. Create review tables: `ethics_reviews`, `review_comments`, `review_worksheet_responses`.
 11. Create release and revision tables: `decision_release_batches`, `decision_release_batch_items`, `revision_cycles`.
 12. Create feedback tables: `feedback_forms`, `feedback_questions`, `feedback_responses`, `feedback_answers`.
@@ -117,6 +118,22 @@ Important fields:
 - `submitted_at`
 
 Review type should include `expedited`, `full_board`, and `exempted`.
+
+### application_screenings
+
+Stores one initial administrative decision per application. Implemented fields include:
+
+- `research_application_id` (unique)
+- `screened_by_user_id`
+- `completeness_status`
+- `receipt_check_status`
+- three affirmative eligibility flags
+- optional `screening_notes`
+- `review_type`
+- `classification_reason`
+- `classified_at`
+
+The unique application key and row-locked service prevent duplicate initial classifications. Sensitive notes and reasons remain in the protected workflow record and are not copied into audit metadata.
 
 ### application_documents
 

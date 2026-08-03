@@ -103,4 +103,43 @@ class ResearchApplicationPolicy
             && $researchApplication->isFormallySubmitted()
             && (int) $researchApplication->current_revision_cycle === 1;
     }
+
+    /**
+     * Restrict initial administrative classification to RES Leads and eligible screening states.
+     */
+    public function classify(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::ResLead
+            && $researchApplication->isFormallySubmitted()
+            && in_array($researchApplication->application_status, [
+                ApplicationStatus::AdviserEndorsed,
+                ApplicationStatus::UnderResScreening,
+            ], true);
+    }
+
+    /**
+     * Allow RES Leads to correct a persisted screening while the service protects started review work.
+     */
+    public function updateScreening(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::ResLead
+            && $researchApplication->isFormallySubmitted()
+            && in_array($researchApplication->application_status, [
+                ApplicationStatus::UnderResScreening,
+                ApplicationStatus::AwaitingReviewerAssignment,
+                ApplicationStatus::UnderExpeditedReview,
+                ApplicationStatus::UnderFullBoardReview,
+                ApplicationStatus::Exempted,
+            ], true)
+            && $researchApplication->screening()->exists();
+    }
+
+    /**
+     * Restrict initial reviewer assignment to a classified application awaiting assignment.
+     */
+    public function assignReviewers(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::ResLead
+            && $researchApplication->application_status === ApplicationStatus::AwaitingReviewerAssignment;
+    }
 }

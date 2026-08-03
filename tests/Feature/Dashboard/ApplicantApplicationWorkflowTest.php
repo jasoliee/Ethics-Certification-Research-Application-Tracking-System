@@ -264,6 +264,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
     public function test_requirement_workspace_combines_progress_and_requires_submit_confirmation_in_the_approved_order(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $this->requirement();
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant,
             'draft_owner_user_id' => $applicant,
@@ -287,6 +288,8 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ])
             ->assertSee('data-final-submit-open', false)
             ->assertSee('data-final-submit-dialog', false)
+            ->assertSee('data-requirement-readiness', false)
+            ->assertSee('up to 100 MB per file')
             ->assertSee('Confirm Submission');
     }
 
@@ -475,10 +478,10 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ['document' => UploadedFile::fake()->create('payload.php', 1, 'text/x-php')],
         )->assertSessionHasErrors('document');
 
-        // Act with an oversized otherwise valid PDF and assert the request limit rejects it before storage.
+        // Act above the one-hundred-megabyte boundary and assert validation rejects it before storage.
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('oversized.pdf', 10241, 'application/pdf')],
+            ['document' => UploadedFile::fake()->create('oversized.pdf', 102401, 'application/pdf')],
         )->assertSessionHasErrors('document');
 
         // Act against an active requirement configured only for the other research type.
@@ -498,6 +501,24 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         // Assert rejected type, size, and category attempts never created another document record.
         $this->assertSame(3, ApplicationDocument::count());
+    }
+
+    public function test_private_document_upload_accepts_the_one_hundred_megabyte_boundary(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+        ]);
+        $requirement = $this->requirement();
+
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => UploadedFile::fake()->create('boundary.pdf', 102400, 'application/pdf')],
+        )->assertRedirect()->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(1, ApplicationDocument::count());
     }
 
     public function test_upload_all_processes_each_selected_requirement_independently(): void
@@ -605,8 +626,9 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertDontSee('remove-me.pdf');
     }
 
-    public function test_document_workspace_uses_the_filename_modal_and_office_download_fallback(): void
+    public function test_document_workspace_uses_the_filename_modal_and_authorized_office_fallback(): void
     {
+        Storage::fake('local');
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant,
@@ -614,7 +636,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             'research_type' => ResearchType::Thesis,
         ]);
         $requirement = $this->requirement();
-        ApplicationDocument::create([
+        $document = ApplicationDocument::create([
             'research_application_id' => $application->id,
             'document_requirement_id' => $requirement->id,
             'uploaded_by_user_id' => $applicant->id,
@@ -627,6 +649,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             'is_current' => true,
             'uploaded_at' => now(),
         ]);
+        Storage::disk('local')->put($document->stored_file_path, 'private workbook');
 
         $this->actingAs($applicant)
             ->get(route('applicant.applications.requirements', $application))
@@ -635,8 +658,16 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertSee('data-document-open', false)
             ->assertSee('data-document-replace', false)
             ->assertSee('Preview unavailable')
+            ->assertSee(route('applicant.applications.documents.preview', [$application, $document]), false)
             ->assertSee('accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"', false)
             ->assertDontSee('Choose Replacement');
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.documents.preview', [$application, $document]))
+            ->assertOk()
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertSee('Preview unavailable in this browser')
+            ->assertSee(route('applicant.applications.documents.download', [$application, $document]), false);
     }
 
     public function test_excel_workbook_is_accepted_as_a_private_download_only_requirement_file(): void

@@ -16,34 +16,37 @@ Use this as the working lifecycle until implementation plans refine status enums
 7. `awaiting_reviewer_assignment`
 8. `under_expedited_review`
 9. `under_full_board_review`
+10. `exempted` (branch to the direct documentation/release boundary)
 
 ## Decision Hold and Release
 
-10. `review_submitted_pending_release`
-11. `result_released_accepted`
-12. `result_released_minor_revision`
-13. `result_released_major_revision`
-14. `result_released_disapproved`
+11. `review_submitted_pending_release`
+12. `result_released_accepted`
+13. `result_released_minor_revision`
+14. `result_released_major_revision`
+15. `result_released_disapproved`
 
 ## Revision
 
-15. `revision_window_open`
-16. `revision_submitted`
-17. `under_re_review`
+16. `revision_window_open`
+17. `revision_submitted`
+18. `under_re_review`
 
 ## Certificate
 
-18. `feedback_required`
-19. `certificate_released`
-20. `archived`
+19. `feedback_required`
+20. `certificate_released`
+21. `archived`
 
 ## Exempted Path
 
-Exempted applications are a confirmed addition. They still pass through RES screening and documentation, but bypass standard reviewer assignment and review. The implementation should include an Exempted status path during the database/workflow feature plan.
+Exempted applications pass through RES screening, persist the classification, advance to `exempted`, and bypass standard reviewer assignment/review. The later direct documentation, release, and certificate controls are not yet implemented.
 
 ## Status Rules
 
 - `draft` and `incomplete` are not official RES queue states.
+- Only `adviser_endorsed` or `under_res_screening` may receive the single initial RES classification.
+- `awaiting_reviewer_assignment` may advance only after exactly one Expedited or three Full Board reviewers pass locked eligibility/capacity checks.
 - Reviewer comments must not be visible before a result release state.
 - Certificate generation is blocked until the application is accepted and required feedback is complete.
 - Use `disapproved` as the preferred system wording for rejected/disapproved outcomes because the official reviewer forms use "Disapproved."

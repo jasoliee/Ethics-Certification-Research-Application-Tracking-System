@@ -61,6 +61,11 @@ class TestingUserSeeder extends Seeder
                     'email' => $user['email'],
                     'institutional_identifier' => $user['institutional_identifier'],
                     'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
+                    // Keep the local Reviewer account eligible for the maintained expedited demo workflow.
+                    'department' => $user['role'] === UserRole::Reviewer ? 'Computer Studies' : null,
+                    'position_title' => $user['role'] === UserRole::Reviewer ? 'Ethics Reviewer' : null,
+                    'reviewer_classification' => $user['role'] === UserRole::Reviewer ? 'Expedited' : null,
+                    'reviewer_capacity' => $user['role'] === UserRole::Reviewer ? 6 : null,
                     'password' => Hash::make($user['password']),
                     'password_changed_at' => now(),
                     'password_setup_completed_at' => now(),

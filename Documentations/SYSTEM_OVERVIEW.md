@@ -18,7 +18,7 @@ ECRATS is the Ethics Certification Review Application and Tracking System for th
 
 ## Partially Implemented or Planned
 
-Several module pages are still workspaces. RES screening decisions, blind reviewer forms, later revisions, final result release, certificates, QR verification, payments, and full official-document generation are not complete end-to-end workflows. Adviser return/endorsement is implemented only for a complete initial submission in its configured deadline period. The repository includes the approved OVPRII background asset, but no certificate/document rendering service or route currently consumes it.
+Several module pages are still workspaces. RES administrative screening, Expedited/Full Board/Exempted classification, and exact initial reviewer assignment are implemented. Blind reviewer forms, conflict declarations, later revisions, final result release, Exempted direct release, certificates, QR verification, payments, and full official-document generation are not complete end-to-end workflows. Adviser return/endorsement is implemented only for a complete initial submission in its configured deadline period. The repository includes the approved OVPRII background asset, but no certificate/document rendering service or route currently consumes it.
 
 ## Main Boundaries
 

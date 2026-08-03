@@ -124,6 +124,11 @@ function initializeApplicationTools(shell) {
             openSelector: '[data-final-submit-open]',
             closeSelector: '[data-final-submit-close]',
         },
+        {
+            dialog: shell.querySelector('[data-reviewer-assignment-dialog]'),
+            openSelector: '[data-reviewer-assignment-confirm-open]',
+            closeSelector: '[data-reviewer-assignment-confirm-close]',
+        },
     ];
 
     // Initialize only modal configurations whose Blade dialog exists on the current page.
@@ -176,6 +181,89 @@ function initializeApplicationTools(shell) {
             panel?.focus();
         }
     });
+
+    const reviewerAssignmentForm = shell.querySelector('[data-reviewer-assignment-form]');
+
+    if (reviewerAssignmentForm) {
+        const requiredReviewers = Number.parseInt(reviewerAssignmentForm.dataset.requiredReviewers ?? '0', 10);
+        const reviewerInputs = [...reviewerAssignmentForm.querySelectorAll('[data-reviewer-select]')];
+        const selectionCount = reviewerAssignmentForm.querySelector('[data-reviewer-selection-count]');
+        const selectedList = reviewerAssignmentForm.querySelector('[data-selected-reviewer-list]');
+        const confirmationList = shell.querySelector('[data-confirmation-reviewer-list]');
+        const confirmationButton = reviewerAssignmentForm.querySelector('[data-reviewer-assignment-confirm-open]');
+
+        // Build reviewer summaries with text nodes so account data is never interpreted as markup.
+        const reviewerSummary = (input, removable) => {
+            const row = input.closest('[data-reviewer-row]');
+            const item = document.createElement('li');
+            const identity = document.createElement('div');
+            const name = document.createElement('strong');
+            const details = document.createElement('small');
+            const load = document.createElement('span');
+
+            name.textContent = row?.dataset.reviewerName ?? 'Reviewer';
+            details.textContent = [
+                row?.dataset.reviewerPosition,
+                row?.dataset.reviewerDepartment,
+            ].filter(Boolean).join(' - ');
+            load.textContent = row?.dataset.reviewerLoad ?? '';
+            identity.append(name, details);
+            item.append(identity, load);
+
+            if (removable) {
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'res-selected-reviewer-remove';
+                remove.textContent = 'Remove';
+                remove.setAttribute('aria-label', `Remove ${name.textContent}`);
+                remove.addEventListener('click', () => {
+                    input.checked = false;
+                    syncReviewerSelection();
+                    input.focus();
+                });
+                item.append(remove);
+            }
+
+            return item;
+        };
+
+        // Keep the selected panel, confirmation modal, row state, and exact-count command synchronized.
+        const syncReviewerSelection = () => {
+            const selected = reviewerInputs.filter((input) => input.checked && ! input.disabled);
+
+            reviewerInputs.forEach((input) => {
+                input.closest('[data-reviewer-row]')?.classList.toggle('is-selected', input.checked);
+            });
+
+            if (selectionCount) {
+                selectionCount.textContent = `${selected.length} / ${requiredReviewers} Selected`;
+                selectionCount.classList.toggle('is-complete', selected.length === requiredReviewers);
+            }
+
+            selectedList?.replaceChildren(...selected.map((input) => reviewerSummary(input, true)));
+            confirmationList?.replaceChildren(...selected.map((input) => reviewerSummary(input, false)));
+
+            if (confirmationButton) {
+                confirmationButton.disabled = selected.length !== requiredReviewers;
+                confirmationButton.setAttribute('aria-disabled', String(confirmationButton.disabled));
+            }
+        };
+
+        reviewerInputs.forEach((input) => {
+            input.addEventListener('change', () => {
+                const selectedCount = reviewerInputs.filter((candidate) => candidate.checked && ! candidate.disabled).length;
+
+                // Reject an extra selection immediately while preserving the previously valid reviewer set.
+                if (selectedCount > requiredReviewers) {
+                    input.checked = false;
+                }
+
+                syncReviewerSelection();
+            });
+        });
+
+        syncReviewerSelection();
+    }
 
     // Populate the secure viewer only with controller URLs already rendered into the triggering row.
     const documentDialog = shell.querySelector('[data-document-dialog]');
@@ -272,6 +360,7 @@ function initializeApplicationTools(shell) {
     const uploadAllLabel = uploadAll?.querySelector('[data-upload-all-label]');
     const uploadAllSummary = shell.querySelector('[data-upload-all-summary]');
     const defaultUploadAllLabel = uploadAllLabel?.textContent ?? 'Upload All';
+    let requirementsRefreshTimer = null;
 
     const selectedRequirementFiles = () => [...shell.querySelectorAll('[data-requirement-file]')]
         .filter((input) => input.files?.length);
@@ -319,6 +408,7 @@ function initializeApplicationTools(shell) {
         const progressCopy = shell.querySelector('[data-requirement-progress-copy]');
         const progressPercent = shell.querySelector('[data-requirement-progress-percent]');
         const finalButton = shell.querySelector('[data-final-application-button]');
+        const readinessItem = shell.querySelector('[data-requirement-readiness]');
 
         if (progressElement) {
             progressElement.value = progress.completed_count;
@@ -342,6 +432,27 @@ function initializeApplicationTools(shell) {
             const otherChecksPass = finalButton.dataset.otherChecksPass === 'true';
             finalButton.disabled = ! (progress.ready && otherChecksPass);
         }
+        if (readinessItem) {
+            readinessItem.classList.toggle('is-complete', progress.ready);
+            const readyIcon = readinessItem.querySelector('[data-requirement-ready-icon]');
+            const pendingIcon = readinessItem.querySelector('[data-requirement-pending-icon]');
+            readyIcon?.toggleAttribute('hidden', ! progress.ready);
+            pendingIcon?.toggleAttribute('hidden', progress.ready);
+        }
+    };
+
+    // Refresh only after every requirement succeeds and no browser-selected file would be discarded.
+    const refreshCompletedRequirements = (progress, hasErrors = false) => {
+        if (! progress?.ready || hasErrors || selectedRequirementFiles().length > 0) {
+            return;
+        }
+
+        window.clearTimeout(requirementsRefreshTimer);
+        requirementsRefreshTimer = window.setTimeout(() => {
+            if (selectedRequirementFiles().length === 0) {
+                window.location.reload();
+            }
+        }, 700);
     };
 
     const parseJson = async (response) => {
@@ -387,6 +498,7 @@ function initializeApplicationTools(shell) {
             replaceRequirementRow(requirementId, payload.row_html);
             updateRequirementProgress(payload.progress);
             setRequirementFeedback(requirementId, payload.message ?? 'Document uploaded.');
+            refreshCompletedRequirements(payload.progress);
         } catch {
             setRequirementFeedback(requirementId, 'Upload failed. Check your connection and try again.', true);
         } finally {
@@ -435,6 +547,14 @@ function initializeApplicationTools(shell) {
 
     shell.addEventListener('submit', (event) => {
         const form = event.target;
+
+        // Screening corrections require a deliberate confirmation before the locked workflow update runs.
+        if (form.matches?.('[data-confirm-screening-update]')
+            && ! window.confirm('Update this screening decision? Incompatible unstarted reviewer assignments may be removed.')) {
+            event.preventDefault();
+
+            return;
+        }
 
         if (form.matches?.('[data-application-upload-form]')) {
             event.preventDefault();
@@ -503,8 +623,10 @@ function initializeApplicationTools(shell) {
                 setRequirementFeedback(requirementId, message, true);
             });
             updateRequirementProgress(payload.progress);
-            uploadAllSummary.classList.toggle('is-error', Object.keys(payload.errors ?? {}).length > 0);
+            const hasErrors = Object.keys(payload.errors ?? {}).length > 0;
+            uploadAllSummary.classList.toggle('is-error', hasErrors);
             uploadAllSummary.textContent = payload.message ?? 'Selected documents processed.';
+            refreshCompletedRequirements(payload.progress, hasErrors);
         } catch {
             uploadAllSummary.classList.add('is-error');
             uploadAllSummary.textContent = 'Upload failed. Check your connection and try again.';
@@ -531,6 +653,11 @@ function initializeApplicationTools(shell) {
     // Disable write commands after native validation passes to prevent accidental duplicate requests.
     shell.querySelectorAll('[data-application-submit-once]').forEach((form) => {
         form.addEventListener('submit', (event) => {
+            // Earlier validation or confirmation handlers may intentionally cancel this submission.
+            if (event.defaultPrevented) {
+                return;
+            }
+
             const submitter = event.submitter ?? form.querySelector('button[type="submit"]');
             submitter?.setAttribute('disabled', 'disabled');
         });

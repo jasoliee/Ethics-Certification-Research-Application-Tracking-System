@@ -1,0 +1,537 @@
+<?php
+
+namespace Tests\Feature\Dashboard;
+
+use App\Enums\AccountStatus;
+use App\Enums\ApplicationStage;
+use App\Enums\ApplicationStatus;
+use App\Enums\ReceiptCheckStatus;
+use App\Enums\RequirementStatus;
+use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewType;
+use App\Enums\ScreeningCompletenessStatus;
+use App\Enums\UserRole;
+use App\Models\ApplicationDocument;
+use App\Models\AuditLog;
+use App\Models\DocumentRequirement;
+use App\Models\ResearchApplication;
+use App\Models\ReviewerAssignment;
+use App\Models\User;
+use App\Notifications\DashboardUpdateNotification;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Tests\TestCase;
+
+class ResLeadScreeningWorkflowTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Notification::fake();
+    }
+
+    public function test_res_lead_classifies_a_ready_application_and_records_a_bounded_audit_event(): void
+    {
+        [$resLead, $applicant, , $application] = $this->readyApplication();
+
+        $this->actingAs($resLead)
+            ->post(
+                route('res.applications.classification.store', $application),
+                $this->classificationPayload(ReviewType::Expedited),
+            )
+            ->assertRedirect(route('res.applications.reviewers.index', $application))
+            ->assertSessionHasNoErrors();
+
+        $application->refresh();
+
+        $this->assertSame(ApplicationStatus::AwaitingReviewerAssignment, $application->application_status);
+        $this->assertSame(ApplicationStage::ResScreening, $application->current_stage);
+        $this->assertSame(ReviewType::Expedited->value, $application->review_type);
+        $this->assertDatabaseHas('application_screenings', [
+            'research_application_id' => $application->id,
+            'screened_by_user_id' => $resLead->id,
+            'review_type' => ReviewType::Expedited->value,
+            'completeness_status' => ScreeningCompletenessStatus::Complete->value,
+            'receipt_check_status' => ReceiptCheckStatus::Accepted->value,
+        ]);
+
+        $audit = AuditLog::query()
+            ->where('action', 'application.res_classified')
+            ->where('subject_id', $application->id)
+            ->firstOrFail();
+
+        $this->assertSame(1, $audit->metadata['reviewer_count']);
+        $this->assertArrayNotHasKey('screening_notes', $audit->metadata);
+        $this->assertArrayNotHasKey('classification_reason', $audit->metadata);
+        Notification::assertSentTo($applicant, DashboardUpdateNotification::class);
+    }
+
+    public function test_screening_details_expose_protected_documents_and_all_required_decision_controls(): void
+    {
+        [$resLead, , , $application] = $this->readyApplication();
+        $document = $application->documents()->firstOrFail();
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.show', $application))
+            ->assertOk()
+            ->assertSee('Application Overview')
+            ->assertSee('Research Information')
+            ->assertSee('Requirement Checklist')
+            ->assertSee('Administrative Screening Panel')
+            ->assertSee('Review Type Classification')
+            ->assertSee(ReviewType::Expedited->label())
+            ->assertSee(ReviewType::FullBoard->label())
+            ->assertSee(ReviewType::Exempted->label())
+            ->assertSee(route('res.applications.documents.preview', [$application, $document]), false)
+            ->assertSee(route('res.applications.documents.download', [$application, $document]), false)
+            ->assertSee('data-application-submit-once', false);
+    }
+
+    public function test_classification_rejects_incomplete_administrative_gates_and_stale_document_readiness(): void
+    {
+        [$resLead, , , $application] = $this->readyApplication();
+        $invalidAdministrative = $this->classificationPayload(ReviewType::Expedited);
+        $invalidAdministrative['completeness_status'] = ScreeningCompletenessStatus::Incomplete->value;
+        $invalidAdministrative['receipt_check_status'] = ReceiptCheckStatus::Pending->value;
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.classification.store', $application), $invalidAdministrative)
+            ->assertSessionHasErrorsIn('resScreening', [
+                'completeness_status',
+                'receipt_check_status',
+            ]);
+
+        $application->documents()->update(['validation_status' => RequirementStatus::Rejected->value]);
+
+        $this->actingAs($resLead)
+            ->post(
+                route('res.applications.classification.store', $application),
+                $this->classificationPayload(ReviewType::Expedited),
+            )
+            ->assertSessionHasErrorsIn('resScreening', ['requirements']);
+
+        $this->assertDatabaseMissing('application_screenings', [
+            'research_application_id' => $application->id,
+        ]);
+    }
+
+    public function test_expedited_assignment_requires_exactly_one_eligible_reviewer_and_cannot_repeat(): void
+    {
+        [$resLead, $applicant, , $application] = $this->classifiedApplication(ReviewType::Expedited);
+        $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$reviewer->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertRedirect(route('res.applications.reviewers.index', $application))
+            ->assertSessionHasNoErrors();
+
+        $application->refresh();
+
+        $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->application_status);
+        $this->assertSame(ApplicationStage::EthicsReview, $application->current_stage);
+        $this->assertDatabaseHas('reviewer_assignments', [
+            'research_application_id' => $application->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_type' => 'initial_review',
+            'assignment_status' => ReviewerAssignmentStatus::Pending->value,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'application.reviewers_assigned',
+            'subject_id' => $application->id,
+        ]);
+        Notification::assertSentTo($reviewer, DashboardUpdateNotification::class);
+        Notification::assertSentTo($applicant, DashboardUpdateNotification::class);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$reviewer->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(1, ReviewerAssignment::query()
+            ->where('research_application_id', $application->id)
+            ->count());
+    }
+
+    public function test_full_board_assignment_rejects_wrong_and_duplicate_counts_then_assigns_exactly_three(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::FullBoard);
+        $reviewers = collect(range(1, 3))
+            ->map(fn (): User => $this->reviewerFor($application, ReviewType::FullBoard));
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => $reviewers->take(2)->pluck('id')->all(),
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasErrorsIn('reviewerAssignment', ['reviewer_ids']);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => array_fill(0, 3, $reviewers->first()->id),
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasErrorsIn('reviewerAssignment');
+
+        $this->assertSame(0, ReviewerAssignment::count());
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => $reviewers->pluck('id')->all(),
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(ApplicationStatus::UnderFullBoardReview, $application->fresh()->application_status);
+        $this->assertSame(3, ReviewerAssignment::query()
+            ->where('research_application_id', $application->id)
+            ->count());
+    }
+
+    public function test_assignment_page_prioritizes_matches_hides_inactive_accounts_and_blocks_a_full_reviewer(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
+        $eligible = $this->reviewerFor($application, ReviewType::Expedited, ['name' => 'Primary Match Reviewer']);
+        $full = $this->reviewerFor($application, ReviewType::Expedited, [
+            'name' => 'Full Capacity Reviewer',
+            'reviewer_capacity' => 1,
+        ]);
+        $inactive = $this->reviewerFor($application, ReviewType::Expedited, [
+            'name' => 'Inactive Reviewer',
+            'account_status' => AccountStatus::Inactive->value,
+        ]);
+        $wrongDiscipline = $this->reviewerFor($application, ReviewType::Expedited, [
+            'name' => 'Different Discipline Reviewer',
+            'department' => 'Business Administration',
+        ]);
+        $otherApplication = ResearchApplication::factory()->create();
+
+        ReviewerAssignment::create([
+            'research_application_id' => $otherApplication->id,
+            'reviewer_user_id' => $full->id,
+            'review_type' => 'initial_review',
+            'assignment_status' => ReviewerAssignmentStatus::InReview,
+            'assigned_at' => now(),
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.reviewers.index', $application))
+            ->assertOk()
+            ->assertSeeInOrder([$eligible->name, $wrongDiscipline->name])
+            ->assertSee($full->name)
+            ->assertDontSee($inactive->name)
+            ->assertSee($wrongDiscipline->name)
+            ->assertSee('Capacity reached')
+            ->assertDontSee('<th>Availability</th>', false);
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.reviewers.index', [
+                $application,
+                'department' => 'Business Administration',
+            ]))
+            ->assertOk()
+            ->assertSee($wrongDiscipline->name)
+            ->assertDontSee($eligible->name);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$full->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasErrorsIn('reviewerAssignment', ['reviewer_ids']);
+
+        $this->assertSame(0, ReviewerAssignment::query()
+            ->where('research_application_id', $application->id)
+            ->count());
+    }
+
+    public function test_screening_correction_preserves_an_exact_pending_assignment_when_classification_is_compatible(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
+        $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$reviewer->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+        $assignment = ReviewerAssignment::query()->firstOrFail();
+        $payload = $this->classificationPayload(ReviewType::Expedited);
+        $payload['screening_notes'] = 'Corrected administrative note with no classification change.';
+        $payload['classification_reason'] = 'The corrected record still satisfies the expedited review criteria.';
+
+        $this->actingAs($resLead)
+            ->put(route('res.applications.classification.update', $application), $payload)
+            ->assertRedirect(route('res.applications.show', $application))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('reviewer_assignments', ['id' => $assignment->id]);
+        $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->fresh()->application_status);
+        $this->assertSame(
+            'Corrected administrative note with no classification change.',
+            $application->screening()->firstOrFail()->screening_notes,
+        );
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'application.res_screening_updated',
+            'subject_id' => $application->id,
+        ]);
+    }
+
+    public function test_screening_classification_change_removes_only_pending_unstarted_assignments(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
+        $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$reviewer->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($resLead)
+            ->put(
+                route('res.applications.classification.update', $application),
+                $this->classificationPayload(ReviewType::FullBoard),
+            )
+            ->assertRedirect(route('res.applications.reviewers.index', $application))
+            ->assertSessionHasNoErrors();
+
+        $application->refresh();
+        $this->assertSame(ApplicationStatus::AwaitingReviewerAssignment, $application->application_status);
+        $this->assertSame(ReviewType::FullBoard->value, $application->review_type);
+        $this->assertSame(0, $application->reviewerAssignments()->count());
+        Notification::assertSentTo($reviewer, DashboardUpdateNotification::class);
+    }
+
+    public function test_screening_correction_cannot_replace_started_review_work(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
+        $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$reviewer->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+        ReviewerAssignment::query()->update([
+            'assignment_status' => ReviewerAssignmentStatus::InReview->value,
+        ]);
+
+        $this->actingAs($resLead)
+            ->from(route('res.applications.show', $application))
+            ->put(
+                route('res.applications.classification.update', $application),
+                $this->classificationPayload(ReviewType::FullBoard),
+            )
+            ->assertRedirect(route('res.applications.show', $application))
+            ->assertSessionHasErrorsIn('resScreening', ['review_type']);
+
+        $application->refresh();
+        $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->application_status);
+        $this->assertSame(ReviewType::Expedited->value, $application->review_type);
+        $this->assertSame(1, $application->reviewerAssignments()->count());
+    }
+
+    public function test_screening_correction_is_unavailable_after_the_initial_review_boundary(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Exempted);
+        $application->update([
+            'application_status' => ApplicationStatus::CertificateReleased->value,
+            'current_stage' => ApplicationStage::Completed->value,
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.show', [$application, 'edit_screening' => 1]))
+            ->assertOk()
+            ->assertDontSee('Update Screening Decision');
+
+        $this->actingAs($resLead)
+            ->put(
+                route('res.applications.classification.update', $application),
+                $this->classificationPayload(ReviewType::Expedited),
+            )
+            ->assertForbidden();
+
+        $this->assertSame(ApplicationStatus::CertificateReleased, $application->fresh()->application_status);
+        $this->assertSame(ReviewType::Exempted, $application->screening()->firstOrFail()->review_type);
+    }
+
+    public function test_exempted_classification_bypasses_reviewer_assignment(): void
+    {
+        [$resLead, , , $application] = $this->readyApplication();
+
+        $this->actingAs($resLead)
+            ->post(
+                route('res.applications.classification.store', $application),
+                $this->classificationPayload(ReviewType::Exempted),
+            )
+            ->assertRedirect(route('res.applications.show', $application))
+            ->assertSessionHasNoErrors();
+
+        $application->refresh();
+
+        $this->assertSame(ApplicationStatus::Exempted, $application->application_status);
+        $this->assertSame(ApplicationStage::DecisionRelease, $application->current_stage);
+        $this->assertSame(0, $application->reviewerAssignments()->count());
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.reviewers.index', $application))
+            ->assertNotFound();
+    }
+
+    public function test_non_res_roles_cannot_classify_or_assign_reviewers(): void
+    {
+        [$resLead, $applicant, $adviser, $application] = $this->readyApplication();
+        $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
+
+        foreach ([$applicant, $adviser, $reviewer] as $actor) {
+            $this->actingAs($actor)
+                ->post(
+                    route('res.applications.classification.store', $application),
+                    $this->classificationPayload(ReviewType::Expedited),
+                )
+                ->assertRedirect(route('dashboard'));
+        }
+
+        $this->assertDatabaseMissing('application_screenings', [
+            'research_application_id' => $application->id,
+        ]);
+
+        $this->actingAs($resLead)
+            ->post(
+                route('res.applications.classification.store', $application),
+                $this->classificationPayload(ReviewType::Expedited),
+            )
+            ->assertSessionHasNoErrors();
+
+        foreach ([$applicant, $adviser, $reviewer] as $actor) {
+            $this->actingAs($actor)
+                ->post(route('res.applications.reviewers.store', $application), [
+                    'reviewer_ids' => [$reviewer->id],
+                    'confirm_assignment' => '1',
+                ])
+                ->assertRedirect(route('dashboard'));
+
+            $this->actingAs($actor)
+                ->put(
+                    route('res.applications.classification.update', $application),
+                    $this->classificationPayload(ReviewType::FullBoard),
+                )
+                ->assertRedirect(route('dashboard'));
+        }
+
+        $this->assertSame(0, ReviewerAssignment::count());
+    }
+
+    /**
+     * @return array{0: User, 1: User, 2: User, 3: ResearchApplication}
+     */
+    private function readyApplication(): array
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $applicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'institution' => 'Institute of Computing and Digital Innovation',
+            'department' => 'Computer Studies',
+            'program' => 'Bachelor of Science in Computer Science',
+        ]);
+        $adviser = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'institution' => 'Institute of Computing and Digital Innovation',
+            'department' => 'Computer Studies',
+        ]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant->id,
+            'adviser_user_id' => $adviser->id,
+            'application_status' => ApplicationStatus::AdviserEndorsed,
+            'current_stage' => ApplicationStage::ResScreening,
+            'submitted_at' => now()->subDays(2),
+            'status_updated_at' => now(),
+        ]);
+        $requirement = DocumentRequirement::create([
+            'code' => 'RES-TEST-PROPOSAL',
+            'name' => 'Complete Research Proposal',
+            'description' => 'Mandatory screening document.',
+            'is_mandatory' => true,
+            'research_types' => null,
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        ApplicationDocument::create([
+            'research_application_id' => $application->id,
+            'document_requirement_id' => $requirement->id,
+            'uploaded_by_user_id' => $applicant->id,
+            'original_file_name' => 'research-proposal.pdf',
+            'stored_file_path' => "applications/private/{$application->id}/research-proposal.pdf",
+            'mime_type' => 'application/pdf',
+            'file_size_bytes' => 2048,
+            'document_version' => 1,
+            'validation_status' => RequirementStatus::Completed,
+            'is_current' => true,
+            'uploaded_at' => now()->subDay(),
+        ]);
+
+        return [$resLead, $applicant, $adviser, $application];
+    }
+
+    /**
+     * @return array{0: User, 1: User, 2: User, 3: ResearchApplication}
+     */
+    private function classifiedApplication(ReviewType $reviewType): array
+    {
+        [$resLead, $applicant, $adviser, $application] = $this->readyApplication();
+
+        $this->actingAs($resLead)
+            ->post(
+                route('res.applications.classification.store', $application),
+                $this->classificationPayload($reviewType),
+            )
+            ->assertSessionHasNoErrors();
+
+        return [$resLead, $applicant, $adviser, $application->fresh()];
+    }
+
+    /** @return array<string, string> */
+    private function classificationPayload(ReviewType $reviewType): array
+    {
+        return [
+            'completeness_status' => ScreeningCompletenessStatus::Complete->value,
+            'receipt_check_status' => ReceiptCheckStatus::Accepted->value,
+            'required_documents_verified' => '1',
+            'receipt_status_recorded' => '1',
+            'basic_eligibility_confirmed' => '1',
+            'screening_notes' => 'Administrative checklist completed against the submitted records.',
+            'review_type' => $reviewType->value,
+            'classification_reason' => 'The submitted protocol meets the documented criteria for this classification.',
+        ];
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function reviewerFor(
+        ResearchApplication $application,
+        ReviewType $reviewType,
+        array $overrides = [],
+    ): User {
+        return User::factory()->create(array_merge([
+            'role' => UserRole::Reviewer,
+            'account_status' => AccountStatus::Active->value,
+            'institution' => $application->institution,
+            'department' => $application->department,
+            'position_title' => 'Ethics Reviewer',
+            'reviewer_classification' => $reviewType->reviewerClassification(),
+            'reviewer_capacity' => 3,
+            'password_setup_completed_at' => now(),
+        ], $overrides));
+    }
+}

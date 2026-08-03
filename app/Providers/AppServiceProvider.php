@@ -55,5 +55,7 @@ class AppServiceProvider extends ServiceProvider
         // Limit private document writes while allowing ordinary page and download access.
         RateLimiter::for('application-upload', fn (Request $request) => Limit::perMinute(10)->by($key($request)));
         RateLimiter::for('application-submit', fn (Request $request) => Limit::perMinute(5)->by($key($request)));
+        // Bound RES classification and assignment writes independently from read-only queue traffic.
+        RateLimiter::for('res-workflow', fn (Request $request) => Limit::perMinute(8)->by($key($request)));
     }
 }

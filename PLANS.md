@@ -60,6 +60,132 @@ Date:
 
 ## Active Plans
 
+## Plan: RES decision corrections, private previews, and Reviewer assignments
+
+Status: Completed on 2026-08-03.
+
+### Goal
+Complete the August 3, 2026 RES Lead, Applicant, and Reviewer viewport improvements so saved screening decisions can be corrected safely, reviewer selection remains broad but prioritized, requirement uploads reflect persisted progress immediately, authorized document access has a clear preview experience, and Reviewers receive a real assigned-applications workspace.
+
+### Source Documents
+- Primary requirement: attached cross-role viewport specification, August 3, 2026.
+- Visual reference: `ECRATS High Fidelity (7).pdf`, pages 1-4, covering populated/empty Reviewer assignments, row states, and assignment details.
+- Bug references: supplied RES reviewer-assignment and application-details screenshots showing sticky-header overlap and screening-summary wrapping defects.
+- Existing contracts: private application storage, nested document authorization, RES screening/assignment transactions, Reviewer assignment policy, shared dashboard components, and the current uncommitted August 2 RES workflow.
+
+### Scope
+Included:
+- Allow RES Leads to re-edit persisted administrative screening fields and classification details under authorization, row locks, validation, bounded audit metadata, and safe assignment reconciliation.
+- Remove only unstarted pending assignments when a changed decision makes them stale; reject incompatible changes after review work has started or been submitted.
+- List every active, setup-complete Reviewer matching the required reviewer classification, rank application department/institution matches first, add an exact Department filter, and remove the Availability filter/column while retaining current load and capacity.
+- Correct RES classification-summary wrapping and keep queue, screening, selection, and confirmation states responsive.
+- Raise the private application-document limit to 100 MB per file, update client copy, and keep MIME inspection, randomized private paths, policies, and throttles unchanged.
+- Update requirement checklist state immediately after asynchronous uploads and refresh only after complete success when no selected browser file remains.
+- Keep PDF/image inline streaming; provide Word/Excel files through an authorized in-app fallback with protected download, including Reviewer routes scoped by assignment policy.
+- Replace the temporary Reviewer assignments page with a scoped, filterable, paginated populated/empty table and expand assignment details without exposing Applicant account identity.
+- Add focused regression coverage and synchronize workflow, route, upload, preview, security, UI, limitation, and changelog documentation.
+
+Excluded:
+- Office-to-HTML conversion, third-party document viewers, public document URLs, blind-redaction generation, review forms/decisions, conflict declarations, reviewer reassignment history, certificate generation, or package installation.
+
+### Implementation Approach
+- Backend: keep controllers thin; use dedicated Form Requests and locked workflow-service updates for screening corrections; scope Reviewer queries by the authenticated reviewer ID.
+- Frontend: reuse existing dashboard headings, filters, internal-overflow tables, status badges, empty states, document dialog, and responsive breakpoints while applying the hierarchy from the supplied reference.
+- Database: reuse the one-per-application screening row and existing assignment timestamps/statuses; no schema change is required for this correction batch.
+- Authorization: add an explicit screening-update policy ability; retain parent-application and assignment ownership checks for every private document route.
+- Files/storage: accept at most 100 MB per file on the private local disk; raw Office content remains non-inline and is never sent to a public conversion service.
+- Notifications/audit: notify removed pending Reviewers neutrally and audit only prior/new classification, removed count, and resulting status, excluding notes, reasons, filenames, and private paths.
+
+### Files Expected to Change
+- RES screening Form Requests, policy, workflow/eligibility services, controller, routes, and focused tests
+- RES detail/assignment Blade views, shared dashboard CSS/JavaScript
+- Applicant upload requests/service/controller/views/JavaScript and document tests
+- Reviewer assignment controller, index/detail views, routes, navigation tests, and authorization tests
+- Current workflow, route, security, upload/preview, feature, UI, limitation, testing, and changelog documentation
+
+### Tests and Verification
+- Prove safe screening edits before/after pending assignment, blocked changes after review starts, stale-assignment removal, exact counts, broad Reviewer visibility, match ordering, Department filtering, and inactive exclusion.
+- Prove the 100 MB boundary, asynchronous checklist hooks, role-authorized PDF/Office preview behavior, Reviewer-only assignment listing, direct-record denial, filters, empty state, and pagination.
+- Run focused and full Laravel tests, Pint, strict Composer/platform checks, route listing, migration status, Blade compilation, the Vite production build, PHP syntax checks, and `git diff --check`.
+- Inspect representative desktop, tablet, and phone states in a local browser and record remaining manual-only checks.
+
+### Risks and Rollback
+- Pending assignment removal is destructive by design but limited to unstarted rows and recorded in audit; started/submitted work blocks incompatible decision changes.
+- A 100 MB Laravel rule still requires production PHP and reverse-proxy request limits above 100 MB; deployment documentation must call out that external configuration boundary.
+- Office fallback pages display metadata and a secure download path rather than attempting unsafe browser execution or public conversion.
+- All changes are reversible without schema rollback because this phase adds no migration.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-08-03
+
+### Verification Status (2026-08-03)
+- Safe RES correction, stale-pending-assignment reconciliation, started-review protection, exact Reviewer counts, classification matching, Department filtering, owner-scoped Reviewer pages, 100 MB validation, checklist hooks, and protected preview behavior are covered by focused Feature tests.
+- The final full Laravel suite, Pint, strict Composer validation, platform requirements, routes, migration status, Blade compilation, the Vite production build, and `git diff --check` passed.
+- Browser checks passed at 1280px and 390px for RES screening, reviewer selection, Reviewer assignment list/detail, the private Excel fallback, and the populated submitted Applicant checklist. A live upload transition remains manual because the populated Applicant test account has no editable draft.
+
+## Plan: RES Lead screening and reviewer assignment
+
+### Goal
+Implement the initial RES Lead administrative screening, ethics classification, and reviewer-assignment workflow represented by High Fidelity pages 80-92 so adviser-endorsed applications can move securely into expedited review, full-board review, or the exempted documentation path.
+
+### Source Documents
+- Primary requirement: attached RES screening and reviewer-assignment specification, August 2, 2026.
+- Visual reference: `ECRATS High Fidelity (6).pdf`, all 13 cropped pages corresponding to original pages 80-92.
+- Existing contracts: `PROJECT_GUIDELINES.md`, current application/adviser workflow services, private document controllers, account reviewer profiles, audit logging, notifications, and shared dashboard components.
+- Current limitation retained: reviewer evaluation forms, conflict declarations beyond known applicant/adviser conflicts, result release, and certificate generation are later workflow slices.
+
+### Scope
+Included:
+- Expand the RES Applications Queue with search and filters for workflow status, applicant category, research type, review type, institute/program, and endorsement date range.
+- Add a one-per-application administrative screening record with completeness, receipt-check state, eligibility confirmations, notes, review classification, reason, actor, and timestamp.
+- Add RES-only classification and reviewer-assignment writes using Form Requests, policy checks, transactions, row locks, database uniqueness, audit events, and neutral notifications.
+- Require exactly one eligible active reviewer for expedited review and exactly three for full-board review; enforce reviewer classification, institutional discipline matching, active workload capacity, and known applicant/adviser conflict exclusion.
+- Add an exempted terminal screening status that bypasses reviewer assignment and enters the documented direct-release/documentation boundary.
+- Build responsive queue, screening, protected-document, reviewer-selection, confirmation, and assignment-result interfaces using existing dashboard patterns.
+- Add focused feature coverage and synchronize workflow, route, feature, security, testing, limitation, and changelog documentation.
+
+Excluded:
+- Reviewer worksheets and submissions, full conflict-of-interest declarations, review monitoring implementation, result/certificate release, QR verification, blind-review redaction, reviewer reordering persistence, or public file links.
+- New packages, `.env` changes, destructive migrations, or changes to unrelated account-management modules.
+
+### Implementation Approach
+- Backend: keep controllers thin; centralize classification and assignment transitions in an application service that repeats authorization and eligibility checks inside retryable transactions.
+- Frontend: reuse the shared layout, status badges, icon system, private document viewer, overflow wrapper, modal behavior, and compact dashboard styling while adapting the high-fidelity information hierarchy.
+- Database: add a uniquely constrained `application_screenings` table; retain `research_applications.review_type` and `application_status` as the authoritative workflow projection; reuse the existing reviewer-assignment uniqueness constraint.
+- Authorization: add explicit application-policy abilities for classification and assignment, in addition to the existing RES route middleware.
+- Files/storage: retain private controller-authorized preview/download routes and never expose storage paths.
+- Notifications/audit: notify selected reviewers and the applicant with bounded neutral messages; record review type, resulting status, assignment count, and identifiers without notes or document contents.
+
+### Files Expected to Change
+- `PLANS.md`, application/review enums, application-screening migration/model, research application relationships, policy, Form Requests, workflow service, controller, routes, and rate limits
+- RES queue/screening/assignment Blade views, dashboard CSS/JavaScript, factories/seed data as required
+- Focused RES workflow feature tests
+- Application workflow, routes/navigation, features, security, testing, known-limitations, and changelog documentation
+
+### Tests and Verification
+- Prove RES-only classification, exact expedited/full-board reviewer counts, eligibility/capacity enforcement, duplicate protection, and exempted assignment bypass.
+- Prove queue filter/search behavior, protected detail/document access, responsive overflow contracts, and accessible assignment confirmation structure.
+- Run focused and full Laravel tests, route listing, Blade compilation, Pint, Composer checks, Vite production build, migration status, and `git diff --check`.
+- Inspect representative desktop, tablet, and mobile states through the in-app browser when available and record any remaining manual-only checks.
+
+### Risks and Rollback
+- Concurrent classification and assignment requests are serialized with row locks; database unique constraints remain the final duplicate defense.
+- Reviewer capacity can change concurrently, so selected reviewer rows are locked and active workload is recalculated before insert.
+- The migration is additive. Rollback removes only screening records and leaves applications, assignments, users, and private files intact.
+- Exempted applications stop at a documented direct-release boundary until certificate generation and release are implemented.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-08-02
+
+### Implementation Status
+
+- Completed on 2026-08-02 without package installation, `.env` changes, destructive migrations, or public document exposure.
+- The full Laravel suite passed 164 tests with 2,486 assertions; the focused RES workflow suite passed 12 tests with 141 assertions.
+- Routes, migration status, Blade compilation, Pint, Composer validation/platform requirements, PHP syntax checks, the Vite production build, and `git diff --check` passed.
+- Queue, screening, reviewer selection, and confirmation states were interactively verified at 1440, 1280, 1024, 768, and 390 pixels with no page-level horizontal overflow or browser-console warnings.
+
 ## Plan: RES workflow visibility, validation, and responsive layout completion
 
 ### Goal
@@ -365,7 +491,7 @@ Excluded:
 - Implemented on 2026-07-27 without a package installation, public reset request form, public document path, hard delete, or `.env` change.
 - Verified the complete Laravel suite at 123 passing tests and 1,999 assertions; focused settings, authentication, identity, Applicant, Adviser, document, deadline, and import tests also pass.
 - Verified all Blade templates compile, all current table elements are inside the shared horizontal-overflow boundary, all 96 routes register, the additive migration is applied and has valid pretend rollback SQL, Pint passes, the production Vite build succeeds, and `git diff --check` is clean.
-- Browser-driven desktop, tablet, and smartphone screenshots remain the only pending check because this Codex session had no controllable browser available.
+- Browser-driven desktop, tablet, and smartphone screenshots remain the only pending check because that development session had no controllable browser available.
 
 ### Risks and Rollback
 - Manual deadline overrides are nullable so existing date-controlled records keep their current behavior until explicitly saved through Settings.

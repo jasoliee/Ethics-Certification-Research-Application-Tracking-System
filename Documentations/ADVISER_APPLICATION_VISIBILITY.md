@@ -34,4 +34,4 @@ Adviser summary counts and recent rows use the same formal-submission and assign
 
 ## Pending Workflow
 
-The Adviser initial decision is complete. RES screening/classification, reviewer assignment, blind review, later revision decisions, result release, and certificate workflows remain pending.
+The Adviser initial decision, RES screening/classification, and exact initial reviewer assignment are complete. Blind review, conflict declarations, later revision decisions, result release, Exempted direct release, and certificate workflows remain pending.

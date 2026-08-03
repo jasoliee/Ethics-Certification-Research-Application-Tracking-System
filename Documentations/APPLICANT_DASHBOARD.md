@@ -32,7 +32,7 @@ The dashboard selects the newest created non-archived application owned by the s
 
 The requirement checklist contains active requirements applicable to the selected research type. Completion counts only applicable mandatory requirements whose current document version has `completed` status. Optional requirements can appear without changing submission readiness.
 
-Accepted files are PDF, DOC, DOCX, XLS, XLSX, JPEG, and PNG up to 10 MB each. Files use randomized paths on Laravel's private `local` disk. Replacing a requirement creates a new current record while preserving prior database/file history and the version assigned to the current revision cycle. Removing a current document detaches it from readiness without deleting its private history.
+Accepted files are PDF, DOC, DOCX, XLS, XLSX, JPEG, and PNG up to 100 MB each. Files use randomized paths on Laravel's private `local` disk. Replacing a requirement creates a new current record while preserving prior database/file history and the version assigned to the current revision cycle. Removing a current document detaches it from readiness without deleting its private history. Individual and Upload All responses update completion and checklist state immediately; a final refresh occurs only when no selected browser file can be lost. Word and Excel files use the authorized viewer fallback when native browser rendering is unavailable.
 
 The requirement workspace combines application identity and completion in one responsive overview. File controls keep a stable button position, show `No file selected` or the selected filename, and support Upload All for selected requirements. Browser-supported content opens in an authorized modal; other Office files retain a protected download fallback. Long modal values use ellipsis and expose the full value through the shared 0.5-second tooltip.
 
@@ -48,4 +48,4 @@ On success, the application moves to `submitted_to_adviser`, its stage becomes `
 
 ## Pending Workflow
 
-Adviser return/endorsement is implemented for the complete initial submission. RES screening decisions, reviewer assignment/review, later revision handling after result release, certificates, QR access, and final archival remain incomplete end to end.
+Adviser return/endorsement, RES administrative screening/classification, and exact initial reviewer assignment are implemented for the complete initial submission. Blind reviewer evaluation, later revision handling after result release, direct Exempted release, certificates, QR access, and final archival remain incomplete end to end.

@@ -29,7 +29,7 @@ Policies check record-level access:
 
 - Applicant owns this application.
 - Adviser is assigned to this application for initial review.
-- Reviewer is assigned to this anonymized application.
+- Reviewer is assigned to this application; the current detail omits profile identity, while automated document redaction remains pending.
 - RES user can screen or release this record.
 - Certificate belongs to the requesting applicant or is being managed by RES.
 - RES Lead manages non-RES-Lead user accounts but cannot create or administratively edit a RES Lead account.
@@ -44,6 +44,9 @@ Services check whether an action is valid for the current workflow state:
 
 - Application can be submitted only when complete and inside the submission window.
 - Adviser can endorse only submitted complete applications.
+- RES can classify only formally submitted applications in an eligible screening state after current requirement readiness is rechecked.
+- RES can correct a persisted screening only while incompatible reviewer work has not started.
+- RES can assign only the exact reviewer count for a classified application awaiting assignment; reviewer classification, setup, active state, conflicts, and capacity are rechecked under locks.
 - Reviewer can submit only assigned active reviews.
 - RES can release only held decisions.
 - Applicant can submit revisions only during an open revision window.

@@ -13,6 +13,7 @@ use App\Services\Applications\ApplicationRequirementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -167,16 +168,28 @@ class ApplicationDocumentController extends Controller
         ResearchApplication $researchApplication,
         ApplicationDocument $applicationDocument,
         ApplicationDocumentService $documents,
-    ): StreamedResponse|RedirectResponse {
+    ): StreamedResponse|Response {
         // Verify nested ownership before applying the parent application's role-aware policy.
         $documents->assertBelongsTo($researchApplication, $applicationDocument);
         Gate::authorize('viewDocument', $researchApplication);
+        abort_unless(Storage::disk('local')->exists($applicationDocument->stored_file_path), 404);
 
-        // Unsupported formats use the secure attachment route instead of unsafe inline rendering.
+        // Office formats stay in the authorized viewer and receive a safe download fallback.
         if (! $applicationDocument->supportsInlinePreview()) {
-            return redirect()
-                ->route($this->downloadRoute($request), [$researchApplication, $applicationDocument])
-                ->with('status', 'This file type is available as a secure download.');
+            return response()
+                ->view('dashboard.applications.document-preview-fallback', [
+                    'document' => $applicationDocument,
+                    'downloadUrl' => route(
+                        $this->downloadRoute($request),
+                        [$researchApplication, $applicationDocument],
+                    ),
+                ])
+                ->withHeaders([
+                    'Cache-Control' => 'private, no-store, max-age=0',
+                    'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'self'",
+                    'X-Content-Type-Options' => 'nosniff',
+                    'X-Frame-Options' => 'SAMEORIGIN',
+                ]);
         }
 
         return $this->fileResponse($applicationDocument, 'inline');
@@ -230,6 +243,7 @@ class ApplicationDocumentController extends Controller
         return match (true) {
             $request->routeIs('adviser.*') => 'adviser.applications.documents.download',
             $request->routeIs('res.*') => 'res.applications.documents.download',
+            $request->routeIs('reviewer.*') => 'reviewer.applications.documents.download',
             default => 'applicant.applications.documents.download',
         };
     }

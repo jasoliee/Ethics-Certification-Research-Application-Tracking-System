@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-08-03
+
+### Added
+
+- Safe RES screening correction for administrative fields, notes, classification, and rationale, with compatible-assignment preservation and started-work protection.
+- Reviewer Assigned Applications list, search/filtering, pagination, policy-authorized details, and assignment-gated private document routes.
+- Same-origin no-store Word/Excel preview fallback and immediate Applicant upload progress/checklist synchronization.
+
+### Changed
+
+- Raised the private application-document limit from 10 MB to 100 MB in validation, interface guidance, tests, and documentation.
+- Reviewer selection now lists all active classification-matched candidates, prioritizes department then institution matches, provides a Department filter, removes the Availability column, and keeps capacity visible.
+- Screening/classification summaries and Reviewer assignment surfaces now wrap responsively without overlapping labels, badges, or values.
+
+### Security
+
+- Screening corrections lock application, screening, and assignment rows; pending unstarted assignments may be reconciled, but started or submitted review work cannot be overwritten.
+- Reviewer assignment pages and document requests remain scoped to the authenticated Reviewer's exact assignment. Applicant and Adviser profile identities are omitted from the Reviewer detail.
+
+### Verification
+
+- The final Laravel suite passed 172 tests with 2,573 assertions; the focused RES correction suite passed 12 tests with 124 assertions, and the Applicant workflow suite passed 18 tests with 202 assertions.
+- Pint, strict Composer validation, platform requirements, route registration, migration status, Blade compilation, the Vite production build, and `git diff --check` passed.
+- Interactive checks passed at 1280px and 390px for RES classification, reviewer selection, Reviewer assignment list/detail, the private Excel fallback, and the populated submitted Applicant checklist. A live Applicant upload transition remains a manual check because the populated test account has no editable draft.
+
+## 2026-08-02
+
+### Added
+
+- RES Lead screening details with application/research summaries, the current private requirement checklist, administrative checks, notes, and Expedited, Full Board, or Exempted classification.
+- Additive `application_screenings` persistence with a single initial classification per application and explicit `exempted` workflow status support.
+- Eligible reviewer selection, exact one-reviewer Expedited and three-reviewer Full Board assignment, confirmation, immutable results, and responsive candidate/capacity views.
+- RES classification and assignment Form Requests, policy abilities, transactional row locking, late eligibility/capacity revalidation, duplicate protection, named throttling, bounded audits, and neutral notifications.
+- Focused workflow, authorization, queue filter/search, document action, invalid count, duplicate, capacity, and Exempted-path tests.
+
+### Changed
+
+- Expanded the former Endorsed Applications landing page into the complete post-endorsement Applications Queue with Applicant category, research type, review type, institute/program, and endorsement-date filters.
+- Updated local demo accounts and histories so post-screening demo statuses have their required screening records and the Expedited assignment page has an eligible reviewer.
+
+### Preserved
+
+- Private research files remain outside `public/` and require nested application/document authorization.
+- Audit metadata excludes screening notes, classification reasons, file contents, reviewer comments, and private storage paths.
+- Blind review, reviewer-declared conflicts, decision release, Exempted direct certificate processing, certificate rendering, and QR verification remain pending.
+
+### Verification
+
+- The full Laravel suite passed 164 tests with 2,486 assertions; the focused RES screening suite passed 12 tests with 141 assertions.
+- Strict Composer validation, platform requirements, route registration, migration status, Blade compilation, Pint, PHP syntax checks, the Vite production build, and `git diff --check` passed.
+- Interactive queue, screening, reviewer selection, and confirmation checks passed at 1440, 1280, 1024, 768, and 390 pixels with no page-level horizontal overflow or browser-console warnings.
+
 ## 2026-07-31
 
 ### Changed

@@ -18,15 +18,16 @@ This folder documents the implemented ECRATS system contract and clearly identif
 12. [Applicant dashboard and application flow](APPLICANT_DASHBOARD.md)
 13. [Adviser application visibility and decisions](ADVISER_APPLICATION_VISIBILITY.md)
 14. [Application and requirements workflow](APPLICATION_AND_REQUIREMENTS_WORKFLOW.md)
-15. [Document and certificate generation](DOCUMENT_AND_CERTIFICATE_GENERATION.md)
-16. [Security implementation](SECURITY_IMPLEMENTATION.md)
-17. [Performance and scalability](PERFORMANCE_AND_SCALABILITY.md)
-18. [Database and data flow](DATABASE_AND_DATA_FLOW.md)
-19. [Deployment security checklist](DEPLOYMENT_SECURITY_CHECKLIST.md)
-20. [Testing guide](TESTING_GUIDE.md)
-21. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
-22. [Known issues and pending verification](KNOWN_ISSUES.md)
-23. [Changelog](CHANGELOG.md)
+15. [RES screening and reviewer assignment](RES_SCREENING_AND_REVIEWER_ASSIGNMENT.md)
+16. [Document and certificate generation](DOCUMENT_AND_CERTIFICATE_GENERATION.md)
+17. [Security implementation](SECURITY_IMPLEMENTATION.md)
+18. [Performance and scalability](PERFORMANCE_AND_SCALABILITY.md)
+19. [Database and data flow](DATABASE_AND_DATA_FLOW.md)
+20. [Deployment security checklist](DEPLOYMENT_SECURITY_CHECKLIST.md)
+21. [Testing guide](TESTING_GUIDE.md)
+22. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
+23. [Known issues and pending verification](KNOWN_ISSUES.md)
+24. [Changelog](CHANGELOG.md)
 
 ## Interface References
 
@@ -43,6 +44,6 @@ This folder documents the implemented ECRATS system contract and clearly identif
 
 ## Scope
 
-The documented implementation includes authentication, account setup, role onboarding, account administration, verified Excel-only `.xlsx` generation and preview/confirmation, RES-only archived-account restoration, immutable dropdown identities with historical-label aliases, the canonical `/dashboard`, Applicant drafts and private documents, date-based research duration, configured initial submission, the three-formal-application limit, Adviser return/endorsement decisions, active-RES notification and endorsed-application visibility, deadline/timeline configuration, shared navigation, notifications, profile/settings access, and audit records. RES screening decisions, the reviewer lifecycle, result/certificate release, QR verification, Microsoft Excel acceptance, and final responsive acceptance remain explicitly identified as incomplete or pending.
+The documented implementation includes authentication, account setup, role onboarding, account administration, verified Excel-only `.xlsx` generation and preview/confirmation, RES-only archived-account restoration, immutable dropdown identities with historical-label aliases, the canonical `/dashboard`, Applicant drafts and private documents, date-based research duration, configured initial submission, the three-formal-application limit, Adviser return/endorsement decisions, the RES queue, administrative screening, Expedited/Full Board/Exempted classification, exact initial reviewer assignment, deadline/timeline configuration, shared navigation, notifications, profile/settings access, and audit records. Blind reviewer evaluation, result/certificate release, QR verification, Microsoft Excel acceptance, and final responsive acceptance remain explicitly identified as incomplete or pending.
 
 Keep these files synchronized whenever dashboard routes, role rules, data queries, or shared components change.

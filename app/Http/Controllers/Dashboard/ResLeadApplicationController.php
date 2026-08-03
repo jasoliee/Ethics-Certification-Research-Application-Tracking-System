@@ -2,95 +2,320 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Enums\ApplicantType;
 use App\Enums\ApplicationStatus;
+use App\Enums\ReceiptCheckStatus;
+use App\Enums\ResearchType;
+use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewType;
+use App\Enums\ScreeningCompletenessStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ResLead\AssignApplicationReviewersRequest;
+use App\Http\Requests\ResLead\ClassifyResearchApplicationRequest;
+use App\Http\Requests\ResLead\UpdateResearchApplicationScreeningRequest;
 use App\Models\ResearchApplication;
-use App\Services\Settings\AcademicTermResolver;
+use App\Services\Applications\ApplicationRequirementService;
+use App\Services\Applications\ResScreeningWorkflowService;
+use App\Services\Applications\ReviewerEligibilityService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * Lists formally endorsed applications that have entered the RES workflow.
+ * Lists, screens, classifies, and assigns adviser-endorsed applications for RES Leads.
  */
 class ResLeadApplicationController extends Controller
 {
-    public function index(Request $request, AcademicTermResolver $terms): View
+    /**
+     * Display the searchable and filterable RES applications queue.
+     */
+    public function index(Request $request): View
     {
         $visibleStatuses = collect(ApplicationStatus::afterAdviserEndorsement());
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
             'status' => ['nullable', Rule::in($visibleStatuses->pluck('value')->all())],
+            'applicant_type' => ['nullable', Rule::enum(ApplicantType::class)],
+            'research_type' => ['nullable', Rule::enum(ResearchType::class)],
+            'review_type' => ['nullable', Rule::enum(ReviewType::class)],
+            'affiliation' => ['nullable', 'string', 'max:150'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-            'semester' => ['nullable', 'string', 'max:50'],
-            'academic_year' => ['nullable', 'string', 'max:20'],
         ]);
-        $selectedStatus = $visibleStatuses->first(
-            fn (ApplicationStatus $status): bool => $status->value === ($filters['status'] ?? null),
+
+        $applicationsQuery = $this->visibleApplicationsQuery($visibleStatuses->pluck('value')->all());
+
+        // Search only approved queue fields and related display identities through parameterized Eloquent clauses.
+        $applicationsQuery
+            ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
+                $search = trim((string) $filters['q']);
+
+                $query->where(function (Builder $matching) use ($search): void {
+                    $matching
+                        ->where('application_code', 'like', "%{$search}%")
+                        ->orWhere('research_title', 'like', "%{$search}%")
+                        ->orWhere('institution', 'like', "%{$search}%")
+                        ->orWhere('program', 'like', "%{$search}%")
+                        ->orWhereHas('applicant', fn (Builder $applicants) => $applicants
+                            ->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('adviser', fn (Builder $advisers) => $advisers
+                            ->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->when(filled($filters['status'] ?? null), fn (Builder $query) => $query
+                ->where('application_status', $filters['status']))
+            ->when(filled($filters['applicant_type'] ?? null), fn (Builder $query) => $query
+                ->where('applicant_type', $filters['applicant_type']))
+            ->when(filled($filters['research_type'] ?? null), fn (Builder $query) => $query
+                ->where('research_type', $filters['research_type']))
+            ->when(filled($filters['review_type'] ?? null), fn (Builder $query) => $query
+                ->where('review_type', $filters['review_type']))
+            ->when(filled($filters['affiliation'] ?? null), function (Builder $query) use ($filters): void {
+                $affiliation = trim((string) $filters['affiliation']);
+
+                $query->where(fn (Builder $matching) => $matching
+                    ->where('institution', $affiliation)
+                    ->orWhere('program', $affiliation));
+            })
+            ->when(filled($filters['date_from'] ?? null), fn (Builder $query) => $query
+                ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
+                    ->whereDate('endorsed_at', '>=', $filters['date_from'])))
+            ->when(filled($filters['date_to'] ?? null), fn (Builder $query) => $query
+                ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
+                    ->whereDate('endorsed_at', '<=', $filters['date_to'])));
+
+        $applications = $applicationsQuery
+            ->with([
+                'applicant:id,name',
+                'adviser:id,name',
+                // latestOfMany adds an internal join, so avoid an ambiguous unqualified relation projection.
+                'latestEndorsement',
+            ])
+            ->latest('status_updated_at')
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        // Build one bounded affiliation option list from records already eligible for the RES queue.
+        $affiliations = $this->visibleApplicationsQuery($visibleStatuses->pluck('value')->all())
+            ->select(['institution', 'program'])
+            ->distinct()
+            ->get()
+            ->flatMap(fn (ResearchApplication $application): array => [
+                $application->institution,
+                $application->program,
+            ])
+            ->filter()
+            ->unique(fn (string $value): string => mb_strtolower($value))
+            ->sort()
+            ->values();
+
+        return view('dashboard.applications.res-index', [
+            'pageTitle' => 'Applications',
+            'applications' => $applications,
+            'statuses' => $visibleStatuses,
+            'applicantTypes' => ApplicantType::cases(),
+            'researchTypes' => ResearchType::cases(),
+            'reviewTypes' => ReviewType::cases(),
+            'affiliations' => $affiliations,
+            'filters' => $filters,
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Applications'],
+            ],
+        ]);
+    }
+
+    /**
+     * Display screening details, classification state, documents, and assigned reviewers.
+     */
+    public function show(
+        Request $request,
+        ResearchApplication $researchApplication,
+        ApplicationRequirementService $requirements,
+    ): View {
+        Gate::authorize('view', $researchApplication);
+        $application = $this->loadResApplication($researchApplication);
+        $canUpdateScreening = $request->user()->can('updateScreening', $application);
+
+        return view('dashboard.applications.res-show', [
+            'pageTitle' => 'Application Screening Details',
+            'application' => $application,
+            'requirementSummary' => $requirements->summary($application),
+            'canClassify' => $request->user()->can('classify', $application),
+            // Edit mode is explicit so saved details remain the default read-only presentation.
+            'canUpdateScreening' => $canUpdateScreening,
+            'editingScreening' => $canUpdateScreening && $request->boolean('edit_screening'),
+            'canAssignReviewers' => $request->user()->can('assignReviewers', $application),
+            'reviewTypes' => ReviewType::cases(),
+            'completenessStatuses' => ScreeningCompletenessStatus::cases(),
+            'receiptStatuses' => ReceiptCheckStatus::cases(),
+            'breadcrumbs' => [
+                ['label' => 'Applications', 'route' => 'res.applications.index'],
+                ['label' => $application->application_code],
+            ],
+        ]);
+    }
+
+    /**
+     * Persist one validated classification and route reviewer-based cases to assignment.
+     */
+    public function classify(
+        ClassifyResearchApplicationRequest $request,
+        ResearchApplication $researchApplication,
+        ResScreeningWorkflowService $workflow,
+    ): RedirectResponse {
+        $screening = $workflow->classify(
+            $request->user(),
+            $researchApplication,
+            $request->validated(),
         );
 
-        $applicationsQuery = ResearchApplication::query()
+        if ($screening->review_type->requiresReviewers()) {
+            return redirect()
+                ->route('res.applications.reviewers.index', $researchApplication)
+                ->with('status', 'Classification saved. Select the required eligible reviewer or reviewers.');
+        }
+
+        return redirect()
+            ->route('res.applications.show', $researchApplication)
+            ->with('status', 'Application classified as exempted. Reviewer assignment was bypassed.');
+    }
+
+    /**
+     * Apply an authorized screening correction and route the RES Lead to the resulting workflow state.
+     */
+    public function updateScreening(
+        UpdateResearchApplicationScreeningRequest $request,
+        ResearchApplication $researchApplication,
+        ResScreeningWorkflowService $workflow,
+    ): RedirectResponse {
+        $workflow->updateScreening(
+            $request->user(),
+            $researchApplication,
+            $request->validated(),
+        );
+        $researchApplication->refresh();
+
+        if ($researchApplication->application_status === ApplicationStatus::AwaitingReviewerAssignment) {
+            return redirect()
+                ->route('res.applications.reviewers.index', $researchApplication)
+                ->with('status', 'Screening updated. Select the reviewer set required by the corrected classification.');
+        }
+
+        return redirect()
+            ->route('res.applications.show', $researchApplication)
+            ->with('status', 'Screening details and classification decision updated.');
+    }
+
+    /**
+     * Display eligible reviewers or the immutable assignment result for this application.
+     */
+    public function reviewers(
+        Request $request,
+        ResearchApplication $researchApplication,
+        ReviewerEligibilityService $eligibility,
+    ): View {
+        Gate::authorize('view', $researchApplication);
+        $filters = $request->validate([
+            'reviewer_q' => ['nullable', 'string', 'max:150'],
+            'department' => ['nullable', 'string', 'max:150'],
+        ]);
+        $application = $this->loadResApplication($researchApplication);
+        $reviewType = ReviewType::tryFrom((string) $application->review_type);
+
+        abort_unless($application->screening && $reviewType?->requiresReviewers(), 404);
+        $canAssign = $request->user()->can('assignReviewers', $application)
+            && $application->reviewerAssignments->isEmpty();
+
+        return view('dashboard.applications.res-reviewers', [
+            'pageTitle' => 'Reviewer Assignment',
+            'application' => $application,
+            'reviewType' => $reviewType,
+            'requiredReviewerCount' => $reviewType->reviewerCount(),
+            'canAssign' => $canAssign,
+            'candidates' => $canAssign
+                ? $eligibility->paginateCandidates($application, $reviewType, $filters)
+                : null,
+            // Department options use the same active/classification boundary as the candidate list.
+            'departments' => $canAssign
+                ? $eligibility->departmentOptions($application, $reviewType)
+                : collect(),
+            'filters' => $filters,
+            'breadcrumbs' => [
+                ['label' => 'Applications', 'route' => 'res.applications.index'],
+                ['label' => $application->application_code, 'route' => 'res.applications.show', 'parameters' => [$application]],
+                ['label' => 'Reviewer Assignment'],
+            ],
+        ]);
+    }
+
+    /**
+     * Persist the exact eligible reviewer set after server-side confirmation.
+     */
+    public function assignReviewers(
+        AssignApplicationReviewersRequest $request,
+        ResearchApplication $researchApplication,
+        ResScreeningWorkflowService $workflow,
+    ): RedirectResponse {
+        $workflow->assignReviewers(
+            $request->user(),
+            $researchApplication,
+            $request->validated('reviewer_ids'),
+        );
+
+        return redirect()
+            ->route('res.applications.reviewers.index', $researchApplication)
+            ->with('status', 'Reviewers successfully assigned.');
+    }
+
+    /**
+     * Start every queue query at the formal post-endorsement visibility boundary.
+     *
+     * @param  array<int, string>  $statusValues
+     */
+    private function visibleApplicationsQuery(array $statusValues): Builder
+    {
+        return ResearchApplication::query()
             ->select([
                 'id',
-                'academic_term_id',
                 'application_code',
                 'applicant_user_id',
                 'adviser_user_id',
+                'applicant_type',
                 'research_title',
+                'research_type',
+                'institution',
+                'department',
+                'program',
                 'review_type',
                 'application_status',
                 'submitted_at',
                 'status_updated_at',
             ])
             ->whereNotNull('submitted_at')
-            ->whereIn('application_status', $visibleStatuses->pluck('value'));
+            ->whereIn('application_status', $statusValues);
+    }
 
-        $terms->applyFilters($applicationsQuery, $filters);
-        $applications = $applicationsQuery
-            ->with([
-                'applicant:id,name,institutional_identifier',
-                'adviser:id,name',
-                'latestEndorsement',
-            ])
-            ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
-                $search = trim((string) $filters['q']);
-
-                $query->where(function (Builder $searchQuery) use ($search): void {
-                    $searchQuery
-                        ->where('application_code', 'like', "%{$search}%")
-                        ->orWhere('research_title', 'like', "%{$search}%")
-                        ->orWhereHas('applicant', fn (Builder $applicantQuery) => $applicantQuery
-                            ->where('name', 'like', "%{$search}%")
-                            ->orWhere('institutional_identifier', 'like', "%{$search}%"))
-                        ->orWhereHas('adviser', fn (Builder $adviserQuery) => $adviserQuery
-                            ->where('name', 'like', "%{$search}%"));
-                });
-            })
-            ->when($selectedStatus, fn (Builder $query) => $query
-                ->where('application_status', $selectedStatus->value))
-            ->when(filled($filters['date_from'] ?? null), fn (Builder $query) => $query
-                ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
-                    ->whereDate('endorsed_at', '>=', $filters['date_from'])))
-            ->when(filled($filters['date_to'] ?? null), fn (Builder $query) => $query
-                ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
-                    ->whereDate('endorsed_at', '<=', $filters['date_to'])))
-            ->latest('status_updated_at')
-            ->latest('id')
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('dashboard.applications.res-index', [
-            'pageTitle' => 'Endorsed Applications',
-            'applications' => $applications,
-            'statuses' => $visibleStatuses,
-            'filters' => $filters,
-            'termOptions' => $terms->filterOptions(),
-            'breadcrumbs' => [
-                ['label' => 'Home', 'route' => 'dashboard'],
-                ['label' => 'Endorsed Applications'],
-            ],
+    /**
+     * Eager-load only authorized screening, document, and reviewer display relationships.
+     */
+    private function loadResApplication(ResearchApplication $application): ResearchApplication
+    {
+        return $application->loadMissing([
+            'applicant:id,name,email,institutional_identifier,institution,department,program,role,applicant_type',
+            'adviser:id,name,email,institution,department',
+            'latestEndorsement.adviser:id,name',
+            'screening.screenedBy:id,name',
+            'reviewerAssignments' => fn ($assignments) => $assignments
+                ->where('review_type', 'initial_review')
+                ->orderBy('assigned_at')
+                ->with(['reviewer' => fn ($reviewers) => $reviewers
+                    ->withCount(['reviewerAssignments as active_assignment_count' => fn (Builder $active) => $active
+                        ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())])]),
         ]);
     }
 }

@@ -115,7 +115,7 @@
                                                 data-document-open
                                                 data-document-name="{{ $document->original_file_name }}"
                                                 data-document-meta="{{ $item['requirement']->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
-                                                data-document-preview-url="{{ $document->supportsInlinePreview() ? route($documentRouteBase.'.preview', [$application, $document]) : '' }}"
+                                                data-document-preview-url="{{ route($documentRouteBase.'.preview', [$application, $document]) }}"
                                                 data-document-download-url="{{ route($documentRouteBase.'.download', [$application, $document]) }}"
                                                 data-document-replace-input="{{ $role === \App\Enums\UserRole::Applicant && $canEdit ? 'detail_replace_document_'.$item['requirement']->id : '' }}"
                                             >

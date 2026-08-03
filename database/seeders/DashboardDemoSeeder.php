@@ -5,13 +5,19 @@ namespace Database\Seeders;
 use App\Enums\ApplicantType;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\EndorsementStatus;
+use App\Enums\ReceiptCheckStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ResearchType;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewType;
+use App\Enums\ScreeningCompletenessStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
+use App\Models\ApplicationScreening;
 use App\Models\DeadlineConfiguration;
 use App\Models\DocumentRequirement;
+use App\Models\Endorsement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\TimelineCalendarEvent;
@@ -80,7 +86,7 @@ class DashboardDemoSeeder extends Seeder
             'Exploring Mobile Learning Tools and Student Engagement',
             ApplicationStatus::UnderResScreening,
             'student',
-            'expedited',
+            null,
             now()->subDays(4),
         );
 
@@ -145,6 +151,9 @@ class DashboardDemoSeeder extends Seeder
                 ],
             );
         }
+
+        // Backfill the prerequisite records represented by later demo statuses so every linked screen remains usable.
+        $this->seedResWorkflowContext($resLead, $adviser);
 
         $this->seedDeadlines();
         $this->seedTimeline();
@@ -228,6 +237,7 @@ class DashboardDemoSeeder extends Seeder
             ApplicationStatus::FeedbackRequired => ApplicationStage::Revision,
             ApplicationStatus::ReviewSubmittedPendingRelease,
             ApplicationStatus::ResultReleasedAccepted,
+            ApplicationStatus::Exempted,
             ApplicationStatus::ResultReleasedDisapproved => ApplicationStage::DecisionRelease,
             ApplicationStatus::CertificateReleased, ApplicationStatus::Archived => ApplicationStage::Completed,
         };
@@ -253,6 +263,53 @@ class DashboardDemoSeeder extends Seeder
                     'due_at' => now()->addDays($days)->endOfDay(),
                     'priority' => $priority,
                     'is_active' => true,
+                ],
+            );
+        }
+    }
+
+    /**
+     * Preserve idempotent Adviser endorsement and RES classification history for post-screening demo records.
+     */
+    private function seedResWorkflowContext(User $resLead, User $adviser): void
+    {
+        $applications = ResearchApplication::query()
+            ->where('application_code', 'like', 'ECRATS-DEMO-%')
+            ->whereIn('application_status', ApplicationStatus::afterAdviserEndorsement())
+            ->get();
+
+        foreach ($applications as $application) {
+            Endorsement::updateOrCreate(
+                [
+                    'research_application_id' => $application->id,
+                    'adviser_user_id' => $adviser->id,
+                    'endorsement_status' => EndorsementStatus::Endorsed->value,
+                ],
+                [
+                    'endorsement_remarks' => 'Demo application endorsed for RES processing.',
+                    'endorsed_at' => $application->submitted_at?->copy()->addDay() ?? now(),
+                ],
+            );
+
+            $reviewType = ReviewType::tryFrom((string) $application->review_type);
+
+            if (! $reviewType) {
+                continue;
+            }
+
+            ApplicationScreening::updateOrCreate(
+                ['research_application_id' => $application->id],
+                [
+                    'screened_by_user_id' => $resLead->id,
+                    'completeness_status' => ScreeningCompletenessStatus::Complete->value,
+                    'receipt_check_status' => ReceiptCheckStatus::Accepted->value,
+                    'required_documents_verified' => true,
+                    'receipt_status_recorded' => true,
+                    'basic_eligibility_confirmed' => true,
+                    'screening_notes' => 'Demo administrative screening completed.',
+                    'review_type' => $reviewType->value,
+                    'classification_reason' => 'Demo classification retained to support the represented workflow status.',
+                    'classified_at' => $application->submitted_at?->copy()->addDays(2) ?? now(),
                 ],
             );
         }

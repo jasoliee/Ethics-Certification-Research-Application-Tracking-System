@@ -19,10 +19,12 @@ Each role prefix uses `EnsureUserHasRole`. A user entering another role area is 
 
 - Applicants may view only their own research applications and may modify/upload only while the record is in an approved editable state.
 - Advisers may view formally submitted applications assigned to them and may decide only a complete initial-cycle submission during the Adviser Endorsement period.
-- Reviewers may view only their reviewer assignments.
-- RES Lead users may view administrative application records.
+- Reviewers may list and view only their own reviewer assignments and may preview/download a private application document only when an assignment to that application exists.
+- RES Lead users may view administrative application records, classify formally submitted records only in an eligible screening state, correct an existing screening subject to started-work protection, and assign reviewers only while a classified record awaits assignment.
 
 `ResearchApplicationPolicy` and `ReviewerAssignmentPolicy` enforce these record rules. Controllers call `Gate::authorize` before returning record pages or performing workflow writes. Private document routes also verify that the nested document belongs to the route-bound application.
+
+`ResearchApplicationPolicy::classify` requires the RES Lead role, a formal submission, and `adviser_endorsed` or `under_res_screening`. `updateScreening` requires the RES Lead role, a formal submission, a persisted screening, and a status within screening, reviewer assignment, active initial review, or Exempted; later release/revision/certificate/archive states are immutable. The workflow service also refuses incompatible changes after review work starts. `assignReviewers` requires the RES Lead role and `awaiting_reviewer_assignment`. `ResScreeningWorkflowService` repeats these Gate checks after locking current rows so a stale browser page cannot bypass a workflow transition.
 
 ## Account Creation
 

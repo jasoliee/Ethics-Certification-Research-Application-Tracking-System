@@ -13,6 +13,7 @@ enum ApplicationStatus: string
     case AwaitingReviewerAssignment = 'awaiting_reviewer_assignment';
     case UnderExpeditedReview = 'under_expedited_review';
     case UnderFullBoardReview = 'under_full_board_review';
+    case Exempted = 'exempted';
     case ReviewSubmittedPendingRelease = 'review_submitted_pending_release';
     case ResultReleasedAccepted = 'result_released_accepted';
     case ResultReleasedMinorRevision = 'result_released_minor_revision';
@@ -37,6 +38,7 @@ enum ApplicationStatus: string
             self::AwaitingReviewerAssignment => 'Awaiting Assignment',
             self::UnderExpeditedReview => 'Under Expedited Review',
             self::UnderFullBoardReview => 'Under Full Board Review',
+            self::Exempted => 'Exempted',
             self::ReviewSubmittedPendingRelease => 'For Result Release',
             self::ResultReleasedAccepted => 'Accepted',
             self::ResultReleasedMinorRevision => 'Minor Revision',
@@ -59,7 +61,7 @@ enum ApplicationStatus: string
             self::UnderResScreening, self::AwaitingReviewerAssignment => 'blue',
             self::UnderExpeditedReview, self::RevisionSubmitted, self::UnderReReview => 'green',
             self::UnderFullBoardReview, self::RevisionWindowOpen => 'violet',
-            self::ReviewSubmittedPendingRelease => 'cyan',
+            self::Exempted, self::ReviewSubmittedPendingRelease => 'cyan',
             self::ReturnedByAdviser, self::ResultReleasedDisapproved => 'red',
             self::ResultReleasedAccepted, self::CertificateReleased => 'success',
             self::ResultReleasedMinorRevision => 'amber',
@@ -81,6 +83,7 @@ enum ApplicationStatus: string
             self::UnderResScreening,
             self::AwaitingReviewerAssignment,
             ...self::underReview(),
+            self::Exempted,
             self::ReviewSubmittedPendingRelease,
             self::ResultReleasedAccepted,
             self::ResultReleasedMinorRevision,

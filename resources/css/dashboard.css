@@ -2678,6 +2678,20 @@
         font-size: 16px;
     }
 
+    .dashboard-breadcrumbs {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .dashboard-breadcrumbs li:not(:last-child) {
+        display: none;
+    }
+
+    .dashboard-breadcrumbs li:last-child,
+    .dashboard-breadcrumbs span[aria-current='page'] {
+        max-width: 100%;
+    }
+
     .dashboard-topbar-actions {
         gap: 2px;
     }
@@ -7705,5 +7719,962 @@
 
     .res-application-panel .application-panel-heading {
         padding: 16px;
+    }
+}
+
+@layer components {
+    /* Keeps the complete RES workflow dense, scan-friendly, and bounded by the dashboard workspace. */
+    .res-workflow-page {
+        gap: 16px;
+    }
+
+    .res-screening-page-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+    }
+
+    .res-screening-page-heading > div {
+        min-width: 0;
+    }
+
+    /* Replaces the earlier term filters with the approved seven-field RES queue arrangement. */
+    .application-filter-bar.application-filter-bar-res {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-areas:
+            "search search status applicant"
+            "research review affiliation date"
+            ". . apply clear";
+        align-items: end;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .application-filter-bar-res > .res-filter-search { grid-area: search; }
+    .application-filter-bar-res > .res-filter-status { grid-area: status; }
+    .application-filter-bar-res > .res-filter-applicant-type { grid-area: applicant; }
+    .application-filter-bar-res > .res-filter-research-type { grid-area: research; }
+    .application-filter-bar-res > .res-filter-review-type { grid-area: review; }
+    .application-filter-bar-res > .res-filter-affiliation { grid-area: affiliation; }
+    .application-filter-bar-res > .res-filter-date-range { grid-area: date; }
+
+    .application-filter-bar-res > .res-application-filter-actions {
+        display: contents;
+    }
+
+    .application-field-label {
+        color: #27364a;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    /* Aligns the embedded search icon with the control now that queue labels are visible. */
+    .application-filter-bar .application-search-field > span,
+    .res-reviewer-filter-bar .application-search-field > span {
+        top: auto;
+        bottom: 13px;
+        transform: none;
+    }
+
+    .res-date-range-inputs {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 6px;
+    }
+
+    .res-date-range-inputs > span {
+        color: #667085;
+        font-size: 12px;
+    }
+
+    .res-filter-apply { grid-area: apply; }
+    .res-filter-clear { grid-area: clear; }
+
+    .res-queue-heading {
+        align-items: center;
+    }
+
+    .dashboard-icon-text-action {
+        white-space: nowrap;
+    }
+
+    /* Uses the high-fidelity eight-column queue while retaining an internal scrollbar at narrower widths. */
+    .res-application-table {
+        min-width: 1120px;
+        table-layout: fixed;
+    }
+
+    .res-application-table th:nth-child(1) { width: 130px; }
+    .res-application-table th:nth-child(2) { width: 225px; }
+    .res-application-table th:nth-child(3) { width: 125px; }
+    .res-application-table th:nth-child(4) { width: 105px; }
+    .res-application-table th:nth-child(5) { width: 145px; }
+    .res-application-table th:nth-child(6) { width: 225px; }
+    .res-application-table th:nth-child(7) { width: 130px; }
+    .res-application-table th:nth-child(8) { width: 70px; }
+
+    .res-application-table td:nth-child(6) strong,
+    .res-application-table td:nth-child(6) small,
+    .res-requirement-table td small,
+    .res-reviewer-table td small {
+        display: block;
+    }
+
+    .res-application-table td:nth-child(6) small,
+    .res-requirement-table td small,
+    .res-reviewer-table td small {
+        margin-top: 3px;
+        color: #667085;
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    /* Shared RES functional panels follow the compact border and heading language of existing dashboard tools. */
+    .res-workflow-panel {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(23, 56, 38, 0.045);
+    }
+
+    .res-workflow-panel-heading {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid #e3e9e5;
+        padding: 13px 16px;
+        color: #168349;
+    }
+
+    .res-workflow-panel-heading h2,
+    .res-workflow-panel-heading-split > div h2 {
+        margin: 0;
+        color: #1b2a22;
+        font-size: 15px;
+        line-height: 1.35;
+        font-weight: 800;
+    }
+
+    .res-workflow-panel-heading-split {
+        justify-content: space-between;
+    }
+
+    .res-workflow-panel-heading-split > div {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .res-screening-overview-grid {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(250px, 0.8fr) minmax(280px, 1fr) minmax(0, 2fr);
+        gap: 12px;
+    }
+
+    .res-compact-details,
+    .res-screening-summary,
+    .res-confirmation-details {
+        display: grid;
+        margin: 0;
+    }
+
+    .res-compact-details > div {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(105px, 0.8fr) minmax(0, 1.2fr);
+        gap: 10px;
+        border-bottom: 1px solid #e8edea;
+        padding: 11px 16px;
+    }
+
+    .res-compact-details > div:last-child {
+        border-bottom: 0;
+    }
+
+    .res-compact-details dt,
+    .res-screening-summary dt,
+    .res-confirmation-details dt {
+        color: #445268;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .res-compact-details dd,
+    .res-screening-summary dd,
+    .res-confirmation-details dd {
+        min-width: 0;
+        margin: 0;
+        color: #27364a;
+        font-size: 13px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .res-detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .res-research-panel .res-compact-details > div {
+        grid-template-columns: minmax(105px, 0.55fr) minmax(0, 1.45fr);
+    }
+
+    .res-requirement-table {
+        min-width: 830px;
+    }
+
+    .res-requirement-table th:nth-child(1) { width: 230px; }
+    .res-requirement-table th:nth-child(2) { width: 105px; }
+    .res-requirement-table th:nth-child(3) { width: 245px; }
+    .res-requirement-table th:nth-child(4) { width: 120px; }
+    .res-requirement-table th:nth-child(5) { width: 130px; }
+
+    .res-document-action {
+        min-height: 36px;
+        padding: 7px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .res-muted-value {
+        color: #7b8795;
+        font-size: 12px;
+    }
+
+    .res-screening-decision-layout {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .res-administrative-panel,
+    .res-classification-panel {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .res-screening-fields {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        padding: 16px;
+    }
+
+    .res-eligibility-checks,
+    .res-review-type-options {
+        min-width: 0;
+        display: grid;
+        gap: 9px;
+        margin: 0;
+        border: 0;
+        padding: 0 16px 16px;
+    }
+
+    .res-eligibility-checks legend,
+    .res-review-type-options legend {
+        margin-bottom: 8px;
+        color: #27364a;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .res-eligibility-checks label {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid #e7ede9;
+        color: #324155;
+        font-size: 13px;
+    }
+
+    .res-eligibility-checks input,
+    .res-review-type-options input,
+    .res-reviewer-select-column input {
+        width: 17px;
+        height: 17px;
+        flex: 0 0 17px;
+        accent-color: #168349;
+    }
+
+    .res-review-type-options {
+        padding-top: 16px;
+    }
+
+    .res-review-type-options label {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #d7e1db;
+        border-radius: 7px;
+        padding: 12px;
+        background: #ffffff;
+        cursor: pointer;
+    }
+
+    .res-review-type-options label:has(input:checked) {
+        border-color: #46a26c;
+        background: #f1faf4;
+        box-shadow: 0 0 0 2px rgba(22, 131, 73, 0.08);
+    }
+
+    .res-review-type-copy {
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+    }
+
+    .res-review-type-copy strong {
+        color: #243126;
+        font-size: 13px;
+    }
+
+    .res-review-type-copy small {
+        color: #667085;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .res-classification-reason {
+        padding: 0 16px 14px;
+    }
+
+    .res-classification-note,
+    .res-known-conflict-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0 16px 12px;
+        border: 1px solid #cfe2d6;
+        border-radius: 6px;
+        padding: 10px 12px;
+        color: #276542;
+        background: #f2f9f4;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .res-classification-submit,
+    .res-assignment-submit {
+        width: calc(100% - 32px);
+        min-height: 44px;
+        justify-content: center;
+        margin: auto 16px 16px;
+    }
+
+    .res-standalone-error {
+        margin: -7px 16px 12px;
+    }
+
+    .res-form-error-summary {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        border: 1px solid #efb4ad;
+        border-radius: 6px;
+        padding: 11px 13px;
+        color: #9f2f25;
+        background: #fff4f2;
+    }
+
+    .res-administrative-panel > .res-form-error-summary {
+        margin: 14px 16px 0;
+    }
+
+    .res-form-error-summary > div {
+        display: grid;
+        gap: 2px;
+    }
+
+    .res-form-error-summary strong,
+    .res-form-error-summary span {
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .res-workflow-banner {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #c9dfd1;
+        border-radius: 8px;
+        padding: 13px 16px;
+        color: #185f38;
+        background: #f4faf6;
+    }
+
+    .res-workflow-banner > span {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #ffffff;
+        background: #17884e;
+    }
+
+    .res-workflow-banner strong,
+    .res-workflow-banner p {
+        margin: 0;
+    }
+
+    .res-workflow-banner strong {
+        font-size: 14px;
+    }
+
+    .res-workflow-banner p {
+        margin-top: 2px;
+        color: #526174;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .res-screening-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 18px;
+        padding: 8px 16px 16px;
+    }
+
+    .res-screening-summary > div {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(115px, 0.8fr) minmax(0, 1.2fr);
+        gap: 9px;
+        border-bottom: 1px solid #e8edea;
+        padding: 10px 0;
+    }
+
+    /* Classification values stack inside the narrower decision card so labels and badges never collide. */
+    .res-classification-panel .res-screening-summary > div {
+        grid-template-columns: minmax(0, 1fr);
+        align-content: start;
+        gap: 4px;
+    }
+
+    .res-classification-panel .status-badge {
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+    }
+
+    .res-assigned-reviewer-table {
+        min-width: 900px;
+    }
+
+    /* Reviewer assignment context keeps application, classification, and eligibility in one top scan row. */
+    .res-assignment-context-grid {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.9fr) minmax(260px, 0.8fr);
+        gap: 12px;
+    }
+
+    .res-assignment-context-grid:has(> :only-child),
+    .res-assignment-context-grid:not(:has(.res-assignment-guidelines)) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .res-assignment-context-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .res-assignment-context-details > div {
+        grid-template-columns: minmax(115px, 0.75fr) minmax(0, 1.25fr);
+    }
+
+    .res-assignment-guidelines {
+        min-width: 0;
+        border: 1px solid #cbdcf4;
+        border-radius: 8px;
+        padding: 15px 16px;
+        color: #244f8d;
+        background: #f3f7fd;
+    }
+
+    .res-assignment-guidelines header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .res-assignment-guidelines h2 {
+        margin: 0;
+        font-size: 15px;
+    }
+
+    .res-assignment-guidelines ul {
+        display: grid;
+        gap: 8px;
+        margin: 13px 0 0;
+        padding-left: 18px;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .res-reviewer-filter-bar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.35fr) auto auto;
+        align-items: end;
+        gap: 10px;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        padding: 14px;
+        background: #ffffff;
+    }
+
+    .res-reviewer-assignment-layout {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(330px, 0.85fr);
+        align-items: start;
+        gap: 12px;
+    }
+
+    .res-reviewer-table {
+        min-width: 800px;
+    }
+
+    .res-reviewer-select-column {
+        width: 50px;
+        text-align: center;
+    }
+
+    .res-reviewer-table tbody tr.is-unavailable {
+        color: #7a8493;
+        background: #f6f7f7;
+    }
+
+    .res-reviewer-table tbody tr.is-selected {
+        background: #f1faf4;
+    }
+
+    .res-reviewer-table label {
+        cursor: pointer;
+    }
+
+    .res-reviewer-capacity-note {
+        display: block;
+        margin-top: 2px;
+        color: #b42318;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    /* Reviewer assignment filters mirror the shared dashboard controls without crowding the work table. */
+    .reviewer-assignment-filter-bar {
+        display: grid;
+        grid-template-columns: minmax(250px, 1.3fr) repeat(4, minmax(145px, 0.65fr)) auto auto;
+        align-items: end;
+        gap: 10px;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        padding: 14px;
+        background: #ffffff;
+    }
+
+    .reviewer-assignment-page,
+    .reviewer-assignment-detail-page {
+        container-name: reviewer-assignment-workspace;
+        container-type: inline-size;
+    }
+
+    .reviewer-assignment-detail-page {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-assignment-detail-page > *,
+    .reviewer-assignment-detail-grid,
+    .reviewer-assignment-detail-grid > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .reviewer-assignment-filter-bar > * {
+        min-width: 0;
+    }
+
+    .reviewer-assignment-table {
+        min-width: 840px;
+    }
+
+    .reviewer-assignment-title {
+        width: 34%;
+        min-width: 240px;
+    }
+
+    .reviewer-deadline-overdue {
+        color: #b42318;
+        font-weight: 750;
+    }
+
+    .reviewer-assignment-detail-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .reviewer-assignment-detail-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .reviewer-assignment-details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 18px;
+        margin: 0;
+        padding: 8px 18px 18px;
+    }
+
+    .reviewer-assignment-details > div {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(82px, 0.75fr) minmax(0, 1.25fr);
+        gap: 10px;
+        border-bottom: 1px solid #e8edea;
+        padding: 11px 0;
+    }
+
+    .reviewer-assignment-details dt {
+        color: #445268;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .reviewer-assignment-details dd {
+        min-width: 0;
+        margin: 0;
+        overflow-wrap: break-word;
+        word-break: normal;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .reviewer-assignment-details .reviewer-assignment-detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .reviewer-document-table {
+        min-width: 760px;
+    }
+
+    .reviewer-document-table button.dashboard-action-link {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .res-selection-count {
+        border: 1px solid #cad7cf;
+        border-radius: 4px;
+        padding: 3px 7px;
+        color: #667085;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .res-selection-count.is-complete {
+        border-color: #9fc9ad;
+        color: #176f3d;
+        background: #edf8f1;
+    }
+
+    .res-selected-reviewer-list,
+    .res-confirmation-reviewers {
+        min-height: 148px;
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        margin: 0;
+        padding: 14px 16px;
+        list-style: none;
+    }
+
+    .res-selected-reviewer-list li,
+    .res-confirmation-reviewers li {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #cfe2d6;
+        border-radius: 6px;
+        padding: 10px;
+        background: #f8fcf9;
+    }
+
+    .res-selected-reviewer-list li > div,
+    .res-confirmation-reviewers li > div {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+    }
+
+    .res-selected-reviewer-list li strong,
+    .res-confirmation-reviewers li strong {
+        color: #263448;
+        font-size: 12px;
+    }
+
+    .res-selected-reviewer-list li small,
+    .res-confirmation-reviewers li small,
+    .res-selected-reviewer-list li > span,
+    .res-confirmation-reviewers li > span {
+        color: #667085;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+    }
+
+    .res-selected-reviewer-remove {
+        border: 0;
+        padding: 4px;
+        color: #b42318;
+        background: transparent;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .res-selected-reviewer-remove:hover,
+    .res-selected-reviewer-remove:focus-visible {
+        text-decoration: underline;
+    }
+
+    .res-assignment-submit:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .res-assignment-confirmation-modal {
+        width: min(100%, 670px);
+    }
+
+    .res-confirmation-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border: 1px solid #dce5e0;
+        border-radius: 6px;
+        padding: 8px 14px;
+    }
+
+    .res-confirmation-details > div {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(115px, 0.7fr) minmax(0, 1.3fr);
+        gap: 8px;
+        padding: 8px 0;
+    }
+
+    .res-assignment-confirmation-modal h3 {
+        margin: 0;
+        color: #263448;
+        font-size: 14px;
+    }
+
+    .res-assignment-confirmation-modal .res-confirmation-reviewers {
+        min-height: 0;
+        padding-inline: 0;
+    }
+}
+
+/* Container queries respond to the actual content width after the persistent sidebar is reserved. */
+@container reviewer-assignment-workspace (max-width: 1120px) {
+    .reviewer-assignment-filter-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .reviewer-assignment-filter-bar > .application-search-field {
+        grid-column: span 2;
+    }
+}
+
+@container reviewer-assignment-workspace (max-width: 820px) {
+    .reviewer-assignment-filter-bar,
+    .reviewer-assignment-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reviewer-assignment-detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-assignment-filter-bar > .application-search-field {
+        grid-column: 1 / -1;
+    }
+}
+
+@container reviewer-assignment-workspace (max-width: 560px) {
+    .reviewer-assignment-filter-bar,
+    .reviewer-assignment-details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-assignment-filter-bar > .application-search-field,
+    .reviewer-assignment-details .reviewer-assignment-detail-wide {
+        grid-column: auto;
+    }
+
+    .reviewer-assignment-details > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+    }
+
+    .reviewer-assignment-detail-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .reviewer-assignment-detail-heading .dashboard-outline-action {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@container application-workspace (max-width: 1120px) {
+    .application-filter-bar.application-filter-bar-res {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+            "search search"
+            "status applicant"
+            "research review"
+            "affiliation affiliation"
+            "date date"
+            "apply clear";
+    }
+
+    .res-screening-overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .res-requirement-panel {
+        grid-column: 1 / -1;
+    }
+
+    .res-assignment-context-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .res-assignment-guidelines {
+        grid-column: 1 / -1;
+    }
+}
+
+@container application-workspace (max-width: 820px) {
+    .res-screening-page-heading,
+    .res-workflow-banner {
+        align-items: stretch;
+    }
+
+    .res-screening-page-heading {
+        flex-direction: column;
+    }
+
+    .res-screening-overview-grid,
+    .res-screening-decision-layout,
+    .res-assignment-context-grid,
+    .res-reviewer-assignment-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .res-requirement-panel,
+    .res-assignment-guidelines {
+        grid-column: auto;
+    }
+
+    .res-workflow-banner {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .res-workflow-banner > .dashboard-outline-action {
+        grid-column: 1 / -1;
+    }
+
+    .res-reviewer-filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .res-reviewer-filter-bar > .application-search-field {
+        grid-column: 1 / -1;
+    }
+}
+
+@container application-workspace (max-width: 560px) {
+    .application-filter-bar.application-filter-bar-res {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "search"
+            "status"
+            "applicant"
+            "research"
+            "review"
+            "affiliation"
+            "date"
+            "apply"
+            "clear";
+        padding: 12px;
+    }
+
+    .res-date-range-inputs,
+    .res-screening-fields,
+    .res-screening-summary,
+    .res-assignment-context-details,
+    .res-confirmation-details,
+    .res-reviewer-filter-bar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .res-date-range-inputs > span {
+        display: none;
+    }
+
+    .res-reviewer-filter-bar > .application-search-field {
+        grid-column: auto;
+    }
+
+    .res-screening-summary > div,
+    .res-confirmation-details > div,
+    .res-compact-details > div,
+    .res-research-panel .res-compact-details > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+    }
+
+    .res-workflow-panel-heading-split {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .res-selected-reviewer-list li,
+    .res-confirmation-reviewers li {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .res-selected-reviewer-remove {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .res-screening-page-heading > .dashboard-outline-action,
+    .res-workflow-banner > .dashboard-outline-action {
+        width: 100%;
+        justify-content: center;
     }
 }

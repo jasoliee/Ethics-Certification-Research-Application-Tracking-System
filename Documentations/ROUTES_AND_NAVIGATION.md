@@ -46,7 +46,29 @@ Applicant routes under `/student-faculty-researcher/applications` provide index,
 
 Adviser routes under `/adviser/applications` provide a scoped submitted-application list, authorized detail, private current-document preview/download, `POST /{researchApplication}/return`, and `POST /{researchApplication}/endorse`. Decision routes require dedicated Form Requests, assignment policy checks, a complete initial submission, and an available Adviser Endorsement deadline.
 
-`GET /res-lead/applications` (`res.applications.index`) is the RES-only Endorsed Applications landing page. It lists 15 records per page only after they enter an Adviser-endorsed or later RES status and supports search, status, term, and endorsement-date filters. RES Lead detail and private document routes use the same RES prefix and record policy. Later screening and decision write routes remain temporary module pages.
+RES application routes implement the post-endorsement queue through initial reviewer assignment:
+
+| Method | URI | Route name | Purpose |
+| --- | --- | --- | --- |
+| GET | `/res-lead/applications` | `res.applications.index` | Searchable/filterable post-endorsement queue |
+| GET | `/res-lead/applications/{researchApplication}` | `res.applications.show` | Screening details, requirement checklist, and saved classification |
+| POST | `/res-lead/applications/{researchApplication}/classification` | `res.applications.classification.store` | Save one validated RES classification |
+| PUT | `/res-lead/applications/{researchApplication}/classification` | `res.applications.classification.update` | Correct the saved screening under started-work safeguards |
+| GET | `/res-lead/applications/{researchApplication}/reviewers` | `res.applications.reviewers.index` | Select eligible reviewers or view saved assignment result |
+| POST | `/res-lead/applications/{researchApplication}/reviewers` | `res.applications.reviewers.store` | Save the exact required initial reviewer set |
+
+The queue lists 15 records per page only after they enter an Adviser-endorsed or later RES status. Classification, correction, and assignment writes use the named `res-workflow` throttle, RES role middleware, Form Requests, policy checks, and locked workflow services. Existing nested RES private-document preview/download routes remain policy-authorized.
+
+Reviewer routes now provide the real assigned-work surface:
+
+| Method | URI | Route name | Purpose |
+| --- | --- | --- | --- |
+| GET | `/reviewer/assignments` | `reviewer.assignments.index` | Owner-scoped searchable/filterable assigned applications |
+| GET | `/reviewer/assignments/{reviewerAssignment}` | `reviewer.assignments.show` | Policy-authorized assigned application details |
+| GET | `/reviewer/applications/{researchApplication}/documents/{applicationDocument}/preview` | `reviewer.applications.documents.preview` | Assignment-gated private preview or Office fallback |
+| GET | `/reviewer/applications/{researchApplication}/documents/{applicationDocument}/download` | `reviewer.applications.documents.download` | Assignment-gated private download |
+
+Reviewer evaluation and result-release write routes remain future work.
 
 ## Import Restoration Routes
 
