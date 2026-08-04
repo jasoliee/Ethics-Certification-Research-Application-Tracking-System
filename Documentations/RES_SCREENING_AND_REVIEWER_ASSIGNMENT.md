@@ -4,7 +4,7 @@
 
 The initial RES workflow is implemented from the adviser-endorsed queue through editable screening/classification and, when required, initial reviewer assignment. The protected interface follows the supplied `ECRATS High Fidelity (6).pdf` and `ECRATS High Fidelity (7).pdf` references while reusing the existing dashboard shell, table, badge, empty-state, pagination, modal, and private-document components.
 
-The Reviewer Assigned Applications list, details, and assignment-gated private document access are implemented. This slice does not implement the reviewer worksheet, anonymized document package, conflict declaration, reviewer decision, official result release, certificate generation, or QR verification.
+The Reviewer Assigned Applications list, one-time conflict declaration, blind workspace, assignment-gated private document access, official forms, comments, and initial recommendation submission are implemented. This slice does not implement document-content redaction, conflict reassignment, official result release, certificate generation, or QR verification.
 
 ## Applications Queue
 
@@ -64,6 +64,8 @@ Successful assignment advances the application to:
 
 The saved result screen is read-only and displays the persisted reviewers, workload, assignment time, and assignment status.
 
+New assignments start with a pending Reviewer conflict declaration and copy the configured Reviewer Submission deadline when available. Reviewers who clear the declaration may enter the protected workflow documented in [Reviewer Workflow](REVIEWER_WORKFLOW.md). A declared conflict remains blocked for later RES reassignment handling.
+
 ## Exempted Path
 
 Exempted classification writes the screening, sets `application_status` to `exempted`, advances the stage to `decision_release`, and bypasses reviewer assignment. The detail page states that direct documentation and certificate release remain a later RES process; it does not expose a non-functional release control.
@@ -71,7 +73,7 @@ Exempted classification writes the screening, sets `application_status` to `exem
 ## Security, Audit, and Notifications
 
 - Role middleware and `ResearchApplicationPolicy` protect every RES route and record write.
-- Private files remain outside `public/` and stream only through nested, policy-authorized preview/download routes.
+- Private files remain outside `public/` and stream only through nested, policy-authorized preview/download routes. The RES checklist provides separate protected View and direct Download actions for every current document.
 - Classification, correction, and assignment use transactions, row locks, validation, unique database constraints, and request throttling.
 - Audit actions are `application.res_classified`, `application.res_screening_updated`, and `application.reviewers_assigned`.
 - Audit metadata contains only review type, reviewer count, and resulting status. It excludes screening notes, classification reasons, document contents, private paths, and reviewer comments.
@@ -96,8 +98,9 @@ The existing RES private document preview/download routes remain unchanged.
 
 ## Remaining Limitations
 
-- Reviewer-declared conflicts and automated blind/anonymized document generation are not implemented.
+- Reviewer conflict declaration is implemented; RES reassignment after a declaration is not.
+- Automated blind/anonymized document generation and content-level identity redaction are not implemented.
 - There is no availability calendar. Capacity is displayed and enforced, but it is not presented as a separate availability column or filter.
-- Reviewer deadlines are not selected during initial assignment.
+- Reviewer deadlines come from the active Reviewer Submission configuration; there is no per-assignment deadline picker.
 - Reassignment, withdrawal, replacement, and assignment history controls are not implemented.
-- Reviewer assignment list/details are implemented; evaluation forms, held decisions, Exempted direct release, official result release, certificates, and QR verification remain pending.
+- Reviewer evaluation forms and held initial decisions are implemented; Exempted direct release, consolidated official result release, certificates, and QR verification remain pending.

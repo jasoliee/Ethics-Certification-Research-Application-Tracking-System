@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\ReviewerConflictStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\User;
@@ -80,7 +81,14 @@ class ResearchApplicationPolicy
      */
     public function viewDocument(User $user, ResearchApplication $researchApplication): bool
     {
-        return $this->view($user, $researchApplication);
+        if ($user->role !== UserRole::Reviewer) {
+            return $this->view($user, $researchApplication);
+        }
+
+        return $researchApplication->reviewerAssignments()
+            ->where('reviewer_user_id', $user->id)
+            ->where('conflict_status', ReviewerConflictStatus::Cleared->value)
+            ->exists();
     }
 
     /**

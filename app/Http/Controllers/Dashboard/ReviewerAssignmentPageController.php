@@ -3,9 +3,16 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ResearchType;
+use App\Enums\ReviewCommentCategory;
+use App\Enums\ReviewCommentScope;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewFormType;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ReviewerAssignment;
+use App\Services\Settings\DeadlineProcessAvailability;
+use App\Support\ReviewFormCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -75,9 +82,65 @@ class ReviewerAssignmentPageController extends Controller
     /**
      * Show one policy-authorized assignment without loading applicant or Adviser identity.
      */
-    public function show(ReviewerAssignment $reviewerAssignment): View
-    {
+    public function show(
+        ReviewerAssignment $reviewerAssignment,
+        DeadlineProcessAvailability $deadlines,
+    ): View {
         Gate::authorize('view', $reviewerAssignment);
+        $reviewerAssignment->load([
+            'researchApplication' => fn ($applications) => $applications->select([
+                'id',
+                'application_code',
+                'research_title',
+                'research_type',
+                'research_category',
+                'target_participants',
+                'expected_duration',
+                'expected_start_date',
+                'expected_end_date',
+                'abstract',
+                'review_type',
+            ]),
+            'reviewSubmission',
+            'formSubmissions',
+        ]);
+
+        $canOpenWorkspace = Gate::allows('openWorkspace', $reviewerAssignment);
+
+        if ($canOpenWorkspace) {
+            $reviewerAssignment->researchApplication->load([
+                'documents' => fn ($documents) => $documents
+                    ->where('is_current', true)
+                    ->with('requirement:id,name')
+                    ->orderBy('document_requirement_id'),
+            ]);
+        }
+
+        return view('dashboard.assignments.show', [
+            'pageTitle' => 'Assigned Application',
+            'assignment' => $reviewerAssignment,
+            'canOpenWorkspace' => $canOpenWorkspace,
+            'reviewWindow' => $deadlines->status(
+                'reviewer-submission',
+                UserRole::Reviewer,
+                'Reviewer submission',
+            ),
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Assignments', 'route' => 'reviewer.assignments.index'],
+                ['label' => $reviewerAssignment->researchApplication->application_code],
+            ],
+        ]);
+    }
+
+    /**
+     * Open the assignment-owned blind workspace without loading Applicant or Adviser identity.
+     */
+    public function workspace(
+        ReviewerAssignment $reviewerAssignment,
+        DeadlineProcessAvailability $deadlines,
+    ): View {
+        Gate::authorize('openWorkspace', $reviewerAssignment);
         $reviewerAssignment->load([
             'researchApplication' => fn ($applications) => $applications->select([
                 'id',
@@ -96,15 +159,44 @@ class ReviewerAssignmentPageController extends Controller
                 ->where('is_current', true)
                 ->with('requirement:id,name')
                 ->orderBy('document_requirement_id'),
+            'reviewSubmission',
+            'formSubmissions',
+            'comments' => fn ($comments) => $comments
+                ->with('document:id,original_file_name')
+                ->latest(),
         ]);
 
-        return view('dashboard.assignments.show', [
-            'pageTitle' => 'Assigned Application',
+        $reviewWindow = $deadlines->status(
+            'reviewer-submission',
+            UserRole::Reviewer,
+            'Reviewer submission',
+        );
+        $canWrite = Gate::allows('work', $reviewerAssignment) && $reviewWindow['open'];
+        $forms = $reviewerAssignment->formSubmissions
+            ->keyBy(fn ($form): string => $form->form_type->value);
+        $formCatalog = collect(ReviewFormType::cases())->mapWithKeys(
+            fn (ReviewFormType $type): array => [$type->value => [
+                'type' => $type,
+                'questions' => ReviewFormCatalog::questions($type),
+                'answers' => ReviewFormCatalog::answers($type),
+            ]],
+        );
+
+        return view('dashboard.assignments.workspace', [
+            'pageTitle' => 'Review Workspace',
             'assignment' => $reviewerAssignment,
+            'reviewWindow' => $reviewWindow,
+            'canWrite' => $canWrite,
+            'forms' => $forms,
+            'formCatalog' => $formCatalog,
+            'decisions' => ReviewDecision::cases(),
+            'commentScopes' => ReviewCommentScope::cases(),
+            'commentCategories' => ReviewCommentCategory::cases(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Assignments', 'route' => 'reviewer.assignments.index'],
-                ['label' => $reviewerAssignment->researchApplication->application_code],
+                ['label' => $reviewerAssignment->researchApplication->application_code, 'route' => 'reviewer.assignments.show', 'parameters' => [$reviewerAssignment]],
+                ['label' => 'Review Workspace'],
             ],
         ]);
     }

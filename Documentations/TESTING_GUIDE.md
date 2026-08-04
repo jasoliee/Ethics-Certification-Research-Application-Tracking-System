@@ -71,8 +71,14 @@ Reviewer:
 
 - Confirm assignment counts, deadlines, and table rows are scoped to the current reviewer.
 - Search and filter Assigned Applications, confirm pagination and empty state, and verify all displayed records belong to the signed-in Reviewer.
-- Open an assignment and confirm Applicant/Adviser profile identities are absent while current private document preview/download remains authorized.
-- Check the assignment list and detail at desktop, tablet, and phone widths; horizontal overflow must stay inside the document/table region.
+- Open an assignment and confirm Applicant/Adviser profile identities are absent. Before conflict clearance, confirm private preview/download and the workspace are unavailable.
+- Record No Conflict and confirm the blind workspace and current private document preview/download become available. On another assignment, declare a conflict and confirm work remains blocked and repeated declarations fail.
+- Save and restore drafts for both official forms. Confirm unknown questions/answers fail, applicable final answers are required, and non-Approved recommendations require comments.
+- Add overall, document, and page comments; confirm scope fields validate, another assignment cannot own the target document/comment, and removal is blocked after submission.
+- Confirm writes fail when Reviewer Submission is unconfigured/upcoming/closed and read-only state remains visible.
+- Finalize both forms, submit one of the four decisions with a comment, and confirm the assignment becomes immutable. For a multi-reviewer cycle, confirm the application reaches pending release only after every Reviewer submits.
+- Confirm no Reviewer name, comment, form, or decision appears in Applicant pages before an explicit release feature exists.
+- Check the assignment list, conflict detail, workspace, forms, and documents at desktop, tablet, and phone widths; horizontal overflow must stay inside the document/table region.
 - Open notifications and profile pages.
 - Confirm another reviewer's assignment returns 403.
 
@@ -100,6 +106,8 @@ RES Lead:
 - Verify Expedited accepts exactly one eligible reviewer, Full Board exactly three distinct eligible reviewers, full-capacity rows cannot be selected, and Exempted exposes no assignment action.
 - Confirm department matches appear before institution/other eligible reviewers, Department filtering works, and no Availability column or filter is present.
 - Re-edit a saved screening: compatible assignments remain, incompatible pending assignments are removed, and a started assignment prevents the correction.
+- Confirm the RES requirement checklist provides authorized View and direct Download actions, while another role or mismatched nested document is denied.
+- Check the Reviewer assignment page at desktop, tablet, and phone widths: no Eligibility card, filters remain inside Eligible Reviewers, context text does not overlap, selected removal uses the X icon, and the confirmation action remains contained.
 - Confirm every term/process date rejects past values even with Manual Open selected; confirm `On` overrides runtime dates and `Auto` returns to date evaluation.
 
 All roles:

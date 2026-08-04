@@ -92,7 +92,7 @@
                 <x-dashboard.overflow label="Applicant application records" wide>
                     <table class="dashboard-table application-table">
                         <thead>
-                            <tr><th>Application ID</th><th>Research Title</th><th>Research Type</th><th>Current Stage</th><th class="dashboard-table-status">Status</th><th>Submitted</th><th class="dashboard-table-action">Action</th></tr>
+                            <tr><th>Application ID</th><th>Research Title</th><th>Research Type</th><th>Current Stage</th><th class="dashboard-table-status">Status</th><th class="applicant-submitted-column">Submitted</th><th class="dashboard-table-action">Action</th></tr>
                         </thead>
                         <tbody>
                             @foreach ($applications as $application)
@@ -102,7 +102,7 @@
                                     <td>{{ $application->research_type?->label() ?? 'Not set' }}</td>
                                     <td>{{ $application->current_stage?->label() ?? 'Application Information' }}</td>
                                     <td class="dashboard-table-status"><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
-                                    <td>{{ $application->submitted_at?->format('M j, Y') ?? 'Not submitted' }}</td>
+                                    <td class="applicant-submitted-column">{{ $application->submitted_at?->format('M j, Y') ?? 'Not submitted' }}</td>
                                     <td class="application-table-actions dashboard-table-action">
                                         <x-dashboard.action-link :href="route('applicant.applications.show', $application)">View</x-dashboard.action-link>
                                     </td>

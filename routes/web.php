@@ -14,6 +14,7 @@ use App\Http\Controllers\Dashboard\ProfilePageController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ResLeadApplicationController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
+use App\Http\Controllers\Dashboard\ReviewerWorkflowController;
 use App\Http\Controllers\Identity\UserManagementController;
 use App\Http\Controllers\Settings\ResLeadSettingsController;
 use App\Support\RoleHome;
@@ -170,6 +171,23 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('assignments.index');
                 Route::get('/assignments/{reviewerAssignment}', [ReviewerAssignmentPageController::class, 'show'])
                     ->name('assignments.show');
+                Route::get('/assignments/{reviewerAssignment}/workspace', [ReviewerAssignmentPageController::class, 'workspace'])
+                    ->name('assignments.workspace');
+                Route::post('/assignments/{reviewerAssignment}/conflict', [ReviewerWorkflowController::class, 'declareConflict'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.conflict.store');
+                Route::put('/assignments/{reviewerAssignment}/forms/{reviewFormType}', [ReviewerWorkflowController::class, 'saveForm'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.forms.update');
+                Route::post('/assignments/{reviewerAssignment}/comments', [ReviewerWorkflowController::class, 'addComment'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.comments.store');
+                Route::delete('/assignments/{reviewerAssignment}/comments/{reviewComment}', [ReviewerWorkflowController::class, 'removeComment'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.comments.destroy');
+                Route::post('/assignments/{reviewerAssignment}/review', [ReviewerWorkflowController::class, 'saveDecision'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.review.store');
                 // Reviewer document access remains nested, assignment-gated, and private-disk backed.
                 Route::get('/applications/{researchApplication}/documents/{applicationDocument}/preview', [ApplicationDocumentController::class, 'preview'])
                     ->name('applications.documents.preview');

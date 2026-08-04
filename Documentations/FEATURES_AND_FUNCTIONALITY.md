@@ -100,12 +100,18 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 - Exempted bypasses assignment and advances to the additive `exempted` status at the direct-release boundary.
 - Classification and assignment produce bounded audit events and neutral Applicant/Reviewer notifications.
 
-## Reviewer Assigned Applications
+## Reviewer Assigned Applications and Initial Review
 
 - Reviewers receive an owner-scoped Assigned Applications page with search, review type, status, research type, and deadline filters.
 - The six-column table uses 15-row pagination, an empty state, and contained responsive overflow.
-- Assignment details omit Applicant and Adviser profile identities, show research context, and provide assignment-gated current-document preview/download.
-- PDF/images stream inline. Word/Excel use the authorized fallback. Automated document redaction, conflict declaration, and decision forms remain pending.
+- Assignment details omit Applicant and Adviser profile identities and require a one-time no-conflict or conflict-declared choice before private document access.
+- A declared conflict blocks review work and sends a neutral RES notification. A cleared declaration opens the assignment-owned blind workspace.
+- PDF/images stream inline. Word/Excel use the authorized fallback. Every preview/download remains nested, assignment-gated, and private-storage backed.
+- Reviewers can add overall, document, or page comments; save/finalize KLD-RES-04-001 and KLD-RES-04-002 independently; and save or submit one Approved, Minor Revision, Major Revision, or Disapproved decision.
+- Final submission requires both official forms to be final plus a decision comment of at least 10 characters. Submitted work is immutable.
+- Reviewer writes fail closed outside the configured Reviewer Submission period. Read-only access remains available to the owning Reviewer.
+- Applicant routes do not expose Reviewer identity, comments, forms, or decisions. These records remain unreleased until a later RES result-release workflow.
+- The application advances to `review_submitted_pending_release` only after every active initial Reviewer assignment for that review cycle is submitted.
 
 ## Interface and Accessibility
 
@@ -119,11 +125,12 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 - Policies enforce Applicant ownership, Adviser assignment, RES Lead administration, and nested application/document relationships.
 - Research uploads, import previews, and generated account workbooks are not served from `public/`.
 - Passwords, reset tokens, credentials, raw private documents, and private file paths are excluded from audit metadata.
-- Major account, import, option, application, document, submission, Adviser decision, deadline, and authorization-denial actions are audited.
+- Major account, import, option, application, document, submission, Adviser decision, deadline, Reviewer conflict/form/comment/decision, and authorization-denial actions are audited.
 
 ## Not Yet Complete End to End
 
-- Reviewer conflict declaration, anonymized review worksheet, reviewer decisions, reassignment, and the full blind-review lifecycle.
+- Detection/redaction of identity embedded inside uploaded document content and production anonymized-copy generation.
+- Reviewer reassignment after a declared conflict and later revision/re-review comparison.
 - Applicant revision workflow after official RES result release.
 - Final result release, Exempted direct release, feedback gate, certificate rendering, protected certificate download, and QR verification.
 - Production deployment, production mail provider configuration, backup/restore operations, and final browser acceptance evidence.

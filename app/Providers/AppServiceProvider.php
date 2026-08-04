@@ -57,5 +57,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('application-submit', fn (Request $request) => Limit::perMinute(5)->by($key($request)));
         // Bound RES classification and assignment writes independently from read-only queue traffic.
         RateLimiter::for('res-workflow', fn (Request $request) => Limit::perMinute(8)->by($key($request)));
+        // Reviewer drafts, comments, forms, and decisions share one role-specific write budget.
+        RateLimiter::for('reviewer-workflow', fn (Request $request) => Limit::perMinute(20)->by($key($request)));
     }
 }

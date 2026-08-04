@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ResLeadScreeningWorkflowTest extends TestCase
@@ -71,8 +72,10 @@ class ResLeadScreeningWorkflowTest extends TestCase
 
     public function test_screening_details_expose_protected_documents_and_all_required_decision_controls(): void
     {
+        Storage::fake('local');
         [$resLead, , , $application] = $this->readyApplication();
         $document = $application->documents()->firstOrFail();
+        Storage::disk('local')->put($document->stored_file_path, '%PDF-1.4 protected RES copy');
 
         $this->actingAs($resLead)
             ->get(route('res.applications.show', $application))
@@ -88,6 +91,14 @@ class ResLeadScreeningWorkflowTest extends TestCase
             ->assertSee(route('res.applications.documents.preview', [$application, $document]), false)
             ->assertSee(route('res.applications.documents.download', [$application, $document]), false)
             ->assertSee('data-application-submit-once', false);
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.documents.download', [$application, $document]))
+            ->assertDownload($document->original_file_name);
+
+        $this->actingAs($application->applicant)
+            ->get(route('res.applications.documents.download', [$application, $document]))
+            ->assertRedirect(route('dashboard'));
     }
 
     public function test_classification_rejects_incomplete_administrative_gates_and_stale_document_readiness(): void

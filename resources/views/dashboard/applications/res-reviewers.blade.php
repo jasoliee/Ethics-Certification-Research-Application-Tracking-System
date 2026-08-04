@@ -60,75 +60,65 @@
                 </dl>
             </section>
 
-            @if ($canAssign)
-                <aside class="res-assignment-guidelines">
-                    <header><x-dashboard.icon name="circle-help" size="21" /><h2>Eligibility</h2></header>
-                    <ul>
-                        <li>Active {{ $reviewType->label() }} classification</li>
-                        <li>Application department and institution matches appear first</li>
-                        <li>Available capacity for another active review</li>
-                        <li>Applicant and assigned adviser automatically excluded</li>
-                    </ul>
-                </aside>
-            @endif
         </div>
 
         @if ($canAssign)
-            {{-- Candidate filters remain outside the assignment form to avoid nested forms and preserve selected-field ownership. --}}
-            <form class="res-reviewer-filter-bar" method="GET" action="{{ route('res.applications.reviewers.index', $application) }}">
-                <div class="application-field application-search-field">
-                    <label for="reviewer-q">Search Reviewer</label>
-                    <span><x-dashboard.icon name="search" size="18" /></span>
-                    <input id="reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Name, position, or department">
-                </div>
-                <div class="application-field">
-                    <label for="reviewer-department">Department</label>
-                    <select id="reviewer-department" name="department">
-                        <option value="">All departments</option>
-                        @foreach ($departments as $department)
-                            <option value="{{ $department }}" @selected(($filters['department'] ?? '') === $department)>{{ $department }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Filter</span></button>
-                <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">Reset</a>
-            </form>
-
-            @if ($errors->reviewerAssignment->any())
-                <div class="res-form-error-summary" role="alert">
-                    <x-dashboard.icon name="alert-triangle" size="19" />
-                    <div><strong>Reviewer assignment was not saved.</strong><span>{{ $errors->reviewerAssignment->first() }}</span></div>
-                </div>
-            @endif
-
-            <form
-                id="res-reviewer-assignment-form"
-                class="res-reviewer-assignment-layout"
-                method="POST"
-                action="{{ route('res.applications.reviewers.store', $application) }}"
-                data-reviewer-assignment-form
-                data-required-reviewers="{{ $requiredReviewerCount }}"
-                data-application-submit-once
-            >
-                @csrf
-                <input name="confirm_assignment" type="hidden" value="1">
-
+            <div class="res-reviewer-assignment-layout">
                 <section class="res-workflow-panel res-reviewer-candidates-panel">
                     <header class="res-workflow-panel-heading res-workflow-panel-heading-split">
                         <div><x-dashboard.icon name="users" size="21" /><h2>Eligible Reviewers</h2></div>
                         <x-dashboard.status-badge :label="$reviewType->label().' only'" tone="success" />
                     </header>
 
-                    @if ($candidates->isEmpty())
-                        <x-dashboard.empty-state
-                            image="no-applications"
-                            alt="No eligible reviewers"
-                            title="No eligible reviewers found"
-                            message="No active reviewer matches the saved classification and current filter."
-                        />
-                    @else
-                        <x-dashboard.overflow label="Eligible reviewer candidates" wide>
-                            <table class="dashboard-table res-reviewer-table">
+                    {{-- Filter and selection forms are siblings inside one panel, avoiding invalid nested forms. --}}
+                    <form class="res-reviewer-filter-bar" method="GET" action="{{ route('res.applications.reviewers.index', $application) }}">
+                        <div class="application-field application-search-field">
+                            <label for="reviewer-q">Search Reviewer</label>
+                            <span><x-dashboard.icon name="search" size="18" /></span>
+                            <input id="reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Name, position, or department">
+                        </div>
+                        <div class="application-field">
+                            <label for="reviewer-department">Department</label>
+                            <select id="reviewer-department" name="department">
+                                <option value="">All departments</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department }}" @selected(($filters['department'] ?? '') === $department)>{{ $department }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Filter</span></button>
+                        <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">Reset</a>
+                    </form>
+
+                    @if ($errors->reviewerAssignment->any())
+                        <div class="res-form-error-summary res-reviewer-assignment-error" role="alert">
+                            <x-dashboard.icon name="alert-triangle" size="19" />
+                            <div><strong>Reviewer assignment was not saved.</strong><span>{{ $errors->reviewerAssignment->first() }}</span></div>
+                        </div>
+                    @endif
+
+                    <form
+                        id="res-reviewer-assignment-form"
+                        class="res-reviewer-selection-form"
+                        method="POST"
+                        action="{{ route('res.applications.reviewers.store', $application) }}"
+                        data-reviewer-assignment-form
+                        data-required-reviewers="{{ $requiredReviewerCount }}"
+                        data-application-submit-once
+                    >
+                        @csrf
+                        <input name="confirm_assignment" type="hidden" value="1">
+
+                        @if ($candidates->isEmpty())
+                            <x-dashboard.empty-state
+                                image="no-applications"
+                                alt="No eligible reviewers"
+                                title="No eligible reviewers found"
+                                message="No active reviewer matches the saved classification and current filter."
+                            />
+                        @else
+                            <x-dashboard.overflow label="Eligible reviewer candidates" wide>
+                                <table class="dashboard-table res-reviewer-table">
                                 <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th>Position</th><th>Department</th><th>Institution</th><th>Current Load</th></tr></thead>
                                 <tbody>
                                     @foreach ($candidates as $candidate)
@@ -171,10 +161,11 @@
                                         </tr>
                                     @endforeach
                                 </tbody>
-                            </table>
-                        </x-dashboard.overflow>
-                        <x-dashboard.pagination :paginator="$candidates" label="Eligible reviewer pages" />
-                    @endif
+                                </table>
+                            </x-dashboard.overflow>
+                            <x-dashboard.pagination :paginator="$candidates" label="Eligible reviewer pages" />
+                        @endif
+                    </form>
                 </section>
 
                 <section class="res-workflow-panel res-selected-reviewers-panel">
@@ -183,6 +174,7 @@
                         <span class="res-selection-count" data-reviewer-selection-count>0 / {{ $requiredReviewerCount }} Selected</span>
                     </header>
                     <ul class="res-selected-reviewer-list" data-selected-reviewer-list aria-live="polite"></ul>
+                    <template data-reviewer-remove-icon><x-dashboard.icon name="x" size="17" /></template>
                     <div class="res-known-conflict-check" role="note">
                         <x-dashboard.icon name="check" size="18" />
                         <span>Known applicant and adviser conflicts are excluded from this list.</span>
@@ -192,7 +184,7 @@
                         <span>Confirm and Assign {{ Str::plural('Reviewer', $requiredReviewerCount) }}</span>
                     </button>
                 </section>
-            </form>
+            </div>
 
             {{-- The confirmation dialog submits the original assignment form after showing the current reviewer set. --}}
             <section class="application-modal-backdrop" data-reviewer-assignment-dialog hidden>

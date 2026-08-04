@@ -44,6 +44,8 @@ owner policy -> unique editable draft -> validated information
 -> Applicant notification + endorsement history + audit
 -> RES administrative screening + expedited/full_board/exempted classification
 -> exact eligible reviewer assignment OR exempted direct-release boundary
+-> conflict-cleared Reviewer workspace + two final official forms + final decision
+-> every initial assignment submitted -> review_submitted_pending_release
 ```
 
 `research_applications` stores the nullable unique `draft_owner_user_id`, optional academic-term link, research type/category, institution, department, program, abstract, target participants, nullable legacy duration text, expected start/end dates, formal submission time, revision cycle, and current stage/status. Releasing `draft_owner_user_id` at submission allows a later new draft while keeping the submitted application. The three-application limit counts non-null formal submission timestamps, not draft rows.
@@ -54,7 +56,11 @@ owner policy -> unique editable draft -> validated information
 
 `application_screenings` stores one current RES decision per application through a unique foreign key. It records the latest RES actor, bounded administrative states and confirmations, optional notes, Expedited/Full Board/Exempted classification, required reason, and classification time. Corrections update this row under locks and write a separate bounded audit event. Compatible assignments remain; only pending unstarted incompatible assignments may be removed. `research_applications.review_type`, status, and stage remain the queue-optimized workflow projection.
 
-`reviewer_assignments` remains the assignment source of truth. Its `review_type` column distinguishes `initial_review` from later `revision_review`; the application's `review_type` independently stores Expedited or Full Board classification. The unique application/reviewer/cycle key prevents assigning one Reviewer twice in the same cycle. Active assignment statuses provide the current capacity count.
+`reviewer_assignments` remains the assignment source of truth. Its `review_type` column distinguishes `initial_review` from later `revision_review`; the application's `review_type` independently stores Expedited or Full Board classification. The unique application/reviewer/cycle key prevents assigning one Reviewer twice in the same cycle. Active assignment statuses provide the current capacity count. New conflict fields record Pending, Cleared, or Declared plus the corresponding one-time timestamp.
+
+`review_submissions` is one-to-one with an assignment and stores Draft or Submitted state, one bounded decision code, a private decision comment, and submission time. `review_form_submissions` is unique by assignment/form type and stores Draft or Final official-form state, server-validated JSON answers, consent applicability, recommendation, comments, review date, and finalization time. `review_comments` belongs to one assignment, optionally references an application document, and stores bounded overall/document/page comments plus a nullable future release time.
+
+Reviewer final submission locks the application and assignments for the same review cycle. The assignment becomes `decision_submitted`; only when every assignment in that cycle is submitted does the application project to `review_submitted_pending_release` and `decision_release`. Reviewer comments, forms, and decisions are not copied to Applicant-visible tables.
 
 ## Audit Data
 

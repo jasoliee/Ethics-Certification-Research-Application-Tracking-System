@@ -219,11 +219,17 @@ class ResLeadApplicationVisibilityTest extends TestCase
             '/@container application-workspace \(max-width:\s*1120px\)\s*\{[^}]*\.application-filter-bar\.application-filter-bar-res\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s',
             $css,
         );
+        $this->assertStringContainsString('"search search status applicant apply"', $css);
+        $this->assertStringContainsString('"research review affiliation date clear"', $css);
         $this->assertStringContainsString('"search search"', $css);
         $this->assertStringContainsString('"status applicant"', $css);
         $this->assertStringContainsString('"research review"', $css);
         $this->assertStringContainsString('"affiliation affiliation"', $css);
         $this->assertStringContainsString('"date date"', $css);
+        $this->assertStringNotContainsString('res-filter-semester', $css);
+        $this->assertStringNotContainsString('res-filter-academic-year', $css);
+        $this->assertStringNotContainsString('res-filter-date-from', $css);
+        $this->assertStringNotContainsString('res-filter-date-to', $css);
         $this->assertMatchesRegularExpression(
             '/@container application-workspace \(max-width:\s*560px\)/',
             $css,

@@ -60,6 +60,75 @@ Date:
 
 ## Active Plans
 
+## Plan: Blind Reviewer workspace and cross-role viewport corrections
+
+Status: Completed on 2026-08-04.
+
+### Goal
+Implement the source-defined initial Ethics Reviewer workflow and the requested RES Lead, Applicant, and Reviewer presentation corrections so assigned reviewers can work privately, complete the two official forms, add bounded comments, and submit a decision for later RES release without exposing role identities or private storage paths.
+
+### Source Documents
+- Primary requirement: attached cross-role Reviewer functionality and viewport specification, August 3, 2026.
+- Visual reference: local-only `context_files/local/ECRATS High Fidelity.pdf`, pages 47-69.
+- Official forms: `context_files/REMS PROTOCAL REVIEW WORKSHEET.docx`, including KLD-RES-04-001 and KLD-RES-04-002.
+- Supporting requirements: `context_files/[DRAFT] ECRATS_System_Project_Documentation.docx`, `PROJECT_GUIDELINES.md`, and the completed RES screening/assignment plan below.
+- Confirmed decisions: KLD-RES-04-001 has 15 server-defined Yes/No/Unable-to-Assess items; KLD-RES-04-002 has the consent-applicability gate and 12 Yes/No items; both forms use Approved, Minor Revision, Major Revision, or Disapproved recommendations and independent draft/final states. Final review submission additionally requires a decision and decision comment.
+- Unresolved client dependency: the final procedure for detecting and removing identity embedded inside arbitrary uploaded document content is not approved. This slice hides Applicant/Adviser account fields and enforces assignment-gated private access but does not claim content-level file redaction.
+
+### Scope
+Included:
+- Add a required no-conflict/conflict-declared gate before a Reviewer may enter the blind workspace; a declared conflict blocks review work for RES handling and is not a general decline action.
+- Persist one review submission per assignment, two independently draftable/finalizable official reviewer forms, and assignment-owned overall/document/page comments.
+- Validate form responses against immutable server-side question catalogs, require every applicable answer and recommendation for form finalization, and require both final forms plus the final decision comment before review submission.
+- Support Approved, Minor Revision, Major Revision, and Disapproved reviewer decisions; freeze submitted review work, mark the assignment Decision Submitted, and move the application to For Result Release only after every active initial Reviewer submits.
+- Keep Reviewer comments and decisions unavailable to Applicant routes until a later explicit RES release process; do not add direct Applicant-Reviewer messaging.
+- Keep Reviewer application and document reads assignment-owned, role-protected, private-disk backed, and free of Applicant/Adviser account identity.
+- Add bounded audit events for conflict declaration, form draft/final saves, comments, and final review submission without recording form answers, comments, decision rationale, filenames, or private paths.
+- Apply the requested RES queue/detail/screening/requirement/assignment, User Management, Applicant dashboard/requirements, and Reviewer table alignment and responsive-layout corrections.
+- Add direct RES requirement downloads beside protected previews while retaining nested authorization.
+- Synchronize feature, route, authorization, security, testing, UI, limitation, and changelog documentation.
+
+Excluded:
+- Automatic or manual document-content redaction, OCR, conversion, public URLs, third-party viewers, selected-text annotations, e-signature upload, revision comparison/re-review, RES consolidated Full Board decisions, result release, certificates, QR verification, reviewer reassignment UI, or package installation.
+
+### Implementation Approach
+- Backend: use dedicated Form Requests, immutable question catalogs, thin Reviewer controllers, and a transactional review-workflow service with row locks and repeated policy/deadline checks.
+- Frontend: extend the existing Reviewer assignment detail into a responsive blind workspace with accessible conflict confirmation, comments, official form dialogs, completion feedback, and final confirmation; reuse existing dashboard panels, buttons, badges, modals, icons, and internal table overflow.
+- Database: add conflict-state fields to `reviewer_assignments`; add one-to-one `review_submissions`, one-per-form `review_form_submissions`, and assignment-owned `review_comments` with foreign keys, unique constraints, bounded indexes, JSON response storage, draft/final timestamps, and soft release fields.
+- Authorization: extend `ReviewerAssignmentPolicy` with conflict, review, comment, form, and submit abilities; every write requires Reviewer ownership, an active assignment, no declared conflict, and an unsubmitted review. Nested document authorization remains tied to the parent application assignment.
+- Files/storage: retain current private `local` storage and controller streaming. Reviewer-facing database content omits identity fields; content-level file anonymization remains blocked on the client-approved procedure.
+- Deadlines: gate Reviewer writes through the configured Reviewer Submission process and retain read-only access outside the write window; initial assignment deadlines use the active process deadline when configured.
+- Notifications/audit: notify RES Leads neutrally only after the complete assignment set reaches pending release. Audit metadata is limited to IDs, form type/status, comment scope, decision code, and resulting workflow status.
+
+### Files Expected to Change
+- Reviewer enums, models, migrations, policies, requests, service, controller, routes, assignment views, dialogs, JavaScript, and CSS
+- RES application controller/views and shared responsive table/layout styles
+- Applicant dashboard/application views and shared table styles
+- Reviewer, RES, Applicant, authorization, validation, document, and responsive-structure tests
+- `PLANS.md` and current documentation under `Documentations/`
+
+### Tests and Verification
+- Prove assignment-only Reviewer access, exact-record denial, identity omission, conflict gating, private preview/download authorization, deadline enforcement, draft restoration, required form validation, comment ownership/validation, final-decision gating, submitted-work immutability, and all-reviewers-complete pending-release transition.
+- Prove direct RES document download authorization and requested table/header/action structure.
+- Run focused and full Laravel tests, `php artisan route:list`, migration status, Pint, Blade compilation, the Vite production build, PHP syntax checks, and `git diff --check`.
+- Inspect representative desktop, tablet, and mobile widths for RES application details/assignment, Applicant tables, Reviewer list/detail/workspace, dialogs, action alignment, and internal bottom scrollbars.
+
+### Risks and Rollback
+- JSON form responses are intentionally constrained by server catalogs at every finalization; malformed or unknown keys are rejected rather than trusted.
+- Concurrent final submissions lock the application and active assignment set before projecting the application to pending release.
+- Rolling back removes the new review records and assignment conflict fields; no existing application documents or screening/assignment records are deleted.
+- Uploaded files may still contain identity within their content until KLD approves and the project implements a redaction/anonymized-copy process.
+
+### Approval Notes
+Approved by: User request
+Date: 2026-08-03
+
+### Verification Status (2026-08-04)
+- The focused Reviewer/RES suite passed 26 tests with 288 assertions. The complete Laravel suite passed 179 tests with 2,650 assertions.
+- Route registration, migration status, Blade compilation, Pint, strict Composer validation, platform requirements, the Vite production build, and `git diff --check` passed.
+- Interactive local-browser checks passed at 1440px, 768px, and 390px for RES details, requirement downloads/overflow, screening controls, Reviewer assignment, Applicant list/details, Reviewer assignment/conflict/workspace/forms, and the requested table alignment. Wide tables remained in zero-bottom-padding internal scrollers with no page-level horizontal overflow.
+- Content-level identity redaction, RES conflict reassignment, re-review/revision comparison, official result release, certificate/QR work, and final stakeholder acceptance remain explicitly outside this completed slice.
+
 ## Plan: RES decision corrections, private previews, and Reviewer assignments
 
 Status: Completed on 2026-08-03.

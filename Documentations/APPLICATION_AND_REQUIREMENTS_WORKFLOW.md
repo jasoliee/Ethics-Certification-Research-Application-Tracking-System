@@ -1,8 +1,8 @@
 # Application and Requirements Workflow
 
-## Implemented Through Initial Reviewer Assignment
+## Implemented Through Initial Reviewer Submission
 
-The repository implements Applicant-owned application information, private versioned requirement documents, shared completion calculation, configured submission-window enforcement, formally submitted Adviser visibility, the assigned Adviser's initial return/endorsement decision, RES administrative screening, ethics classification, and exact initial reviewer assignment.
+The repository implements Applicant-owned application information, private versioned requirement documents, shared completion calculation, configured submission-window enforcement, formally submitted Adviser visibility, the assigned Adviser's initial return/endorsement decision, RES administrative screening, ethics classification, exact initial reviewer assignment, and conflict-gated initial Reviewer submission awaiting later RES release.
 
 ## Draft Boundary
 
@@ -79,8 +79,12 @@ See [RES Screening and Reviewer Assignment](RES_SCREENING_AND_REVIEWER_ASSIGNMEN
 
 ## Reviewer Assignment Workspace
 
-The Reviewer Assigned Applications page is implemented with owner-scoped search, review-type/status/research-type/deadline filters, 15-row pagination, empty state, responsive table containment, and protected details. The detail intentionally omits Applicant and Adviser profile identity, exposes current research context, and uses assignment-gated private document routes. Automated blind-redaction of uploaded document contents and the Reviewer decision form remain pending.
+The Reviewer Assigned Applications page is implemented with owner-scoped search, review-type/status/research-type/deadline filters, 15-row pagination, empty state, responsive table containment, and protected details. The detail intentionally omits Applicant and Adviser profile identity. A one-time conflict gate blocks private documents and review work until cleared.
+
+The blind workspace provides assignment-gated private documents, bounded overall/document/page comments, independently draftable/finalizable KLD-RES-04-001 and KLD-RES-04-002 forms, and one draft/final recommendation. Reviewer writes require the configured Reviewer Submission period. Both forms and a final comment are required before submission; submission freezes the assignment. The application reaches `review_submitted_pending_release` only after every initial Reviewer submits, without exposing Reviewer identity or private work to the Applicant.
+
+See [Reviewer Workflow](REVIEWER_WORKFLOW.md) for the exact forms, validation, routes, authorization, persistence, and privacy contract.
 
 ## Remaining Workflow
 
-Blind document redaction, Reviewer conflict declarations and decisions, later revisions, result release, Exempted direct release, certificate release, QR access, and final archive rules remain governed by `PROJECT_GUIDELINES.md` and require separate implementation and tests.
+Document-content identity detection/redaction, RES conflict reassignment, later revision/re-review comparison, consolidated result release, Exempted direct release, certificate release, QR access, and final archive rules remain governed by `PROJECT_GUIDELINES.md` and require separate implementation and tests.

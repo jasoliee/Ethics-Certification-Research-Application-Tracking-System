@@ -155,6 +155,7 @@ class ReviewerAssignmentPageTest extends TestCase
             ->assertSee($application->research_title)
             ->assertSee($document->original_file_name)
             ->assertSee(route('reviewer.applications.documents.preview', [$application, $document]), false)
+            ->assertSee(route('reviewer.applications.documents.download', [$application, $document]), false)
             ->assertDontSee($applicant->name)
             ->assertDontSee($adviser->name);
 

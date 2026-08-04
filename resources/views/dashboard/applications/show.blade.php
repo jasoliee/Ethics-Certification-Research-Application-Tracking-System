@@ -106,7 +106,7 @@
                             @endphp
                             <tr>
                                 <td><strong>{{ $item['requirement']->name }}</strong></td>
-                                <td class="application-document-column">
+                                <td class="application-document-column application-document-centered">
                                     @if ($document)
                                         <div class="application-current-document">
                                             <button
@@ -143,8 +143,8 @@
                                         <span>No file uploaded</span>
                                     @endif
                                 </td>
-                                <td class="application-document-version">{{ $document ? 'v'.$item['version'] : '-' }}</td>
-                                <td class="application-document-uploaded">{{ $document?->uploaded_at?->format('M j, Y g:i A') ?? '-' }}</td>
+                                <td class="application-document-version application-document-centered">{{ $document ? 'v'.$item['version'] : '-' }}</td>
+                                <td class="application-document-uploaded application-document-centered">{{ $document?->uploaded_at?->format('M j, Y g:i A') ?? '-' }}</td>
                                 <td class="dashboard-table-status"><x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" /></td>
                             </tr>
                         @endforeach

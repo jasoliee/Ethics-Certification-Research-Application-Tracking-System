@@ -145,7 +145,7 @@
                     <thead>
                         <tr>
                             @if ($isResLead)<th scope="col" class="identity-checkbox-cell"><input type="checkbox" aria-label="Select all visible accounts" data-select-all-users></th>@endif
-                            <th scope="col" class="identity-col-name">Name</th>
+                            <th scope="col" class="identity-col-name identity-col-name-heading">Name</th>
                             <th scope="col" class="identity-col-identifier">Institutional ID</th>
                             <th scope="col" class="identity-col-email">Email</th>
                             <th scope="col" class="identity-col-role">Role</th>

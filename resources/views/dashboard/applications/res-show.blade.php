@@ -24,7 +24,7 @@
                     {{-- Saved decisions open in an explicit edit mode so ordinary detail visits remain read-only. --}}
                     <a class="dashboard-outline-action" href="{{ route('res.applications.show', [$application, 'edit_screening' => 1]) }}">
                         <x-dashboard.icon name="edit" size="17" />
-                        <span>Re-edit Screening Decision</span>
+                        <span>Re-edit Decision</span>
                     </a>
                 @endif
                 <a class="dashboard-outline-action" href="{{ route('res.applications.index') }}">
@@ -109,7 +109,7 @@
                                     <td><x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" /></td>
                                     <td>{{ $document?->original_file_name ?? 'No file uploaded' }}@if ($document)<small>v{{ $item['version'] }}</small>@endif</td>
                                     <td>{{ $document?->uploaded_at?->format('M j, Y') ?? '-' }}</td>
-                                    <td>
+                                    <td class="res-document-actions">
                                         @if ($document)
                                             <button
                                                 class="dashboard-outline-action res-document-action"
@@ -123,6 +123,14 @@
                                                 <x-dashboard.icon name="eye" size="16" />
                                                 <span>View Document</span>
                                             </button>
+                                            <a
+                                                class="dashboard-icon-action"
+                                                href="{{ route('res.applications.documents.download', [$application, $document]) }}"
+                                                title="Download document"
+                                                aria-label="Download {{ $document->original_file_name }}"
+                                            >
+                                                <x-dashboard.icon name="download" size="16" />
+                                            </a>
                                         @else
                                             <span class="res-muted-value">Unavailable</span>
                                         @endif
@@ -157,14 +165,6 @@
                         <div class="res-form-error-summary" role="alert">
                             <x-dashboard.icon name="alert-triangle" size="19" />
                             <div><strong>Review the screening information.</strong><span>{{ $errors->resScreening->first() }}</span></div>
-                        </div>
-                    @endif
-
-                    @if ($isEditingScreening)
-                        {{-- The service preserves compatible assignments and blocks changes that would overwrite started work. --}}
-                        <div class="res-screening-edit-notice" role="note">
-                            <x-dashboard.icon name="alert-triangle" size="19" />
-                            <span>Changing the review path or revoking an administrative confirmation removes only unstarted pending assignments. Started review work cannot be overwritten.</span>
                         </div>
                     @endif
 
@@ -206,6 +206,14 @@
                         <input name="basic_eligibility_confirmed" type="hidden" value="0">
                         <label><input name="basic_eligibility_confirmed" type="checkbox" value="1" @checked(old('basic_eligibility_confirmed', $isEditingScreening ? $screening->basic_eligibility_confirmed : false)) @required(! $isEditingScreening)><span>Basic eligibility confirmed</span></label>
                     </fieldset>
+
+                    @if ($isEditingScreening)
+                        {{-- The warning follows the editable content so it does not interrupt the form's scan order. --}}
+                        <div class="res-screening-edit-notice" role="note">
+                            <x-dashboard.icon name="alert-triangle" size="19" />
+                            <span>Changing the review path or revoking an administrative confirmation removes only unstarted pending assignments. Started review work cannot be overwritten.</span>
+                        </div>
+                    @endif
                 </section>
 
                 <section class="res-workflow-panel res-classification-panel">
@@ -262,7 +270,7 @@
                         <div><dt>Receipt Check</dt><dd><x-dashboard.status-badge :label="$screening->receipt_check_status->label()" tone="blue" /></dd></div>
                         <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived RES Lead' }}</dd></div>
                         <div><dt>Classification Date</dt><dd>{{ $screening->classified_at->format('M j, Y g:i A') }}</dd></div>
-                        <div class="res-detail-wide"><dt>Screening Notes</dt><dd>{{ $screening->screening_notes ?: 'No additional screening notes.' }}</dd></div>
+                        <div class="res-detail-wide res-screening-notes"><dt>Screening Notes</dt><dd>{{ $screening->screening_notes ?: 'No additional screening notes.' }}</dd></div>
                     </dl>
                 </section>
                 <section class="res-workflow-panel res-classification-panel">

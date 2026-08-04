@@ -113,7 +113,7 @@
                             <tr>
                                 <th>Application Code</th>
                                 <th>Research Title</th>
-                                <th>Applicant Category</th>
+                                <th class="res-applicant-category">Applicant Category</th>
                                 <th>Research Type</th>
                                 <th>Adviser</th>
                                 <th>Institute / Program</th>
@@ -126,7 +126,7 @@
                                 <tr>
                                     <td><strong>{{ $application->application_code }}</strong></td>
                                     <td><x-dashboard.research-title :title="$application->research_title" :href="route('res.applications.show', $application)" /></td>
-                                    <td>{{ Str::headline($application->applicant_type) }}</td>
+                                    <td class="res-applicant-category">{{ Str::headline($application->applicant_type) }}</td>
                                     <td>{{ $application->research_type?->label() ?? 'Not specified' }}</td>
                                     <td>{{ $application->adviser?->name ?? 'Archived adviser' }}</td>
                                     <td>

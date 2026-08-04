@@ -6,14 +6,17 @@ use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\ReceiptCheckStatus;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewerConflictStatus;
 use App\Enums\ReviewType;
 use App\Enums\ScreeningCompletenessStatus;
+use App\Enums\UserRole;
 use App\Models\ApplicationScreening;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
 use App\Services\AuditLogService;
+use App\Services\Settings\DeadlineProcessAvailability;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -27,6 +30,7 @@ class ResScreeningWorkflowService
     public function __construct(
         private readonly ApplicationRequirementService $requirements,
         private readonly ReviewerEligibilityService $reviewerEligibility,
+        private readonly DeadlineProcessAvailability $deadlines,
         private readonly AuditLogService $auditLog,
     ) {}
 
@@ -294,14 +298,18 @@ class ResScreeningWorkflowService
             }
 
             $assignedAt = now();
-            $assignments = $reviewers->map(function (User $reviewer) use ($locked, $assignedAt): ReviewerAssignment {
+            $reviewDeadline = $this->deadlines
+                ->configuration('reviewer-submission', UserRole::Reviewer)
+                ?->due_at;
+            $assignments = $reviewers->map(function (User $reviewer) use ($locked, $assignedAt, $reviewDeadline): ReviewerAssignment {
                 return $locked->reviewerAssignments()->create([
                     // Initial versus revision cycle remains separate from expedited/full-board classification.
                     'reviewer_user_id' => $reviewer->id,
                     'review_type' => 'initial_review',
                     'assignment_status' => ReviewerAssignmentStatus::Pending->value,
+                    'conflict_status' => ReviewerConflictStatus::Pending->value,
                     'assigned_at' => $assignedAt,
-                    'review_deadline_at' => null,
+                    'review_deadline_at' => $reviewDeadline,
                 ]);
             });
 

@@ -7393,12 +7393,7 @@
     .application-filter-bar-res {
         width: 100%;
         max-width: 100%;
-        grid-template-columns:
-            minmax(240px, 2fr)
-            repeat(3, minmax(135px, 1fr))
-            repeat(2, minmax(145px, 1fr))
-            minmax(190px, auto);
-        align-items: stretch;
+        align-items: end;
     }
 
     .application-filter-bar-res > * {
@@ -7407,10 +7402,6 @@
 
     .res-application-filter-actions {
         min-width: 0;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        align-items: stretch;
-        gap: 10px;
     }
 
     .res-application-filter-actions > * {
@@ -7529,10 +7520,6 @@
     .settings-deadline-overview {
         grid-template-columns: 1fr;
     }
-
-    .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 880px) {
@@ -7544,9 +7531,6 @@
         flex-wrap: nowrap;
     }
 
-    .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 760px) {
@@ -7637,10 +7621,6 @@
         white-space: normal;
     }
 
-    .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: 1fr;
-    }
-
     .identity-account-lifecycle-actions {
         align-items: stretch;
     }
@@ -7652,56 +7632,6 @@
     .identity-account-lifecycle-actions > form > .identity-button {
         width: 100%;
         padding-inline: 12px;
-    }
-}
-
-/* Responds to the sidebar-adjusted application workspace instead of the outer browser width. */
-@container application-workspace (max-width: 1280px) {
-    .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        grid-template-areas:
-            "search status semester apply"
-            "from to year clear";
-    }
-
-    .application-filter-bar-res > .application-search-field { grid-area: search; }
-    .application-filter-bar-res > .res-filter-status { grid-area: status; }
-    .application-filter-bar-res > .res-filter-semester { grid-area: semester; }
-    .application-filter-bar-res > .res-filter-academic-year { grid-area: year; }
-    .application-filter-bar-res > .res-filter-date-from { grid-area: from; }
-    .application-filter-bar-res > .res-filter-date-to { grid-area: to; }
-
-    .res-application-filter-actions {
-        display: contents;
-    }
-
-    .res-filter-apply { grid-area: apply; }
-    .res-filter-clear { grid-area: clear; }
-}
-
-@container application-workspace (max-width: 840px) {
-    .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-areas:
-            "search search"
-            "status semester"
-            "year from"
-            "to to"
-            "apply clear";
-    }
-}
-
-@container application-workspace (max-width: 520px) {
-    .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-areas:
-            "search search"
-            "status semester"
-            "year year"
-            "from to"
-            "apply clear";
-        gap: 8px;
-        padding: 10px;
     }
 }
 
@@ -7739,13 +7669,12 @@
         min-width: 0;
     }
 
-    /* Replaces the earlier term filters with the approved seven-field RES queue arrangement. */
+    /* Keeps the current RES filters dense while pairing both commands in the rightmost desktop column. */
     .application-filter-bar.application-filter-bar-res {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         grid-template-areas:
-            "search search status applicant"
-            "research review affiliation date"
-            ". . apply clear";
+            "search search status applicant apply"
+            "research review affiliation date clear";
         align-items: end;
         gap: 12px;
         padding: 16px;
@@ -8676,5 +8605,688 @@
     .res-workflow-banner > .dashboard-outline-action {
         width: 100%;
         justify-content: center;
+    }
+}
+
+@layer components {
+    /* Keeps requested table values aligned without changing the scan order of unrelated columns. */
+    .dashboard-table .res-applicant-category,
+    .dashboard-table .applicant-submitted-column,
+    .dashboard-table .reviewer-table-centered,
+    .identity-user-table th.identity-col-name-heading {
+        text-align: center;
+    }
+
+    .dashboard-table .application-document-column,
+    .dashboard-table .application-document-version,
+    .dashboard-table .application-document-uploaded,
+    .dashboard-table .application-document-centered {
+        text-align: center;
+    }
+
+    .reviewer-table-centered .status-badge {
+        margin-inline: auto;
+    }
+
+    .reviewer-deadline-value {
+        color: #17202f;
+    }
+
+    .reviewer-deadline-value .reviewer-deadline-overdue {
+        color: #17202f;
+    }
+
+    .res-page-heading-actions {
+        min-width: 0;
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-left: auto;
+    }
+
+    .res-page-heading-actions > .dashboard-outline-action {
+        min-width: 205px;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .res-document-actions,
+    .reviewer-document-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        white-space: nowrap;
+    }
+
+    .dashboard-icon-action {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        display: inline-grid;
+        place-items: center;
+        border: 1px solid #68ad84;
+        border-radius: 6px;
+        padding: 0;
+        color: #08723d;
+        background: #ffffff;
+        text-decoration: none;
+        cursor: pointer;
+        transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+    }
+
+    .dashboard-icon-action:hover,
+    .dashboard-icon-action:focus-visible {
+        border-color: #08723d;
+        color: #ffffff;
+        background: #08723d;
+        outline: none;
+    }
+
+    .res-screening-edit-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin: auto 16px 16px;
+        border: 1px solid #e7bb68;
+        border-left: 4px solid #c77800;
+        border-radius: 6px;
+        padding: 11px 12px;
+        color: #734b00;
+        background: #fff8e8;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .res-screening-edit-notice .dashboard-icon {
+        flex: 0 0 auto;
+        margin-top: 1px;
+    }
+
+    .res-screening-notes dd {
+        text-align: left;
+    }
+
+    .res-classification-actions {
+        display: flex;
+        align-items: stretch;
+        gap: 10px;
+        margin: auto 16px 16px;
+    }
+
+    .res-classification-actions > * {
+        min-width: 0;
+        min-height: 44px;
+        flex: 1 1 0;
+        justify-content: center;
+        margin: 0;
+    }
+
+    .res-classification-actions > .res-classification-submit {
+        width: auto;
+    }
+
+    .res-reviewer-candidates-panel > .res-reviewer-filter-bar {
+        border: 0;
+        border-bottom: 1px solid #e3e9e5;
+        border-radius: 0;
+        padding: 14px 16px;
+        box-shadow: none;
+    }
+
+    .res-reviewer-selection-form {
+        min-width: 0;
+    }
+
+    .res-reviewer-assignment-error {
+        margin: 14px 16px 0;
+    }
+
+    .res-selected-reviewer-remove {
+        width: 32px;
+        height: 32px;
+        display: inline-grid;
+        grid-column: auto;
+        place-items: center;
+        justify-self: end;
+        border: 1px solid transparent;
+        border-radius: 50%;
+        padding: 0;
+        color: #b42318;
+        background: transparent;
+        text-decoration: none;
+    }
+
+    .res-selected-reviewer-remove:hover,
+    .res-selected-reviewer-remove:focus-visible {
+        border-color: #f2a49a;
+        color: #8f1c13;
+        background: #fff1ef;
+        text-decoration: none;
+        outline: none;
+    }
+
+    .reviewer-conflict-panel,
+    .reviewer-workspace-page > *,
+    .reviewer-workspace-summary-grid,
+    .reviewer-workspace-summary-grid > *,
+    .reviewer-workspace-main-grid,
+    .reviewer-workspace-main-grid > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .reviewer-conflict-copy {
+        display: grid;
+        gap: 16px;
+        padding: 18px 22px 22px;
+    }
+
+    .reviewer-conflict-copy p {
+        margin: 0;
+        color: #526174;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .reviewer-conflict-actions {
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .reviewer-conflict-actions form,
+    .reviewer-conflict-actions button {
+        min-height: 44px;
+    }
+
+    .reviewer-conflict-blocked,
+    .reviewer-assignment-ready,
+    .reviewer-confidentiality-banner,
+    .reviewer-window-notice {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #cfe2d6;
+        border-radius: 8px;
+        padding: 14px 16px;
+        color: #185f38;
+        background: #f2f9f4;
+    }
+
+    .reviewer-conflict-blocked {
+        grid-template-columns: auto minmax(0, 1fr);
+        border-color: #efb4ad;
+        color: #9f2f25;
+        background: #fff4f2;
+    }
+
+    .reviewer-confidentiality-banner {
+        grid-template-columns: auto minmax(0, 1fr);
+        border-color: #b9d4c3;
+        color: #185f38;
+        background: #edf8f1;
+    }
+
+    .reviewer-window-notice {
+        grid-template-columns: auto minmax(0, 1fr);
+        border-color: #e7bb68;
+        color: #734b00;
+        background: #fff8e8;
+    }
+
+    .reviewer-conflict-blocked > div,
+    .reviewer-assignment-ready > div,
+    .reviewer-confidentiality-banner > div,
+    .reviewer-window-notice > div {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+    }
+
+    .reviewer-conflict-blocked strong,
+    .reviewer-assignment-ready strong,
+    .reviewer-confidentiality-banner strong,
+    .reviewer-window-notice strong {
+        font-size: 14px;
+    }
+
+    .reviewer-conflict-blocked span,
+    .reviewer-assignment-ready span,
+    .reviewer-confidentiality-banner p,
+    .reviewer-window-notice span {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .reviewer-workspace-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .reviewer-workspace-main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+        align-items: start;
+        gap: 12px;
+    }
+
+    .reviewer-workspace-decision-column {
+        min-width: 0;
+        display: grid;
+        gap: 12px;
+    }
+
+    .reviewer-workspace-error {
+        margin: 0 20px 16px;
+    }
+
+    .reviewer-comment-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        border-top: 1px solid #e3e9e5;
+        border-bottom: 1px solid #e3e9e5;
+        padding: 18px 20px;
+    }
+
+    .reviewer-comment-form .application-field-full,
+    .reviewer-comment-form > .dashboard-primary-action {
+        grid-column: 1 / -1;
+    }
+
+    .reviewer-comment-form > .dashboard-primary-action {
+        justify-self: end;
+    }
+
+    .reviewer-comment-list {
+        display: grid;
+    }
+
+    .reviewer-comment-item {
+        min-width: 0;
+        display: grid;
+        gap: 9px;
+        border-bottom: 1px solid #e3e9e5;
+        padding: 16px 20px;
+    }
+
+    .reviewer-comment-item:last-child {
+        border-bottom: 0;
+    }
+
+    .reviewer-comment-heading {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .reviewer-comment-heading > div {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: #667085;
+        font-size: 11px;
+    }
+
+    .reviewer-comment-item p,
+    .reviewer-comment-item small,
+    .reviewer-empty-copy {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .reviewer-comment-item p {
+        color: #27364a;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .reviewer-comment-item small,
+    .reviewer-empty-copy {
+        color: #7a8493;
+        font-size: 11px;
+    }
+
+    .reviewer-empty-copy {
+        padding: 24px 20px;
+        text-align: center;
+    }
+
+    .reviewer-comment-remove {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border: 1px solid transparent;
+        border-radius: 50%;
+        padding: 0;
+        color: #b42318;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .reviewer-comment-remove:hover,
+    .reviewer-comment-remove:focus-visible {
+        border-color: #f2a49a;
+        background: #fff1ef;
+        outline: none;
+    }
+
+    .reviewer-form-list {
+        display: grid;
+    }
+
+    .reviewer-form-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 10px;
+        border-top: 1px solid #e3e9e5;
+        padding: 14px 18px;
+    }
+
+    .reviewer-form-row > div {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+    }
+
+    .reviewer-form-row strong {
+        color: #27364a;
+        font-size: 13px;
+    }
+
+    .reviewer-form-row span {
+        color: #667085;
+        font-size: 11px;
+    }
+
+    .reviewer-form-row .dashboard-outline-action {
+        min-height: 38px;
+        padding: 8px 11px;
+    }
+
+    .reviewer-decision-form {
+        display: grid;
+        gap: 14px;
+        border-top: 1px solid #e3e9e5;
+        padding: 18px 20px 20px;
+    }
+
+    .reviewer-decision-actions,
+    .reviewer-form-actions {
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .reviewer-decision-actions > *,
+    .reviewer-form-actions > * {
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .reviewer-decision-actions > * {
+        flex: 1 1 0;
+    }
+
+    .reviewer-submitted-notice {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #b9d4c3;
+        border-radius: 6px;
+        padding: 11px 12px;
+        color: #176f3d;
+        background: #edf8f1;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .reviewer-form-modal {
+        width: min(100%, 1080px);
+    }
+
+    .reviewer-form-modal > .application-modal-heading {
+        padding-right: 40px;
+    }
+
+    .reviewer-consent-gate {
+        display: grid;
+        grid-template-columns: auto auto minmax(260px, 1fr);
+        align-items: start;
+        gap: 10px 18px;
+        margin: 0;
+        border: 1px solid #cfe2d6;
+        border-radius: 7px;
+        padding: 14px;
+        background: #f7fbf8;
+    }
+
+    .reviewer-consent-gate legend {
+        grid-column: 1 / -1;
+        color: #27364a;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .reviewer-consent-gate > label:not(.reviewer-consent-explanation) {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #27364a;
+        font-size: 13px;
+    }
+
+    .reviewer-consent-explanation {
+        grid-row: 2 / span 2;
+        grid-column: 3;
+    }
+
+    .reviewer-form-question-list {
+        display: grid;
+        border: 1px solid #dce5e0;
+        border-radius: 7px;
+    }
+
+    .reviewer-form-question {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(260px, 1.4fr) minmax(280px, 1fr) minmax(210px, 0.8fr);
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+        border: 0;
+        border-bottom: 1px solid #e3e9e5;
+        padding: 12px 14px;
+    }
+
+    .reviewer-form-question:last-child {
+        border-bottom: 0;
+    }
+
+    .reviewer-form-question legend {
+        min-width: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        color: #27364a;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+
+    .reviewer-form-question legend > span {
+        width: 24px;
+        height: 24px;
+        flex: 0 0 24px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #08723d;
+        background: #e8f5ed;
+        font-size: 11px;
+    }
+
+    .reviewer-form-answer-options {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+    }
+
+    .reviewer-form-answer-options label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #445268;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    .reviewer-form-item-comment {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+        color: #667085;
+        font-size: 10px;
+    }
+
+    .reviewer-form-item-comment input {
+        width: 100%;
+        min-width: 0;
+        min-height: 36px;
+        border: 1px solid #cbd8d0;
+        border-radius: 6px;
+        padding: 7px 9px;
+    }
+
+    .reviewer-form-recommendation {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.6fr) minmax(0, 1.4fr);
+        align-items: start;
+        gap: 14px;
+        border: 1px solid #dce5e0;
+        border-radius: 7px;
+        padding: 14px;
+    }
+}
+
+@container reviewer-assignment-workspace (max-width: 900px) {
+    .reviewer-workspace-main-grid,
+    .reviewer-workspace-summary-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-assignment-ready {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .reviewer-assignment-ready > .dashboard-primary-action {
+        grid-column: 1 / -1;
+        justify-content: center;
+    }
+
+    .reviewer-form-question {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-form-answer-options {
+        padding-left: 33px;
+    }
+}
+
+@container reviewer-assignment-workspace (max-width: 560px) {
+    .reviewer-conflict-actions,
+    .reviewer-decision-actions,
+    .reviewer-form-actions {
+        flex-direction: column;
+    }
+
+    .reviewer-conflict-actions form,
+    .reviewer-conflict-actions button,
+    .reviewer-decision-actions > *,
+    .reviewer-form-actions > * {
+        width: 100%;
+    }
+
+    .reviewer-comment-form,
+    .reviewer-form-recommendation,
+    .reviewer-consent-gate {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-comment-form .application-field-full,
+    .reviewer-comment-form > .dashboard-primary-action,
+    .reviewer-consent-gate legend,
+    .reviewer-consent-explanation {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .reviewer-comment-form > .dashboard-primary-action {
+        width: 100%;
+    }
+
+    .reviewer-form-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .reviewer-form-row .dashboard-outline-action {
+        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .reviewer-form-answer-options {
+        padding-left: 0;
+    }
+}
+
+@container application-workspace (max-width: 820px) {
+    .res-page-heading-actions {
+        width: 100%;
+    }
+
+    .res-page-heading-actions > .dashboard-outline-action {
+        flex: 1 1 220px;
+    }
+}
+
+@container application-workspace (max-width: 560px) {
+    .res-page-heading-actions {
+        flex-direction: column;
+    }
+
+    .res-page-heading-actions > .dashboard-outline-action {
+        flex: 0 0 auto;
+    }
+
+    .res-page-heading-actions > .dashboard-outline-action {
+        width: 100%;
+    }
+
+    .res-classification-actions > * {
+        width: auto;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 18px;
     }
 }

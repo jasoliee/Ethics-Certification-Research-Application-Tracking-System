@@ -131,6 +131,17 @@ function initializeApplicationTools(shell) {
         },
     ];
 
+    // Each official Reviewer form owns a separate accessible dialog while sharing focus restoration.
+    shell.querySelectorAll('[data-reviewer-form-dialog]').forEach((dialog) => {
+        const type = dialog.dataset.reviewerFormDialog;
+
+        modalConfigurations.push({
+            dialog,
+            openSelector: `[data-reviewer-form-open="${type}"]`,
+            closeSelector: '[data-reviewer-form-close]',
+        });
+    });
+
     // Initialize only modal configurations whose Blade dialog exists on the current page.
     modalConfigurations.forEach(({ dialog, openSelector, closeSelector }) => {
         // Pages without this dialog require no listeners or temporary modal state.
@@ -187,10 +198,11 @@ function initializeApplicationTools(shell) {
     if (reviewerAssignmentForm) {
         const requiredReviewers = Number.parseInt(reviewerAssignmentForm.dataset.requiredReviewers ?? '0', 10);
         const reviewerInputs = [...reviewerAssignmentForm.querySelectorAll('[data-reviewer-select]')];
-        const selectionCount = reviewerAssignmentForm.querySelector('[data-reviewer-selection-count]');
-        const selectedList = reviewerAssignmentForm.querySelector('[data-selected-reviewer-list]');
+        const selectionCount = shell.querySelector('[data-reviewer-selection-count]');
+        const selectedList = shell.querySelector('[data-selected-reviewer-list]');
         const confirmationList = shell.querySelector('[data-confirmation-reviewer-list]');
-        const confirmationButton = reviewerAssignmentForm.querySelector('[data-reviewer-assignment-confirm-open]');
+        const confirmationButton = shell.querySelector('[data-reviewer-assignment-confirm-open]');
+        const removeIconTemplate = shell.querySelector('[data-reviewer-remove-icon]');
 
         // Build reviewer summaries with text nodes so account data is never interpreted as markup.
         const reviewerSummary = (input, removable) => {
@@ -214,8 +226,13 @@ function initializeApplicationTools(shell) {
                 const remove = document.createElement('button');
                 remove.type = 'button';
                 remove.className = 'res-selected-reviewer-remove';
-                remove.textContent = 'Remove';
+                remove.title = `Remove ${name.textContent}`;
                 remove.setAttribute('aria-label', `Remove ${name.textContent}`);
+                if (removeIconTemplate) {
+                    remove.append(removeIconTemplate.content.cloneNode(true));
+                } else {
+                    remove.textContent = 'X';
+                }
                 remove.addEventListener('click', () => {
                     input.checked = false;
                     syncReviewerSelection();
@@ -263,6 +280,36 @@ function initializeApplicationTools(shell) {
         });
 
         syncReviewerSelection();
+    }
+
+    const reviewerCommentForm = shell.querySelector('[data-reviewer-comment-form]');
+
+    if (reviewerCommentForm) {
+        const scope = reviewerCommentForm.querySelector('[data-reviewer-comment-scope]');
+        const documentField = reviewerCommentForm.querySelector('[data-reviewer-comment-document-field]');
+        const documentInput = reviewerCommentForm.querySelector('[data-reviewer-comment-document]');
+        const pageField = reviewerCommentForm.querySelector('[data-reviewer-comment-page-field]');
+        const pageInput = reviewerCommentForm.querySelector('[data-reviewer-comment-page]');
+
+        // Scope-dependent controls remain absent from validation until the Reviewer selects them.
+        const syncReviewerCommentScope = () => {
+            const referencesDocument = ['document', 'page'].includes(scope?.value);
+            const referencesPage = scope?.value === 'page';
+
+            if (documentField && documentInput) {
+                documentField.hidden = ! referencesDocument;
+                documentInput.disabled = ! referencesDocument || scope.disabled;
+                documentInput.required = referencesDocument;
+            }
+            if (pageField && pageInput) {
+                pageField.hidden = ! referencesPage;
+                pageInput.disabled = ! referencesPage || scope.disabled;
+                pageInput.required = referencesPage;
+            }
+        };
+
+        scope?.addEventListener('change', syncReviewerCommentScope);
+        syncReviewerCommentScope();
     }
 
     // Populate the secure viewer only with controller URLs already rendered into the triggering row.
@@ -551,6 +598,14 @@ function initializeApplicationTools(shell) {
         // Screening corrections require a deliberate confirmation before the locked workflow update runs.
         if (form.matches?.('[data-confirm-screening-update]')
             && ! window.confirm('Update this screening decision? Incompatible unstarted reviewer assignments may be removed.')) {
+            event.preventDefault();
+
+            return;
+        }
+
+        if (form.matches?.('[data-confirm-review-submit]')
+            && event.submitter?.value === 'submit'
+            && ! window.confirm('Submit this final review? Submitted forms, comments, and the decision can no longer be changed.')) {
             event.preventDefault();
 
             return;

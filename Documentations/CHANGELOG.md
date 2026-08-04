@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-04
+
+### Added
+
+- Additive Reviewer workflow persistence for conflict state, one overall submission, the two official form submissions, and assignment-owned review comments.
+- Conflict-gated blind Reviewer workspace with protected documents, overall/document/page comments, independent form drafts/finalization, decision drafts, and immutable final submission.
+- Server-owned KLD-RES-04-001 protocol and KLD-RES-04-002 informed-consent contracts with exact answer/recommendation validation.
+- Separate policy-authorized direct Download actions beside every RES requirement View Document action.
+
+### Changed
+
+- Initial Reviewer assignments now require a one-time conflict declaration and inherit the active Reviewer Submission deadline when configured.
+- Applications move to `review_submitted_pending_release` only after every initial Reviewer assignment in the review cycle submits.
+- Centered the requested RES Applicant Category, Applicant Submitted/requirement, Reviewer Application Code/Status/Deadline, and User Management Name columns; Reviewer deadline text remains dark.
+- Reworked RES screening actions, bottom warning, direct document actions, decision actions, and Reviewer selection into contained desktop/tablet/phone layouts. Reviewer filters now live inside Eligible Reviewers and selected removal uses an X icon.
+- Kept all wide requirement, assignment, and Reviewer tables in bottom horizontal scrollers with no extra bottom padding or page-level overflow.
+
+### Security
+
+- Reviewer work requires exact assignment ownership, cleared conflict state, an active unsubmitted assignment, and an open Reviewer Submission period. Parent/nested document authorization is repeated for every private preview/download.
+- Applicant and Adviser database identity is omitted from Reviewer pages; Reviewer identity, forms, comments, and decisions remain unavailable to Applicant routes before official release.
+- Reviewer audit events store bounded state and identifiers only, excluding form answers, comment/decision text, filenames, document content, and private paths.
+
+### Verification
+
+- The focused Reviewer/RES suite passed 26 tests with 288 assertions; the complete Laravel suite passed 179 tests with 2,650 assertions.
+- Pint, strict Composer validation, platform requirements, route registration, migration status, Blade compilation, the Vite production build, and `git diff --check` passed.
+- Interactive checks passed at 1440px, 768px, and 390px for RES details/assignment, Applicant tables/details, Reviewer list/conflict/workspace/forms, action alignment, and internal bottom scrollbars without whole-page horizontal overflow.
+
 ## 2026-08-03
 
 ### Added
@@ -37,6 +66,7 @@
 
 ### Changed
 
+- Removed obsolete term-filter breakpoints from the RES Applications Queue so the current screening filters no longer overlap, and restored Apply Filters above Reset Filters in the rightmost desktop column.
 - Expanded the former Endorsed Applications landing page into the complete post-endorsement Applications Queue with Applicant category, research type, review type, institute/program, and endorsement-date filters.
 - Updated local demo accounts and histories so post-screening demo statuses have their required screening records and the Expedited assignment page has an eligible reviewer.
 
