@@ -20,6 +20,7 @@ class DeadlineConfigurationService
     public function __construct(
         private readonly AuditLogService $auditLog,
         private readonly AcademicTermResolver $terms,
+        private readonly DeadlineStateResolver $states,
     ) {}
 
     /**
@@ -60,9 +61,7 @@ class DeadlineConfigurationService
                 ...$definition,
                 'key' => $key,
                 'configuration' => $configuration,
-                'is_open' => $configuration
-                    ? $this->isEnabledForDisplay($configuration)
-                    : false,
+                'is_open' => $configuration ? $this->states->status($configuration)['open'] : false,
             ]];
         })->all();
     }
@@ -83,8 +82,8 @@ class DeadlineConfigurationService
                     'academic_year' => $academicYear,
                 ],
                 [
-                    'starts_at' => Carbon::createFromFormat('Y-m-d', $attributes['term_starts_on'])->startOfDay(),
-                    'ends_at' => Carbon::createFromFormat('Y-m-d', $attributes['term_ends_on'])->endOfDay(),
+                    'starts_at' => Carbon::createFromFormat('Y-m-d', $attributes['term_starts_on'], 'Asia/Manila')->startOfDay(),
+                    'ends_at' => Carbon::createFromFormat('Y-m-d', $attributes['term_ends_on'], 'Asia/Manila')->endOfDay(),
                     'is_active' => true,
                 ],
             );
@@ -93,16 +92,23 @@ class DeadlineConfigurationService
 
             foreach (DeadlineProcessCatalog::definitions() as $key => $definition) {
                 $process = $attributes['processes'][$key];
-                $dueAt = Carbon::createFromFormat('Y-m-d\TH:i', $process['due_at']);
-                $startsAt = $definition['exact_date']
-                    ? $dueAt->copy()
-                    : Carbon::createFromFormat('Y-m-d\TH:i', $process['starts_at']);
-                $manualStatus = $process['is_open']
-                    ? DeadlineManualStatus::Open
-                    : null;
+                $dueAt = Carbon::createFromFormat('Y-m-d\TH:i', $process['due_at'], 'Asia/Manila');
+                $startsAt = Carbon::createFromFormat('Y-m-d\TH:i', $process['starts_at'], 'Asia/Manila');
+                $deadlineKey = "term-{$term->id}-{$key}";
+                $existing = DeadlineConfiguration::query()->where('deadline_key', $deadlineKey)->first();
+                $datesChanged = ! $existing
+                    || ! $existing->starts_at?->equalTo($startsAt)
+                    || ! $existing->due_at?->equalTo($dueAt);
+                $manualStatus = match (true) {
+                    $datesChanged => null,
+                    (bool) $process['override_changed'] => (bool) $process['is_open']
+                        ? DeadlineManualStatus::Open
+                        : DeadlineManualStatus::Closed,
+                    default => $existing?->manual_status,
+                };
 
                 DeadlineConfiguration::query()->updateOrCreate(
-                    ['deadline_key' => "term-{$term->id}-{$key}"],
+                    ['deadline_key' => $deadlineKey],
                     [
                         'academic_term_id' => $term->id,
                         'title' => $definition['timeline_label'],
@@ -142,17 +148,5 @@ class DeadlineConfigurationService
                 'result' => 'updated',
             ], $term);
         }, 3);
-    }
-
-    /**
-     * Show the configured toggle independently from whether its date window is currently open.
-     */
-    private function isEnabledForDisplay(DeadlineConfiguration $configuration): bool
-    {
-        return match ($configuration->manual_status) {
-            DeadlineManualStatus::Open => true,
-            DeadlineManualStatus::Closed => false,
-            default => false,
-        };
     }
 }

@@ -39,6 +39,7 @@ class DashboardDataService
             ->select([
                 'id',
                 'application_code',
+                'academic_term_id',
                 'applicant_user_id',
                 'adviser_user_id',
                 'applicant_type',
@@ -55,7 +56,7 @@ class DashboardDataService
             ->where('applicant_user_id', $user->id)
             ->where('application_status', '!=', ApplicationStatus::Archived->value);
         $activeApplication = $activeApplicationQuery
-            ->with('adviser:id,name')
+            ->with(['adviser:id,name', 'academicTerm:id,semester,academic_year'])
             ->latest('created_at')
             ->latest('id')
             ->first();
@@ -107,7 +108,6 @@ class DashboardDataService
         return [
             'counts' => [
                 'pending' => $statusCounts->get(ApplicationStatus::SubmittedToAdviser->value, 0),
-                'in_review' => $this->sumCounts($statusCounts, ApplicationStatus::values(ApplicationStatus::underReview())),
                 'endorsed' => $this->sumCounts($statusCounts, ApplicationStatus::values(ApplicationStatus::afterAdviserEndorsement())),
                 'returned' => $statusCounts->get(ApplicationStatus::ReturnedByAdviser->value, 0),
             ],
@@ -134,18 +134,13 @@ class DashboardDataService
     /** @return array<string, mixed> */
     public function reviewer(User $user): array
     {
-        $base = ReviewerAssignment::query()->where('reviewer_user_id', $user->id);
+        $base = ReviewerAssignment::query()->current()->where('reviewer_user_id', $user->id);
         $this->scopeAssignmentsToCurrentTerm($base);
-        $activeValues = ReviewerAssignmentStatus::activeValues();
         $statusCounts = $this->groupedCounts($base, 'assignment_status');
 
         return [
             'counts' => [
                 'pending' => $statusCounts->get(ReviewerAssignmentStatus::Pending->value, 0),
-                'near_deadline' => (clone $base)
-                    ->whereIn('assignment_status', $activeValues)
-                    ->whereBetween('review_deadline_at', [now(), now()->addDays(3)])
-                    ->count(),
                 'revision' => $statusCounts->get(ReviewerAssignmentStatus::RevisionReview->value, 0),
                 'completed' => $statusCounts->get(ReviewerAssignmentStatus::DecisionSubmitted->value, 0),
             ],
@@ -232,6 +227,7 @@ class DashboardDataService
     {
         $query = DeadlineConfiguration::query()
             ->where('is_active', true)
+            ->where('deadline_key', 'not like', '%result-release')
             ->where(function (Builder $query) use ($role): void {
                 $query->whereNull('audience_role')->orWhere('audience_role', $role->value);
             });
@@ -271,9 +267,7 @@ class DashboardDataService
     private function configuredDeadlinePayload(DeadlineConfiguration $deadline): array
     {
         $state = $this->deadlineStates->status($deadline);
-        $definition = $this->deadlineDefinition($deadline);
         $message = match (true) {
-            ($definition['exact_date'] ?? false) => 'Release date: '.$deadline->due_at->format('M j, Y \a\t g:i A').'.',
             $state['state'] === 'manually_open' => 'Manually open. Configured deadline: '.$deadline->due_at->format('M j, Y \a\t g:i A').'.',
             $state['state'] === 'upcoming' => 'Opens '.$deadline->starts_at?->format('M j, Y \a\t g:i A').'. Deadline: '.$deadline->due_at->format('M j, Y \a\t g:i A').'.',
             default => 'Deadline: '.$deadline->due_at->format('M j, Y \a\t g:i A').'.',
@@ -284,14 +278,6 @@ class DashboardDataService
             'state' => $state['state'],
             'message' => $message,
         ];
-    }
-
-    /** @return array<string, mixed>|null */
-    private function deadlineDefinition(DeadlineConfiguration $deadline): ?array
-    {
-        $key = DeadlineProcessCatalog::keyForDeadlineKey($deadline->deadline_key);
-
-        return $key ? DeadlineProcessCatalog::definitions()[$key] : null;
     }
 
     /** @return array{title: string, days: int, due_at: Carbon, due_label: string} */
@@ -321,6 +307,10 @@ class DashboardDataService
             return ['timeline' => collect(), 'termLabel' => null];
         }
 
+        if ($applicationScoped && $application) {
+            return $this->applicationTimelineData($application);
+        }
+
         $eventsQuery = TimelineCalendarEvent::query()
             ->select(['milestone_key', 'label', 'term_label', 'starts_at', 'ends_at', 'sort_order'])
             ->where('is_active', true);
@@ -338,21 +328,10 @@ class DashboardDataService
             ->orderBy('sort_order')
             ->orderBy('starts_at')
             ->get();
-        $applicationTimelineIndex = $applicationScoped
-            ? ($application?->timelineIndex() ?? 0)
-            : null;
 
         return [
             'timeline' => $events->values()->map(
-                function (TimelineCalendarEvent $event, int $index) use ($applicationScoped, $applicationTimelineIndex): array {
-                    // Applicant milestones follow actual workflow progress; general calendars remain date-relative.
-                    $isComplete = $applicationScoped
-                        ? $index < $applicationTimelineIndex
-                        : $event->ends_at->isPast();
-                    $isCurrent = $applicationScoped
-                        ? $index === $applicationTimelineIndex
-                        : now()->between($event->starts_at, $event->ends_at);
-
+                function (TimelineCalendarEvent $event): array {
                     return [
                         'label' => $event->label,
                         'starts_at' => $event->starts_at,
@@ -360,8 +339,9 @@ class DashboardDataService
                         'date_label' => $event->starts_at->isSameDay($event->ends_at)
                             ? $event->starts_at->format('M j, Y')
                             : $event->starts_at->format('M j, Y').' - '.$event->ends_at->format('M j, Y'),
-                        'is_complete' => $isComplete,
-                        'is_current' => $isCurrent,
+                        'is_complete' => $event->ends_at->isPast(),
+                        'is_current' => now()->between($event->starts_at, $event->ends_at),
+                        'is_skipped' => false,
                     ];
                 },
             ),
@@ -369,6 +349,105 @@ class DashboardDataService
                 ?? $events->first()?->term_label
                 ?? AcademicTermResolver::FALLBACK_LABEL,
         ];
+    }
+
+    /** Build a stable, term-scoped Applicant timeline from canonical milestone keys. */
+    private function applicationTimelineData(ResearchApplication $application): array
+    {
+        $definitions = collect(DeadlineProcessCatalog::definitions())->mapWithKeys(
+            fn (array $definition): array => [$definition['timeline_key'] => $definition['timeline_label']],
+        );
+        $events = TimelineCalendarEvent::query()
+            ->select(['milestone_key', 'label', 'term_label', 'starts_at', 'ends_at'])
+            ->where('is_active', true)
+            ->when(
+                $application->academic_term_id !== null,
+                fn (Builder $query) => $query->where('academic_term_id', $application->academic_term_id),
+                fn (Builder $query) => $query->whereNull('academic_term_id'),
+            )
+            ->get()
+            ->keyBy(fn (TimelineCalendarEvent $event): string => $this->timelineEventKey($event->milestone_key));
+        $currentKey = $this->applicationCurrentMilestone($application->application_status);
+        $order = $definitions->keys()->values();
+        $currentIndex = $currentKey === null ? null : $order->search($currentKey, true);
+        $terminalInitialReview = in_array($application->application_status, [
+            ApplicationStatus::Exempted,
+            ApplicationStatus::ReviewSubmittedPendingRelease,
+            ApplicationStatus::ResultReleasedAccepted,
+            ApplicationStatus::ResultReleasedDisapproved,
+            ApplicationStatus::FeedbackRequired,
+            ApplicationStatus::CertificateReleased,
+            ApplicationStatus::Archived,
+        ], true);
+
+        $timeline = $definitions->map(function (string $label, string $key) use (
+            $events,
+            $order,
+            $currentKey,
+            $currentIndex,
+            $application,
+            $terminalInitialReview,
+        ): array {
+            $event = $events->get($key);
+            $index = $order->search($key, true);
+            $isSkipped = $terminalInitialReview && match ($application->application_status) {
+                ApplicationStatus::Exempted => $index >= 3,
+                default => $index >= 4,
+            };
+            $isComplete = ! $isSkipped && ($currentIndex !== null
+                ? $index < $currentIndex
+                : $terminalInitialReview && $index < ($application->application_status === ApplicationStatus::Exempted ? 3 : 4));
+
+            return [
+                'key' => $key,
+                'label' => $event?->label ?? $label,
+                'starts_at' => $event?->starts_at,
+                'ends_at' => $event?->ends_at,
+                'date_label' => ! $event
+                    ? 'Not scheduled'
+                    : ($event->starts_at->isSameDay($event->ends_at)
+                        ? $event->starts_at->format('M j, Y')
+                        : $event->starts_at->format('M j, Y').' - '.$event->ends_at->format('M j, Y')),
+                'is_complete' => $isComplete,
+                'is_current' => $key === $currentKey,
+                'is_skipped' => $isSkipped,
+            ];
+        })->values();
+
+        return [
+            'timeline' => $timeline,
+            'termLabel' => $application->academicTerm?->label()
+                ?? $events->first()?->term_label
+                ?? AcademicTermResolver::FALLBACK_LABEL,
+        ];
+    }
+
+    private function timelineEventKey(string $milestoneKey): string
+    {
+        foreach (['reviewing-revision', 'res-screening', 'submission', 'endorsement', 'reviewing', 'revision'] as $key) {
+            if ($milestoneKey === $key || str_ends_with($milestoneKey, '-'.$key)) {
+                return $key;
+            }
+        }
+
+        return $milestoneKey;
+    }
+
+    private function applicationCurrentMilestone(ApplicationStatus $status): ?string
+    {
+        return match ($status) {
+            ApplicationStatus::Draft, ApplicationStatus::Incomplete => 'submission',
+            ApplicationStatus::SubmittedToAdviser, ApplicationStatus::ReturnedByAdviser => 'endorsement',
+            ApplicationStatus::AdviserEndorsed,
+            ApplicationStatus::UnderResScreening,
+            ApplicationStatus::AwaitingReviewerAssignment => 'res-screening',
+            ApplicationStatus::UnderExpeditedReview, ApplicationStatus::UnderFullBoardReview => 'reviewing',
+            ApplicationStatus::ResultReleasedMinorRevision,
+            ApplicationStatus::ResultReleasedMajorRevision,
+            ApplicationStatus::RevisionWindowOpen => 'revision',
+            ApplicationStatus::RevisionSubmitted, ApplicationStatus::UnderReReview => 'reviewing-revision',
+            default => null,
+        };
     }
 
     private function scopeAssignmentsToCurrentTerm(Builder $query): void

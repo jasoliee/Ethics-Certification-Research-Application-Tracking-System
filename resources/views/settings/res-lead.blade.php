@@ -23,7 +23,6 @@
             'reviewer-submission' => 'users',
             'revision-period' => 'refresh',
             'reviewing-revision-period' => 'eye',
-            'result-release' => 'award',
         ];
         $upcomingConfiguration = $upcomingDeadline['configuration'] ?? null;
         $activeDateRangeDays = $configuredTerm
@@ -163,7 +162,7 @@
                                     <th>Description</th>
                                     <th>Open</th>
                                     <th>Deadline / Release Date</th>
-                                    <th>Manual Open</th>
+                                    <th>Availability</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -182,41 +181,34 @@
                                         </td>
                                         <td class="settings-deadline-description">{{ $process['description'] }}</td>
                                         <td>
-                                            @if ($process['exact_date'])
-                                                <span class="settings-not-applicable" aria-label="Not applicable">-</span>
-                                            @else
-                                                <label class="settings-table-field" for="{{ $key }}_starts_at">
-                                                    <span class="sr-only">{{ $process['title'] }} opening date and time</span>
-                                                    <input
-                                                        id="{{ $key }}_starts_at"
-                                                        name="processes[{{ $key }}][starts_at]"
-                                                        type="datetime-local"
-                                                        min="{{ $minimumDeadline }}"
-                                                        value="{{ old("processes.{$key}.starts_at", $configuration?->starts_at?->format('Y-m-d\TH:i')) }}"
-                                                        data-deadline-start
-                                                        data-minimum-deadline="{{ $minimumDeadline }}"
-                                                        required
-                                                    >
-                                                </label>
-                                            @endif
+                                            <label class="settings-table-field" for="{{ $key }}_starts_at">
+                                                <span class="sr-only">{{ $process['title'] }} opening date and time</span>
+                                                <input
+                                                    id="{{ $key }}_starts_at"
+                                                    name="processes[{{ $key }}][starts_at]"
+                                                    type="datetime-local"
+                                                    value="{{ old("processes.{$key}.starts_at", $configuration?->starts_at?->format('Y-m-d\TH:i')) }}"
+                                                    data-deadline-start
+                                                    required
+                                                >
+                                            </label>
                                         </td>
                                         <td>
                                             <label class="settings-table-field" for="{{ $key }}_due_at">
-                                                <span class="sr-only">{{ $process['title'] }} {{ $process['exact_date'] ? 'release' : 'deadline' }} date and time</span>
+                                                <span class="sr-only">{{ $process['title'] }} deadline date and time</span>
                                                 <input
                                                     id="{{ $key }}_due_at"
                                                     name="processes[{{ $key }}][due_at]"
                                                     type="datetime-local"
-                                                    min="{{ $minimumDeadline }}"
                                                     value="{{ old("processes.{$key}.due_at", $configuration?->due_at?->format('Y-m-d\TH:i')) }}"
                                                     data-deadline-end
-                                                    data-minimum-deadline="{{ $minimumDeadline }}"
                                                     required
                                                 >
                                             </label>
                                         </td>
                                         <td class="settings-manual-cell">
                                             <input type="hidden" name="processes[{{ $key }}][is_open]" value="0">
+                                            <input type="hidden" name="processes[{{ $key }}][override_changed]" value="0" data-deadline-override-changed>
                                             <label class="settings-switch" for="{{ $key }}_is_open">
                                                 <input
                                                     id="{{ $key }}_is_open"
@@ -227,7 +219,7 @@
                                                     data-deadline-toggle
                                                 >
                                                 <span aria-hidden="true"></span>
-                                                <strong data-deadline-toggle-label>{{ $manualOpen ? 'On' : 'Auto' }}</strong>
+                                                <strong data-deadline-toggle-label>{{ $manualOpen ? 'On' : 'Off' }}</strong>
                                             </label>
                                         </td>
                                     </tr>

@@ -7,7 +7,6 @@ use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
 use App\Enums\ReviewSubmissionStatus;
@@ -28,34 +27,19 @@ class ReviewerWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_conflict_gate_hides_identity_and_documents_until_the_owner_clears_it(): void
+    public function test_assignment_owner_can_open_blind_documents_without_a_conflict_declaration(): void
     {
         Storage::fake('local');
-        [$reviewer, $applicant, $adviser, $application, $assignment, $document] = $this->assignmentFixture(
-            ReviewerConflictStatus::Pending,
-        );
+        [$reviewer, $applicant, $adviser, $application, $assignment, $document] = $this->assignmentFixture();
         $otherReviewer = User::factory()->create(['role' => UserRole::Reviewer]);
 
         $this->actingAs($reviewer)
             ->get(route('reviewer.assignments.show', $assignment))
             ->assertOk()
-            ->assertSee('Conflict of Interest Declaration')
-            ->assertDontSee($document->original_file_name)
+            ->assertSee('Assignment ready')
+            ->assertSee($document->original_file_name)
             ->assertDontSee($applicant->name)
             ->assertDontSee($adviser->name);
-
-        $this->actingAs($reviewer)
-            ->get(route('reviewer.assignments.workspace', $assignment))
-            ->assertForbidden();
-        $this->actingAs($reviewer)
-            ->get(route('reviewer.applications.documents.download', [$application, $document]))
-            ->assertForbidden();
-
-        $this->actingAs($reviewer)
-            ->post(route('reviewer.assignments.conflict.store', $assignment), [
-                'conflict_status' => ReviewerConflictStatus::Cleared->value,
-            ])
-            ->assertSessionHasNoErrors();
 
         $this->actingAs($reviewer)
             ->get(route('reviewer.assignments.workspace', $assignment))
@@ -76,33 +60,25 @@ class ReviewerWorkflowTest extends TestCase
             ->get(route('reviewer.applications.documents.download', [$application, $document]))
             ->assertForbidden();
 
-        $audit = AuditLog::query()->where('action', 'review.conflict_declared')->firstOrFail();
-        $this->assertSame(ReviewerConflictStatus::Cleared->value, $audit->metadata['conflict_status']);
+        $this->assertFalse(AuditLog::query()->where('action', 'review.conflict_declared')->exists());
     }
 
-    public function test_declared_conflict_permanently_blocks_the_blind_workspace(): void
+    public function test_superseded_assignment_immediately_revokes_the_old_reviewer_workspace(): void
     {
-        [$reviewer, , , , $assignment] = $this->assignmentFixture(ReviewerConflictStatus::Pending);
-
-        $this->actingAs($reviewer)
-            ->post(route('reviewer.assignments.conflict.store', $assignment), [
-                'conflict_status' => ReviewerConflictStatus::Declared->value,
-            ])
-            ->assertSessionHasNoErrors();
+        [$reviewer, , , , $assignment] = $this->assignmentFixture();
+        $assignment->update([
+            'superseded_at' => now(),
+            'superseded_by_user_id' => User::factory()->create(['role' => UserRole::ResLead])->id,
+            'supersession_reason' => 'Administrative reviewer replacement.',
+            'superseded_from_status' => $assignment->assignment_status->value,
+            'assignment_status' => ReviewerAssignmentStatus::Superseded,
+        ]);
 
         $this->actingAs($reviewer)
             ->get(route('reviewer.assignments.show', $assignment))
-            ->assertOk()
-            ->assertSee('Conflict declared')
-            ->assertDontSee('Open Review Workspace');
+            ->assertForbidden();
         $this->actingAs($reviewer)
             ->get(route('reviewer.assignments.workspace', $assignment))
-            ->assertForbidden();
-
-        $this->actingAs($reviewer)
-            ->post(route('reviewer.assignments.conflict.store', $assignment), [
-                'conflict_status' => ReviewerConflictStatus::Cleared->value,
-            ])
             ->assertForbidden();
     }
 
@@ -132,6 +108,27 @@ class ReviewerWorkflowTest extends TestCase
             'reviewer_assignment_id' => $assignment->id,
             'body' => $comment,
             'released_at' => null,
+            'status' => 'open',
+        ]);
+        $storedComment = $assignment->comments()->firstOrFail();
+        $this->actingAs($reviewer)
+            ->putJson(route('reviewer.assignments.comments.update', [$assignment, $storedComment]), [
+                'scope' => 'overall',
+                'category' => 'required_revision',
+                'body' => $comment.' updated',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.body', $comment.' updated');
+        $this->actingAs($reviewer)
+            ->patchJson(route('reviewer.assignments.comments.status', [$assignment, $storedComment]), [
+                'status' => 'resolved',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'resolved');
+        $this->assertDatabaseHas('review_comment_status_changes', [
+            'review_comment_id' => $storedComment->id,
+            'from_status' => 'open',
+            'to_status' => 'resolved',
         ]);
 
         $this->actingAs($applicant)
@@ -226,6 +223,11 @@ class ReviewerWorkflowTest extends TestCase
             2,
             $assignment->formSubmissions()->where('status', ReviewFormStatus::Final->value)->count(),
         );
+        $protocol = $assignment->formSubmissions()->where('form_type', ReviewFormType::Protocol->value)->firstOrFail();
+        $this->assertSame('2026-08-05', $protocol->catalog_version);
+        $this->assertCount(15, $protocol->catalog_snapshot['questions']);
+        $this->assertNotNull($protocol->finalized_payload_snapshot);
+        $this->assertCount(15, ReviewFormCatalog::questions(ReviewFormType::InformedConsent));
     }
 
     public function test_final_decision_requires_both_forms_then_freezes_work_and_moves_the_application_for_res_release(): void
@@ -318,9 +320,8 @@ class ReviewerWorkflowTest extends TestCase
     /**
      * @return array{0: User, 1: User, 2: User, 3: ResearchApplication, 4: ReviewerAssignment, 5: ApplicationDocument}
      */
-    private function assignmentFixture(
-        ReviewerConflictStatus $conflictStatus = ReviewerConflictStatus::Cleared,
-    ): array {
+    private function assignmentFixture(): array
+    {
         $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
         $applicant = User::factory()->create([
             'role' => UserRole::Applicant,
@@ -341,9 +342,6 @@ class ReviewerWorkflowTest extends TestCase
         $assignment = ReviewerAssignment::factory()->create([
             'research_application_id' => $application->id,
             'reviewer_user_id' => $reviewer->id,
-            'conflict_status' => $conflictStatus,
-            'conflict_cleared_at' => $conflictStatus === ReviewerConflictStatus::Cleared ? now() : null,
-            'conflict_declared_at' => $conflictStatus === ReviewerConflictStatus::Declared ? now() : null,
         ]);
         $requirement = DocumentRequirement::create([
             'code' => 'REVIEW-WORKSPACE-PROPOSAL',

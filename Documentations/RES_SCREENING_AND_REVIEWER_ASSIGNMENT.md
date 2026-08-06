@@ -2,9 +2,9 @@
 
 ## Implemented Boundary
 
-The initial RES workflow is implemented from the adviser-endorsed queue through editable screening/classification and, when required, initial reviewer assignment. The protected interface follows the supplied `ECRATS High Fidelity (6).pdf` and `ECRATS High Fidelity (7).pdf` references while reusing the existing dashboard shell, table, badge, empty-state, pagination, modal, and private-document components.
+The RES workflow is implemented from the adviser-endorsed queue through classification and, when required, initial assignment or non-destructive reviewer reassignment.
 
-The Reviewer Assigned Applications list, one-time conflict declaration, blind workspace, assignment-gated private document access, official forms, comments, and initial recommendation submission are implemented. This slice does not implement document-content redaction, conflict reassignment, official result release, certificate generation, or QR verification.
+The Reviewer task list, blind workspace, assignment-gated private document access, official forms, comments, initial recommendation submission, and reassignment history are implemented. This slice does not implement document-content redaction, official result release, certificate generation, or QR verification.
 
 ## Applications Queue
 
@@ -20,27 +20,18 @@ Queue queries are parameterized Eloquent queries. Draft, incomplete, submitted-t
 
 ## Screening and Classification
 
-Only a RES Lead may open the write routes. `ClassifyResearchApplicationRequest` validates the administrative decision before the workflow service executes it. Classification requires:
+Only a RES Lead may open the write routes. `ClassifyResearchApplicationRequest` requires one of `expedited`, `full_board`, or `exempted` plus a 15-to-2,000-character reason or basis. Administrative completeness, receipt, eligibility, confirmation, and notes fields are retired.
 
-- `complete` completeness status;
-- `accepted` receipt-check status;
-- confirmation that required documents were verified;
-- confirmation that receipt status was recorded;
-- confirmation that basic eligibility was checked;
-- one of `expedited`, `full_board`, or `exempted`; and
-- a 15-to-2,000-character reason or basis.
+The service locks the application row, repeats policy authorization, rejects an existing classification, and recalculates mandatory-document readiness from persisted current documents.
 
-The service locks the application row, repeats policy authorization, rejects an existing screening, and recalculates mandatory-document readiness from persisted current documents. The browser confirmation and checkboxes do not replace these server checks.
-
-One `application_screenings` row preserves the actor, administrative states, confirmations, optional notes, classification, reason, and timestamp. A unique application foreign key prevents two initial classifications.
+One `application_screenings` row preserves the actor, classification, reason, and timestamp. A unique application foreign key prevents two initial classifications.
 
 ## Screening Corrections
 
-`PUT /res-lead/applications/{researchApplication}/classification` allows an authorized RES Lead to correct completeness, receipt status, the three administrative confirmations, notes, review type, and reason during screening, reviewer assignment, active initial review, or the Exempted boundary. Later result, revision, certificate, and archive states are immutable from this surface. The workflow locks the application, screening, and initial assignments before it reconciles status and stage.
+`PUT /res-lead/applications/{researchApplication}/classification` allows an authorized RES Lead to correct review type and reason during screening, reviewer assignment, active initial review, or the Exempted boundary. Later result, revision, certificate, and archive states are immutable from this surface. The workflow locks the application, classification, and current initial assignments before it reconciles status and stage.
 
-- An unchanged complete decision with either zero assignments or the exact required count preserves the assignment set and current workflow projection.
-- Revoking administrative readiness or changing to an incompatible classification removes only `pending`, unsubmitted assignments.
-- Any `in_review`, `revision_review`, submitted, or otherwise started assignment blocks an incompatible correction.
+- An unchanged classification with either zero assignments or the exact required count preserves the assignment set and current workflow projection.
+- Changing to an incompatible classification supersedes current assignments without deleting submitted work or history.
 - Exempted requires zero reviewers; Expedited requires one; Full Board requires three.
 - The correction writes `application.res_screening_updated` without notes or reasons and sends neutral notifications.
 
@@ -55,16 +46,14 @@ Expedited review requires exactly one reviewer. Full Board review requires exact
 
 All active classification-matched candidates are visible by default. Exact application-department matches appear first, institution matches next, and other eligible candidates follow. Search covers name, position, and department, while Department provides an optional exact filter. Full-load rows remain visible with `current load / capacity` and disabled selection. Inactive, archived, setup-incomplete, classification-mismatched, and known-conflict accounts are omitted.
 
-The confirmation dialog requires the exact count. The transaction then locks the application and selected reviewer rows, repeats every eligibility and capacity check, rejects an existing initial assignment set, and creates existing `reviewer_assignments` records. Sorted reviewer locking limits deadlock risk during concurrent capacity checks.
+The confirmation dialog requires the exact count. The transaction locks the application and selected reviewer rows and repeats every eligibility and capacity check. An unchanged set is idempotent. Removed assignments are superseded with actor, timestamp, reason, and prior status; retained assignments keep their identity; new rows link to replacements and receive the next sequence. Sorted reviewer locking limits deadlock risk during concurrent capacity checks.
 
 Successful assignment advances the application to:
 
 - `under_expedited_review` and `ethics_review` for Expedited; or
 - `under_full_board_review` and `ethics_review` for Full Board.
 
-The saved result screen is read-only and displays the persisted reviewers, workload, assignment time, and assignment status.
-
-New assignments start with a pending Reviewer conflict declaration and copy the configured Reviewer Submission deadline when available. Reviewers who clear the declaration may enter the protected workflow documented in [Reviewer Workflow](REVIEWER_WORKFLOW.md). A declared conflict remains blocked for later RES reassignment handling.
+The saved set remains editable until final release. New current assignments copy the configured Reviewer Submission deadline when available and immediately grant their owner access to the protected workflow documented in [Reviewer Workflow](REVIEWER_WORKFLOW.md).
 
 ## Exempted Path
 
@@ -98,9 +87,7 @@ The existing RES private document preview/download routes remain unchanged.
 
 ## Remaining Limitations
 
-- Reviewer conflict declaration is implemented; RES reassignment after a declaration is not.
 - Automated blind/anonymized document generation and content-level identity redaction are not implemented.
 - There is no availability calendar. Capacity is displayed and enforced, but it is not presented as a separate availability column or filter.
 - Reviewer deadlines come from the active Reviewer Submission configuration; there is no per-assignment deadline picker.
-- Reassignment, withdrawal, replacement, and assignment history controls are not implemented.
-- Reviewer evaluation forms and held initial decisions are implemented; Exempted direct release, consolidated official result release, certificates, and QR verification remain pending.
+- Reviewer evaluation forms, held initial decisions, and non-destructive replacement are implemented; Exempted direct release, consolidated official result release, certificates, and QR verification remain pending.

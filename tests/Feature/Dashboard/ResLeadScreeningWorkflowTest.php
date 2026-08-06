@@ -5,11 +5,9 @@ namespace Tests\Feature\Dashboard;
 use App\Enums\AccountStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
-use App\Enums\ReceiptCheckStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
-use App\Enums\ScreeningCompletenessStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
 use App\Models\AuditLog;
@@ -55,8 +53,6 @@ class ResLeadScreeningWorkflowTest extends TestCase
             'research_application_id' => $application->id,
             'screened_by_user_id' => $resLead->id,
             'review_type' => ReviewType::Expedited->value,
-            'completeness_status' => ScreeningCompletenessStatus::Complete->value,
-            'receipt_check_status' => ReceiptCheckStatus::Accepted->value,
         ]);
 
         $audit = AuditLog::query()
@@ -83,11 +79,17 @@ class ResLeadScreeningWorkflowTest extends TestCase
             ->assertSee('Application Overview')
             ->assertSee('Research Information')
             ->assertSee('Requirement Checklist')
-            ->assertSee('Administrative Screening Panel')
+            ->assertDontSee('Administrative Screening Panel')
             ->assertSee('Review Type Classification')
             ->assertSee(ReviewType::Expedited->label())
             ->assertSee(ReviewType::FullBoard->label())
             ->assertSee(ReviewType::Exempted->label())
+            ->assertSee('class="res-classification-fields"', false)
+            ->assertSeeInOrder([
+                'Select Review Type',
+                'Reason / Basis for Classification',
+                'Classification determines the reviewer count and next workflow status.',
+            ])
             ->assertSee(route('res.applications.documents.preview', [$application, $document]), false)
             ->assertSee(route('res.applications.documents.download', [$application, $document]), false)
             ->assertSee('data-application-submit-once', false);
@@ -101,20 +103,9 @@ class ResLeadScreeningWorkflowTest extends TestCase
             ->assertRedirect(route('dashboard'));
     }
 
-    public function test_classification_rejects_incomplete_administrative_gates_and_stale_document_readiness(): void
+    public function test_classification_rechecks_stale_document_readiness(): void
     {
         [$resLead, , , $application] = $this->readyApplication();
-        $invalidAdministrative = $this->classificationPayload(ReviewType::Expedited);
-        $invalidAdministrative['completeness_status'] = ScreeningCompletenessStatus::Incomplete->value;
-        $invalidAdministrative['receipt_check_status'] = ReceiptCheckStatus::Pending->value;
-
-        $this->actingAs($resLead)
-            ->post(route('res.applications.classification.store', $application), $invalidAdministrative)
-            ->assertSessionHasErrorsIn('resScreening', [
-                'completeness_status',
-                'receipt_check_status',
-            ]);
-
         $application->documents()->update(['validation_status' => RequirementStatus::Rejected->value]);
 
         $this->actingAs($resLead)
@@ -129,7 +120,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_expedited_assignment_requires_exactly_one_eligible_reviewer_and_cannot_repeat(): void
+    public function test_expedited_assignment_requires_exactly_one_eligible_reviewer_and_is_idempotent(): void
     {
         [$resLead, $applicant, , $application] = $this->classifiedApplication(ReviewType::Expedited);
         $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
@@ -164,11 +155,37 @@ class ResLeadScreeningWorkflowTest extends TestCase
                 'reviewer_ids' => [$reviewer->id],
                 'confirm_assignment' => '1',
             ])
-            ->assertForbidden();
+            ->assertSessionHasNoErrors();
 
         $this->assertSame(1, ReviewerAssignment::query()
             ->where('research_application_id', $application->id)
             ->count());
+    }
+
+    public function test_reassignment_controls_are_grouped_with_selected_reviewer_and_decision_actions(): void
+    {
+        [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
+        $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$reviewer->id],
+                'confirm_assignment' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.reviewers.index', $application))
+            ->assertOk()
+            ->assertSeeInOrder(['Selected Reviewer', 'Reason for Reassignment', 'Save Reviewer Set'])
+            ->assertSee('form="res-reviewer-assignment-form"', false)
+            ->assertDontSee('Known applicant and adviser conflicts are excluded from this list.');
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.show', $application))
+            ->assertOk()
+            ->assertSee('class="res-workflow-banner-actions"', false)
+            ->assertSeeInOrder(['Re-edit Decision', 'View Assignment']);
     }
 
     public function test_full_board_assignment_rejects_wrong_and_duplicate_counts_then_assigns_exactly_three(): void
@@ -276,7 +293,6 @@ class ResLeadScreeningWorkflowTest extends TestCase
             ->assertSessionHasNoErrors();
         $assignment = ReviewerAssignment::query()->firstOrFail();
         $payload = $this->classificationPayload(ReviewType::Expedited);
-        $payload['screening_notes'] = 'Corrected administrative note with no classification change.';
         $payload['classification_reason'] = 'The corrected record still satisfies the expedited review criteria.';
 
         $this->actingAs($resLead)
@@ -286,17 +302,14 @@ class ResLeadScreeningWorkflowTest extends TestCase
 
         $this->assertDatabaseHas('reviewer_assignments', ['id' => $assignment->id]);
         $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->fresh()->application_status);
-        $this->assertSame(
-            'Corrected administrative note with no classification change.',
-            $application->screening()->firstOrFail()->screening_notes,
-        );
+        $this->assertSame($payload['classification_reason'], $application->screening()->firstOrFail()->classification_reason);
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'application.res_screening_updated',
             'subject_id' => $application->id,
         ]);
     }
 
-    public function test_screening_classification_change_removes_only_pending_unstarted_assignments(): void
+    public function test_screening_classification_change_supersedes_pending_assignment_without_deleting_it(): void
     {
         [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
         $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
@@ -319,11 +332,13 @@ class ResLeadScreeningWorkflowTest extends TestCase
         $application->refresh();
         $this->assertSame(ApplicationStatus::AwaitingReviewerAssignment, $application->application_status);
         $this->assertSame(ReviewType::FullBoard->value, $application->review_type);
-        $this->assertSame(0, $application->reviewerAssignments()->count());
+        $this->assertSame(1, $application->reviewerAssignments()->count());
+        $this->assertSame(0, $application->reviewerAssignments()->current()->count());
+        $this->assertSame(ReviewerAssignmentStatus::Superseded, $application->reviewerAssignments()->firstOrFail()->assignment_status);
         Notification::assertSentTo($reviewer, DashboardUpdateNotification::class);
     }
 
-    public function test_screening_correction_cannot_replace_started_review_work(): void
+    public function test_screening_correction_preserves_and_supersedes_started_review_work(): void
     {
         [$resLead, , , $application] = $this->classifiedApplication(ReviewType::Expedited);
         $reviewer = $this->reviewerFor($application, ReviewType::Expedited);
@@ -344,13 +359,14 @@ class ResLeadScreeningWorkflowTest extends TestCase
                 route('res.applications.classification.update', $application),
                 $this->classificationPayload(ReviewType::FullBoard),
             )
-            ->assertRedirect(route('res.applications.show', $application))
-            ->assertSessionHasErrorsIn('resScreening', ['review_type']);
+            ->assertRedirect(route('res.applications.reviewers.index', $application))
+            ->assertSessionHasNoErrors();
 
         $application->refresh();
-        $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->application_status);
-        $this->assertSame(ReviewType::Expedited->value, $application->review_type);
+        $this->assertSame(ApplicationStatus::AwaitingReviewerAssignment, $application->application_status);
+        $this->assertSame(ReviewType::FullBoard->value, $application->review_type);
         $this->assertSame(1, $application->reviewerAssignments()->count());
+        $this->assertSame(ReviewerAssignmentStatus::Superseded, $application->reviewerAssignments()->firstOrFail()->assignment_status);
     }
 
     public function test_screening_correction_is_unavailable_after_the_initial_review_boundary(): void
@@ -517,12 +533,6 @@ class ResLeadScreeningWorkflowTest extends TestCase
     private function classificationPayload(ReviewType $reviewType): array
     {
         return [
-            'completeness_status' => ScreeningCompletenessStatus::Complete->value,
-            'receipt_check_status' => ReceiptCheckStatus::Accepted->value,
-            'required_documents_verified' => '1',
-            'receipt_status_recorded' => '1',
-            'basic_eligibility_confirmed' => '1',
-            'screening_notes' => 'Administrative checklist completed against the submitted records.',
             'review_type' => $reviewType->value,
             'classification_reason' => 'The submitted protocol meets the documented criteria for this classification.',
         ];

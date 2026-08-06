@@ -74,7 +74,7 @@ class DashboardNavigationTest extends TestCase
         $cases = [
             UserRole::Applicant->value => ['User Management', 'Review Monitoring', 'Assignments', 'Reviewer', 'Certificates', 'Notifications'],
             UserRole::Adviser->value => ['Certificates', 'Review Monitoring', 'Assignments', 'Notifications'],
-            UserRole::Reviewer->value => ['Applicants', 'User Management', 'Certificates', 'Notifications'],
+            UserRole::Reviewer->value => ['Applicants', 'User Management', 'Certificates'],
             UserRole::ResLead->value => ['Applicants', 'Assignments', 'Reviewer', 'Notifications'],
         ];
 

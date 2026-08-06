@@ -318,11 +318,39 @@ function initializeApplicationTools(shell) {
     const documentTitle = documentDialog?.querySelector('[data-document-title]');
     const documentMeta = documentDialog?.querySelector('[data-document-meta]');
     const documentFrame = documentDialog?.querySelector('[data-document-frame]');
+    const documentImage = documentDialog?.querySelector('[data-document-image]');
     const documentFallback = documentDialog?.querySelector('[data-document-fallback]');
+    const documentPreview = documentDialog?.querySelector('[data-document-preview]');
+    const documentToolbar = documentDialog?.querySelector('[data-document-toolbar]');
+    const documentZoom = documentDialog?.querySelector('[data-document-zoom]');
+    const documentOpenTab = documentDialog?.querySelector('[data-document-open-tab]');
+    const documentRotate = documentDialog?.querySelector('[data-document-rotate]');
     const documentDownload = documentDialog?.querySelector('[data-document-download]');
     const documentReplace = documentDialog?.querySelector('[data-document-replace]');
     let documentTrigger = null;
     let documentReplaceInput = null;
+    let documentPreviewUrl = '';
+    let documentPreviewKind = 'download';
+    let documentZoomPercent = 100;
+    let documentRotation = 0;
+
+    const renderDocumentView = (fitMode = null) => {
+        if (documentZoom) {
+            documentZoom.textContent = `${documentZoomPercent}%`;
+        }
+
+        if (documentPreviewKind === 'pdf' && documentFrame) {
+            const fragment = fitMode === 'width'
+                ? 'zoom=page-width'
+                : fitMode === 'page' ? 'zoom=page-fit' : `zoom=${documentZoomPercent}`;
+            documentFrame.src = `${documentPreviewUrl}#${fragment}`;
+        }
+
+        if (documentPreviewKind === 'image' && documentImage) {
+            documentImage.style.width = `${documentZoomPercent}%`;
+            documentImage.style.transform = `rotate(${documentRotation}deg)`;
+        }
+    };
 
     // Clearing the iframe on close stops private document rendering and avoids retaining an obsolete URL.
     const closeDocumentDialog = () => {
@@ -332,13 +360,21 @@ function initializeApplicationTools(shell) {
 
         documentDialog.hidden = true;
         documentFrame?.removeAttribute('src');
+        documentImage?.removeAttribute('src');
         documentReplaceInput = null;
         documentTrigger?.focus();
     };
 
     const openDocumentDialog = (button) => {
         const previewUrl = button.dataset.documentPreviewUrl ?? '';
+        const previewKind = ['pdf', 'image'].includes(button.dataset.documentPreviewKind)
+            ? button.dataset.documentPreviewKind
+            : 'download';
         documentTrigger = button;
+        documentPreviewUrl = previewUrl;
+        documentPreviewKind = previewUrl === '' ? 'download' : previewKind;
+        documentZoomPercent = 100;
+        documentRotation = 0;
 
         if (documentTitle) {
             const name = button.dataset.documentName ?? 'Document';
@@ -353,6 +389,9 @@ function initializeApplicationTools(shell) {
         if (documentDownload) {
             documentDownload.href = button.dataset.documentDownloadUrl;
         }
+        if (documentOpenTab) {
+            documentOpenTab.href = previewUrl;
+        }
 
         const replaceInputId = button.dataset.documentReplaceInput ?? '';
         const replacementCandidate = replaceInputId === '' ? null : document.getElementById(replaceInputId);
@@ -365,19 +404,72 @@ function initializeApplicationTools(shell) {
         }
 
         if (documentFrame) {
-            documentFrame.hidden = previewUrl === '';
-            previewUrl === ''
+            documentFrame.hidden = documentPreviewKind !== 'pdf';
+            documentPreviewKind !== 'pdf'
                 ? documentFrame.removeAttribute('src')
-                : documentFrame.setAttribute('src', previewUrl);
+                : documentFrame.setAttribute('src', `${previewUrl}#zoom=100`);
+        }
+
+        if (documentImage) {
+            documentImage.hidden = documentPreviewKind !== 'image';
+            documentPreviewKind !== 'image'
+                ? documentImage.removeAttribute('src')
+                : documentImage.setAttribute('src', previewUrl);
         }
 
         if (documentFallback) {
-            documentFallback.hidden = previewUrl !== '';
+            documentFallback.hidden = documentPreviewKind !== 'download';
+        }
+        if (documentToolbar) {
+            documentToolbar.hidden = documentPreviewKind === 'download';
+        }
+        if (documentRotate) {
+            documentRotate.hidden = documentPreviewKind !== 'image';
         }
 
         documentDialog.hidden = false;
         documentPanel?.focus();
     };
+
+    documentDialog?.querySelector('[data-document-zoom-out]')?.addEventListener('click', () => {
+        documentZoomPercent = Math.max(25, documentZoomPercent - 25);
+        renderDocumentView();
+    });
+    documentDialog?.querySelector('[data-document-zoom-in]')?.addEventListener('click', () => {
+        documentZoomPercent = Math.min(200, documentZoomPercent + 25);
+        renderDocumentView();
+    });
+    documentDialog?.querySelector('[data-document-reset]')?.addEventListener('click', () => {
+        documentZoomPercent = 100;
+        documentRotation = 0;
+        renderDocumentView();
+    });
+    documentDialog?.querySelector('[data-document-fit-width]')?.addEventListener('click', () => {
+        if (documentPreviewKind === 'image' && documentImage?.naturalWidth && documentPreview) {
+            documentZoomPercent = Math.max(25, Math.min(200, Math.floor((documentPreview.clientWidth / documentImage.naturalWidth) * 100)));
+            renderDocumentView();
+            return;
+        }
+        renderDocumentView('width');
+    });
+    documentDialog?.querySelector('[data-document-fit-page]')?.addEventListener('click', () => {
+        if (documentPreviewKind === 'image' && documentImage?.naturalWidth && documentImage?.naturalHeight && documentPreview) {
+            documentZoomPercent = Math.max(25, Math.min(200, Math.floor(Math.min(
+                documentPreview.clientWidth / documentImage.naturalWidth,
+                documentPreview.clientHeight / documentImage.naturalHeight,
+            ) * 100)));
+            renderDocumentView();
+            return;
+        }
+        renderDocumentView('page');
+    });
+    documentRotate?.addEventListener('click', () => {
+        documentRotation = (documentRotation + 90) % 360;
+        renderDocumentView();
+    });
+    documentDialog?.querySelector('[data-document-fullscreen]')?.addEventListener('click', () => {
+        documentPreview?.requestFullscreen?.();
+    });
 
     // The modal Replace command opens the requirement-scoped native file picker.
     documentReplace?.addEventListener('click', () => {
@@ -780,27 +872,26 @@ function initializeSettingsTools(shell) {
         const end = process.querySelector('[data-deadline-end]');
         const toggle = process.querySelector('[data-deadline-toggle]');
         const label = process.querySelector('[data-deadline-toggle-label]');
+        const overrideChanged = process.querySelector('[data-deadline-override-changed]');
         const syncProcessState = () => {
             const manuallyOpen = Boolean(toggle?.checked);
 
             if (label) {
-                label.textContent = manuallyOpen ? 'On' : 'Auto';
+                label.textContent = manuallyOpen ? 'On' : 'Off';
             }
 
-            // Manual availability never relaxes the authoritative no-past-date input boundary.
-            if (start) {
-                start.min = start.dataset.minimumDeadline ?? '';
-            }
             if (end) {
-                const absoluteMinimum = end.dataset.minimumDeadline ?? '';
-                end.min = start?.value && start.value > absoluteMinimum
-                    ? start.value
-                    : absoluteMinimum;
+                end.min = start?.value ?? '';
             }
         };
 
         start?.addEventListener('change', syncProcessState);
-        toggle?.addEventListener('change', syncProcessState);
+        toggle?.addEventListener('change', () => {
+            if (overrideChanged) {
+                overrideChanged.value = '1';
+            }
+            syncProcessState();
+        });
         syncProcessState();
     });
 

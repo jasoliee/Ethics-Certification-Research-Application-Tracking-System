@@ -47,7 +47,7 @@ The structure is broadly aligned with the project plan. Confirmed additions to c
 
 - Add `exempted` review type support.
 - Add `disapproved` decision/status support. Treat older `rejected` wording as equivalent to `disapproved`.
-- Add reviewer conflict declaration as a gate before full blind-review access.
+- Preserve non-destructive reviewer assignment replacement history and grant blind-review access only through the current assignment.
 - Add public-safe QR/control-number verification plus protected full certificate access.
 - Add RES-controlled anonymization approval before reviewer-visible document access.
 - Apply a soft-delete/no-hard-delete policy where records may need hiding without destroying history.
@@ -113,7 +113,6 @@ Important fields:
 - `abstract`
 - `application_status`
 - `review_type`
-- `completeness_status`
 - `current_revision_cycle`
 - `submitted_at`
 
@@ -121,19 +120,15 @@ Review type should include `expedited`, `full_board`, and `exempted`.
 
 ### application_screenings
 
-Stores one initial administrative decision per application. Implemented fields include:
+Stores one current RES classification per application. Implemented fields include:
 
 - `research_application_id` (unique)
 - `screened_by_user_id`
-- `completeness_status`
-- `receipt_check_status`
-- three affirmative eligibility flags
-- optional `screening_notes`
 - `review_type`
 - `classification_reason`
 - `classified_at`
 
-The unique application key and row-locked service prevent duplicate initial classifications. Sensitive notes and reasons remain in the protected workflow record and are not copied into audit metadata.
+The unique application key and row-locked service prevent duplicate initial classifications. Classification reasons remain protected and are not copied into audit metadata. Administrative completeness/receipt/eligibility fields were retired by a forward migration; mandatory document readiness is still checked directly before every classification update.
 
 ### application_documents
 
@@ -206,7 +201,7 @@ Public QR/control-number verification should expose only approved certificate me
 
 - `review_type` includes `exempted`.
 - Review decisions include `disapproved`.
-- Reviewer assignments include conflict declaration fields.
+- Reviewer assignments include sequence, replacement links, and supersession metadata; assignment-level conflict fields are retired.
 - Anonymized documents include preparation and approval tracking by RES-authorized users.
 - Certificates support public-safe verification logs and protected full access.
 - Audit-sensitive records follow a no-hard-delete posture.

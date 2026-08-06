@@ -40,7 +40,7 @@ These rules are derived from the consolidated project documentation, supporting 
 - Reviewer capacity defaults to 30 active applications.
 - Reviewers access only assigned anonymized applications.
 - Reviewers must complete assigned reviews; ordinary decline/refusal behavior is not part of the current approved flow.
-- Reviewer conflict declaration is a confirmed addition and acts as a required gate before full blind-review access. If a conflict is declared, RES handles replacement or reassignment.
+- Assignment-level Reviewer conflict declaration is not part of the current workflow. An assigned current Reviewer receives blind access immediately; RES may replace any Reviewer before final release while preserving and superseding the prior assignment and submitted work.
 
 ## Decision and Revision Rules
 

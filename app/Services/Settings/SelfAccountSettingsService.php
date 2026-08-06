@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Applies audited RES Lead self-service credential changes without exposing secrets.
+ * Applies audited self-service credential changes without exposing secrets.
  */
 class SelfAccountSettingsService
 {

@@ -10,7 +10,7 @@ The overlay occupies the main workspace while keeping the sidebar available. The
 
 - Student/Faculty Researcher: setup, profile review, application preparation, requirements, submission, revisions, and released results.
 - Research Adviser: applicant account management, complete-submission review, return/endorse decisions, and deadlines.
-- Ethics Reviewer: assignments, conflict declaration, worksheet completion, deadlines, and revision review with confidentiality reminders.
+- Ethics Reviewer: assignments, worksheet completion, comments, deadlines, and revision review with confidentiality reminders.
 - RES Lead: screening, reviewer management, authorized outcome release, and account administration.
 
 ## Completion

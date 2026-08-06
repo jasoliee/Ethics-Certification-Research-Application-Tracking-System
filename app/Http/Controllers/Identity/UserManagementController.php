@@ -222,6 +222,7 @@ class UserManagementController extends Controller
         $search = trim((string) ($filters['search'] ?? ''));
         $query = ProfileOption::query()
             ->select(['id', 'field', 'value', 'sort_order', 'is_active', 'created_at', 'updated_at'])
+            ->with('aliases:id,profile_option_id,value')
             ->when($search !== '', fn ($options) => $options->whereLike('value', '%'.$search.'%'))
             ->when(filled($filters['field'] ?? null), fn ($options) => $options->where('field', $filters['field']))
             ->when(($filters['status'] ?? null) === 'active', fn ($options) => $options->where('is_active', true))
@@ -234,7 +235,7 @@ class UserManagementController extends Controller
         return view('identity.users.options', [
             'pageTitle' => 'Dropdown Option Management',
             'options' => $options,
-            'usageCounts' => $this->profileOptions->usageCounts(collect($options->items())),
+            'usageCounts' => $this->profileOptions->usageCounts($options->getCollection()),
             'filters' => $filters,
             'counts' => [
                 'active' => ProfileOption::query()->where('is_active', true)->count(),

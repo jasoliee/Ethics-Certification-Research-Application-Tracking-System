@@ -38,7 +38,7 @@ The requirement workspace combines application identity and completion in one re
 
 ## Submission
 
-Formal submission fails closed when no approved application-submission deadline is configured, before the opening date, or after the due date. A manual `On` override can open submission outside those dates while the configured term remains active; `Off` returns the process to automatic date evaluation. It also rechecks ownership, editable status, an available formal-application slot, complete persisted information, active Adviser eligibility, and every mandatory requirement.
+Formal submission fails closed when no approved application-submission deadline is configured, before the opening date, or after the due date. Explicit `On` or `Off` can override date evaluation while the configured term remains active; changing either process date clears the override. It also rechecks ownership, editable status, an available formal-application slot, complete persisted information, active Adviser eligibility, and every mandatory requirement.
 
 The maximum is three records with a non-null formal `submitted_at` timestamp. Unsubmitted drafts do not count. Returning and resubmitting the same application does not consume another slot. When no editable draft exists and the limit is reached, Create Application is disabled and the red warning explains the formal count.
 
@@ -48,4 +48,4 @@ On success, the application moves to `submitted_to_adviser`, its stage becomes `
 
 ## Pending Workflow
 
-Adviser return/endorsement, RES administrative screening/classification, and exact initial reviewer assignment are implemented for the complete initial submission. Blind reviewer evaluation, later revision handling after result release, direct Exempted release, certificates, QR access, and final archival remain incomplete end to end.
+Adviser return/endorsement, RES classification, exact current reviewer assignment, and blind initial reviewer evaluation are implemented for the complete initial submission. Later revision handling after result release, direct Exempted release, certificates, QR access, and final archival remain incomplete end to end.

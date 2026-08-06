@@ -32,20 +32,4 @@ enum ApplicationStage: string
             self::Completed => 'Completed',
         };
     }
-
-    /**
-     * Map the workflow stage to the seven configured applicant timeline milestones.
-     */
-    public function timelineIndex(): int
-    {
-        return match ($this) {
-            self::ApplicationInformation, self::DocumentSubmission => 0,
-            self::AdviserReview => 1,
-            self::ResScreening => 2,
-            self::EthicsReview => 3,
-            self::Revision => 4,
-            self::DecisionRelease => 6,
-            self::Completed => 7,
-        };
-    }
 }

@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Enums\ApplicationStatus;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\User;
@@ -31,6 +30,7 @@ class ResearchApplicationPolicy
             UserRole::Adviser => $researchApplication->adviser_user_id === $user->id
                 && $researchApplication->isFormallySubmitted(),
             UserRole::Reviewer => $researchApplication->reviewerAssignments()
+                ->current()
                 ->where('reviewer_user_id', $user->id)
                 ->exists(),
             UserRole::ResLead => true,
@@ -86,8 +86,8 @@ class ResearchApplicationPolicy
         }
 
         return $researchApplication->reviewerAssignments()
+            ->current()
             ->where('reviewer_user_id', $user->id)
-            ->where('conflict_status', ReviewerConflictStatus::Cleared->value)
             ->exists();
     }
 
@@ -143,11 +143,16 @@ class ResearchApplicationPolicy
     }
 
     /**
-     * Restrict initial reviewer assignment to a classified application awaiting assignment.
+     * Permit assignment and non-destructive reassignment until the final decision is released.
      */
     public function assignReviewers(User $user, ResearchApplication $researchApplication): bool
     {
         return $user->role === UserRole::ResLead
-            && $researchApplication->application_status === ApplicationStatus::AwaitingReviewerAssignment;
+            && in_array($researchApplication->application_status, [
+                ApplicationStatus::AwaitingReviewerAssignment,
+                ApplicationStatus::UnderExpeditedReview,
+                ApplicationStatus::UnderFullBoardReview,
+                ApplicationStatus::ReviewSubmittedPendingRelease,
+            ], true);
     }
 }

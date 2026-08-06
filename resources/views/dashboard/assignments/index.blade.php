@@ -3,12 +3,21 @@
 @section('content')
     <div class="dashboard-page reviewer-assignment-page">
         <header class="dashboard-page-heading">
-            <h1>Assigned Applications</h1>
-            <p>Review applications assigned to your account and monitor their deadlines.</p>
+            <h1>{{ $reviewTasksPage ? 'Review Tasks' : 'Assigned Applications' }}</h1>
+            <p>{{ $reviewTasksPage ? 'Continue active reviews, revision reviews, and completed submissions.' : 'Review applications assigned to your account and monitor their deadlines.' }}</p>
         </header>
 
+        @if ($reviewTasksPage)
+            <nav class="settings-tabs" aria-label="Review task status">
+                <a href="{{ route('reviewer.reviews.index', ['tab' => 'assigned']) }}" @if(($filters['tab'] ?? 'assigned') === 'assigned') aria-current="page" @endif>Assigned to Me</a>
+                <a href="{{ route('reviewer.reviews.index', ['tab' => 'revision']) }}" @if(($filters['tab'] ?? '') === 'revision') aria-current="page" @endif>For Revision</a>
+                <a href="{{ route('reviewer.reviews.index', ['tab' => 'completed']) }}" @if(($filters['tab'] ?? '') === 'completed') aria-current="page" @endif>Completed</a>
+            </nav>
+        @endif
+
         {{-- Assignment filters stay bounded to approved fields and retain pagination query state. --}}
-        <form class="reviewer-assignment-filter-bar" method="GET" action="{{ route('reviewer.assignments.index') }}">
+        <form class="reviewer-assignment-filter-bar" method="GET" action="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index') }}">
+            @if ($reviewTasksPage)<input type="hidden" name="tab" value="{{ $filters['tab'] ?? 'assigned' }}">@endif
             <div class="application-field application-search-field">
                 <label for="assignment-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -50,7 +59,7 @@
                 </select>
             </div>
             <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Apply Filters</span></button>
-            <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.index') }}">Reset</a>
+            <a class="dashboard-outline-action" href="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index', $reviewTasksPage ? ['tab' => $filters['tab'] ?? 'assigned'] : []) }}">Reset</a>
         </form>
 
         <x-dashboard.section title="Assigned Reviews">

@@ -9,7 +9,7 @@ use App\Models\ProfileOptionAlias;
 use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;

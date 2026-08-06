@@ -32,9 +32,11 @@ class ReviewerAssignmentPageController extends Controller
             'status' => ['nullable', Rule::enum(ReviewerAssignmentStatus::class)],
             'research_type' => ['nullable', Rule::enum(ResearchType::class)],
             'deadline' => ['nullable', Rule::in(['due_soon', 'overdue', 'no_deadline'])],
+            'tab' => ['nullable', Rule::in(['assigned', 'revision', 'completed'])],
         ]);
 
         $assignments = ReviewerAssignment::query()
+            ->current()
             ->where('reviewer_user_id', $request->user()->id)
             ->with(['researchApplication:id,application_code,research_title,research_type,review_type'])
             ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
@@ -49,6 +51,12 @@ class ReviewerAssignmentPageController extends Controller
                 ->where('review_type', $filters['review_cycle']))
             ->when(filled($filters['status'] ?? null), fn (Builder $query) => $query
                 ->where('assignment_status', $filters['status']))
+            ->when(($filters['tab'] ?? null) === 'assigned', fn (Builder $query) => $query
+                ->whereIn('assignment_status', [ReviewerAssignmentStatus::Pending->value, ReviewerAssignmentStatus::InReview->value]))
+            ->when(($filters['tab'] ?? null) === 'revision', fn (Builder $query) => $query
+                ->where('assignment_status', ReviewerAssignmentStatus::RevisionReview->value))
+            ->when(($filters['tab'] ?? null) === 'completed', fn (Builder $query) => $query
+                ->where('assignment_status', ReviewerAssignmentStatus::DecisionSubmitted->value))
             ->when(filled($filters['research_type'] ?? null), fn (Builder $query) => $query
                 ->whereHas('researchApplication', fn (Builder $applications) => $applications
                     ->where('research_type', $filters['research_type'])))
@@ -67,14 +75,15 @@ class ReviewerAssignmentPageController extends Controller
             ->withQueryString();
 
         return view('dashboard.assignments.index', [
-            'pageTitle' => 'Assigned Applications',
+            'pageTitle' => $request->routeIs('reviewer.reviews.index') ? 'Review Tasks' : 'Assigned Applications',
+            'reviewTasksPage' => $request->routeIs('reviewer.reviews.index'),
             'assignments' => $assignments,
             'filters' => $filters,
             'statuses' => ReviewerAssignmentStatus::cases(),
             'researchTypes' => ResearchType::cases(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
-                ['label' => 'Assigned Applications'],
+                ['label' => $request->routeIs('reviewer.reviews.index') ? 'Review Tasks' : 'Assigned Applications'],
             ],
         ]);
     }

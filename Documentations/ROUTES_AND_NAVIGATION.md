@@ -65,14 +65,17 @@ Reviewer routes now provide the real assigned-work surface:
 | --- | --- | --- | --- |
 | GET | `/reviewer/assignments` | `reviewer.assignments.index` | Owner-scoped searchable/filterable assigned applications |
 | GET | `/reviewer/assignments/{reviewerAssignment}` | `reviewer.assignments.show` | Policy-authorized assigned application details |
-| GET | `/reviewer/assignments/{reviewerAssignment}/workspace` | `reviewer.assignments.workspace` | Conflict-cleared blind review workspace |
-| POST | `/reviewer/assignments/{reviewerAssignment}/conflict` | `reviewer.assignments.conflict.store` | Record the one-time conflict declaration |
+| GET | `/reviewer/assignments/{reviewerAssignment}/workspace` | `reviewer.assignments.workspace` | Current-assignment blind review workspace |
 | PUT | `/reviewer/assignments/{reviewerAssignment}/forms/{reviewFormType}` | `reviewer.assignments.forms.update` | Save or finalize one official form |
 | POST | `/reviewer/assignments/{reviewerAssignment}/comments` | `reviewer.assignments.comments.store` | Add an assignment-owned review comment |
+| PUT | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}` | `reviewer.assignments.comments.update` | Edit an owned unsubmitted comment |
+| PATCH | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}/status` | `reviewer.assignments.comments.status` | Resolve or reopen an owned comment |
 | DELETE | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}` | `reviewer.assignments.comments.destroy` | Remove an owned unsubmitted comment |
 | POST | `/reviewer/assignments/{reviewerAssignment}/review` | `reviewer.assignments.review.store` | Save a decision draft or submit the final review |
 | GET | `/reviewer/applications/{researchApplication}/documents/{applicationDocument}/preview` | `reviewer.applications.documents.preview` | Assignment-gated private preview or Office fallback |
 | GET | `/reviewer/applications/{researchApplication}/documents/{applicationDocument}/download` | `reviewer.applications.documents.download` | Assignment-gated private download |
+| GET | `/reviewer/reviews` | `reviewer.reviews.index` | Owner-scoped assigned/revision/completed task tabs |
+| GET | `/reviewer/settings` | `reviewer.settings.index` | Functional profile and account-security settings |
 
 Reviewer write routes use the named `reviewer-workflow` throttle plus role middleware, Form Requests, policy checks, the configured Reviewer Submission window, and locked service operations. Result-release routes remain future work; Reviewer comments and decisions are not exposed through Applicant routes.
 

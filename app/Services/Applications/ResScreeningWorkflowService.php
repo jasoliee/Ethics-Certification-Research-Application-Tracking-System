@@ -4,11 +4,8 @@ namespace App\Services\Applications;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
-use App\Enums\ReceiptCheckStatus;
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\ReviewType;
-use App\Enums\ScreeningCompletenessStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationScreening;
 use App\Models\ResearchApplication;
@@ -70,14 +67,6 @@ class ResScreeningWorkflowService
 
             $screening = $locked->screening()->create([
                 'screened_by_user_id' => $actor->id,
-                'completeness_status' => ScreeningCompletenessStatus::from($data['completeness_status']),
-                'receipt_check_status' => ReceiptCheckStatus::from($data['receipt_check_status']),
-                'required_documents_verified' => true,
-                'receipt_status_recorded' => true,
-                'basic_eligibility_confirmed' => true,
-                'screening_notes' => filled($data['screening_notes'] ?? null)
-                    ? trim((string) $data['screening_notes'])
-                    : null,
                 'review_type' => $reviewType,
                 'classification_reason' => trim((string) $data['classification_reason']),
                 'classified_at' => $classifiedAt,
@@ -111,18 +100,13 @@ class ResScreeningWorkflowService
         }, 3);
     }
 
-    /**
-     * Correct one persisted screening while preserving compatible work and removing only unstarted assignments.
-     *
-     * @param  array<string, mixed>  $data
-     */
+    /** Correct classification metadata while preserving every prior reviewer-work record. */
     public function updateScreening(
         User $actor,
         ResearchApplication $application,
         array $data,
     ): ApplicationScreening {
         return DB::transaction(function () use ($actor, $application, $data): ApplicationScreening {
-            // Lock the application, screening, and initial assignments in a stable order before reconciling state.
             $locked = ResearchApplication::query()
                 ->whereKey($application->id)
                 ->lockForUpdate()
@@ -134,6 +118,7 @@ class ResScreeningWorkflowService
                 ->lockForUpdate()
                 ->firstOrFail();
             $assignments = ReviewerAssignment::query()
+                ->current()
                 ->where('research_application_id', $locked->id)
                 ->where('review_type', 'initial_review')
                 ->orderBy('id')
@@ -142,71 +127,53 @@ class ResScreeningWorkflowService
 
             $previousReviewType = $screening->review_type;
             $reviewType = ReviewType::from($data['review_type']);
-            $previouslyReady = $this->persistedScreeningIsReady($screening);
-            $administrativelyReady = $this->screeningIsReady($data);
 
-            // A still-valid decision must continue to use the current persisted requirement state.
-            if ($administrativelyReady) {
-                try {
-                    $this->requirements->assertReady($locked);
-                } catch (ValidationException $exception) {
-                    throw $exception->errorBag('resScreening');
-                }
-            }
-
-            $assignmentCountIsCompatible = $reviewType === ReviewType::Exempted
-                ? $assignments->isEmpty()
-                : $assignments->count() === $reviewType->reviewerCount()
-                    || ($assignments->isEmpty() && in_array($locked->application_status, [
-                        ApplicationStatus::UnderResScreening,
-                        ApplicationStatus::AwaitingReviewerAssignment,
-                    ], true));
-            $assignmentsAreCompatible = $previouslyReady
-                && $administrativelyReady
-                && $reviewType === $previousReviewType
-                && $assignmentCountIsCompatible;
-            $removedReviewerIds = collect();
-
-            if ($assignments->isNotEmpty() && ! $assignmentsAreCompatible) {
-                // Started or submitted review work is immutable from this correction surface.
-                if ($assignments->contains(fn (ReviewerAssignment $assignment): bool => $assignment->assignment_status !== ReviewerAssignmentStatus::Pending
-                    || $assignment->submitted_at !== null)) {
-                    throw ValidationException::withMessages([
-                        'review_type' => 'This change cannot be saved because one or more assigned reviewers already started review work.',
-                    ])->errorBag('resScreening');
-                }
-
-                $removedReviewerIds = $assignments->pluck('reviewer_user_id')->unique()->values();
-                ReviewerAssignment::query()->whereKey($assignments->pluck('id'))->delete();
-                $assignments = collect();
+            try {
+                $this->requirements->assertReady($locked);
+            } catch (ValidationException $exception) {
+                throw $exception->errorBag('resScreening');
             }
 
             $updatedAt = now();
             $screening->update([
                 'screened_by_user_id' => $actor->id,
-                'completeness_status' => ScreeningCompletenessStatus::from($data['completeness_status']),
-                'receipt_check_status' => ReceiptCheckStatus::from($data['receipt_check_status']),
-                'required_documents_verified' => (bool) $data['required_documents_verified'],
-                'receipt_status_recorded' => (bool) $data['receipt_status_recorded'],
-                'basic_eligibility_confirmed' => (bool) $data['basic_eligibility_confirmed'],
-                'screening_notes' => filled($data['screening_notes'] ?? null)
-                    ? trim((string) $data['screening_notes'])
-                    : null,
                 'review_type' => $reviewType,
                 'classification_reason' => trim((string) $data['classification_reason']),
                 'classified_at' => $updatedAt,
             ]);
 
-            // A metadata-only correction must never rewind an already active initial-review projection.
-            if ($assignmentsAreCompatible) {
+            if ($reviewType === $previousReviewType && $assignments->count() === $reviewType->reviewerCount()) {
                 $nextStatus = $locked->application_status;
                 $nextStage = $locked->current_stage;
             } else {
-                [$nextStatus, $nextStage] = $this->correctedProjection(
-                    $administrativelyReady,
-                    $reviewType,
-                    $assignments->count(),
-                );
+                $supersededReviewerIds = $assignments->pluck('reviewer_user_id')->unique();
+
+                foreach ($assignments as $assignment) {
+                    $assignment->update([
+                        'superseded_at' => $updatedAt,
+                        'superseded_by_user_id' => $actor->id,
+                        'supersession_reason' => 'Review classification changed by RES.',
+                        'superseded_from_status' => $assignment->assignment_status->value,
+                        'assignment_status' => ReviewerAssignmentStatus::Superseded->value,
+                    ]);
+                }
+
+                $nextStatus = $reviewType === ReviewType::Exempted
+                    ? ApplicationStatus::Exempted
+                    : ApplicationStatus::AwaitingReviewerAssignment;
+                $nextStage = $reviewType === ReviewType::Exempted
+                    ? ApplicationStage::DecisionRelease
+                    : ApplicationStage::ResScreening;
+
+                User::query()->whereKey($supersededReviewerIds)->get()->each(function (User $reviewer): void {
+                    $reviewer->notify(new DashboardUpdateNotification([
+                        'title' => 'Ethics review assignment updated',
+                        'message' => 'A previously assigned application is no longer in your active review queue.',
+                        'icon' => 'clipboard',
+                        'tone' => 'blue',
+                        'route' => 'reviewer.assignments.index',
+                    ]));
+                });
             }
             $locked->update([
                 'review_type' => $reviewType->value,
@@ -219,20 +186,10 @@ class ResScreeningWorkflowService
             $this->auditLog->record($actor, 'application.res_screening_updated', $locked, [
                 'previous_review_type' => $previousReviewType->value,
                 'review_type' => $reviewType->value,
-                'removed_reviewer_count' => $removedReviewerIds->count(),
+                'superseded_reviewer_count' => $assignments->count(),
                 'result' => $nextStatus->value,
             ]);
 
-            // Removed pending reviewers receive a neutral queue update without application identity or internal reasons.
-            User::query()->whereKey($removedReviewerIds)->get()->each(function (User $reviewer): void {
-                $reviewer->notify(new DashboardUpdateNotification([
-                    'title' => 'Ethics review assignment updated',
-                    'message' => 'A previously assigned application is no longer in your active review queue.',
-                    'icon' => 'clipboard',
-                    'tone' => 'blue',
-                    'route' => 'reviewer.assignments.index',
-                ]));
-            });
             $this->notifyApplicantOfScreeningCorrection($locked);
 
             return $screening->refresh();
@@ -249,8 +206,9 @@ class ResScreeningWorkflowService
         User $actor,
         ResearchApplication $application,
         array $reviewerIds,
+        ?string $reassignmentReason = null,
     ): Collection {
-        return DB::transaction(function () use ($actor, $application, $reviewerIds): Collection {
+        return DB::transaction(function () use ($actor, $application, $reviewerIds, $reassignmentReason): Collection {
             // Lock the application first so all assignment attempts acquire shared resources consistently.
             $locked = ResearchApplication::query()
                 ->whereKey($application->id)
@@ -274,9 +232,21 @@ class ResScreeningWorkflowService
                 ])->errorBag('reviewerAssignment');
             }
 
-            if ($locked->reviewerAssignments()->where('review_type', 'initial_review')->exists()) {
+            $currentAssignments = ReviewerAssignment::query()
+                ->current()
+                ->where('research_application_id', $locked->id)
+                ->where('review_type', 'initial_review')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            $retainedReviewerIds = $currentAssignments->pluck('reviewer_user_id')->intersect($reviewerIds);
+            $supersededAssignments = $currentAssignments
+                ->reject(fn (ReviewerAssignment $assignment): bool => in_array($assignment->reviewer_user_id, $reviewerIds, true))
+                ->values();
+
+            if ($supersededAssignments->isNotEmpty() && blank($reassignmentReason)) {
                 throw ValidationException::withMessages([
-                    'reviewer_ids' => 'Reviewers have already been assigned to this application.',
+                    'reassignment_reason' => 'Explain why the current reviewer set is being changed.',
                 ])->errorBag('reviewerAssignment');
             }
 
@@ -293,7 +263,7 @@ class ResScreeningWorkflowService
                 ])->errorBag('reviewerAssignment');
             }
 
-            foreach ($reviewers as $reviewer) {
+            foreach ($reviewers->whereNotIn('id', $retainedReviewerIds) as $reviewer) {
                 $this->reviewerEligibility->assertEligible($reviewer, $locked, $reviewType);
             }
 
@@ -301,17 +271,45 @@ class ResScreeningWorkflowService
             $reviewDeadline = $this->deadlines
                 ->configuration('reviewer-submission', UserRole::Reviewer)
                 ?->due_at;
-            $assignments = $reviewers->map(function (User $reviewer) use ($locked, $assignedAt, $reviewDeadline): ReviewerAssignment {
-                return $locked->reviewerAssignments()->create([
-                    // Initial versus revision cycle remains separate from expedited/full-board classification.
-                    'reviewer_user_id' => $reviewer->id,
-                    'review_type' => 'initial_review',
-                    'assignment_status' => ReviewerAssignmentStatus::Pending->value,
-                    'conflict_status' => ReviewerConflictStatus::Pending->value,
-                    'assigned_at' => $assignedAt,
-                    'review_deadline_at' => $reviewDeadline,
+            foreach ($supersededAssignments as $assignment) {
+                $assignment->update([
+                    'superseded_at' => $assignedAt,
+                    'superseded_by_user_id' => $actor->id,
+                    'supersession_reason' => trim((string) $reassignmentReason),
+                    'superseded_from_status' => $assignment->assignment_status->value,
+                    'assignment_status' => ReviewerAssignmentStatus::Superseded->value,
                 ]);
-            });
+            }
+
+            $replacementLinks = $supersededAssignments->pluck('id')->values();
+            $newAssignments = $reviewers
+                ->whereNotIn('id', $retainedReviewerIds)
+                ->values()
+                ->map(function (User $reviewer, int $index) use ($locked, $assignedAt, $reviewDeadline, $replacementLinks): ReviewerAssignment {
+                    $sequence = (int) ReviewerAssignment::query()
+                        ->where('research_application_id', $locked->id)
+                        ->where('reviewer_user_id', $reviewer->id)
+                        ->where('review_type', 'initial_review')
+                        ->max('assignment_sequence') + 1;
+
+                    return $locked->reviewerAssignments()->create([
+                        // Initial versus revision cycle remains separate from expedited/full-board classification.
+                        'reviewer_user_id' => $reviewer->id,
+                        'review_type' => 'initial_review',
+                        'assignment_status' => ReviewerAssignmentStatus::Pending->value,
+                        'assignment_sequence' => $sequence,
+                        'replaces_assignment_id' => $replacementLinks->get($index),
+                        'assigned_at' => $assignedAt,
+                        'review_deadline_at' => $reviewDeadline,
+                    ]);
+                });
+            $assignments = ReviewerAssignment::query()
+                ->current()
+                ->where('research_application_id', $locked->id)
+                ->where('review_type', 'initial_review')
+                ->with('reviewer')
+                ->orderBy('id')
+                ->get();
 
             $nextStatus = $reviewType === ReviewType::Expedited
                 ? ApplicationStatus::UnderExpeditedReview
@@ -324,13 +322,16 @@ class ResScreeningWorkflowService
             ]);
 
             // Audit only the classification and assignment total, never reviewer comments or document contents.
-            $this->auditLog->record($actor, 'application.reviewers_assigned', $locked, [
-                'review_type' => $reviewType->value,
-                'reviewer_count' => $assignments->count(),
-                'result' => $nextStatus->value,
-            ]);
+            $this->auditLog->record($actor, $supersededAssignments->isEmpty()
+                ? 'application.reviewers_assigned'
+                : 'application.reviewers_reassigned', $locked, [
+                    'review_type' => $reviewType->value,
+                    'reviewer_count' => $assignments->count(),
+                    'superseded_count' => $supersededAssignments->count(),
+                    'result' => $nextStatus->value,
+                ]);
 
-            foreach ($assignments as $assignment) {
+            foreach ($newAssignments as $assignment) {
                 $assignment->reviewer->notify(new DashboardUpdateNotification([
                     'title' => 'Ethics review assignment available',
                     'message' => 'A research ethics application is ready for your review.',
@@ -340,6 +341,17 @@ class ResScreeningWorkflowService
                     'route_parameters' => ['reviewerAssignment' => $assignment->id],
                 ]));
             }
+
+            User::query()->whereKey($supersededAssignments->pluck('reviewer_user_id'))->get()
+                ->each(function (User $reviewer): void {
+                    $reviewer->notify(new DashboardUpdateNotification([
+                        'title' => 'Ethics review assignment updated',
+                        'message' => 'A previously assigned application is no longer in your active review queue.',
+                        'icon' => 'clipboard',
+                        'tone' => 'blue',
+                        'route' => 'reviewer.assignments.index',
+                    ]));
+                });
 
             $this->notifyApplicantOfWorkflowUpdate($locked, false);
 
@@ -370,62 +382,6 @@ class ResScreeningWorkflowService
             'route' => 'applicant.applications.show',
             'route_parameters' => ['researchApplication' => $application->id],
         ]));
-    }
-
-    /**
-     * Treat any revoked administrative confirmation as a return to active RES screening.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    private function screeningIsReady(array $data): bool
-    {
-        return $data['completeness_status'] === ScreeningCompletenessStatus::Complete->value
-            && $data['receipt_check_status'] === ReceiptCheckStatus::Accepted->value
-            && (bool) $data['required_documents_verified']
-            && (bool) $data['receipt_status_recorded']
-            && (bool) $data['basic_eligibility_confirmed'];
-    }
-
-    /**
-     * Resolve whether the current saved screening decision is administratively complete.
-     */
-    private function persistedScreeningIsReady(ApplicationScreening $screening): bool
-    {
-        return $screening->completeness_status === ScreeningCompletenessStatus::Complete
-            && $screening->receipt_check_status === ReceiptCheckStatus::Accepted
-            && $screening->required_documents_verified
-            && $screening->receipt_status_recorded
-            && $screening->basic_eligibility_confirmed;
-    }
-
-    /**
-     * Resolve the application projection after a correction and any pending-assignment cleanup.
-     *
-     * @return array{ApplicationStatus, ApplicationStage}
-     */
-    private function correctedProjection(
-        bool $administrativelyReady,
-        ReviewType $reviewType,
-        int $assignmentCount,
-    ): array {
-        if (! $administrativelyReady) {
-            return [ApplicationStatus::UnderResScreening, ApplicationStage::ResScreening];
-        }
-
-        if ($reviewType === ReviewType::Exempted) {
-            return [ApplicationStatus::Exempted, ApplicationStage::DecisionRelease];
-        }
-
-        if ($assignmentCount === $reviewType->reviewerCount()) {
-            return [
-                $reviewType === ReviewType::Expedited
-                    ? ApplicationStatus::UnderExpeditedReview
-                    : ApplicationStatus::UnderFullBoardReview,
-                ApplicationStage::EthicsReview,
-            ];
-        }
-
-        return [ApplicationStatus::AwaitingReviewerAssignment, ApplicationStage::ResScreening];
     }
 
     /**

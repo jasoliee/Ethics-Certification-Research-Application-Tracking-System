@@ -147,26 +147,4 @@ class ResearchApplication extends Model
 
         return $this->expected_duration ?: 'Not specified';
     }
-
-    /**
-     * Resolve progress against all seven configured milestones, including reviewer re-review.
-     */
-    public function timelineIndex(): int
-    {
-        return match ($this->application_status) {
-            ApplicationStatus::ResultReleasedMinorRevision,
-            ApplicationStatus::ResultReleasedMajorRevision,
-            ApplicationStatus::RevisionWindowOpen => 4,
-            ApplicationStatus::RevisionSubmitted,
-            ApplicationStatus::UnderReReview => 5,
-            ApplicationStatus::ReviewSubmittedPendingRelease,
-            ApplicationStatus::ResultReleasedAccepted,
-            ApplicationStatus::ResultReleasedDisapproved,
-            ApplicationStatus::Exempted,
-            ApplicationStatus::FeedbackRequired => 6,
-            ApplicationStatus::CertificateReleased,
-            ApplicationStatus::Archived => 7,
-            default => $this->current_stage?->timelineIndex() ?? 0,
-        };
-    }
 }

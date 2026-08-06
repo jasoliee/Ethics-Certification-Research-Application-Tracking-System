@@ -8,7 +8,6 @@ use App\Enums\ApplicationStatus;
 use App\Enums\ReviewCommentScope;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
 use App\Enums\ReviewSubmissionStatus;
@@ -37,46 +36,6 @@ class ReviewerWorkflowService
         private readonly DeadlineProcessAvailability $deadlines,
         private readonly AuditLogService $auditLog,
     ) {}
-
-    public function declareConflict(
-        User $actor,
-        ReviewerAssignment $assignment,
-        ReviewerConflictStatus $status,
-    ): ReviewerAssignment {
-        return DB::transaction(function () use ($actor, $assignment, $status): ReviewerAssignment {
-            $locked = $this->lockedAssignment($assignment);
-            Gate::forUser($actor)->authorize('declareConflict', $locked);
-
-            if ($locked->conflict_status !== ReviewerConflictStatus::Pending) {
-                throw ValidationException::withMessages([
-                    'conflict_status' => 'The conflict declaration has already been recorded.',
-                ])->errorBag('reviewerConflict');
-            }
-
-            $declaredAt = now();
-            $locked->update([
-                'conflict_status' => $status->value,
-                'conflict_cleared_at' => $status === ReviewerConflictStatus::Cleared ? $declaredAt : null,
-                'conflict_declared_at' => $status === ReviewerConflictStatus::Declared ? $declaredAt : null,
-            ]);
-
-            $application = $locked->researchApplication;
-            $this->auditLog->record($actor, 'review.conflict_declared', $application, [
-                'assignment_id' => $locked->id,
-                'conflict_status' => $status->value,
-            ]);
-
-            if ($status === ReviewerConflictStatus::Declared) {
-                $this->notifyResLeads(
-                    'Reviewer conflict requires attention',
-                    'A reviewer assignment requires administrative reassignment review.',
-                    $application,
-                );
-            }
-
-            return $locked->refresh();
-        }, 3);
-    }
 
     /** @param array<string, mixed> $payload */
     public function saveForm(
@@ -112,6 +71,13 @@ class ReviewerWorkflowService
                 ['form_type' => $type->value],
                 [
                     ...$normalized,
+                    'catalog_version' => $final ? '2026-08-05' : null,
+                    'catalog_snapshot' => $final ? [
+                        'form_type' => $type->value,
+                        'questions' => ReviewFormCatalog::questions($type),
+                        'answers' => ReviewFormCatalog::answers($type),
+                    ] : null,
+                    'finalized_payload_snapshot' => $final ? $normalized : null,
                     'status' => $final ? ReviewFormStatus::Final->value : ReviewFormStatus::Draft->value,
                     'review_date' => $final ? today() : null,
                     'finalized_at' => $final ? now() : null,
@@ -187,6 +153,90 @@ class ReviewerWorkflowService
         }, 3);
     }
 
+    /** @param array<string, mixed> $payload */
+    public function updateComment(
+        User $actor,
+        ReviewerAssignment $assignment,
+        ReviewComment $comment,
+        array $payload,
+    ): ReviewComment {
+        return DB::transaction(function () use ($actor, $assignment, $comment, $payload): ReviewComment {
+            $locked = $this->lockedAssignment($assignment);
+            $this->authorizeWritable($actor, $locked);
+            $this->assertReviewWindowOpen();
+            $lockedComment = ReviewComment::query()->whereKey($comment->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedComment->reviewer_assignment_id !== $locked->id) {
+                abort(404);
+            }
+
+            $scope = ReviewCommentScope::from($payload['scope']);
+            $document = $this->resolveCommentDocument($locked, $scope, $payload['application_document_id'] ?? null);
+            $lockedComment->update([
+                'application_document_id' => $document?->id,
+                'scope' => $scope->value,
+                'category' => $payload['category'],
+                'page_number' => $scope === ReviewCommentScope::Page ? $payload['page_number'] : null,
+                'body' => trim($payload['body']),
+            ]);
+            $this->auditLog->record($actor, 'review.comment_updated', $locked->researchApplication, [
+                'assignment_id' => $locked->id,
+                'comment_id' => $lockedComment->id,
+                'scope' => $scope->value,
+            ]);
+
+            return $lockedComment->refresh();
+        }, 3);
+    }
+
+    public function changeCommentStatus(
+        User $actor,
+        ReviewerAssignment $assignment,
+        ReviewComment $comment,
+        string $status,
+    ): ReviewComment {
+        return DB::transaction(function () use ($actor, $assignment, $comment, $status): ReviewComment {
+            $locked = $this->lockedAssignment($assignment);
+            $this->authorizeWritable($actor, $locked);
+            $this->assertReviewWindowOpen();
+            $lockedComment = ReviewComment::query()->whereKey($comment->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedComment->reviewer_assignment_id !== $locked->id) {
+                abort(404);
+            }
+
+            $previous = $lockedComment->status;
+
+            if ($previous === $status) {
+                return $lockedComment;
+            }
+
+            $changedAt = now();
+            $lockedComment->update([
+                'status' => $status,
+                'resolved_at' => $status === 'resolved' ? $changedAt : null,
+                'resolved_by_user_id' => $status === 'resolved' ? $actor->id : null,
+            ]);
+            DB::table('review_comment_status_changes')->insert([
+                'review_comment_id' => $lockedComment->id,
+                'actor_user_id' => $actor->id,
+                'from_status' => $previous,
+                'to_status' => $status,
+                'changed_at' => $changedAt,
+                'created_at' => $changedAt,
+                'updated_at' => $changedAt,
+            ]);
+            $this->auditLog->record($actor, 'review.comment_status_changed', $locked->researchApplication, [
+                'assignment_id' => $locked->id,
+                'comment_id' => $lockedComment->id,
+                'from_status' => $previous,
+                'to_status' => $status,
+            ]);
+
+            return $lockedComment->refresh();
+        }, 3);
+    }
+
     public function saveDecision(
         User $actor,
         ReviewerAssignment $assignment,
@@ -230,6 +280,7 @@ class ReviewerWorkflowService
                 ->lockForUpdate()
                 ->firstOrFail();
             $allSubmitted = $application->reviewerAssignments()
+                ->current()
                 ->where('review_type', $locked->review_type)
                 ->lockForUpdate()
                 ->get()

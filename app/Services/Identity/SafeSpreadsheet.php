@@ -71,6 +71,8 @@ class SafeSpreadsheet
      */
     public function createTemplate(array $type, array $options): string
     {
+        $this->requireRuntime('template');
+
         // Create separate private assembly and delivery paths so the browser never receives the hand-built intermediate package.
         $identifier = (string) Str::uuid();
         $relativePath = 'exports/account-templates/'.$identifier.'.xlsx';
@@ -170,6 +172,8 @@ class SafeSpreadsheet
      */
     public function verifyGeneratedTemplate(string $path, array $type, array $options): void
     {
+        $this->requireRuntime('template');
+
         // Reject missing or empty temporary files before opening their ZIP container.
         if (! is_file($path) || filesize($path) === 0) {
             throw ValidationException::withMessages(['template' => 'The generated Excel template is empty.']);
@@ -426,6 +430,8 @@ class SafeSpreadsheet
      */
     public function read(string $path, array $type): array
     {
+        $this->requireRuntime('accounts_file');
+
         $signature = file_get_contents($path, false, null, 0, 8);
 
         if (! is_string($signature) || ! str_starts_with($signature, "PK\x03\x04")) {
@@ -1065,6 +1071,19 @@ class SafeSpreadsheet
         $styleAttribute = $style > 0 ? ' s="'.$style.'"' : '';
 
         return '<c r="'.$reference.'"'.$styleAttribute.' t="inlineStr"><is><t xml:space="preserve">'.$safeValue.'</t></is></c>';
+    }
+
+    /** Fail before creating or opening files when XLSX support is not installed. */
+    private function requireRuntime(string $field): void
+    {
+        if (! class_exists(ZipArchive::class)
+            || ! class_exists(Spreadsheet::class)
+            || ! class_exists(XlsxReader::class)
+            || ! class_exists(XlsxWriter::class)) {
+            throw ValidationException::withMessages([
+                $field => 'Excel workbook processing is temporarily unavailable. Please contact the system administrator.',
+            ]);
+        }
     }
 
     private function invalid(string $message): ValidationException

@@ -7,13 +7,13 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validates a RES Lead's own normalized login username.
+ * Validates an authorized dashboard user's own normalized login username.
  */
 class UpdateOwnUsernameRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === UserRole::ResLead;
+        return in_array($this->user()?->role, [UserRole::ResLead, UserRole::Reviewer], true);
     }
 
     protected function prepareForValidation(): void

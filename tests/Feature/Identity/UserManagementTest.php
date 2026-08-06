@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -332,6 +333,8 @@ class UserManagementTest extends TestCase
 
     public function test_excel_template_has_exact_structure_role_headers_and_database_options(): void
     {
+        $this->requireSpreadsheetRuntime();
+
         // Arrange an authorized actor and one database-backed option added after the default migration data.
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -1598,10 +1601,19 @@ class UserManagementTest extends TestCase
 
     private function templatePath(User $actor, string $accountType = 'student_researcher'): string
     {
+        $this->requireSpreadsheetRuntime();
+
         return app(SafeSpreadsheet::class)->createTemplate(
             app(AccountTypeCatalog::class)->authorized($actor, $accountType),
             app(ProfileOptionCatalog::class)->grouped(),
         );
+    }
+
+    private function requireSpreadsheetRuntime(): void
+    {
+        if (! class_exists(ZipArchive::class) || ! class_exists(Spreadsheet::class)) {
+            $this->markTestSkipped('The ZIP extension and installed PhpSpreadsheet package are required for XLSX round-trip coverage.');
+        }
     }
 
     private function uploadedWorkbook(string $path, string $name = 'accounts.xlsx'): UploadedFile

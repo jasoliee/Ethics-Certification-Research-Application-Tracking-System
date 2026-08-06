@@ -102,7 +102,7 @@
             <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16a3 3 0 0 1 5 0M13 10h5M13 14h4"/>
             @break
         @case('eye')
-            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="identity-eye-slash" d="m4 4 16 16"/>
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>
             @break
         @case('arrow-right')
             <path d="M5 12h14M13 6l6 6-6 6"/>

@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
@@ -24,9 +23,7 @@ class ReviewerAssignmentFactory extends Factory
             'reviewer_user_id' => User::factory()->state(['role' => UserRole::Reviewer]),
             'review_type' => 'initial_review',
             'assignment_status' => ReviewerAssignmentStatus::Pending,
-            'conflict_status' => ReviewerConflictStatus::Cleared,
-            'conflict_cleared_at' => now()->subDay(),
-            'conflict_declared_at' => null,
+            'assignment_sequence' => 1,
             'assigned_at' => now()->subDay(),
             'review_deadline_at' => now()->addDays(5),
             'submitted_at' => null,

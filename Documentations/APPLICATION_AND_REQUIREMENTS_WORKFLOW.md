@@ -2,7 +2,7 @@
 
 ## Implemented Through Initial Reviewer Submission
 
-The repository implements Applicant-owned application information, private versioned requirement documents, shared completion calculation, configured submission-window enforcement, formally submitted Adviser visibility, the assigned Adviser's initial return/endorsement decision, RES administrative screening, ethics classification, exact initial reviewer assignment, and conflict-gated initial Reviewer submission awaiting later RES release.
+The repository implements Applicant-owned application information, private versioned requirement documents, shared completion calculation, configured submission-window enforcement, formally submitted Adviser visibility, the assigned Adviser's initial return/endorsement decision, RES ethics classification, exact current reviewer assignment, non-destructive reassignment, and initial Reviewer submission awaiting later RES release.
 
 ## Draft Boundary
 
@@ -34,7 +34,7 @@ Document icons are selected from stored MIME type rather than filename text. PDF
 
 ## Submission Window
 
-The server resolves the highest-priority active `deadline_configurations` row whose key ends in `application-submission`, belongs to the current active term when terms are configured, and targets Applicants or all roles. A future `starts_at` is upcoming, a past `due_at` is closed, and an absent configuration fails closed. Manual `On` overrides the process date range; `Auto` means automatic date evaluation. UI state never replaces this server check.
+The server resolves the highest-priority active `deadline_configurations` row whose key ends in `application-submission`, belongs to the current active term when terms are configured, and targets Applicants or all roles. A future `starts_at` is upcoming, a past `due_at` is closed, and an absent configuration fails closed. Explicit `On` or `Off` overrides the process date range; changing configured dates clears the override. UI state never replaces this server check.
 
 The baseline seeder creates four mandatory requirements but intentionally creates no dated submission window. RES must enter approved opening and due dates before formal submission can succeed.
 
@@ -87,4 +87,4 @@ See [Reviewer Workflow](REVIEWER_WORKFLOW.md) for the exact forms, validation, r
 
 ## Remaining Workflow
 
-Document-content identity detection/redaction, RES conflict reassignment, later revision/re-review comparison, consolidated result release, Exempted direct release, certificate release, QR access, and final archive rules remain governed by `PROJECT_GUIDELINES.md` and require separate implementation and tests.
+Document-content identity detection/redaction, later revision/re-review comparison, consolidated result release, Exempted direct release, certificate release, QR access, and final archive rules remain governed by `PROJECT_GUIDELINES.md` and require separate implementation and tests.

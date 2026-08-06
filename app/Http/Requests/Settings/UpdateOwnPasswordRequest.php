@@ -7,13 +7,13 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Requires the RES Lead's current credential before changing their password.
+ * Requires an authorized dashboard user's current credential before changing their password.
  */
 class UpdateOwnPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === UserRole::ResLead;
+        return in_array($this->user()?->role, [UserRole::ResLead, UserRole::Reviewer], true);
     }
 
     /** @return array<string, array<int, string>> */

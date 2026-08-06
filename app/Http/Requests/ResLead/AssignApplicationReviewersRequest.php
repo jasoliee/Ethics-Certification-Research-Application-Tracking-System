@@ -25,11 +25,26 @@ class AssignApplicationReviewersRequest extends FormRequest
         $application = $this->route('researchApplication');
         $reviewType = ReviewType::tryFrom((string) ($application?->review_type ?? ''));
         $requiredCount = $reviewType?->reviewerCount() ?? 0;
+        $currentReviewerIds = $application?->reviewerAssignments()
+            ->current()
+            ->where('review_type', 'initial_review')
+            ->pluck('reviewer_user_id')
+            ->map(fn ($id): int => (int) $id)
+            ->sort()
+            ->values()
+            ->all() ?? [];
+        $requestedReviewerIds = collect($this->input('reviewer_ids', []))
+            ->map(fn ($id): int => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+        $isReassignment = $currentReviewerIds !== [] && $currentReviewerIds !== $requestedReviewerIds;
 
         return [
             'reviewer_ids' => ['required', 'array', 'size:'.$requiredCount],
             'reviewer_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
             'confirm_assignment' => ['required', 'accepted'],
+            'reassignment_reason' => [$isReassignment ? 'required' : 'nullable', 'string', 'min:10', 'max:1000'],
         ];
     }
 
@@ -41,6 +56,7 @@ class AssignApplicationReviewersRequest extends FormRequest
             'reviewer_ids.size' => 'Select exactly :size eligible reviewer(s) for this classification.',
             'reviewer_ids.*.distinct' => 'A reviewer can be selected only once.',
             'confirm_assignment.accepted' => 'Confirm the reviewer assignment before continuing.',
+            'reassignment_reason.required' => 'Explain why the current reviewer set is being changed.',
         ];
     }
 }

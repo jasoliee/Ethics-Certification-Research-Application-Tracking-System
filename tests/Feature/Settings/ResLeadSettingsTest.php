@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Settings;
 
-use App\Enums\DeadlineManualStatus;
 use App\Enums\UserRole;
 use App\Models\AcademicTerm;
 use App\Models\AuditLog;
@@ -31,18 +30,17 @@ class ResLeadSettingsTest extends TestCase
             ->assertDontSee('settings-section-heading-centered', false)
             ->assertSee('Revision Period')
             ->assertSee('Reviewing of Revision Period')
-            ->assertSee('Release Date')
+            ->assertDontSee('Release of Decision &amp; Certificate', false)
             ->assertSee('Upcoming Deadline')
             ->assertSee('Active Date Range')
             ->assertDontSee('Manual Toggles On')
             ->assertSee('settings-deadline-table', false)
             ->assertSee('data-deadline-process', false)
-            ->assertSee('data-minimum-deadline', false)
             ->assertSee('data-deadline-toggle-label', false)
-            ->assertSee('>Auto<', false)
+            ->assertSee('>Off<', false)
             ->assertDontSee('settings-process-row', false)
             ->assertSee('data-settings-confirm-dialog', false)
-            ->assertDontSee('result-release_starts_at');
+            ->assertDontSee('result-release');
         $this->assertSame('Asia/Manila', config('app.timezone'));
 
         foreach ([UserRole::Applicant, UserRole::Adviser, UserRole::Reviewer] as $role) {
@@ -78,13 +76,9 @@ class ResLeadSettingsTest extends TestCase
                 ->where('deadline_key', 'like', "%{$key}")
                 ->firstOrFail();
             $this->assertSame('1st Semester, A.Y. 2026-2027', $configuration->semester_label);
-            $this->assertSame(DeadlineManualStatus::Open, $configuration->manual_status);
+            $this->assertNull($configuration->manual_status);
             $this->assertSame($definition['audience_role'], $configuration->audience_role);
             $this->assertSame(100, $configuration->priority);
-
-            if ($definition['exact_date']) {
-                $this->assertTrue($configuration->starts_at->equalTo($configuration->due_at));
-            }
 
             $event = TimelineCalendarEvent::query()
                 ->where('academic_term_id', $term->id)
@@ -100,7 +94,7 @@ class ResLeadSettingsTest extends TestCase
         ]);
     }
 
-    public function test_deadline_configuration_rejects_past_ranges_even_when_manually_open(): void
+    public function test_deadline_configuration_accepts_expired_ranges_and_leaves_them_automatic(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $processKey = DeadlineProcessCatalog::keys()[0];
@@ -111,22 +105,23 @@ class ResLeadSettingsTest extends TestCase
                 'starts_at' => now()->subHours(2)->format('Y-m-d\TH:i'),
                 'due_at' => now()->subHour()->format('Y-m-d\TH:i'),
                 'is_open' => $manualOpen,
+                'override_changed' => '0',
             ];
 
             $this->actingAs($resLead)
                 ->from(route('res.settings.index'))
                 ->put(route('res.settings.deadlines.update'), $payload)
-                ->assertRedirect(route('res.settings.index'))
-                ->assertSessionHasErrors([
-                    "processes.{$processKey}.starts_at",
-                    "processes.{$processKey}.due_at",
-                ]);
+                ->assertRedirect()
+                ->assertSessionDoesntHaveErrors();
         }
 
-        $this->assertSame(0, AcademicTerm::query()->count());
+        $this->assertNull(DeadlineConfiguration::query()
+            ->where('deadline_key', 'like', "%{$processKey}")
+            ->firstOrFail()
+            ->manual_status);
     }
 
-    public function test_deadline_configuration_rejects_a_past_term_start_date(): void
+    public function test_deadline_configuration_accepts_a_past_term_start_date(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $payload = $this->deadlinePayload();
@@ -135,10 +130,10 @@ class ResLeadSettingsTest extends TestCase
         $this->actingAs($resLead)
             ->from(route('res.settings.index'))
             ->put(route('res.settings.deadlines.update'), $payload)
-            ->assertRedirect(route('res.settings.index'))
-            ->assertSessionHasErrors('term_starts_on');
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
 
-        $this->assertSame(0, AcademicTerm::query()->count());
+        $this->assertSame(1, AcademicTerm::query()->count());
     }
 
     public function test_settings_term_label_uses_only_the_current_configured_timeframe(): void
@@ -268,6 +263,7 @@ class ResLeadSettingsTest extends TestCase
                 'starts_at' => $startsAt->format('Y-m-d\TH:i'),
                 'due_at' => $dueAt->format('Y-m-d\TH:i'),
                 'is_open' => '1',
+                'override_changed' => '0',
             ];
         }
 

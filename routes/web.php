@@ -17,6 +17,7 @@ use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
 use App\Http\Controllers\Dashboard\ReviewerWorkflowController;
 use App\Http\Controllers\Identity\UserManagementController;
 use App\Http\Controllers\Settings\ResLeadSettingsController;
+use App\Http\Controllers\Settings\ReviewerSettingsController;
 use App\Support\RoleHome;
 use Illuminate\Support\Facades\Route;
 
@@ -173,15 +174,18 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('assignments.show');
                 Route::get('/assignments/{reviewerAssignment}/workspace', [ReviewerAssignmentPageController::class, 'workspace'])
                     ->name('assignments.workspace');
-                Route::post('/assignments/{reviewerAssignment}/conflict', [ReviewerWorkflowController::class, 'declareConflict'])
-                    ->middleware('throttle:reviewer-workflow')
-                    ->name('assignments.conflict.store');
                 Route::put('/assignments/{reviewerAssignment}/forms/{reviewFormType}', [ReviewerWorkflowController::class, 'saveForm'])
                     ->middleware('throttle:reviewer-workflow')
                     ->name('assignments.forms.update');
                 Route::post('/assignments/{reviewerAssignment}/comments', [ReviewerWorkflowController::class, 'addComment'])
                     ->middleware('throttle:reviewer-workflow')
                     ->name('assignments.comments.store');
+                Route::put('/assignments/{reviewerAssignment}/comments/{reviewComment}', [ReviewerWorkflowController::class, 'updateComment'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.comments.update');
+                Route::patch('/assignments/{reviewerAssignment}/comments/{reviewComment}/status', [ReviewerWorkflowController::class, 'changeCommentStatus'])
+                    ->middleware('throttle:reviewer-workflow')
+                    ->name('assignments.comments.status');
                 Route::delete('/assignments/{reviewerAssignment}/comments/{reviewComment}', [ReviewerWorkflowController::class, 'removeComment'])
                     ->middleware('throttle:reviewer-workflow')
                     ->name('assignments.comments.destroy');
@@ -193,19 +197,15 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.documents.preview');
                 Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
                     ->name('applications.documents.download');
-                Route::get('/reviews', ModulePageController::class)
-                    ->defaults('pageTitle', 'Review')
-                    ->defaults('moduleTitle', 'Review Workspace')
-                    ->defaults('moduleMessage', 'Review forms and submitted decisions will be managed here.')
-                    ->defaults('moduleIcon', 'file-search')
+                Route::get('/reviews', [ReviewerAssignmentPageController::class, 'index'])
                     ->name('reviews.index');
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
-                Route::get('/settings', ModulePageController::class)
-                    ->defaults('pageTitle', 'Settings')
-                    ->defaults('moduleMessage', 'Account settings will be managed here.')
-                    ->defaults('moduleIcon', 'settings')
-                    ->name('settings.index');
+                Route::controller(ReviewerSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::patch('/username', 'updateUsername')->middleware('throttle:account-write')->name('username.update');
+                    Route::patch('/password', 'updatePassword')->middleware('throttle:account-write')->name('password.update');
+                });
             });
 
         Route::prefix('res-lead')

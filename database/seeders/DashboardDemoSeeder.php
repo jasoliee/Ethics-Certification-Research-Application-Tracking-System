@@ -6,12 +6,10 @@ use App\Enums\ApplicantType;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\EndorsementStatus;
-use App\Enums\ReceiptCheckStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ResearchType;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
-use App\Enums\ScreeningCompletenessStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
 use App\Models\ApplicationScreening;
@@ -250,7 +248,6 @@ class DashboardDemoSeeder extends Seeder
             ['adviser-endorsement', 'Remaining days to complete endorsement', UserRole::Adviser, 2, 5],
             ['reviewer-submission', 'Reviewer submission deadline', UserRole::Reviewer, 2, 5],
             ['res-screening', 'RES screening and classification deadline', UserRole::ResLead, 4, 4],
-            ['result-release', 'Result and certificate release deadline', UserRole::ResLead, 9, 3],
         ];
 
         foreach ($deadlines as [$key, $title, $role, $days, $priority]) {
@@ -301,12 +298,6 @@ class DashboardDemoSeeder extends Seeder
                 ['research_application_id' => $application->id],
                 [
                     'screened_by_user_id' => $resLead->id,
-                    'completeness_status' => ScreeningCompletenessStatus::Complete->value,
-                    'receipt_check_status' => ReceiptCheckStatus::Accepted->value,
-                    'required_documents_verified' => true,
-                    'receipt_status_recorded' => true,
-                    'basic_eligibility_confirmed' => true,
-                    'screening_notes' => 'Demo administrative screening completed.',
                     'review_type' => $reviewType->value,
                     'classification_reason' => 'Demo classification retained to support the represented workflow status.',
                     'classified_at' => $application->submitted_at?->copy()->addDays(2) ?? now(),
@@ -323,7 +314,6 @@ class DashboardDemoSeeder extends Seeder
             ['res-screening', 'RES Screening', -6, -3],
             ['reviewing', 'Reviewing Period', -2, 7],
             ['revision', 'Revision Period', 8, 14],
-            ['release', 'Release of Decision & Certificate', 15, 15],
         ];
 
         foreach ($events as $index => [$key, $label, $start, $end]) {

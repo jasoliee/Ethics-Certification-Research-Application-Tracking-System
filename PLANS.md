@@ -60,6 +60,53 @@ Date:
 
 ## Active Plans
 
+## Plan: Reviewer workflow correction, RES reassignment, deadline semantics, and shared reliability fixes
+
+Status: In progress from 2026-08-05.
+
+### Goal
+Apply the August 5 client requirements across the Applicant, Adviser, Reviewer, RES, deadline, document, profile-option, and workbook surfaces while preserving private files, reviewer blindness, immutable review history, and existing application records.
+
+### Superseded Requirements and Sources
+- The August 5 implementation prompt is the current client authority. It supersedes the required Reviewer conflict-declaration gate, Administrative Screening fields, immutable started assignments, the Adviser In Review card, the Reviewer Near Deadline card, the Release Decision and Certification deadline, and `On`/`Auto` toggle wording recorded in older plans and documentation.
+- Reviewer UX follows `C:\Users\63927\Downloads\ECRATS High Fidelity.pdf` pages 1-18. Official form content follows `C:\Users\63927\Downloads\REMS PROTOCAL REVIEW WORKSHEET.pdf` pages 1-3 and 7-8.
+- Protocol item 13 about study disclosure of conflicts of interest remains official form content; only the assignment-level Reviewer refusal/declaration workflow is removed.
+- No installed PDF-generation library exists. Adding one remains blocked on explicit dependency approval; all other work proceeds independently and documentation must not claim generated PDF snapshots complete until that approval and verification occur.
+
+### Implementation Approach
+- Shared documents: make `eye` unslashed, retain independent password reveal controls, add trusted preview-kind metadata, and provide keyboard-accessible 25%-200% image/PDF controls, reset, fit, supported rotation/fullscreen, and same-origin new-tab access without exposing storage paths.
+- Applicant timeline: replace collection-index progress with canonical milestone keys derived from application status/stage; scope scheduled dates to the application's academic term and preserve honest missing/skipped states when deadline rows are absent or reordered.
+- Reviewer access and tasks: drop conflict columns through a forward migration; remove conflict enum/request/route/policy/service/UI/audit/notification behavior; make Review a real owner-scoped task page with tabs, filters, counts, pagination, actions, and working Notifications/Settings navigation.
+- Reviewer workspace: use a responsive document/viewer/tools layout; keep current and historical versions bounded; add JSON comment create/update/delete/detail and resolution/reopen operations with nested ownership, CSRF, deadline checks, idempotent UI behavior, audit history, and progressive form fallback.
+- Official forms: replace abbreviated catalogs with the exact 15 protocol and 15 consent items, stable keys, exact options, per-item comments, consent gate, other concerns, and recommendation-specific reasons. Draft/final requests return JSON when requested and finalized records preserve an immutable catalog/data snapshot. Add private artifact metadata/routes/policies now; enable flattened PDF creation only after an approved renderer is installed.
+- Adviser: remove the In Review query/card, count every post-endorsement state under Endorsed, and use a three-card responsive grid plus container-aware submitted-application filters.
+- RES classification/reassignment: forward-drop the six Administrative Screening columns while retaining classification, basis, actor, and timestamp; repeat mandatory-document readiness under lock; redirect reviewer classifications to assignment management. Replace destructive assignment deletion with supersession history, linked replacements, required reasons, current-set scopes, transactional eligibility/capacity rechecks, immediate old-reviewer access revocation, neutral notifications, and completion recomputation.
+- Deadlines: retire only matching result-release configuration/timeline rows through a forward deactivation migration. Keep six scheduled processes; display effective `On`/`Off`; persist explicit Open/Closed overrides; clear overrides when dates change; evaluate inclusive Asia/Manila boundaries with missing/reversed intervals closed.
+- Profile options/workbooks: preserve the paginator's Eloquent collection and eager-load aliases before usage counting. Add a spreadsheet runtime guard so missing ZIP/PhpSpreadsheet yields an administrator-safe validation error before writing or returning XLSX headers; retain private cleanup and the official workbook contract. The environment still requires approved manual ZIP enablement and `composer install` before genuine round-trip verification.
+- Documentation: update current contracts across project guidelines, README files, feature/workflow/security/testing/responsive/import/dropdown/deadline/database guides, requirements, architecture, known issues, manual validation, and changelog while preserving historical changelog/plan entries as historical records.
+
+### Schema, Routes, and Public Contracts
+- Add forward migrations to remove conflict and administrative fields; add assignment supersession/replacement metadata and uniqueness/indexes; add comment status history and immutable reviewer-form artifact metadata; deactivate only retired release-deadline rows.
+- Add authenticated, role- and policy-protected Reviewer task/workspace JSON routes for comment CRUD/resolution and form draft/finalization, plus private finalized-artifact preview/download routes.
+- Add RES-only replacement routes using dedicated Form Requests and existing workflow throttling. Existing assignment/document routes remain nested and private; superseded assignments become RES-audit-readable but lose Reviewer document/write access.
+- Replace integer timeline indices with named milestone-state contracts. Deadline submissions carry effective-state/original-state data so unchanged saves preserve automatic mode while explicit changes persist Open or Closed.
+
+### Tests and Verification
+- Add focused coverage for eye/password separation, viewer metadata/controls/security headers, every application timeline state and term/missing-row case, conflict removal, Reviewer task scoping, AJAX comment CRUD/resolution, exact form catalogs and snapshots, Adviser counts/filter markup, classification simplification, reassignment history/access/completion, deadline boundaries/overrides/retirement, profile-option pagination/aliases, and missing spreadsheet-runtime handling.
+- Run focused suites first, then the full Laravel suite, route list, migration status, strict Composer validation, platform requirements, Pint, the Vite production build, and `git diff --check`.
+- Browser verification targets 1440, 1280, 1024, 768, and 390 pixels for document controls, payment images, Reviewer task/workspace/modals/navigation, Adviser filters, RES classification/reassignment, deadline controls, and keyboard focus. The in-app browser is currently unavailable, so record this check as pending unless a browser connection becomes available.
+- After approved ZIP enablement and dependency installation, rerun genuine XLSX package/round-trip tests and desktop Excel acceptance. After approved PDF-renderer installation, render finalized form artifacts and visually compare all official pages before marking artifact generation complete.
+
+### Risks and Rollback
+- Superseded reviewer work is never deleted. Replacement is reversible at the workflow level by another audited replacement; migration rollback removes only new metadata after explicit data-impact review.
+- Old Reviewer access is denied by current-assignment scopes immediately after supersession, while authorized RES retains history.
+- Deadline retirement deactivates exact known rows rather than deleting data, and migration rollback does not blindly reactivate previously inactive records.
+- Missing ZIP and PDF dependencies remain explicit environment blockers; runtime responses fail safely and current documentation must distinguish implemented metadata/UI from unavailable binary generation.
+
+### Approval Notes
+Approved by: August 5 user implementation request, except dependency installation and PHP extension changes remain pending explicit approval.
+Date: 2026-08-05
+
 ## Plan: Blind Reviewer workspace and cross-role viewport corrections
 
 Status: Completed on 2026-08-04.

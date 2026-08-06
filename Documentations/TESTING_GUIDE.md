@@ -108,7 +108,7 @@ RES Lead:
 - Re-edit a saved screening: compatible assignments remain, incompatible pending assignments are removed, and a started assignment prevents the correction.
 - Confirm the RES requirement checklist provides authorized View and direct Download actions, while another role or mismatched nested document is denied.
 - Check the Reviewer assignment page at desktop, tablet, and phone widths: no Eligibility card, filters remain inside Eligible Reviewers, context text does not overlap, selected removal uses the X icon, and the confirmation action remains contained.
-- Confirm every term/process date rejects past values even with Manual Open selected; confirm `On` overrides runtime dates and `Auto` returns to date evaluation.
+- Confirm ordered term/process ranges, inclusive Asia/Manila boundaries, explicit `On`/`Off` overrides, and date changes clearing an existing override.
 
 All roles:
 

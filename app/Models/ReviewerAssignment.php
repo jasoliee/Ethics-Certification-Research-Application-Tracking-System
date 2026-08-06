@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewerConflictStatus;
 use Database\Factories\ReviewerAssignmentFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,24 +21,25 @@ class ReviewerAssignment extends Model
         'reviewer_user_id',
         'review_type',
         'assignment_status',
-        'conflict_status',
-        'conflict_cleared_at',
-        'conflict_declared_at',
+        'assignment_sequence',
+        'replaces_assignment_id',
         'assigned_at',
         'review_deadline_at',
         'submitted_at',
+        'superseded_at',
+        'superseded_by_user_id',
+        'supersession_reason',
+        'superseded_from_status',
     ];
 
     protected function casts(): array
     {
         return [
             'assignment_status' => ReviewerAssignmentStatus::class,
-            'conflict_status' => ReviewerConflictStatus::class,
-            'conflict_cleared_at' => 'datetime',
-            'conflict_declared_at' => 'datetime',
             'assigned_at' => 'datetime',
             'review_deadline_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'superseded_at' => 'datetime',
         ];
     }
 
@@ -65,5 +66,26 @@ class ReviewerAssignment extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(ReviewComment::class);
+    }
+
+    public function scopeCurrent(Builder $query): Builder
+    {
+        return $query->whereNull('superseded_at');
+    }
+
+    public function isCurrent(): bool
+    {
+        return $this->superseded_at === null
+            && $this->assignment_status !== ReviewerAssignmentStatus::Superseded;
+    }
+
+    public function replaces(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaces_assignment_id');
+    }
+
+    public function supersededBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'superseded_by_user_id')->withTrashed();
     }
 }

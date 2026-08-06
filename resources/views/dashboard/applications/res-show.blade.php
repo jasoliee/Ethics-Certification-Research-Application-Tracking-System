@@ -17,16 +17,9 @@
                 <h1>{{ $screening ? 'Application Details' : 'Application Screening Details' }}</h1>
                 <p>{{ $screening
                     ? 'View the endorsed application record, screening classification, supporting documents, and reviewer assignment state.'
-                    : 'Review endorsed application details, uploaded requirements, receipt status, and eligibility before classification.' }}</p>
+                    : 'Review endorsed application details and uploaded requirements before classification.' }}</p>
             </div>
             <div class="res-page-heading-actions">
-                @if ($canUpdateScreening && ! $isEditingScreening)
-                    {{-- Saved decisions open in an explicit edit mode so ordinary detail visits remain read-only. --}}
-                    <a class="dashboard-outline-action" href="{{ route('res.applications.show', [$application, 'edit_screening' => 1]) }}">
-                        <x-dashboard.icon name="edit" size="17" />
-                        <span>Re-edit Decision</span>
-                    </a>
-                @endif
                 <a class="dashboard-outline-action" href="{{ route('res.applications.index') }}">
                     <x-dashboard.icon name="arrow-left" size="17" />
                     <span>Back to Applications</span>
@@ -42,6 +35,12 @@
                     <strong>Application classified as exempted</strong>
                     <p>Standard reviewer assignment is not required. Direct documentation and certificate release remain a later RES process.</p>
                 </div>
+                @if ($canUpdateScreening && ! $isEditingScreening)
+                    <a class="dashboard-outline-action" href="{{ route('res.applications.show', [$application, 'edit_screening' => 1]) }}">
+                        <x-dashboard.icon name="edit" size="17" />
+                        <span>Re-edit Decision</span>
+                    </a>
+                @endif
             </section>
         @elseif ($isUnderReview)
             <section class="res-workflow-banner is-success" role="status">
@@ -51,7 +50,16 @@
                     <p>The application was assigned to the required eligible reviewer or reviewers.</p>
                 </div>
                 @if ($screening && $savedReviewType?->requiresReviewers())
-                    <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">View Assignment</a>
+                    {{-- Keep the two related assignment decisions together instead of separating edit from view. --}}
+                    <div class="res-workflow-banner-actions">
+                        @if ($canUpdateScreening && ! $isEditingScreening)
+                            <a class="dashboard-outline-action" href="{{ route('res.applications.show', [$application, 'edit_screening' => 1]) }}">
+                                <x-dashboard.icon name="edit" size="17" />
+                                <span>Re-edit Decision</span>
+                            </a>
+                        @endif
+                        <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">View Assignment</a>
+                    </div>
                 @endif
             </section>
         @endif
@@ -117,6 +125,7 @@
                                                 data-document-open
                                                 data-document-name="{{ $document->original_file_name }}"
                                                 data-document-meta="{{ $item['requirement']->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
+                                                data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
                                                 data-document-preview-url="{{ route('res.applications.documents.preview', [$application, $document]) }}"
                                                 data-document-download-url="{{ route('res.applications.documents.download', [$application, $document]) }}"
                                             >
@@ -155,94 +164,38 @@
                 @csrf
                 @if ($isEditingScreening) @method('PUT') @endif
 
-                <section class="res-workflow-panel res-administrative-panel">
-                    <header class="res-workflow-panel-heading">
-                        <x-dashboard.icon name="user-check" size="21" />
-                        <h2>Administrative Screening Panel</h2>
-                    </header>
-
-                    @if ($errors->resScreening->any())
-                        <div class="res-form-error-summary" role="alert">
-                            <x-dashboard.icon name="alert-triangle" size="19" />
-                            <div><strong>Review the screening information.</strong><span>{{ $errors->resScreening->first() }}</span></div>
-                        </div>
-                    @endif
-
-                    <div class="res-screening-fields">
-                        <div class="application-field">
-                            <label for="completeness_status">Completeness Status</label>
-                            <select id="completeness_status" name="completeness_status" required>
-                                <option value="">Select status</option>
-                                @foreach ($completenessStatuses as $status)
-                                    <option value="{{ $status->value }}" @selected(old('completeness_status', $isEditingScreening ? $screening->completeness_status->value : '') === $status->value)>{{ $status->label() }}</option>
-                                @endforeach
-                            </select>
-                            @error('completeness_status', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
-                        </div>
-                        <div class="application-field">
-                            <label for="receipt_check_status">Receipt Check Status</label>
-                            <select id="receipt_check_status" name="receipt_check_status" required>
-                                <option value="">Select status</option>
-                                @foreach ($receiptStatuses as $status)
-                                    <option value="{{ $status->value }}" @selected(old('receipt_check_status', $isEditingScreening ? $screening->receipt_check_status->value : '') === $status->value)>{{ $status->label() }}</option>
-                                @endforeach
-                            </select>
-                            @error('receipt_check_status', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
-                        </div>
-                        <div class="application-field application-field-full">
-                            <label for="screening_notes">Screening Notes</label>
-                            <textarea id="screening_notes" name="screening_notes" rows="5" maxlength="2000" placeholder="Record concise administrative observations only.">{{ old('screening_notes', $isEditingScreening ? $screening->screening_notes : '') }}</textarea>
-                            @error('screening_notes', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
-                        </div>
-                    </div>
-
-                    <fieldset class="res-eligibility-checks">
-                        <legend>Eligibility Checks</legend>
-                        {{-- Hidden false values let a correction explicitly revoke a previous confirmation. --}}
-                        <input name="required_documents_verified" type="hidden" value="0">
-                        <label><input name="required_documents_verified" type="checkbox" value="1" @checked(old('required_documents_verified', $isEditingScreening ? $screening->required_documents_verified : false)) @required(! $isEditingScreening)><span>Required documents verified</span></label>
-                        <input name="receipt_status_recorded" type="hidden" value="0">
-                        <label><input name="receipt_status_recorded" type="checkbox" value="1" @checked(old('receipt_status_recorded', $isEditingScreening ? $screening->receipt_status_recorded : false)) @required(! $isEditingScreening)><span>Receipt status recorded</span></label>
-                        <input name="basic_eligibility_confirmed" type="hidden" value="0">
-                        <label><input name="basic_eligibility_confirmed" type="checkbox" value="1" @checked(old('basic_eligibility_confirmed', $isEditingScreening ? $screening->basic_eligibility_confirmed : false)) @required(! $isEditingScreening)><span>Basic eligibility confirmed</span></label>
-                    </fieldset>
-
-                    @if ($isEditingScreening)
-                        {{-- The warning follows the editable content so it does not interrupt the form's scan order. --}}
-                        <div class="res-screening-edit-notice" role="note">
-                            <x-dashboard.icon name="alert-triangle" size="19" />
-                            <span>Changing the review path or revoking an administrative confirmation removes only unstarted pending assignments. Started review work cannot be overwritten.</span>
-                        </div>
-                    @endif
-                </section>
-
                 <section class="res-workflow-panel res-classification-panel">
                     <header class="res-workflow-panel-heading">
                         <x-dashboard.icon name="award" size="21" />
                         <h2>Review Type Classification</h2>
                     </header>
-                    <fieldset class="res-review-type-options">
-                        <legend>Select Review Type</legend>
-                        @foreach ($reviewTypes as $reviewType)
-                            <label>
-                                <input name="review_type" type="radio" value="{{ $reviewType->value }}" @checked(old('review_type', $isEditingScreening ? $screening->review_type->value : '') === $reviewType->value) required>
-                                <span class="res-review-type-copy">
-                                    <strong>{{ $reviewType->label() }}</strong>
-                                    <small>{{ match ($reviewType) {
-                                        \App\Enums\ReviewType::Expedited => 'For eligible minimal-risk studies. Requires exactly one reviewer.',
-                                        \App\Enums\ReviewType::FullBoard => 'For studies requiring broader committee review. Requires exactly three reviewers.',
-                                        \App\Enums\ReviewType::Exempted => 'Bypasses standard reviewer assignment and enters documentation processing.',
-                                    } }}</small>
-                                </span>
-                            </label>
-                        @endforeach
-                    </fieldset>
-                    @error('review_type', 'resScreening')<small class="application-field-error res-standalone-error">{{ $message }}</small>@enderror
+                    {{-- The decision inputs share the full panel width and collapse to one column on compact screens. --}}
+                    <div class="res-classification-fields">
+                        <div class="res-review-type-column">
+                            <fieldset class="res-review-type-options">
+                                <legend>Select Review Type</legend>
+                                @foreach ($reviewTypes as $reviewType)
+                                    <label>
+                                        <input name="review_type" type="radio" value="{{ $reviewType->value }}" @checked(old('review_type', $isEditingScreening ? $screening->review_type->value : '') === $reviewType->value) required>
+                                        <span class="res-review-type-copy">
+                                            <strong>{{ $reviewType->label() }}</strong>
+                                            <small>{{ match ($reviewType) {
+                                                \App\Enums\ReviewType::Expedited => 'For eligible minimal-risk studies. Requires exactly one reviewer.',
+                                                \App\Enums\ReviewType::FullBoard => 'For studies requiring broader committee review. Requires exactly three reviewers.',
+                                                \App\Enums\ReviewType::Exempted => 'Bypasses standard reviewer assignment and enters documentation processing.',
+                                            } }}</small>
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </fieldset>
+                            @error('review_type', 'resScreening')<small class="application-field-error res-standalone-error">{{ $message }}</small>@enderror
+                        </div>
 
-                    <div class="application-field res-classification-reason">
-                        <label for="classification_reason">Reason / Basis for Classification</label>
-                        <textarea id="classification_reason" name="classification_reason" rows="4" minlength="15" maxlength="2000" required>{{ old('classification_reason', $isEditingScreening ? $screening->classification_reason : '') }}</textarea>
-                        @error('classification_reason', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
+                        <div class="application-field res-classification-reason">
+                            <label for="classification_reason">Reason / Basis for Classification</label>
+                            <textarea id="classification_reason" name="classification_reason" rows="8" minlength="15" maxlength="2000" required>{{ old('classification_reason', $isEditingScreening ? $screening->classification_reason : '') }}</textarea>
+                            @error('classification_reason', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
+                        </div>
                     </div>
 
                     <div class="res-classification-note">
@@ -263,28 +216,30 @@
         @elseif ($screening)
             {{-- Saved classifications remain readable by default; authorized corrections open through explicit edit mode. --}}
             <div class="res-screening-decision-layout is-readonly">
-                <section class="res-workflow-panel res-administrative-panel">
-                    <header class="res-workflow-panel-heading"><x-dashboard.icon name="user-check" size="21" /><h2>Administrative Screening</h2></header>
-                    <dl class="res-screening-summary">
-                        <div><dt>Completeness</dt><dd><x-dashboard.status-badge :label="$screening->completeness_status->label()" tone="success" /></dd></div>
-                        <div><dt>Receipt Check</dt><dd><x-dashboard.status-badge :label="$screening->receipt_check_status->label()" tone="blue" /></dd></div>
-                        <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived RES Lead' }}</dd></div>
-                        <div><dt>Classification Date</dt><dd>{{ $screening->classified_at->format('M j, Y g:i A') }}</dd></div>
-                        <div class="res-detail-wide res-screening-notes"><dt>Screening Notes</dt><dd>{{ $screening->screening_notes ?: 'No additional screening notes.' }}</dd></div>
-                    </dl>
-                </section>
                 <section class="res-workflow-panel res-classification-panel">
                     <header class="res-workflow-panel-heading"><x-dashboard.icon name="award" size="21" /><h2>Screening and Classification</h2></header>
                     <dl class="res-screening-summary">
                         <div><dt>Review Type</dt><dd><x-dashboard.status-badge :label="$savedReviewType->label()" tone="success" /></dd></div>
                         <div><dt>Reviewers Required</dt><dd>{{ $savedReviewType->reviewerCount() }} {{ Str::plural('reviewer', $savedReviewType->reviewerCount()) }}</dd></div>
+                        <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived RES Lead' }}</dd></div>
+                        <div><dt>Classification Date</dt><dd>{{ $screening->classified_at->format('M j, Y g:i A') }}</dd></div>
                         <div class="res-detail-wide"><dt>Reason / Basis</dt><dd>{{ $screening->classification_reason }}</dd></div>
                     </dl>
-                    @if ($canAssignReviewers && $savedReviewType->requiresReviewers())
-                        <a class="dashboard-primary-action res-classification-submit" href="{{ route('res.applications.reviewers.index', $application) }}">
-                            <span>Proceed to Reviewer Assignment</span>
-                            <x-dashboard.icon name="arrow-right" size="18" />
-                        </a>
+                    @if (! $isUnderReview && (($canUpdateScreening && ! $isEditingScreening) || ($canAssignReviewers && $savedReviewType->requiresReviewers())))
+                        <div class="res-classification-actions">
+                            @if ($canUpdateScreening && ! $isEditingScreening)
+                                <a class="dashboard-outline-action" href="{{ route('res.applications.show', [$application, 'edit_screening' => 1]) }}">
+                                    <x-dashboard.icon name="edit" size="17" />
+                                    <span>Re-edit Decision</span>
+                                </a>
+                            @endif
+                            @if ($canAssignReviewers && $savedReviewType->requiresReviewers())
+                                <a class="dashboard-primary-action res-classification-submit" href="{{ route('res.applications.reviewers.index', $application) }}">
+                                    <span>Proceed to Reviewer Assignment</span>
+                                    <x-dashboard.icon name="arrow-right" size="18" />
+                                </a>
+                            @endif
+                        </div>
                     @endif
                 </section>
             </div>

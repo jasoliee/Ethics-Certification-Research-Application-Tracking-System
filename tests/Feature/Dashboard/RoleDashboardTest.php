@@ -189,6 +189,78 @@ class RoleDashboardTest extends TestCase
             ->assertDontSee('Older Application Edited Later');
     }
 
+    public function test_applicant_timeline_uses_canonical_keys_and_the_applications_term(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $applicationTerm = AcademicTerm::create([
+            'semester' => 'Historical Term',
+            'academic_year' => '2025-2026',
+            'starts_at' => now()->subYear(),
+            'ends_at' => now()->subMonths(7),
+            'is_active' => false,
+        ]);
+        $currentTerm = AcademicTerm::create([
+            'semester' => 'Current Term',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'academic_term_id' => $applicationTerm,
+            'application_status' => ApplicationStatus::UnderResScreening,
+            'current_stage' => ApplicationStage::ResScreening,
+            'submitted_at' => now()->subMonths(8),
+        ]);
+
+        TimelineCalendarEvent::create([
+            'academic_term_id' => $applicationTerm->id,
+            'milestone_key' => "term-{$applicationTerm->id}-res-screening",
+            'label' => 'Historical RES Screening Window',
+            'term_label' => $applicationTerm->label(),
+            'starts_at' => now()->subMonths(9),
+            'ends_at' => now()->subMonths(8),
+            'sort_order' => 99,
+            'is_active' => true,
+        ]);
+        TimelineCalendarEvent::create([
+            'academic_term_id' => $applicationTerm->id,
+            'milestone_key' => "term-{$applicationTerm->id}-submission",
+            'label' => 'Historical Submission Window',
+            'term_label' => $applicationTerm->label(),
+            'starts_at' => now()->subMonths(11),
+            'ends_at' => now()->subMonths(10),
+            'sort_order' => 100,
+            'is_active' => true,
+        ]);
+        TimelineCalendarEvent::create([
+            'academic_term_id' => $currentTerm->id,
+            'milestone_key' => "term-{$currentTerm->id}-res-screening",
+            'label' => 'Wrong Current-Term Screening',
+            'term_label' => $currentTerm->label(),
+            'starts_at' => now(),
+            'ends_at' => now()->addDay(),
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee($applicationTerm->label())
+            ->assertSeeInOrder([
+                'Historical Submission Window',
+                'Endorsement Period',
+                'Historical RES Screening Window',
+                'Reviewing Period',
+                'Revision Period',
+                'Reviewing of Revision Period',
+            ])
+            ->assertSee('Not scheduled')
+            ->assertDontSee('Wrong Current-Term Screening');
+    }
+
     public function test_applicant_deadline_alert_uses_active_term_dates_and_manual_availability(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
@@ -258,9 +330,9 @@ class RoleDashboardTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('aria-label="Pending: 1"', false)
-            ->assertSee('aria-label="In Review: 1"', false)
             ->assertSee('aria-label="Endorsed: 1"', false)
             ->assertSee('aria-label="Returned: 1"', false)
+            ->assertDontSee('In Review')
             ->assertSee('ADV-001')
             ->assertDontSee('OTHER-001');
     }
@@ -403,7 +475,7 @@ class RoleDashboardTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Mapped RES Screening')
-            ->assertSee('Release of Decision &amp; Certificate', false);
+            ->assertDontSee('Release of Decision &amp; Certificate', false);
     }
 
     public function test_adviser_dashboard_keeps_archived_applicant_identity_for_historical_applications(): void
@@ -466,7 +538,6 @@ class RoleDashboardTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('aria-label="Pending Reviews: 1"', false)
-            ->assertSee('aria-label="Near Deadline: 1"', false)
             ->assertSee('aria-label="Revision Reviews: 1"', false)
             ->assertSee('aria-label="Completed Reviews: 1"', false)
             ->assertSee('REV-001');
@@ -510,8 +581,8 @@ class RoleDashboardTest extends TestCase
     {
         // Arrange the role-specific labels expected when the database contains no applications or assignments.
         $cases = [
-            UserRole::Adviser->value => ['Pending', 'In Review', 'Endorsed', 'Returned'],
-            UserRole::Reviewer->value => ['Pending Reviews', 'Near Deadline', 'Revision Reviews', 'Completed Reviews'],
+            UserRole::Adviser->value => ['Pending', 'Endorsed', 'Returned'],
+            UserRole::Reviewer->value => ['Pending Reviews', 'Revision Reviews', 'Completed Reviews'],
             UserRole::ResLead->value => ['For RES Screening', 'Under RES Screening', 'Awaiting Assignment', 'Under Review', 'For Result Release'],
         ];
 
@@ -645,8 +716,8 @@ class RoleDashboardTest extends TestCase
         $this->assertSame(4, ReviewerAssignment::count());
         $this->assertSame(7, ApplicationScreening::count());
         $this->assertSame(9, Endorsement::query()->whereNotNull('endorsed_at')->count());
-        $this->assertSame(5, DeadlineConfiguration::where('deadline_key', 'like', 'demo-%')->count());
-        $this->assertSame(6, TimelineCalendarEvent::where('milestone_key', 'like', 'demo-%')->count());
+        $this->assertSame(4, DeadlineConfiguration::where('deadline_key', 'like', 'demo-%')->count());
+        $this->assertSame(5, TimelineCalendarEvent::where('milestone_key', 'like', 'demo-%')->count());
         $this->assertSame(4, DB::table('notifications')->count());
     }
 

@@ -76,13 +76,13 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 
 - Applicant dashboard shows the newest created non-archived owned application, its current status, requirement completion, deadline alert, and configured timeline.
 - Adviser dashboard shows assigned formal-submission counts and five recent assigned submissions.
-- Reviewer dashboard shows current-term assignment counts, near deadlines, revisions, and recent assignments.
+- Reviewer dashboard shows Pending, Revision, and Completed counts plus recent current assignments.
 - RES Lead dashboard shows stored administrative queue counts, recent pending actions, active deadlines, and timeline data.
 - RES Lead Applications Queue lists all formally submitted records that have entered the RES workflow, with bounded pagination, full approved search/filter coverage, protected detail links, and an internal horizontal-scroll table.
 - Application dashboard queries do not hide relevant Applicant, Adviser, or RES records solely because a term link is absent or historical. Deadline and timeline queries remain tied to the current active term.
 - RES Lead configures Semester, Academic Year, term dates, and seven process rows; the result/certificate release row uses one exact date/time.
 - ECRATS evaluates workflow dates in `Asia/Manila`.
-- A toggle set to `On` manually opens that process outside its date range while the configured term remains active. `Auto` removes the override and returns the process to automatic date evaluation.
+- A toggle change stores explicit `On` or `Off`; changing either process date clears the override and returns the process to automatic date evaluation.
 - Automatic mode is open only from the configured opening time through its deadline; missing, future, expired, inactive, or outside-term configurations fail closed.
 - Term dates and every process opening, deadline, or release value reject past values in both browser and server validation, including manually open rows.
 - Saving deadline settings also synchronizes role timeline events used by dashboards.
@@ -116,7 +116,7 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 ## Interface and Accessibility
 
 - All Blade tables use the reusable `dashboard-overflow-region` boundary so wide columns scroll inside their container rather than widening the page.
-- Applicant list, details, requirements, Adviser and RES lists/decision controls, the seven-row deadline table, account actions, and import surfaces include desktop, tablet, and narrow-screen layouts.
+- Applicant list, details, requirements, Adviser and RES lists/decision controls, the six-row deadline table, account actions, and import surfaces include desktop, tablet, and narrow-screen layouts.
 - Modals restore focus, close by explicit control, backdrop, or Escape, and keep private content bounded.
 - Buttons, status badges, tooltips, pagination, empty states, and validation summaries use shared components and accessible labels.
 

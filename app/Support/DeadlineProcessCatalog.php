@@ -16,8 +16,7 @@ final class DeadlineProcessCatalog
      *     audience_role: UserRole,
      *     timeline_key: string,
      *     timeline_label: string,
-     *     sort_order: int,
-     *     exact_date: bool
+     *     sort_order: int
      * }>
      */
     public static function definitions(): array
@@ -30,7 +29,6 @@ final class DeadlineProcessCatalog
                 'timeline_key' => 'submission',
                 'timeline_label' => 'Submission of Application',
                 'sort_order' => 0,
-                'exact_date' => false,
             ],
             'adviser-endorsement' => [
                 'title' => 'Adviser Endorsement',
@@ -39,7 +37,6 @@ final class DeadlineProcessCatalog
                 'timeline_key' => 'endorsement',
                 'timeline_label' => 'Endorsement Period',
                 'sort_order' => 1,
-                'exact_date' => false,
             ],
             'res-screening' => [
                 'title' => 'RES Screening and Classification',
@@ -48,7 +45,6 @@ final class DeadlineProcessCatalog
                 'timeline_key' => 'res-screening',
                 'timeline_label' => 'RES Screening',
                 'sort_order' => 2,
-                'exact_date' => false,
             ],
             'reviewer-submission' => [
                 'title' => 'Reviewer Submission',
@@ -57,7 +53,6 @@ final class DeadlineProcessCatalog
                 'timeline_key' => 'reviewing',
                 'timeline_label' => 'Reviewing Period',
                 'sort_order' => 3,
-                'exact_date' => false,
             ],
             'revision-period' => [
                 'title' => 'Revision Period',
@@ -66,7 +61,6 @@ final class DeadlineProcessCatalog
                 'timeline_key' => 'revision',
                 'timeline_label' => 'Revision Period',
                 'sort_order' => 4,
-                'exact_date' => false,
             ],
             'reviewing-revision-period' => [
                 'title' => 'Reviewing of Revision Period',
@@ -75,16 +69,6 @@ final class DeadlineProcessCatalog
                 'timeline_key' => 'reviewing-revision',
                 'timeline_label' => 'Reviewing of Revision Period',
                 'sort_order' => 5,
-                'exact_date' => false,
-            ],
-            'result-release' => [
-                'title' => 'Release of Decision & Certificate',
-                'description' => 'Sets the exact date and time when RES releases decisions and eligible certificates.',
-                'audience_role' => UserRole::ResLead,
-                'timeline_key' => 'release',
-                'timeline_label' => 'Release of Decision & Certificate',
-                'sort_order' => 6,
-                'exact_date' => true,
             ],
         ];
     }

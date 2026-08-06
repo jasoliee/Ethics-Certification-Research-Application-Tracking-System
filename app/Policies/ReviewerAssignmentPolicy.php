@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ReviewerAssignment;
@@ -16,23 +15,15 @@ class ReviewerAssignmentPolicy
         return $this->owns($user, $reviewerAssignment);
     }
 
-    public function declareConflict(User $user, ReviewerAssignment $reviewerAssignment): bool
-    {
-        return $this->owns($user, $reviewerAssignment)
-            && $reviewerAssignment->conflict_status === ReviewerConflictStatus::Pending
-            && in_array($reviewerAssignment->assignment_status, $this->activeStatuses(), true);
-    }
-
     public function openWorkspace(User $user, ReviewerAssignment $reviewerAssignment): bool
     {
-        return $this->owns($user, $reviewerAssignment)
-            && $reviewerAssignment->conflict_status === ReviewerConflictStatus::Cleared;
+        return $this->owns($user, $reviewerAssignment) && $reviewerAssignment->isCurrent();
     }
 
     public function work(User $user, ReviewerAssignment $reviewerAssignment): bool
     {
         return $this->owns($user, $reviewerAssignment)
-            && $reviewerAssignment->conflict_status === ReviewerConflictStatus::Cleared
+            && $reviewerAssignment->isCurrent()
             && in_array($reviewerAssignment->assignment_status, $this->activeStatuses(), true)
             && ! $reviewerAssignment->reviewSubmission()
                 ->where('status', ReviewSubmissionStatus::Submitted->value)
@@ -42,7 +33,8 @@ class ReviewerAssignmentPolicy
     private function owns(User $user, ReviewerAssignment $reviewerAssignment): bool
     {
         return $user->role === UserRole::Reviewer
-            && $reviewerAssignment->reviewer_user_id === $user->id;
+            && $reviewerAssignment->reviewer_user_id === $user->id
+            && $reviewerAssignment->isCurrent();
     }
 
     /** @return array<int, ReviewerAssignmentStatus> */

@@ -1491,7 +1491,12 @@
         align-items: stretch;
     }
 
-    /* Uses four equal columns for Adviser and Reviewer dashboard summaries. */
+    /* Uses three equal columns for the Adviser dashboard summary. */
+    .dashboard-summary-grid-three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    /* Uses four equal columns for Reviewer dashboard summaries. */
     .dashboard-summary-grid-four {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
@@ -2621,6 +2626,7 @@
     }
 
     /* Uses two summary columns on compact desktop and tablet layouts. */
+    .dashboard-summary-grid-three,
     .dashboard-summary-grid-four,
     .dashboard-summary-grid-five {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3523,10 +3529,6 @@
     }
 
     .identity-password-wrap button[hidden] {
-        display: none;
-    }
-
-    .identity-password-wrap button[aria-pressed='false'] .identity-eye-slash {
         display: none;
     }
 
@@ -4804,6 +4806,52 @@
         background: #ffffff;
     }
 
+    .application-document-preview img {
+        display: block;
+        max-width: none;
+        margin: auto;
+        transform-origin: center;
+        transition: width 120ms ease, transform 120ms ease;
+    }
+
+    .application-document-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        padding: 9px;
+        border: 1px solid #dce5e0;
+        border-bottom: 0;
+        border-radius: 6px 6px 0 0;
+        background: #f8faf9;
+    }
+
+    .application-document-toolbar button,
+    .application-document-toolbar a,
+    .application-document-toolbar output {
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #cbd8d0;
+        border-radius: 5px;
+        padding: 6px 10px;
+        background: #fff;
+        color: #146c43;
+        font: inherit;
+        font-size: 12px;
+        text-decoration: none;
+    }
+
+    .application-document-toolbar output {
+        min-width: 58px;
+        color: #344054;
+    }
+
+    .application-document-toolbar:not([hidden]) + .application-document-preview {
+        border-radius: 0 0 6px 6px;
+    }
+
     /* Centers the secure download fallback when inline rendering is unsupported. */
     .application-document-fallback {
         min-height: 360px;
@@ -5795,6 +5843,7 @@
 
 @media (max-width: 620px) {
     /* Collapses shared summary grids to one card per row on smartphones. */
+    .dashboard-summary-grid-three,
     .dashboard-summary-grid-four,
     .dashboard-summary-grid-five {
         grid-template-columns: 1fr;
@@ -6954,6 +7003,27 @@
         grid-template-columns: minmax(210px, 1fr) repeat(5, minmax(135px, 0.55fr)) auto auto;
     }
 
+    .application-workspace {
+        min-width: 0;
+        container-type: inline-size;
+    }
+
+    @container (max-width: 1050px) {
+        .application-filter-bar.application-filter-bar-wide {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .application-filter-bar.application-filter-bar-wide > * {
+            min-width: 0;
+        }
+    }
+
+    @container (max-width: 560px) {
+        .application-filter-bar.application-filter-bar-wide {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .application-filter-bar.application-term-filter {
         grid-template-columns: repeat(2, minmax(180px, 260px)) auto auto;
         justify-content: start;
@@ -7878,17 +7948,31 @@
     }
 
     .res-screening-decision-layout {
+        width: 100%;
         min-width: 0;
         display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+        grid-template-columns: minmax(0, 1fr);
         align-items: stretch;
         gap: 12px;
     }
 
     .res-administrative-panel,
     .res-classification-panel {
+        width: 100%;
         display: flex;
         flex-direction: column;
+    }
+
+    /* Gives review type selection and its rationale equal, useful space across the full decision panel. */
+    .res-classification-fields {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+
+    .res-review-type-column {
+        min-width: 0;
     }
 
     .res-screening-fields {
@@ -7976,11 +8060,15 @@
     }
 
     .res-classification-reason {
-        padding: 0 16px 14px;
+        border-left: 1px solid #e3e9e5;
+        padding: 16px;
     }
 
-    .res-classification-note,
-    .res-known-conflict-check {
+    .res-classification-reason textarea {
+        min-height: 226px;
+    }
+
+    .res-classification-note {
         display: flex;
         align-items: flex-start;
         gap: 8px;
@@ -7992,6 +8080,12 @@
         background: #f2f9f4;
         font-size: 12px;
         line-height: 1.4;
+    }
+
+    .res-classification-panel > .res-classification-note {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
     .res-classification-submit,
@@ -8069,6 +8163,15 @@
         color: #526174;
         font-size: 12px;
         line-height: 1.4;
+    }
+
+    .res-workflow-banner-actions {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .res-screening-summary {
@@ -8327,6 +8430,11 @@
         background: #edf8f1;
     }
 
+    .res-selected-reviewers-panel {
+        display: flex;
+        flex-direction: column;
+    }
+
     .res-selected-reviewer-list,
     .res-confirmation-reviewers {
         min-height: 148px;
@@ -8386,6 +8494,14 @@
     .res-selected-reviewer-remove:hover,
     .res-selected-reviewer-remove:focus-visible {
         text-decoration: underline;
+    }
+
+    .res-reassignment-reason {
+        margin: 0 16px 12px;
+    }
+
+    .res-reassignment-reason textarea {
+        min-height: 92px;
     }
 
     .res-assignment-submit:disabled {
@@ -8523,6 +8639,15 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
+    .res-classification-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .res-classification-reason {
+        border-top: 1px solid #e3e9e5;
+        border-left: 0;
+    }
+
     .res-requirement-panel,
     .res-assignment-guidelines {
         grid-column: auto;
@@ -8534,6 +8659,16 @@
 
     .res-workflow-banner > .dashboard-outline-action {
         grid-column: 1 / -1;
+    }
+
+    .res-workflow-banner > .res-workflow-banner-actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+    }
+
+    .res-workflow-banner-actions > .dashboard-outline-action {
+        flex: 1 1 200px;
+        justify-content: center;
     }
 
     .res-reviewer-filter-bar {
@@ -8605,6 +8740,15 @@
     .res-workflow-banner > .dashboard-outline-action {
         width: 100%;
         justify-content: center;
+    }
+
+    .res-workflow-banner-actions {
+        flex-direction: column;
+    }
+
+    .res-workflow-banner-actions > .dashboard-outline-action {
+        width: 100%;
+        flex: 0 0 auto;
     }
 }
 

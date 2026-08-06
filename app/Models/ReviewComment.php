@@ -16,6 +16,9 @@ class ReviewComment extends Model
         'category',
         'page_number',
         'body',
+        'status',
+        'resolved_at',
+        'resolved_by_user_id',
         'released_at',
     ];
 
@@ -26,6 +29,7 @@ class ReviewComment extends Model
             'category' => ReviewCommentCategory::class,
             'page_number' => 'integer',
             'released_at' => 'datetime',
+            'resolved_at' => 'datetime',
         ];
     }
 
@@ -37,5 +41,10 @@ class ReviewComment extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(ApplicationDocument::class, 'application_document_id');
+    }
+
+    public function resolvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by_user_id')->withTrashed();
     }
 }

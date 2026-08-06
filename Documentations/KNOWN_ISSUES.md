@@ -8,7 +8,7 @@
 
 ## Product Scope Limitations
 
-- Reviewer conflict declaration, official forms, private comments, and initial decision submission are implemented. Automated uploaded-content identity detection/redaction, RES conflict reassignment, revision comparison/re-review, consolidated decision release, Exempted direct release, certificates, QR verification, and production deployment remain outside this implementation slice.
+- Official forms, private comment CRUD/resolution, initial decision submission, and non-destructive RES reassignment are implemented. Automated uploaded-content identity detection/redaction, revision comparison/re-review, consolidated decision release, Exempted direct release, flattened official-form PDF artifacts, certificates, QR verification, and production deployment remain outside this implementation slice.
 - Hiding Applicant/Adviser database fields does not remove identities already typed inside uploaded documents. Reviewer document use therefore requires the approved operational anonymization procedure until a content-redaction feature is specified.
 - Student Researcher and Faculty Researcher dashboards use application workflow panels rather than the count-based summary cards used by Adviser, Reviewer, and RES Lead roles.
 

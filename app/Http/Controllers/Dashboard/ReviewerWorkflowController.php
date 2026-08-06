@@ -3,48 +3,43 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ReviewDecision;
-use App\Enums\ReviewerConflictStatus;
 use App\Enums\ReviewFormType;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Reviewer\DeclareReviewerConflictRequest;
 use App\Http\Requests\Reviewer\SaveReviewerDecisionRequest;
 use App\Http\Requests\Reviewer\SaveReviewerFormRequest;
 use App\Http\Requests\Reviewer\StoreReviewCommentRequest;
 use App\Models\ReviewComment;
 use App\Models\ReviewerAssignment;
 use App\Services\Applications\ReviewerWorkflowService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class ReviewerWorkflowController extends Controller
 {
-    public function declareConflict(
-        DeclareReviewerConflictRequest $request,
-        ReviewerAssignment $reviewerAssignment,
-        ReviewerWorkflowService $workflow,
-    ): RedirectResponse {
-        $status = ReviewerConflictStatus::from($request->validated('conflict_status'));
-        $workflow->declareConflict($request->user(), $reviewerAssignment, $status);
-
-        return back()->with('status', $status === ReviewerConflictStatus::Cleared
-            ? 'Conflict declaration recorded. The blind review workspace is now available.'
-            : 'Conflict declaration recorded. RES will handle this assignment.');
-    }
-
     public function saveForm(
         SaveReviewerFormRequest $request,
         ReviewerAssignment $reviewerAssignment,
         ReviewFormType $reviewFormType,
         ReviewerWorkflowService $workflow,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $final = $request->validated('intent') === 'final';
-        $workflow->saveForm(
+        $form = $workflow->saveForm(
             $request->user(),
             $reviewerAssignment,
             $reviewFormType,
             $request->validated(),
             $final,
         );
+
+        if ($request->expectsJson()) {
+            return response()->json(['data' => [
+                'id' => $form->id,
+                'form_type' => $form->form_type->value,
+                'status' => $form->status->value,
+                'finalized_at' => $form->finalized_at?->toIso8601String(),
+            ]]);
+        }
 
         return back()->with('status', $final
             ? $reviewFormType->label().' finalized.'
@@ -55,10 +50,51 @@ class ReviewerWorkflowController extends Controller
         StoreReviewCommentRequest $request,
         ReviewerAssignment $reviewerAssignment,
         ReviewerWorkflowService $workflow,
-    ): RedirectResponse {
-        $workflow->addComment($request->user(), $reviewerAssignment, $request->validated());
+    ): RedirectResponse|JsonResponse {
+        $comment = $workflow->addComment($request->user(), $reviewerAssignment, $request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json(['data' => $this->commentPayload($comment, $reviewerAssignment)], 201);
+        }
 
         return back()->with('status', 'Review comment added.');
+    }
+
+    public function updateComment(
+        StoreReviewCommentRequest $request,
+        ReviewerAssignment $reviewerAssignment,
+        ReviewComment $reviewComment,
+        ReviewerWorkflowService $workflow,
+    ): RedirectResponse|JsonResponse {
+        $comment = $workflow->updateComment(
+            $request->user(),
+            $reviewerAssignment,
+            $reviewComment,
+            $request->validated(),
+        );
+
+        return $request->expectsJson()
+            ? response()->json(['data' => $this->commentPayload($comment, $reviewerAssignment)])
+            : back()->with('status', 'Review comment updated.');
+    }
+
+    public function changeCommentStatus(
+        Request $request,
+        ReviewerAssignment $reviewerAssignment,
+        ReviewComment $reviewComment,
+        ReviewerWorkflowService $workflow,
+    ): RedirectResponse|JsonResponse {
+        $validated = $request->validate(['status' => ['required', 'in:open,resolved']]);
+        $comment = $workflow->changeCommentStatus(
+            $request->user(),
+            $reviewerAssignment,
+            $reviewComment,
+            $validated['status'],
+        );
+
+        return $request->expectsJson()
+            ? response()->json(['data' => $this->commentPayload($comment, $reviewerAssignment)])
+            : back()->with('status', $comment->status === 'resolved' ? 'Review comment resolved.' : 'Review comment reopened.');
     }
 
     public function removeComment(
@@ -66,28 +102,66 @@ class ReviewerWorkflowController extends Controller
         ReviewerAssignment $reviewerAssignment,
         ReviewComment $reviewComment,
         ReviewerWorkflowService $workflow,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $workflow->removeComment($request->user(), $reviewerAssignment, $reviewComment);
 
+        if ($request->expectsJson()) {
+            return response()->json(null, 204);
+        }
+
         return back()->with('status', 'Review comment removed.');
+    }
+
+    /** @return array<string, mixed> */
+    private function commentPayload(ReviewComment $comment, ReviewerAssignment $assignment): array
+    {
+        $comment->loadMissing('document:id,original_file_name');
+
+        return [
+            'id' => $comment->id,
+            'scope' => $comment->scope->value,
+            'category' => $comment->category->value,
+            'application_document_id' => $comment->application_document_id,
+            'page_number' => $comment->page_number,
+            'body' => $comment->body,
+            'status' => $comment->status,
+            'resolved_at' => $comment->resolved_at?->toIso8601String(),
+            'updated_at' => $comment->updated_at?->toIso8601String(),
+            // Return server-rendered, escaped markup so asynchronous and fallback responses stay identical.
+            'html' => view('dashboard.assignments.partials.comment-item', [
+                'comment' => $comment,
+                'assignment' => $assignment,
+                'canWrite' => true,
+            ])->render(),
+            'count' => $assignment->comments()->count(),
+        ];
     }
 
     public function saveDecision(
         SaveReviewerDecisionRequest $request,
         ReviewerAssignment $reviewerAssignment,
         ReviewerWorkflowService $workflow,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $submit = $request->validated('intent') === 'submit';
         $decision = filled($request->validated('decision'))
             ? ReviewDecision::from($request->validated('decision'))
             : null;
-        $workflow->saveDecision(
+        $review = $workflow->saveDecision(
             $request->user(),
             $reviewerAssignment,
             $decision,
             $request->validated('decision_comment'),
             $submit,
         );
+
+        if ($request->expectsJson()) {
+            return response()->json(['data' => [
+                'id' => $review->id,
+                'status' => $review->status->value,
+                'decision' => $review->decision?->value,
+                'submitted_at' => $review->submitted_at?->toIso8601String(),
+            ]]);
+        }
 
         return $submit
             ? redirect()->route('reviewer.assignments.show', $reviewerAssignment)

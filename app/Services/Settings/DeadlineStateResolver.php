@@ -4,6 +4,7 @@ namespace App\Services\Settings;
 
 use App\Enums\DeadlineManualStatus;
 use App\Models\DeadlineConfiguration;
+use Illuminate\Support\Carbon;
 
 /**
  * Calculates one date-, term-, and toggle-aware state for configured processes.
@@ -37,16 +38,24 @@ class DeadlineStateResolver
             return ['open' => false, 'state' => 'manually_closed'];
         }
 
-        // Manual Open overrides process dates while retaining active-term and configuration boundaries.
+        // Explicit Open overrides process dates while retaining active-term and configuration boundaries.
         if ($deadline->manual_status === DeadlineManualStatus::Open) {
             return ['open' => true, 'state' => 'manually_open'];
         }
 
-        if ($deadline->starts_at?->isFuture()) {
+        $now = Carbon::now('Asia/Manila');
+        $startsAt = $deadline->starts_at?->copy()->timezone('Asia/Manila');
+        $dueAt = $deadline->due_at?->copy()->timezone('Asia/Manila');
+
+        if (! $startsAt || ! $dueAt || $startsAt->greaterThan($dueAt)) {
+            return ['open' => false, 'state' => 'invalid_schedule'];
+        }
+
+        if ($now->lessThan($startsAt)) {
             return ['open' => false, 'state' => 'upcoming'];
         }
 
-        if ($deadline->due_at->isPast()) {
+        if ($now->greaterThan($dueAt)) {
             return ['open' => false, 'state' => 'closed'];
         }
 

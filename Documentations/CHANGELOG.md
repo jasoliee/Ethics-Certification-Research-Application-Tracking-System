@@ -11,7 +11,7 @@
 
 ### Changed
 
-- Initial Reviewer assignments now require a one-time conflict declaration and inherit the active Reviewer Submission deadline when configured.
+- Superseded on August 5: initial Reviewer assignments required a one-time conflict declaration. Current assignments now grant immediate blind-workspace access and inherit the active Reviewer Submission deadline when configured.
 - Applications move to `review_submitted_pending_release` only after every initial Reviewer assignment in the review cycle submits.
 - Centered the requested RES Applicant Category, Applicant Submitted/requirement, Reviewer Application Code/Status/Deadline, and User Management Name columns; Reviewer deadline text remains dark.
 - Reworked RES screening actions, bottom warning, direct document actions, decision actions, and Reviewer selection into contained desktop/tablet/phone layouts. Reviewer filters now live inside Eligible Reviewers and selected removal uses an X icon.
@@ -19,7 +19,7 @@
 
 ### Security
 
-- Reviewer work requires exact assignment ownership, cleared conflict state, an active unsubmitted assignment, and an open Reviewer Submission period. Parent/nested document authorization is repeated for every private preview/download.
+- Superseded on August 5: Reviewer work previously required a cleared conflict state. It now requires exact current-assignment ownership, an active unsubmitted assignment, and an open Reviewer Submission period. Parent/nested document authorization is repeated for every private preview/download.
 - Applicant and Adviser database identity is omitted from Reviewer pages; Reviewer identity, forms, comments, and decisions remain unavailable to Applicant routes before official release.
 - Reviewer audit events store bounded state and identifiers only, excluding form answers, comment/decision text, filenames, document content, and private paths.
 
@@ -106,7 +106,7 @@
 ### Changed
 
 - Rebuilt Deadline Configuration as a bounded seven-phase table with Upcoming Deadline and Active Date Range summaries; removed the aggregate Manual Toggles On summary.
-- Every term start, process opening, deadline, and release value now rejects past input in the browser and backend even when Manual Open is selected. Manual `On` remains a runtime date override; `Auto` restores date evaluation.
+- Superseded on August 5: past dates are accepted when ranges remain ordered. Explicit `On`/`Off` overrides runtime dates, and changing either process date restores automatic date evaluation.
 - Limited Phone Number to 11 digits and preserved alphanumeric Student Number/Employee ID validation in individual and Excel account creation.
 - Aligned Applicant header/checklist/upload/form controls, made Adviser Return for Correction red, removed duplicate detail-stage text, centered account application metrics, aligned account lifecycle actions, removed the edit-profile Dropdown Options shortcut, and left-aligned the import template guidance.
 - Adjusted latest-endorsement eager loading for SQLite/MySQL-compatible pagination after a cross-database ambiguity was found by the new queue test.

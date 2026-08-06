@@ -97,6 +97,7 @@
                                             data-document-open
                                             data-document-name="{{ $document->original_file_name }}"
                                             data-document-meta="{{ $document->requirement?->name ?? 'Supporting Document' }}"
+                                            data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
                                             data-document-preview-url="{{ route('reviewer.applications.documents.preview', [$application, $document]) }}"
                                             data-document-download-url="{{ route('reviewer.applications.documents.download', [$application, $document]) }}"
                                         ><x-dashboard.icon name="eye" size="17" /></button>
@@ -302,11 +303,11 @@
 
                         @if ($type === \App\Enums\ReviewFormType::InformedConsent)
                             <fieldset class="reviewer-consent-gate">
-                                <legend>Is an informed consent form necessary for this study?</legend>
+                                <legend>Is it necessary to seek the informed consent of the participants?</legend>
                                 <label><input type="radio" name="consent_required" value="1" @checked((string) $consentValue === '1') @disabled(! $formCanWrite)> Yes</label>
                                 <label><input type="radio" name="consent_required" value="0" @checked((string) $consentValue === '0') @disabled(! $formCanWrite)> No</label>
                                 <label class="application-field reviewer-consent-explanation">
-                                    <span>If no, provide the ethical basis</span>
+                                    <span>If NO, please explain (answer briefly)</span>
                                     <textarea name="consent_not_required_explanation" rows="3" maxlength="2000" @disabled(! $formCanWrite)>{{ old('form_type') === $type->value ? old('consent_not_required_explanation') : $form?->consent_not_required_explanation }}</textarea>
                                 </label>
                             </fieldset>

@@ -4,12 +4,12 @@
     <div class="dashboard-timeline">
         <ol>
             @foreach ($timeline as $milestone)
-                <li class="{{ $milestone['is_complete'] ? 'is-complete' : '' }} {{ $milestone['is_current'] ? 'is-current' : '' }}">
+                <li class="{{ $milestone['is_complete'] ? 'is-complete' : '' }} {{ $milestone['is_current'] ? 'is-current' : '' }} {{ ($milestone['is_skipped'] ?? false) ? 'is-skipped' : '' }}">
                     <span class="dashboard-timeline-marker">
                         @if ($milestone['is_complete'])<x-dashboard.icon name="check" size="13" />@endif
                     </span>
                     <span class="dashboard-timeline-label">{{ $milestone['label'] }}</span>
-                    <time>{{ $milestone['date_label'] }}</time>
+                    <time>{{ ($milestone['is_skipped'] ?? false) ? 'Not applicable' : $milestone['date_label'] }}</time>
                 </li>
             @endforeach
         </ol>

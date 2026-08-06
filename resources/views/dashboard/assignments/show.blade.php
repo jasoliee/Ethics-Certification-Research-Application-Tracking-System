@@ -3,8 +3,6 @@
 @section('content')
     @php
         $application = $assignment->researchApplication;
-        $conflictPending = $assignment->conflict_status === \App\Enums\ReviewerConflictStatus::Pending;
-        $conflictDeclared = $assignment->conflict_status === \App\Enums\ReviewerConflictStatus::Declared;
     @endphp
 
     <div class="dashboard-page reviewer-assignment-detail-page">
@@ -16,48 +14,13 @@
             <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.index') }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to Assignments</span></a>
         </header>
 
-        @if ($conflictPending)
-            <section class="application-panel reviewer-conflict-panel">
-                <header class="application-panel-heading">
-                    <div><h2>Conflict of Interest Declaration</h2><p>Complete this declaration before any blind documents or review tools become available.</p></div>
-                    <x-dashboard.status-badge :label="$assignment->conflict_status->label()" :tone="$assignment->conflict_status->tone()" />
-                </header>
-                @if ($errors->reviewerConflict->any())
-                    <div class="res-form-error-summary reviewer-workspace-error" role="alert">
-                        <x-dashboard.icon name="alert-triangle" size="19" />
-                        <div><strong>Declaration was not recorded.</strong><span>{{ $errors->reviewerConflict->first() }}</span></div>
-                    </div>
-                @endif
-                <div class="reviewer-conflict-copy">
-                    <p>Confirm whether a personal, professional, academic, or financial relationship could affect your impartial review of this application.</p>
-                    <div class="reviewer-conflict-actions">
-                        <form method="POST" action="{{ route('reviewer.assignments.conflict.store', $assignment) }}">
-                            @csrf
-                            <input type="hidden" name="conflict_status" value="{{ \App\Enums\ReviewerConflictStatus::Declared->value }}">
-                            <button class="dashboard-danger-action" type="submit"><x-dashboard.icon name="alert-triangle" size="17" /><span>Declare a Conflict</span></button>
-                        </form>
-                        <form method="POST" action="{{ route('reviewer.assignments.conflict.store', $assignment) }}">
-                            @csrf
-                            <input type="hidden" name="conflict_status" value="{{ \App\Enums\ReviewerConflictStatus::Cleared->value }}">
-                            <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>I Have No Conflict</span></button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-        @elseif ($conflictDeclared)
-            <section class="reviewer-conflict-blocked" role="alert">
-                <x-dashboard.icon name="alert-triangle" size="21" />
-                <div><strong>Conflict declared</strong><span>The blind workspace is locked. RES has been notified to handle this assignment.</span></div>
-            </section>
-        @else
-            <section class="reviewer-assignment-ready" role="status">
-                <x-dashboard.icon name="check" size="20" />
-                <div><strong>No conflict declared</strong><span>{{ $reviewWindow['message'] }}</span></div>
-                <a class="dashboard-primary-action" href="{{ route('reviewer.assignments.workspace', $assignment) }}">
-                    <x-dashboard.icon name="file-search" size="17" /><span>{{ $assignment->reviewSubmission?->submitted_at ? 'View Submitted Review' : 'Open Review Workspace' }}</span>
-                </a>
-            </section>
-        @endif
+        <section class="reviewer-assignment-ready" role="status">
+            <x-dashboard.icon name="check" size="20" />
+            <div><strong>Assignment ready</strong><span>{{ $reviewWindow['message'] }}</span></div>
+            <a class="dashboard-primary-action" href="{{ route('reviewer.assignments.workspace', $assignment) }}">
+                <x-dashboard.icon name="file-search" size="17" /><span>{{ $assignment->reviewSubmission?->submitted_at ? 'View Submitted Review' : 'Open Review Workspace' }}</span>
+            </a>
+        </section>
 
         {{-- Identity fields are intentionally omitted from the Reviewer-facing summary. --}}
         <div class="reviewer-assignment-detail-grid">
@@ -119,6 +82,7 @@
                                             data-document-open
                                             data-document-name="{{ $document->original_file_name }}"
                                             data-document-meta="{{ $document->requirement?->name ?? 'Supporting Document' }}"
+                                            data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
                                             data-document-preview-url="{{ route('reviewer.applications.documents.preview', [$application, $document]) }}"
                                             data-document-download-url="{{ route('reviewer.applications.documents.download', [$application, $document]) }}"
                                         ><x-dashboard.icon name="eye" size="17" /></button>

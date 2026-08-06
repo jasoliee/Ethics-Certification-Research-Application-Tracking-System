@@ -9,7 +9,7 @@
 - Applicant application access is limited to the owning account while Adviser access additionally requires formal submission and assignment.
 - Adviser decisions repeat assignment, initial-cycle, completeness, deadline, and status checks inside a row-locked transaction before changing workflow state.
 - RES classification, screening correction, and reviewer assignment repeat role, record state, persisted readiness, reviewer eligibility, and capacity checks inside row-locked transactions before changing workflow state. A correction cannot remove assignments after review work starts.
-- Reviewer list/detail queries are owner-scoped, assignment details omit Applicant and Adviser profile identity, and private document access requires both a cleared conflict declaration and an assignment to the parent application.
+- Reviewer list/detail queries are owner-scoped, assignment details omit Applicant and Adviser profile identity, and private document access requires a current assignment to the parent application.
 - Reviewer form, comment, and decision writes repeat ownership, active-assignment, cleared-conflict, unsubmitted-review, and configured-deadline checks after locking current rows. Final application projection also locks the review-cycle assignment set.
 - RES Lead cannot create or manage another RES Lead through these flows.
 - No two-factor authentication controls were added because the requirement explicitly excludes them.
@@ -43,4 +43,4 @@ No-store caching, `nosniff`, same-origin framing, strict referrer behavior, rest
 
 ## Known Limits
 
-The repository does not yet provide malware scanning, production object storage, CSP nonces, queue delivery reconciliation, a safe public audit correlation identifier, document-content identity detection/redaction, RES conflict reassignment, full certificate authorization, or result release. Database identity hiding cannot remove names already typed inside uploaded files. The custom parser is intentionally limited to the official bounded ECRATS workbook contract. Deployment controls still matter even when application tests pass.
+The repository does not yet provide malware scanning, production object storage, CSP nonces, queue delivery reconciliation, a safe public audit correlation identifier, document-content identity detection/redaction, full certificate authorization, or result release. Database identity hiding cannot remove names already typed inside uploaded files. The custom parser is intentionally limited to the official bounded ECRATS workbook contract. Deployment controls still matter even when application tests pass.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-RES Lead Settings stores one academic term and seven approved process definitions:
+RES Lead Settings stores one academic term and six approved process definitions:
 
 1. Application Submission
 2. Adviser Endorsement
@@ -10,9 +10,7 @@ RES Lead Settings stores one academic term and seven approved process definition
 4. Reviewer Submission
 5. Revision Period
 6. Reviewing of Revision Period
-7. Release of Decision and Certificate
-
-The first six processes use an opening date/time and deadline. Release of Decision and Certificate uses one exact date/time. Configuring a schedule does not by itself complete the later RES, Reviewer, revision, or certificate workflow.
+All six processes use an opening date/time and deadline. The retired Release of Decision and Certificate schedule is deactivated by a forward migration. Configuring a schedule does not by itself complete the later RES, Reviewer, revision, or certificate workflow.
 
 ## Academic Term
 
@@ -24,25 +22,22 @@ Only an active term whose current Philippine date/time falls between its boundar
 
 ECRATS evaluates dates in the application timezone `Asia/Manila`.
 
-- `On`: stores `manual_status = open` and makes the process available outside its configured process dates while its term remains current.
-- `Auto`: stores no manual override. The process returns to automatic date evaluation.
+- `On`: stores an explicit `manual_status = open` override.
+- `Off`: stores an explicit `manual_status = closed` override.
 - Automatic upcoming: current time is before `starts_at`.
 - Automatic open: current time is from `starts_at` through `due_at`.
 - Automatic closed: current time is after `due_at`.
 - Unconfigured, inactive, outside-term, or term-mismatched processes are unavailable.
 
-The backend retains support for a legacy explicit `closed` status, but the current two-state switch does not create it. `Auto` must therefore not be interpreted as a forced-closed override.
+Changing either configured date clears an existing override and returns the process to date evaluation. Saving without changing the switch preserves the existing override.
 
 ## Validation and Synchronization
 
 - Every approved process must be present in one settings update so a partial request cannot silently erase a schedule.
 - Academic Year uses `YYYY-YYYY`.
-- Term Starting Date cannot be in the past.
 - Term Ending Date cannot precede Starting Date.
-- Every process opening, deadline, and release value must be current or future when saved, including rows set to manual `On`.
 - Each process deadline cannot precede its opening.
-- Manual `On` overrides runtime process-date evaluation; it does not relax schedule-entry validation.
-- Exact release uses the same stored value for `starts_at` and `due_at`.
+- Explicit `On` or `Off` overrides runtime process-date evaluation until a date changes.
 - Deadline rows and matching timeline events are updated in one database transaction.
 - Audit metadata records the term, process keys, and whether each process is automatic or manually open.
 
@@ -54,6 +49,6 @@ Dashboard alerts select role-appropriate current-term deadlines. Applicant timel
 
 ## Interface
 
-The Deadline Configuration tab contains a bounded term/date summary, Upcoming Deadline and Active Date Range summaries, and one seven-row process table. There is no aggregate Manual Toggles On card. Each row contains its phase, description, opening value when applicable, deadline or release value, and an `On`/`Auto` switch.
+The Deadline Configuration tab contains a bounded term/date summary, Upcoming Deadline and Active Date Range summaries, and one six-row process table. Each row contains its phase, description, opening value, deadline, and an effective `On`/`Off` switch.
 
 The table retains a practical minimum width inside the shared focusable horizontal-scroll boundary. On smaller screens the term and summary fields stack while the process columns remain reachable through the table's bottom scrollbar instead of widening the page.

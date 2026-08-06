@@ -6,7 +6,7 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus Excel-only `.xlsx` preview and confirmation. RES Leads can safely restore preview-matched archived accounts without replacing their original records. Database-backed profile options retain immutable identities and historical label aliases so older workbooks can resolve renamed active options.
 
-Applicant draft creation/editing, validated Starting/Ending Dates, private versioned requirement uploads, selected-file batch upload, the maximum of three formally submitted applications, configured Philippine-time submission windows, confirmation before formal submission, current dashboard reflection, assigned-Adviser return/endorsement decisions, RES administrative screening, Expedited/Full Board/Exempted classification, and exact initial reviewer assignment are implemented and tested. Blind reviewer evaluation, later revisions, result release, certificate rendering, and QR verification are not yet complete end-to-end workflows. The maintained OVPRII background asset is prepared under `resources/assets/official`, but no official document generator currently consumes it.
+Applicant draft creation/editing, private versioned requirement uploads, formal submission, Adviser return/endorsement, RES classification, non-destructive reviewer reassignment, blind reviewer workspaces, official protocol/consent form data, comment history, and reviewer decision submission are implemented and tested. Finalized reviewer forms preserve immutable catalog/payload snapshots. Later Applicant revision submission, RES result release, flattened PDF form artifacts, certificate rendering, and QR verification are not yet complete end-to-end workflows.
 
 The dashboard database tables are an additive implementation slice of the larger module-based ERD. They do not replace the remaining blind-review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
@@ -60,6 +60,8 @@ npm.cmd run build
 Use `npm.cmd` rather than `npm` in PowerShell unless the local execution policy has been intentionally changed.
 
 Excel account import requires PHP's ZIP extension. `composer check-platform-reqs` must report `ext-zip` as successful. On Laragon, enable `extension=zip` in the active `php.ini`, restart affected terminals/services, and confirm it appears in `php -m`.
+
+When ZIP or the locked PhpSpreadsheet package is unavailable, workbook generation/import fails before file creation and returns a safe administrator-facing error. Flattened official reviewer-form PDFs remain disabled until a PDF renderer is explicitly approved and installed; finalized database snapshots are available in the meantime.
 
 ## Dashboard Preview
 

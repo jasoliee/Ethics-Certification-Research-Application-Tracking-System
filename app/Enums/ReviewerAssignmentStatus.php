@@ -8,6 +8,7 @@ enum ReviewerAssignmentStatus: string
     case InReview = 'in_review';
     case RevisionReview = 'revision_review';
     case DecisionSubmitted = 'decision_submitted';
+    case Superseded = 'superseded';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum ReviewerAssignmentStatus: string
             self::InReview => 'In Review',
             self::RevisionReview => 'Revision Review',
             self::DecisionSubmitted => 'Decision Submitted',
+            self::Superseded => 'Reassigned',
         };
     }
 
@@ -26,6 +28,7 @@ enum ReviewerAssignmentStatus: string
             self::InReview => 'orange',
             self::RevisionReview => 'violet',
             self::DecisionSubmitted => 'success',
+            self::Superseded => 'neutral',
         };
     }
 

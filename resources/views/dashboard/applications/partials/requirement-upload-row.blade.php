@@ -30,6 +30,7 @@
                     data-document-open
                     data-document-name="{{ $document->original_file_name }}"
                     data-document-meta="{{ $requirement->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
+                    data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
                     data-document-preview-url="{{ route('applicant.applications.documents.preview', [$application, $document]) }}"
                     data-document-download-url="{{ route('applicant.applications.documents.download', [$application, $document]) }}"
                     data-document-replace-input="{{ $canUpload ? 'replace_document_'.$requirement->id : '' }}"

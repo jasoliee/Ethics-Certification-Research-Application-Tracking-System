@@ -42,7 +42,7 @@ owner policy -> unique editable draft -> validated information
 -> assigned Adviser deadline/completeness revalidation
 -> returned_by_adviser for correction OR adviser_endorsed + res_screening
 -> Applicant notification + endorsement history + audit
--> RES administrative screening + expedited/full_board/exempted classification
+-> RES expedited/full_board/exempted classification with locked mandatory-document readiness
 -> exact eligible reviewer assignment OR exempted direct-release boundary
 -> conflict-cleared Reviewer workspace + two final official forms + final decision
 -> every initial assignment submitted -> review_submitted_pending_release

@@ -27,6 +27,17 @@ class WorkbookTemplateTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if ($this->name() !== 'test_template_generation_failure_returns_a_safe_application_error'
+            && $this->name() !== 'test_missing_workbook_runtime_returns_a_safe_error_without_xlsx_headers'
+            && (! class_exists(ZipArchive::class) || ! class_exists(Spreadsheet::class))) {
+            $this->markTestSkipped('The ZIP extension and installed PhpSpreadsheet package are required for XLSX round-trip coverage.');
+        }
+    }
+
     /** Lists the minimum package parts asserted before any test reader opens a workbook. */
     private const REQUIRED_ENTRIES = [
         '[Content_Types].xml',
@@ -252,6 +263,28 @@ class WorkbookTemplateTest extends TestCase
         );
         $this->assertStringNotContainsString('internal-secret', (string) $response->getContent());
         $this->assertStringNotContainsString('private\\template', (string) $response->getContent());
+    }
+
+    public function test_missing_workbook_runtime_returns_a_safe_error_without_xlsx_headers(): void
+    {
+        if (class_exists(ZipArchive::class) && class_exists(Spreadsheet::class)) {
+            $this->markTestSkipped('This test covers an intentionally incomplete spreadsheet runtime.');
+        }
+
+        Storage::fake('local');
+        $actor = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $response = $this->actingAs($actor)
+            ->from(route('res.users.import.form', ['account_type' => 'student_researcher']))
+            ->get(route('res.users.import.template', ['account_type' => 'student_researcher']));
+
+        $response->assertRedirect()->assertSessionHasErrors('template');
+        $this->assertNull($response->headers->get('content-disposition'));
+        $this->assertNotSame(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('content-type'),
+        );
+        Storage::disk('local')->assertDirectoryEmpty('exports/account-templates');
     }
 
     /**

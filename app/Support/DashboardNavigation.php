@@ -24,7 +24,6 @@ class DashboardNavigation
             UserRole::Reviewer => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Assignments', 'reviewer.assignments.index', 'clipboard', 'reviewer.assignments.*'),
-                self::item('Review', 'reviewer.reviews.index', 'users', 'reviewer.reviews.*'),
             ],
             UserRole::ResLead => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),

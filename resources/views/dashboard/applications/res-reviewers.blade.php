@@ -4,7 +4,7 @@
     @php
         $screening = $application->screening;
         $assignments = $application->reviewerAssignments;
-        $selectedReviewerIds = collect(old('reviewer_ids', []))->map(fn ($id) => (int) $id);
+        $selectedReviewerIds = collect(old('reviewer_ids', $assignments->pluck('reviewer_user_id')->all()))->map(fn ($id) => (int) $id);
     @endphp
 
     <div class="dashboard-page application-workspace res-workflow-page">
@@ -19,13 +19,12 @@
             </a>
         </header>
 
-        @if (! $canAssign && $assignments->isNotEmpty())
-            {{-- A completed immutable assignment renders as a result rather than reopening selection controls. --}}
+        @if ($assignments->isNotEmpty())
             <section class="res-workflow-banner is-success" role="status">
                 <span><x-dashboard.icon name="check" size="22" /></span>
                 <div>
-                    <strong>Reviewers successfully assigned</strong>
-                    <p>The application has moved to {{ $application->application_status->label() }}.</p>
+                    <strong>Current reviewer set</strong>
+                    <p>You may replace reviewers when necessary. Prior assignments and submitted work remain in the audit history.</p>
                 </div>
                 <a class="dashboard-outline-action" href="{{ route('res.applications.show', $application) }}">View Application</a>
             </section>
@@ -50,8 +49,6 @@
             <section class="res-workflow-panel">
                 <header class="res-workflow-panel-heading"><x-dashboard.icon name="user-check" size="21" /><h2>Screening and Classification</h2></header>
                 <dl class="res-screening-summary">
-                    <div><dt>Screening Status</dt><dd><x-dashboard.status-badge label="Complete" tone="success" /></dd></div>
-                    <div><dt>Receipt Check</dt><dd><x-dashboard.status-badge :label="$screening->receipt_check_status->label()" tone="blue" /></dd></div>
                     <div><dt>Classification Date</dt><dd>{{ $screening->classified_at->format('M j, Y') }}</dd></div>
                     <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived RES Lead' }}</dd></div>
                     <div><dt>Review Type</dt><dd><x-dashboard.status-badge :label="$reviewType->label()" tone="success" /></dd></div>
@@ -125,7 +122,8 @@
                                         @php
                                             $capacity = (int) ($candidate->reviewer_capacity ?? 0);
                                             $activeLoad = (int) $candidate->active_assignment_count;
-                                            $available = $capacity > 0 && $activeLoad < $capacity;
+                                            $isRetained = $assignments->contains('reviewer_user_id', $candidate->id);
+                                            $available = $isRetained || ($capacity > 0 && $activeLoad < $capacity);
                                         @endphp
                                         <tr
                                             data-reviewer-row
@@ -175,13 +173,17 @@
                     </header>
                     <ul class="res-selected-reviewer-list" data-selected-reviewer-list aria-live="polite"></ul>
                     <template data-reviewer-remove-icon><x-dashboard.icon name="x" size="17" /></template>
-                    <div class="res-known-conflict-check" role="note">
-                        <x-dashboard.icon name="check" size="18" />
-                        <span>Known applicant and adviser conflicts are excluded from this list.</span>
-                    </div>
+                    @if ($assignments->isNotEmpty())
+                        {{-- The form attribute preserves server validation and audit handling while placing this field with the save action. --}}
+                        <div class="application-field res-reassignment-reason">
+                            <label for="reassignment_reason">Reason for Reassignment</label>
+                            <textarea id="reassignment_reason" name="reassignment_reason" rows="3" minlength="10" maxlength="1000" form="res-reviewer-assignment-form">{{ old('reassignment_reason') }}</textarea>
+                            @error('reassignment_reason', 'reviewerAssignment')<small class="application-field-error">{{ $message }}</small>@enderror
+                        </div>
+                    @endif
                     <button class="dashboard-primary-action res-assignment-submit" type="button" data-reviewer-assignment-confirm-open disabled>
                         <x-dashboard.icon name="arrow-right" size="18" />
-                        <span>Confirm and Assign {{ Str::plural('Reviewer', $requiredReviewerCount) }}</span>
+                        <span>{{ $assignments->isEmpty() ? 'Confirm and Assign' : 'Save Reviewer Set' }}</span>
                     </button>
                 </section>
             </div>
@@ -195,8 +197,8 @@
                     <header class="application-modal-heading">
                         <span class="application-modal-icon"><x-dashboard.icon name="users" size="24" /></span>
                         <div>
-                            <h2 id="reviewer-assignment-title">Confirm Reviewer Assignment</h2>
-                            <p>Review the selected reviewer set before finalizing this workflow transition.</p>
+                            <h2 id="reviewer-assignment-title">Confirm Reviewer Set</h2>
+                            <p>Review the selected set before saving this workflow transition.</p>
                         </div>
                     </header>
                     <dl class="res-confirmation-details">

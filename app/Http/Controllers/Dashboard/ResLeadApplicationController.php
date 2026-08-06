@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ApplicantType;
 use App\Enums\ApplicationStatus;
-use App\Enums\ReceiptCheckStatus;
 use App\Enums\ResearchType;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
-use App\Enums\ScreeningCompletenessStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\AssignApplicationReviewersRequest;
 use App\Http\Requests\ResLead\ClassifyResearchApplicationRequest;
@@ -151,8 +149,6 @@ class ResLeadApplicationController extends Controller
             'editingScreening' => $canUpdateScreening && $request->boolean('edit_screening'),
             'canAssignReviewers' => $request->user()->can('assignReviewers', $application),
             'reviewTypes' => ReviewType::cases(),
-            'completenessStatuses' => ScreeningCompletenessStatus::cases(),
-            'receiptStatuses' => ReceiptCheckStatus::cases(),
             'breadcrumbs' => [
                 ['label' => 'Applications', 'route' => 'res.applications.index'],
                 ['label' => $application->application_code],
@@ -228,8 +224,7 @@ class ResLeadApplicationController extends Controller
         $reviewType = ReviewType::tryFrom((string) $application->review_type);
 
         abort_unless($application->screening && $reviewType?->requiresReviewers(), 404);
-        $canAssign = $request->user()->can('assignReviewers', $application)
-            && $application->reviewerAssignments->isEmpty();
+        $canAssign = $request->user()->can('assignReviewers', $application);
 
         return view('dashboard.applications.res-reviewers', [
             'pageTitle' => 'Reviewer Assignment',
@@ -265,6 +260,7 @@ class ResLeadApplicationController extends Controller
             $request->user(),
             $researchApplication,
             $request->validated('reviewer_ids'),
+            $request->validated()['reassignment_reason'] ?? null,
         );
 
         return redirect()
@@ -311,6 +307,7 @@ class ResLeadApplicationController extends Controller
             'latestEndorsement.adviser:id,name',
             'screening.screenedBy:id,name',
             'reviewerAssignments' => fn ($assignments) => $assignments
+                ->current()
                 ->where('review_type', 'initial_review')
                 ->orderBy('assigned_at')
                 ->with(['reviewer' => fn ($reviewers) => $reviewers
