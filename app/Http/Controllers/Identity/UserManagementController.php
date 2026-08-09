@@ -6,6 +6,7 @@ use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
 use App\Enums\UserRole;
+use App\Exceptions\SpreadsheetRuntimeUnavailable;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Identity\ChangeManagedUserStatusRequest;
 use App\Http\Requests\Identity\ChangeProfileOptionStatusRequest;
@@ -438,6 +439,17 @@ class UserManagementController extends Controller
         try {
             // Complete generation and verification first so a failure returns an ordinary application redirect, never a mislabeled XLSX.
             $path = $spreadsheets->createTemplate($type, $optionValues);
+        } catch (SpreadsheetRuntimeUnavailable $exception) {
+            // Capability identifiers are bounded by the typed exception and remain safe for operational logs.
+            Log::warning('Account template runtime unavailable.', [
+                'actor_user_id' => $request->user()->id,
+                'account_type' => $type['key'],
+                'missing_requirements' => $exception->missingRequirements(),
+            ]);
+
+            return back()->withErrors([
+                'template' => SpreadsheetRuntimeUnavailable::USER_MESSAGE,
+            ]);
         } catch (Throwable $exception) {
             // Record only bounded operational context; exception text can contain internal paths or library diagnostics.
             Log::warning('Account template generation failed.', [

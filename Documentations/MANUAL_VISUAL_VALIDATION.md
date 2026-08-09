@@ -4,7 +4,7 @@ Use this checklist in a working browser and record evidence. Use `Pass`, `Fail`,
 
 Current status for the 2026-07-30 implementation: **Implemented in code but pending manual visual verification.** Automated rendering/build checks do not replace the viewport acceptance below. Record the browser, viewport, date, result, and evidence when the team completes each check.
 
-The RES queue, screening, and reviewer-assignment slice was interactively verified in a local browser on 2026-08-02. The August 3 correction, private-preview, Reviewer assignment-list/detail, and submitted Applicant checklist states were rechecked at 1280px and 390px on 2026-08-03. The August 4 conflict-gated Reviewer workspace and requested cross-role alignment/responsive changes were checked at 1440px, 768px, and 390px. This does not change the pending status of unrelated screens or replace stakeholder acceptance. The populated Applicant account had no editable draft, so a real post-upload checklist transition remains a manual check even though its feature tests pass.
+The RES queue, screening, and reviewer-assignment slice was interactively verified in a local browser on 2026-08-02. The August 3 correction, private-preview, Reviewer assignment-list/detail, and submitted Applicant checklist states were rechecked at 1280px and 390px on 2026-08-03. The August 4 conflict-gated Reviewer workspace and requested cross-role alignment/responsive changes were checked at 1440px, 768px, and 390px; those rows are historical evidence for the superseded workspace, not acceptance of the August 9 redesign. This does not change the pending status of unrelated screens or replace stakeholder acceptance. The populated Applicant account had no editable draft, so a real post-upload checklist transition remains a manual check even though its feature tests pass.
 
 | Area | Check | Result | Notes | Screenshot Evidence |
 | --- | --- | --- | --- | --- |
@@ -34,7 +34,7 @@ The RES queue, screening, and reviewer-assignment slice was interactively verifi
 | RES Applications Queue | At default 100% phone and desktop zoom, all filters and actions stay inside the viewport; heading copy wraps; only formally submitted RES-flow records appear; the bottom table scrollbar reaches every column without adding a second vertical scrollbar; pagination and detail links remain usable. | Pass | Verified with populated demo data at the target widths; the table scrolls internally and the page has no horizontal overflow. | Interactive local browser, 2026-08-02 |
 | RES Screening Details | Overview, research information, requirement checklist, administrative checks, classification choices, notes, and private document dialog remain readable without overlap or clipped actions. | Pass | Rechecked at 1440px, 768px, and 390px on 2026-08-04. Screening notes were left-aligned, the edit warning followed all fields, both header actions remained 44px high, and the requirement scroller had zero bottom padding. | Interactive local browser, 2026-08-04 |
 | RES Reviewer Assignment | Candidate search/filter, disabled full-load rows, exact selection count, confirmation dialog, and read-only result remain usable for one and three reviewers. | Pass | Rechecked at 1440px, 768px, and 390px on 2026-08-04. Filters stayed inside Eligible Reviewers, the removed Eligibility panel remained absent, and all overflow stayed internal. Automated tests cover exact assignment counts and full-capacity rows. | Interactive local browser, 2026-08-04 |
-| Reviewer Assigned Applications | Owner-scoped filters, populated table, conflict gate, protected workspace/documents, official forms, internal scrolling, and identity omission remain usable on desktop and phone. | Pass | Rechecked list, conflict actions, blind workspace, and a full protocol-form dialog at 1440px and 390px on 2026-08-04. Applicant/Adviser identity labels were absent and no page-level horizontal overflow appeared. | Interactive local browser, 2026-08-04 |
+| Reviewer Assigned Applications (historical) | Owner-scoped filters, protected workspace/documents, official forms, internal scrolling, and identity omission remained usable on desktop and phone before the August 9 redesign. | Pass | Rechecked the then-current list, blind workspace, and a full protocol-form dialog at 1440px and 390px on 2026-08-04. Applicant/Adviser identity labels were absent and no page-level horizontal overflow appeared. | Interactive local browser, 2026-08-04 |
 | Private Office Preview | Word and Excel files open a bounded authorized fallback with neutral guidance and secure Download actions; no private storage path appears. | Pass | The Excel fallback opened inside the existing document dialog at 390px, remained within the viewport, and exposed only authorized download routes. | Interactive local browser, 2026-08-03 |
 | RES Workflow Mobile | Queue filters stack, wide tables scroll internally, decision panels become one column, and modal content remains bounded at 768px and 390px. | Pass | No page-level horizontal overflow was found. At 390px the assignment dialog remained fully bounded with both actions visible. | Interactive local browser, 2026-08-02 |
 | User Account Detail | The application metric is centered; Deactivate or Reactivate stays horizontally aligned with Delete Account; the edit page has no Dropdown Options shortcut. | Pending | Implemented in code but pending manual visual verification. | Not captured |
@@ -79,7 +79,7 @@ Manual-only remainder: repeat an actual successful and partial/error upload with
 
 ## August 4 Reviewer and Cross-role Runs
 
-These checks cover the requested RES details/assignment, Applicant list/details, Reviewer list/conflict/workspace/form, and table-alignment changes.
+These historical checks cover the requested RES details/assignment, Applicant list/details, the then-current Reviewer list/workspace/form, and table-alignment changes. Repeat the Reviewer and RES rows below for the August 9 continuation.
 
 | Width | Result | Notes | Evidence |
 | --- | --- | --- | --- |
@@ -88,6 +88,18 @@ These checks cover the requested RES details/assignment, Applicant list/details,
 | 390px | Pass | Header actions stacked at 44px, wide tables scrolled internally with zero bottom padding, Reviewer panels/forms remained bounded, and there was no whole-page horizontal overflow. | Interactive local browser, 2026-08-04 |
 
 Remaining stakeholder checks: uploaded-document content may still contain identity, and the project has no approved anonymized-copy/redaction procedure, revision-comparison workspace, flattened official-form PDF generator, or result-release interface.
+
+## August 9 Continuation Verification
+
+The in-app browser/runtime was unavailable for this continuation. The high-fidelity PDF pages for the base workspace, page/overall comments, comment actions, and both official form modals were rendered and inspected on 2026-08-09. The implementation was adjusted to the reference's three-column document-library/viewer/review-tools hierarchy and compact form context. VS Code/source inspection, Laravel feature tests, static markup assertions, and the production frontend build verify those contracts and regressions, but they cannot prove pixel-level application-output fidelity or responsive behavior. Final viewport acceptance therefore remains pending until the application can be inspected in a working browser.
+
+| Area | Automated/source contract | Visual acceptance still required |
+| --- | --- | --- |
+| Reviewer navigation | Sidebar data and rendered markup must contain only Home and Assignments; the Review, notification, and settings routes must still authorize the Reviewer. | Verify the bell and profile-menu entry points and spacing at all target widths. |
+| Reviewer Workspace | A compact summary precedes a three-column document library, authorized central viewer, and review-tools rail. The selected document and comment composer/list coexist; comment create/edit/status/delete uses the JSON path without a page refresh and exposes loading, empty, success, validation-error, and request-error states. Reference pages 4-7 and 12-13 were rendered and used for structural comparison. | Confirm pane proportions, hierarchy, spacing, scroll behavior, form dialogs, and stacked phone layout in the running application. |
+| RES classification | Full-width two-column editor, full-span centered helper, full-width saved summary, and aligned Re-edit Decision/View Assignment controls are source requirements. | Compare at 1440, 1280, 1024, 768, and 390 pixels. |
+| RES reassignment | Reason for Reassignment appears in Selected Reviewer above Save Reviewer Set; the redundant conflict-exclusion message is absent. | Verify validation errors, long text, confirmation flow, and stacked mobile layout. |
+| Private documents | PDF/browser-safe content remains policy-authorized inline; Word/Excel stays in the same-origin protected fallback/download flow and never exposes a storage path or third-party viewer. | Exercise `.pdf`, `.doc`, `.docx`, `.xls`, and `.xlsx` with every applicable role. |
 
 ## Viewport Runs
 

@@ -81,8 +81,9 @@
                                             aria-label="View {{ $document->original_file_name }}"
                                             data-document-open
                                             data-document-name="{{ $document->original_file_name }}"
+                                            data-document-type="{{ $document->fileTypeLabel() }}"
                                             data-document-meta="{{ $document->requirement?->name ?? 'Supporting Document' }}"
-                                            data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
+                                            data-document-preview-kind="{{ $document->previewKind() }}"
                                             data-document-preview-url="{{ route('reviewer.applications.documents.preview', [$application, $document]) }}"
                                             data-document-download-url="{{ route('reviewer.applications.documents.download', [$application, $document]) }}"
                                         ><x-dashboard.icon name="eye" size="17" /></button>

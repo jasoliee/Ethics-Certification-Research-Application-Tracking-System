@@ -194,11 +194,12 @@ class DashboardDataService
                 ->select([
                     'id',
                     'application_code',
-                    'applicant_type',
-                    'review_type',
+                    'adviser_user_id',
                     'application_status',
                     'submitted_at',
                 ])
+                // Eager-load the displayed Adviser once for the bounded dashboard collection.
+                ->with('adviser:id,name')
                 ->whereIn('application_status', $administrativeStatuses)
                 ->latest('submitted_at')
                 ->latest('id')

@@ -56,6 +56,32 @@ class ResLeadSettingsTest extends TestCase
         }
     }
 
+    public function test_deadline_configuration_responds_to_the_sidebar_adjusted_workspace_width(): void
+    {
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.res-settings-page\s*\{[^}]*container-name:\s*res-settings-workspace;[^}]*container-type:\s*inline-size;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.settings-deadline-overview\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*grid-template-columns:\s*minmax\(560px,/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@container res-settings-workspace \(max-width:\s*1080px\)\s*\{\s*\.settings-deadline-overview\s*\{[^}]*grid-template-columns:\s*1fr;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.settings-table-field input\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.settings-deadline-table-wrap\s*\{[^}]*width:\s*calc\(100% - 40px\);/s',
+            $css,
+        );
+    }
+
     public function test_res_lead_can_save_complete_semester_deadlines_and_timeline_events(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);

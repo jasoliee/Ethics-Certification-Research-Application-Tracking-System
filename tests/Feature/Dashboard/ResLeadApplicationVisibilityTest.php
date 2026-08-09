@@ -70,8 +70,8 @@ class ResLeadApplicationVisibilityTest extends TestCase
             ->assertDontSee($beforeEndorsement->research_title)
             ->assertDontSee($draft->research_title)
             ->assertSee('res-application-filter-actions', false)
-            ->assertSee('res-filter-applicant-type', false)
-            ->assertSee('res-filter-research-type', false)
+            ->assertDontSee('res-filter-applicant-type', false)
+            ->assertDontSee('res-filter-research-type', false)
             ->assertSee('res-filter-review-type', false)
             ->assertSee('res-filter-affiliation', false)
             ->assertSee('res-filter-date-range', false)
@@ -79,7 +79,9 @@ class ResLeadApplicationVisibilityTest extends TestCase
             ->assertSee('id="res-date-to"', false)
             ->assertSee('res-filter-apply', false)
             ->assertSee('res-application-panel', false)
-            ->assertSee('res-application-scroll', false);
+            ->assertSee('res-application-scroll', false)
+            ->assertDontSee('<th>Applicant Category</th>', false)
+            ->assertDontSee('<th>Research Type</th>', false);
 
         $this->actingAs($resLead)
             ->get(route('res.applications.index', [
@@ -186,8 +188,6 @@ class ResLeadApplicationVisibilityTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.applications.index', [
                 'status' => ApplicationStatus::AwaitingReviewerAssignment->value,
-                'applicant_type' => 'student',
-                'research_type' => ResearchType::Capstone->value,
                 'review_type' => 'expedited',
                 'affiliation' => 'Needle Research Program',
                 'date_from' => '2026-07-01',
@@ -196,6 +196,10 @@ class ResLeadApplicationVisibilityTest extends TestCase
             ->assertOk()
             ->assertSee($target->research_title)
             ->assertDontSee($other->research_title);
+
+        // Landing-page simplification never mutates the collected application attributes.
+        $this->assertSame('student', $target->fresh()->applicant_type);
+        $this->assertSame(ResearchType::Capstone, $target->fresh()->research_type);
     }
 
     public function test_res_application_filters_and_table_have_container_responsive_overflow_rules(): void
@@ -212,20 +216,21 @@ class ResLeadApplicationVisibilityTest extends TestCase
             $css,
         );
         $this->assertMatchesRegularExpression(
-            '/\.res-application-table\s*\{[^}]*min-width:\s*1120px;/s',
+            '/\.res-application-table\s*\{[^}]*min-width:\s*940px;/s',
             $css,
         );
         $this->assertMatchesRegularExpression(
             '/@container application-workspace \(max-width:\s*1120px\)\s*\{[^}]*\.application-filter-bar\.application-filter-bar-res\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s',
             $css,
         );
-        $this->assertStringContainsString('"search search status applicant apply"', $css);
-        $this->assertStringContainsString('"research review affiliation date clear"', $css);
+        $this->assertStringContainsString('"search search status apply"', $css);
+        $this->assertStringContainsString('"review affiliation date clear"', $css);
         $this->assertStringContainsString('"search search"', $css);
-        $this->assertStringContainsString('"status applicant"', $css);
-        $this->assertStringContainsString('"research review"', $css);
+        $this->assertStringContainsString('"status review"', $css);
         $this->assertStringContainsString('"affiliation affiliation"', $css);
         $this->assertStringContainsString('"date date"', $css);
+        $this->assertStringNotContainsString('res-filter-applicant-type', $css);
+        $this->assertStringNotContainsString('res-filter-research-type', $css);
         $this->assertStringNotContainsString('res-filter-semester', $css);
         $this->assertStringNotContainsString('res-filter-academic-year', $css);
         $this->assertStringNotContainsString('res-filter-date-from', $css);

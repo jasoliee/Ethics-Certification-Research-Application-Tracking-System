@@ -3,6 +3,7 @@
 namespace App\Services\Identity;
 
 use App\Enums\ProfileOptionField;
+use App\Exceptions\SpreadsheetRuntimeUnavailable;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -63,6 +64,10 @@ class SafeSpreadsheet
         'xl/worksheets/sheet3.xml',
     ];
 
+    public function __construct(
+        private readonly SpreadsheetRuntime $runtime,
+    ) {}
+
     /**
      * Build a bounded OOXML workbook and verify it with a trusted Xlsx reader before returning its path.
      *
@@ -71,13 +76,12 @@ class SafeSpreadsheet
      */
     public function createTemplate(array $type, array $options): string
     {
-        $this->requireRuntime('template');
+        $this->runtime->assertAvailable(requireWritableStorage: true);
 
         // Create separate private assembly and delivery paths so the browser never receives the hand-built intermediate package.
         $identifier = (string) Str::uuid();
         $relativePath = 'exports/account-templates/'.$identifier.'.xlsx';
         $assemblyRelativePath = 'exports/account-templates/'.$identifier.'.assembly.xlsx';
-        Storage::disk('local')->makeDirectory('exports/account-templates');
         $this->cleanupExpiredTemplates();
         $path = Storage::disk('local')->path($relativePath);
         $assemblyPath = Storage::disk('local')->path($assemblyRelativePath);
@@ -154,7 +158,7 @@ class SafeSpreadsheet
             Storage::disk('local')->delete([$relativePath, $assemblyRelativePath]);
 
             // Preserve already-safe validation messages while hiding internal diagnostics from the response.
-            if ($exception instanceof ValidationException) {
+            if ($exception instanceof SpreadsheetRuntimeUnavailable || $exception instanceof ValidationException) {
                 throw $exception;
             }
 
@@ -172,7 +176,7 @@ class SafeSpreadsheet
      */
     public function verifyGeneratedTemplate(string $path, array $type, array $options): void
     {
-        $this->requireRuntime('template');
+        $this->runtime->assertAvailable();
 
         // Reject missing or empty temporary files before opening their ZIP container.
         if (! is_file($path) || filesize($path) === 0) {
@@ -430,7 +434,14 @@ class SafeSpreadsheet
      */
     public function read(string $path, array $type): array
     {
-        $this->requireRuntime('accounts_file');
+        try {
+            $this->runtime->assertAvailable();
+        } catch (SpreadsheetRuntimeUnavailable) {
+            // Upload validation retains its field-level UX while template downloads preserve the typed diagnostic.
+            throw ValidationException::withMessages([
+                'accounts_file' => SpreadsheetRuntimeUnavailable::USER_MESSAGE,
+            ]);
+        }
 
         $signature = file_get_contents($path, false, null, 0, 8);
 
@@ -1071,19 +1082,6 @@ class SafeSpreadsheet
         $styleAttribute = $style > 0 ? ' s="'.$style.'"' : '';
 
         return '<c r="'.$reference.'"'.$styleAttribute.' t="inlineStr"><is><t xml:space="preserve">'.$safeValue.'</t></is></c>';
-    }
-
-    /** Fail before creating or opening files when XLSX support is not installed. */
-    private function requireRuntime(string $field): void
-    {
-        if (! class_exists(ZipArchive::class)
-            || ! class_exists(Spreadsheet::class)
-            || ! class_exists(XlsxReader::class)
-            || ! class_exists(XlsxWriter::class)) {
-            throw ValidationException::withMessages([
-                $field => 'Excel workbook processing is temporarily unavailable. Please contact the system administrator.',
-            ]);
-        }
     }
 
     private function invalid(string $message): ValidationException

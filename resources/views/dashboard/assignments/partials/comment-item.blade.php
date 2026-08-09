@@ -21,26 +21,45 @@
         </div>
 
         @if ($canWrite)
-            <div class="reviewer-comment-actions" aria-label="Comment actions">
-                <button class="reviewer-comment-action" type="button" data-reviewer-comment-edit>
-                    <x-dashboard.icon name="edit" size="15" /><span>Edit</span>
+            <div class="reviewer-comment-menu" data-reviewer-comment-menu>
+                <button
+                    class="reviewer-comment-menu-toggle"
+                    type="button"
+                    aria-label="Comment actions"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    aria-controls="reviewer-comment-menu-{{ $comment->id }}"
+                    data-reviewer-comment-menu-toggle
+                >
+                    <x-dashboard.icon name="more-vertical" size="18" />
                 </button>
-                <form method="POST" action="{{ route('reviewer.assignments.comments.status', [$assignment, $comment]) }}" data-reviewer-comment-action-form="status">
-                    @csrf
-                    @method('PATCH')
-                    <input type="hidden" name="status" value="{{ $comment->status === 'resolved' ? 'open' : 'resolved' }}">
-                    <button class="reviewer-comment-action" type="submit">
-                        <x-dashboard.icon :name="$comment->status === 'resolved' ? 'refresh' : 'check'" size="15" />
-                        <span>{{ $comment->status === 'resolved' ? 'Reopen' : 'Resolve' }}</span>
+                <div
+                    class="reviewer-comment-menu-popover"
+                    id="reviewer-comment-menu-{{ $comment->id }}"
+                    role="menu"
+                    data-reviewer-comment-menu-popover
+                    hidden
+                >
+                    <button class="reviewer-comment-menu-action" type="button" role="menuitem" data-reviewer-comment-edit>
+                        <x-dashboard.icon name="edit" size="15" /><span>Edit</span>
                     </button>
-                </form>
-                <form method="POST" action="{{ route('reviewer.assignments.comments.destroy', [$assignment, $comment]) }}" data-reviewer-comment-action-form="delete">
-                    @csrf
-                    @method('DELETE')
-                    <button class="reviewer-comment-remove" type="submit" title="Remove comment" aria-label="Remove comment">
-                        <x-dashboard.icon name="x" size="17" />
-                    </button>
-                </form>
+                    <form method="POST" action="{{ route('reviewer.assignments.comments.status', [$assignment, $comment]) }}" data-reviewer-comment-action-form="status">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="status" value="{{ $comment->status === 'resolved' ? 'open' : 'resolved' }}">
+                        <button class="reviewer-comment-menu-action" type="submit" role="menuitem">
+                            <x-dashboard.icon :name="$comment->status === 'resolved' ? 'refresh' : 'check'" size="15" />
+                            <span>{{ $comment->status === 'resolved' ? 'Reopen' : 'Resolve' }}</span>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('reviewer.assignments.comments.destroy', [$assignment, $comment]) }}" data-reviewer-comment-action-form="delete">
+                        @csrf
+                        @method('DELETE')
+                        <button class="reviewer-comment-menu-action is-danger" type="submit" role="menuitem">
+                            <x-dashboard.icon name="x" size="15" /><span>Delete</span>
+                        </button>
+                    </form>
+                </div>
             </div>
         @endif
     </div>

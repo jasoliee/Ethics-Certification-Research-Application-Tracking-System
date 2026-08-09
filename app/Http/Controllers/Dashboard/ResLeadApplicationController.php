@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard;
 
-use App\Enums\ApplicantType;
 use App\Enums\ApplicationStatus;
-use App\Enums\ResearchType;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
 use App\Http\Controllers\Controller;
@@ -12,6 +10,7 @@ use App\Http\Requests\ResLead\AssignApplicationReviewersRequest;
 use App\Http\Requests\ResLead\ClassifyResearchApplicationRequest;
 use App\Http\Requests\ResLead\UpdateResearchApplicationScreeningRequest;
 use App\Models\ResearchApplication;
+use App\Models\ReviewFormArtifact;
 use App\Services\Applications\ApplicationRequirementService;
 use App\Services\Applications\ResScreeningWorkflowService;
 use App\Services\Applications\ReviewerEligibilityService;
@@ -36,8 +35,6 @@ class ResLeadApplicationController extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
             'status' => ['nullable', Rule::in($visibleStatuses->pluck('value')->all())],
-            'applicant_type' => ['nullable', Rule::enum(ApplicantType::class)],
-            'research_type' => ['nullable', Rule::enum(ResearchType::class)],
             'review_type' => ['nullable', Rule::enum(ReviewType::class)],
             'affiliation' => ['nullable', 'string', 'max:150'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
@@ -65,10 +62,6 @@ class ResLeadApplicationController extends Controller
             })
             ->when(filled($filters['status'] ?? null), fn (Builder $query) => $query
                 ->where('application_status', $filters['status']))
-            ->when(filled($filters['applicant_type'] ?? null), fn (Builder $query) => $query
-                ->where('applicant_type', $filters['applicant_type']))
-            ->when(filled($filters['research_type'] ?? null), fn (Builder $query) => $query
-                ->where('research_type', $filters['research_type']))
             ->when(filled($filters['review_type'] ?? null), fn (Builder $query) => $query
                 ->where('review_type', $filters['review_type']))
             ->when(filled($filters['affiliation'] ?? null), function (Builder $query) use ($filters): void {
@@ -115,8 +108,6 @@ class ResLeadApplicationController extends Controller
             'pageTitle' => 'Applications',
             'applications' => $applications,
             'statuses' => $visibleStatuses,
-            'applicantTypes' => ApplicantType::cases(),
-            'researchTypes' => ResearchType::cases(),
             'reviewTypes' => ReviewType::cases(),
             'affiliations' => $affiliations,
             'filters' => $filters,
@@ -138,10 +129,19 @@ class ResLeadApplicationController extends Controller
         Gate::authorize('view', $researchApplication);
         $application = $this->loadResApplication($researchApplication);
         $canUpdateScreening = $request->user()->can('updateScreening', $application);
+        $officialReviewArtifacts = ReviewFormArtifact::query()
+            ->whereHas('formSubmission.assignment', fn (Builder $assignments) => $assignments
+                ->where('research_application_id', $application->id))
+            ->with([
+                'formSubmission.assignment.reviewer:id,name',
+            ])
+            ->latest('generated_at')
+            ->get();
 
         return view('dashboard.applications.res-show', [
             'pageTitle' => 'Application Screening Details',
             'application' => $application,
+            'officialReviewArtifacts' => $officialReviewArtifacts,
             'requirementSummary' => $requirements->summary($application),
             'canClassify' => $request->user()->can('classify', $application),
             // Edit mode is explicit so saved details remain the default read-only presentation.

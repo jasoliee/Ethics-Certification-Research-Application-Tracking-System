@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
+use App\Models\ReviewFormArtifact;
 use App\Models\User;
 use App\Policies\ResearchApplicationPolicy;
 use App\Policies\ReviewerAssignmentPolicy;
+use App\Policies\ReviewFormArtifactPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(ResearchApplication::class, ResearchApplicationPolicy::class);
         Gate::policy(ReviewerAssignment::class, ReviewerAssignmentPolicy::class);
+        Gate::policy(ReviewFormArtifact::class, ReviewFormArtifactPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
 
         $this->configureRateLimits();

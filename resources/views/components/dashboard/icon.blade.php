@@ -113,6 +113,9 @@
         @case('menu')
             <path d="M4 6h16M4 12h16M4 18h16"/>
             @break
+        @case('more-vertical')
+            <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/>
+            @break
         @case('x')
             <path d="M18 6 6 18M6 6l12 12"/>
             @break

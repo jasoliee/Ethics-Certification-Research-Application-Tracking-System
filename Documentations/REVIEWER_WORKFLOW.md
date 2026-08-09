@@ -12,9 +12,15 @@ This boundary does not release reviewer work to Applicants, produce the consolid
 
 Only the current, non-superseded assignment grants access. There is no Reviewer conflict-declaration gate. When RES changes the reviewer set before final release, removed assignments are superseded rather than deleted, access ends immediately, and replacement links, actor, reason, prior status, and submitted work remain available for audit history.
 
+## Reviewer Navigation
+
+The Reviewer sidebar intentionally contains only Home and Assignments. Review is omitted because its owner-scoped task views overlap Assignments, Notifications is reached through the top-bar bell, and Settings is reached through the avatar/profile menu. The protected `reviewer.reviews.index`, `reviewer.notifications.index`, and `reviewer.settings.*` routes remain registered for dashboard cards, menus, bookmarks, and authorized direct access; removing sidebar links does not relax or remove their role middleware.
+
 ## Blind Workspace
 
 The workspace loads only research fields needed for ethics review. Applicant and Adviser account names, email addresses, institutional identifiers, and profile relationships are not selected for the Reviewer view. Reviewer identity is not rendered in Applicant routes.
+
+The responsive workspace follows the high-fidelity three-column hierarchy: a private document library, the selected-document viewer, and a review-tools rail containing the decision, asynchronous comment composer/list, and official-form launchers. A compact blind-review summary stays above the studio. On narrow screens the panes stack, while each wide document or table region remains internally bounded. The official form dialogs include the study/application/reviewer/date context while keeping the Researcher / Study Leader value explicitly hidden for blind review.
 
 Current application documents remain on the private `local` disk. Preview and download require:
 
@@ -22,7 +28,7 @@ Current application documents remain on the private `local` disk. Preview and do
 - ownership of an assignment for the parent application;
 - a document that belongs to the route-bound application.
 
-PDF and image files may stream inline. Word and Excel files use the existing authorized no-store fallback with a protected download. Uploaded content itself may still contain typed names or other identity; ECRATS does not claim content-level anonymization until an approved redaction procedure exists.
+The interface displays the stored file name/type and uses same-origin, policy-authorized routes. PDF and browser-safe image files may stream inline. `.doc`, `.docx`, `.xls`, and `.xlsx` files use the authorized no-store viewer fallback with a protected download because the repository has no approved local Office-to-browser renderer. Remote Office/Google viewers are not used because they would disclose private file contents to a third party. Uploaded content itself may still contain typed names or other identity; ECRATS does not claim content-level anonymization until an approved redaction procedure exists.
 
 ## Official Forms
 
@@ -50,6 +56,8 @@ An active Reviewer may add comments scoped to:
 - a page number within such a document.
 
 Categories are General Comment, Clarification, and Required Revision. Bodies are 3 to 2,000 characters. Page comments require a page number from 1 to 10,000. The assignment owner may add, edit, resolve, reopen, or remove comments before submission while the Reviewer Submission period is open. Resolution changes are recorded in immutable status history.
+
+The comment form progressively enhances to asynchronous requests. Create, edit, resolve/reopen, and remove operations request JSON, keep the document pane in place, render the server-escaped comment item immediately, and expose loading, success, validation-error, request-error, and empty-list states through an accessible live region. Normal form submissions remain the fallback when JavaScript is unavailable. The server remains authoritative: the asynchronous path uses the same Form Requests, nested assignment/document ownership, CSRF token, deadline rules, service locks, and audit events as the fallback path.
 
 `review_comments.released_at` is reserved for the later RES release operation. Current Applicant pages do not query or render reviewer comments.
 
@@ -99,5 +107,6 @@ Metadata is limited to assignment/comment IDs, form type/status, comment scope/s
 ## Remaining Limitations
 
 - No approved automatic/manual document-content redaction or anonymized-copy generation.
+- No privacy-preserving Word/Excel content renderer is installed; Office files retain authorized fallback and download behavior rather than being sent to a third-party viewer.
 - No Applicant revision comparison or Reviewer re-review implementation.
 - No consolidated Full Board decision, official result release, Applicant feedback view, certificate generation, or QR verification.

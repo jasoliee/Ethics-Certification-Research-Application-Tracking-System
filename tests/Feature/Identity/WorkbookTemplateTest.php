@@ -4,12 +4,14 @@ namespace Tests\Feature\Identity;
 
 use App\Enums\ProfileOptionField;
 use App\Enums\UserRole;
+use App\Exceptions\SpreadsheetRuntimeUnavailable;
 use App\Models\ProfileOption;
 use App\Models\User;
 use App\Services\Identity\AccountTypeCatalog;
 use App\Services\Identity\ProfileOptionCatalog;
 use App\Services\Identity\SafeSpreadsheet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -267,24 +269,44 @@ class WorkbookTemplateTest extends TestCase
 
     public function test_missing_workbook_runtime_returns_a_safe_error_without_xlsx_headers(): void
     {
-        if (class_exists(ZipArchive::class) && class_exists(Spreadsheet::class)) {
-            $this->markTestSkipped('This test covers an intentionally incomplete spreadsheet runtime.');
-        }
-
+        // Arrange a deterministic capability failure independent of the PHP extensions on the test host.
         Storage::fake('local');
         $actor = User::factory()->create(['role' => UserRole::ResLead]);
+        Log::spy();
+        $this->mock(SafeSpreadsheet::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createTemplate')
+                ->once()
+                ->andThrow(new SpreadsheetRuntimeUnavailable([
+                    'ext-zip',
+                    'ZipArchive',
+                    'C:\\private\\php.ini token=internal-secret',
+                ]));
+        });
 
         $response = $this->actingAs($actor)
             ->from(route('res.users.import.form', ['account_type' => 'student_researcher']))
             ->get(route('res.users.import.template', ['account_type' => 'student_researcher']));
 
-        $response->assertRedirect()->assertSessionHasErrors('template');
+        $response->assertRedirect()->assertSessionHasErrors([
+            'template' => SpreadsheetRuntimeUnavailable::USER_MESSAGE,
+        ]);
         $this->assertNull($response->headers->get('content-disposition'));
         $this->assertNotSame(
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             $response->headers->get('content-type'),
         );
-        Storage::disk('local')->assertDirectoryEmpty('exports/account-templates');
+        $this->assertStringNotContainsString('internal-secret', (string) $response->getContent());
+        $this->assertSame([], Storage::disk('local')->allFiles());
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('Account template runtime unavailable.', \Mockery::on(
+                fn (array $context): bool => $context === [
+                    'actor_user_id' => $actor->id,
+                    'account_type' => 'student_researcher',
+                    'missing_requirements' => ['ext-zip', 'ZipArchive'],
+                ],
+            ));
     }
 
     /**

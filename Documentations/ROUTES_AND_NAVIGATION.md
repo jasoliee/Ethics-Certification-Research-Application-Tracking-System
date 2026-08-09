@@ -33,7 +33,7 @@ Profile-option writes use POST for add, PUT for rename, and PATCH for deactivate
 
 ## Applicant Navigation
 
-The applicant sidebar contains Home, Application, Revision and Certificates, Reports, and Settings. The combined destination is:
+The applicant sidebar contains Home, Application, Revision and Certificates, and Reports. Settings remains available through the profile menu. The combined destination is:
 
 - URI: `/student-faculty-researcher/revision-certificates`
 - Name: `applicant.revision-certificates.index`
@@ -67,17 +67,22 @@ Reviewer routes now provide the real assigned-work surface:
 | GET | `/reviewer/assignments/{reviewerAssignment}` | `reviewer.assignments.show` | Policy-authorized assigned application details |
 | GET | `/reviewer/assignments/{reviewerAssignment}/workspace` | `reviewer.assignments.workspace` | Current-assignment blind review workspace |
 | PUT | `/reviewer/assignments/{reviewerAssignment}/forms/{reviewFormType}` | `reviewer.assignments.forms.update` | Save or finalize one official form |
-| POST | `/reviewer/assignments/{reviewerAssignment}/comments` | `reviewer.assignments.comments.store` | Add an assignment-owned review comment |
-| PUT | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}` | `reviewer.assignments.comments.update` | Edit an owned unsubmitted comment |
-| PATCH | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}/status` | `reviewer.assignments.comments.status` | Resolve or reopen an owned comment |
-| DELETE | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}` | `reviewer.assignments.comments.destroy` | Remove an owned unsubmitted comment |
+| POST | `/reviewer/assignments/{reviewerAssignment}/comments` | `reviewer.assignments.comments.store` | Add an assignment-owned comment; returns JSON for asynchronous requests |
+| PUT | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}` | `reviewer.assignments.comments.update` | Edit an owned unsubmitted comment; returns JSON for asynchronous requests |
+| PATCH | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}/status` | `reviewer.assignments.comments.status` | Resolve or reopen an owned comment; returns JSON for asynchronous requests |
+| DELETE | `/reviewer/assignments/{reviewerAssignment}/comments/{reviewComment}` | `reviewer.assignments.comments.destroy` | Remove an owned unsubmitted comment; returns `204` for asynchronous requests |
 | POST | `/reviewer/assignments/{reviewerAssignment}/review` | `reviewer.assignments.review.store` | Save a decision draft or submit the final review |
 | GET | `/reviewer/applications/{researchApplication}/documents/{applicationDocument}/preview` | `reviewer.applications.documents.preview` | Assignment-gated private preview or Office fallback |
 | GET | `/reviewer/applications/{researchApplication}/documents/{applicationDocument}/download` | `reviewer.applications.documents.download` | Assignment-gated private download |
 | GET | `/reviewer/reviews` | `reviewer.reviews.index` | Owner-scoped assigned/revision/completed task tabs |
+| GET | `/reviewer/notifications` | `reviewer.notifications.index` | Reviewer notification history opened from the top-bar bell |
 | GET | `/reviewer/settings` | `reviewer.settings.index` | Functional profile and account-security settings |
 
-Reviewer write routes use the named `reviewer-workflow` throttle plus role middleware, Form Requests, policy checks, the configured Reviewer Submission window, and locked service operations. Result-release routes remain future work; Reviewer comments and decisions are not exposed through Applicant routes.
+The Reviewer sidebar contains only Home and Assignments. Review remains available to dashboard cards and authorized direct links, Notifications is available through the top-bar bell, and Settings is available through the avatar/profile menu. All listed backend routes remain registered and role-protected.
+
+Reviewer write routes use the named `reviewer-workflow` throttle plus role middleware, Form Requests, policy checks, CSRF protection, the configured Reviewer Submission window, and locked service operations. JSON comment responses contain server-rendered escaped markup so asynchronous updates match the normal Blade fallback. Result-release routes remain future work; Reviewer comments and decisions are not exposed through Applicant routes.
+
+Document preview routes never expose private storage paths. PDF and browser-safe images may stream inline; Word and Excel files stay within the authorized same-origin fallback and protected download flow until a privacy-preserving local renderer is approved. No private document is sent to an external Office viewer.
 
 ## Import Restoration Routes
 

@@ -56,7 +56,13 @@ class DashboardNavigationTest extends TestCase
                 'applicant.profile.show',
             ],
             UserRole::Adviser->value => ['dashboard', 'adviser.notifications.index', 'adviser.profile.show'],
-            UserRole::Reviewer->value => ['dashboard', 'reviewer.notifications.index', 'reviewer.profile.show'],
+            UserRole::Reviewer->value => [
+                'dashboard',
+                'reviewer.reviews.index',
+                'reviewer.notifications.index',
+                'reviewer.profile.show',
+                'reviewer.settings.index',
+            ],
             UserRole::ResLead->value => ['dashboard', 'res.notifications.index', 'res.profile.show'],
         ];
 
@@ -66,6 +72,32 @@ class DashboardNavigationTest extends TestCase
             foreach ($routes as $routeName) {
                 $this->actingAs($user)->get(route($routeName))->assertOk();
             }
+        }
+    }
+
+    public function test_reviewer_sidebar_contains_only_home_and_assignments_while_direct_routes_remain_available(): void
+    {
+        $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+
+        $this->assertSame(
+            ['Home', 'Assignments'],
+            array_column(DashboardNavigation::for(UserRole::Reviewer), 'label'),
+        );
+
+        $response = $this->actingAs($reviewer)
+            ->get(route('dashboard'))
+            ->assertOk();
+
+        preg_match('/<nav class="dashboard-sidebar-nav".*?<\/nav>/s', $response->getContent(), $sidebar);
+        $this->assertNotEmpty($sidebar);
+        $this->assertStringContainsString('>Home</span>', $sidebar[0]);
+        $this->assertStringContainsString('>Assignments</span>', $sidebar[0]);
+        $this->assertStringNotContainsString('>Review</span>', $sidebar[0]);
+        $this->assertStringNotContainsString('>Notifications</span>', $sidebar[0]);
+        $this->assertStringNotContainsString('>Settings</span>', $sidebar[0]);
+
+        foreach (['reviewer.reviews.index', 'reviewer.notifications.index', 'reviewer.settings.index'] as $routeName) {
+            $this->actingAs($reviewer)->get(route($routeName))->assertOk();
         }
     }
 

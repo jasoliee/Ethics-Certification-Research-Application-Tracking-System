@@ -129,7 +129,13 @@ function initializeApplicationTools(shell) {
             openSelector: '[data-reviewer-assignment-confirm-open]',
             closeSelector: '[data-reviewer-assignment-confirm-close]',
         },
+        {
+            dialog: shell.querySelector('[data-reviewer-worksheet-dialog]'),
+            openSelector: '[data-reviewer-worksheet-open]',
+            closeSelector: '[data-reviewer-worksheet-close]',
+        },
     ];
+    const reviewerWorksheetDialog = shell.querySelector('[data-reviewer-worksheet-dialog]');
 
     // Each official Reviewer form owns a separate accessible dialog while sharing focus restoration.
     shell.querySelectorAll('[data-reviewer-form-dialog]').forEach((dialog) => {
@@ -139,30 +145,72 @@ function initializeApplicationTools(shell) {
             dialog,
             openSelector: `[data-reviewer-form-open="${type}"]`,
             closeSelector: '[data-reviewer-form-close]',
+            reviewerWorksheet: true,
         });
     });
 
     // Initialize only modal configurations whose Blade dialog exists on the current page.
-    modalConfigurations.forEach(({ dialog, openSelector, closeSelector }) => {
+    modalConfigurations.forEach(({ dialog, openSelector, closeSelector, reviewerWorksheet = false }) => {
         // Pages without this dialog require no listeners or temporary modal state.
         if (! dialog) {
             return;
         }
 
         const panel = dialog.querySelector('[role="dialog"]');
+        const trackedForm = reviewerWorksheet
+            ? dialog.querySelector('[data-reviewer-worksheet-form]')
+            : null;
         let returnFocus = null;
+        let pristineFormState = '';
+
+        const formState = () => {
+            if (! trackedForm) {
+                return '';
+            }
+
+            return new URLSearchParams(new FormData(trackedForm)).toString();
+        };
+
+        const refreshPristineFormState = () => {
+            pristineFormState = formState();
+        };
+
+        const hasUnsavedFormChanges = () => trackedForm && formState() !== pristineFormState;
 
         // Closing a dashboard application dialog always returns the user to its originating command.
         const closeDialog = () => {
+            if (hasUnsavedFormChanges() && ! window.confirm('Discard unsaved worksheet changes?')) {
+                panel?.focus();
+
+                return false;
+            }
+
+            if (hasUnsavedFormChanges()) {
+                trackedForm.reset();
+                trackedForm.dispatchEvent(new CustomEvent('reviewer:form-reset'));
+                refreshPristineFormState();
+            }
+
             dialog.hidden = true;
-            returnFocus?.focus();
+            if (reviewerWorksheet && reviewerWorksheetDialog && returnFocus && reviewerWorksheetDialog.contains(returnFocus)) {
+                reviewerWorksheetDialog.hidden = false;
+                returnFocus.focus();
+            } else {
+                returnFocus?.focus();
+            }
+
+            return true;
         };
 
         // Each open command reveals its matching dialog and moves keyboard focus into the panel.
         shell.querySelectorAll(openSelector).forEach((button) => {
             button.addEventListener('click', () => {
                 returnFocus = button;
+                if (reviewerWorksheet && reviewerWorksheetDialog?.contains(button)) {
+                    reviewerWorksheetDialog.hidden = true;
+                }
                 dialog.hidden = false;
+                refreshPristineFormState();
                 panel?.focus();
             });
         });
@@ -182,15 +230,136 @@ function initializeApplicationTools(shell) {
         // Escape provides the keyboard-equivalent dialog close action.
         dialog.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
+                event.preventDefault();
                 closeDialog();
             }
         });
 
+        trackedForm?.addEventListener('reviewer:form-saved', refreshPristineFormState);
+
         // Server validation reopens the relevant decision form without losing entered remarks.
         if (dialog.hasAttribute('data-open-on-load')) {
             dialog.hidden = false;
+            refreshPristineFormState();
             panel?.focus();
         }
+    });
+
+    shell.querySelectorAll('[data-reviewer-worksheet-form]').forEach((form) => {
+        const formType = form.dataset.reviewerFormType;
+        const draftButton = form.querySelector('[data-reviewer-form-save-draft]');
+        const feedback = form.querySelector('[data-reviewer-form-feedback]');
+        const progressBar = form.querySelector('[data-reviewer-form-progress-bar]');
+
+        const setFormFeedback = (message = '', state = '') => {
+            if (! feedback) {
+                return;
+            }
+
+            feedback.textContent = message;
+            feedback.classList.toggle('is-success', state === 'success');
+            feedback.classList.toggle('is-error', state === 'error');
+        };
+
+        const formProgress = () => {
+            const questions = [...form.querySelectorAll('[data-reviewer-form-question]')];
+
+            return {
+                answered: questions.filter((question) => question.querySelector('input[type="radio"]:checked')).length,
+                total: questions.length,
+            };
+        };
+
+        const renderFormProgress = ({ answered, total }, includeWorksheetChooser = false) => {
+            const progressTargets = includeWorksheetChooser
+                ? shell.querySelectorAll(`[data-reviewer-form-progress="${formType}"]`)
+                : form.querySelectorAll(`[data-reviewer-form-progress="${formType}"]`);
+
+            progressTargets.forEach((target) => {
+                target.textContent = `${answered} of ${total} items completed`;
+            });
+
+            if (progressBar) {
+                progressBar.max = total;
+                progressBar.value = answered;
+                progressBar.textContent = `${answered} / ${total}`;
+            }
+        };
+
+        const preserveSavedFormDefaults = () => {
+            [...form.elements].forEach((control) => {
+                if (control instanceof HTMLInputElement && ['checkbox', 'radio'].includes(control.type)) {
+                    control.defaultChecked = control.checked;
+                } else if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+                    control.defaultValue = control.value;
+                } else if (control instanceof HTMLSelectElement) {
+                    [...control.options].forEach((option) => {
+                        option.defaultSelected = option.selected;
+                    });
+                }
+            });
+        };
+
+        form.addEventListener('change', () => renderFormProgress(formProgress()));
+        form.addEventListener('reviewer:form-reset', () => renderFormProgress(formProgress()));
+
+        form.addEventListener('submit', async (event) => {
+            if (event.submitter !== draftButton) {
+                return;
+            }
+
+            event.preventDefault();
+            if (! form.reportValidity()) {
+                return;
+            }
+
+            draftButton.disabled = true;
+            form.setAttribute('aria-busy', 'true');
+            setFormFeedback('Saving draft...');
+
+            try {
+                const formData = new FormData(form);
+                formData.set('intent', 'draft');
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (! response.ok) {
+                    const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                    throw new Error(validationMessage ?? payload.message ?? 'The worksheet draft could not be saved.');
+                }
+
+                const savedProgress = {
+                    answered: Number(payload.data?.answered_items ?? formProgress().answered),
+                    total: Number(payload.data?.total_items ?? formProgress().total),
+                };
+                shell.querySelectorAll(`[data-reviewer-form-status="${formType}"]`).forEach((status) => {
+                    [...status.classList]
+                        .filter((className) => className.startsWith('tone-'))
+                        .forEach((className) => status.classList.remove(className));
+                    status.classList.add('tone-blue');
+                    status.textContent = 'Draft Saved';
+                });
+                shell.querySelectorAll(`[data-reviewer-form-open-label="${formType}"]`).forEach((label) => {
+                    label.textContent = 'Continue';
+                });
+                renderFormProgress(savedProgress, true);
+                preserveSavedFormDefaults();
+                form.dispatchEvent(new CustomEvent('reviewer:form-saved'));
+                setFormFeedback('Draft saved.', 'success');
+            } catch (error) {
+                setFormFeedback(error.message || 'The worksheet draft could not be saved. Check your connection and try again.', 'error');
+            } finally {
+                form.removeAttribute('aria-busy');
+                draftButton.disabled = false;
+            }
+        });
     });
 
     const reviewerAssignmentForm = shell.querySelector('[data-reviewer-assignment-form]');
@@ -285,31 +454,402 @@ function initializeApplicationTools(shell) {
     const reviewerCommentForm = shell.querySelector('[data-reviewer-comment-form]');
 
     if (reviewerCommentForm) {
+        const reviewerStudio = reviewerCommentForm.closest('[data-reviewer-review-studio]');
         const scope = reviewerCommentForm.querySelector('[data-reviewer-comment-scope]');
         const documentField = reviewerCommentForm.querySelector('[data-reviewer-comment-document-field]');
         const documentInput = reviewerCommentForm.querySelector('[data-reviewer-comment-document]');
-        const pageField = reviewerCommentForm.querySelector('[data-reviewer-comment-page-field]');
-        const pageInput = reviewerCommentForm.querySelector('[data-reviewer-comment-page]');
+        const categoryInput = reviewerCommentForm.elements.namedItem('category');
+        const bodyInput = reviewerCommentForm.elements.namedItem('body');
+        const methodInput = reviewerCommentForm.querySelector('[data-reviewer-comment-method]');
+        const submitButton = reviewerCommentForm.querySelector('[data-reviewer-comment-submit]');
+        const submitLabel = reviewerCommentForm.querySelector('[data-reviewer-comment-submit-label]');
+        const cancelButton = reviewerCommentForm.querySelector('[data-reviewer-comment-cancel]');
+        const feedback = reviewerCommentForm.querySelector('[data-reviewer-comment-feedback]');
+        const commentList = reviewerStudio?.querySelector('[data-reviewer-comment-list]');
+        const emptyState = reviewerStudio?.querySelector('[data-reviewer-comment-empty]');
+        const commentCount = reviewerStudio?.querySelector('[data-reviewer-comment-count] .dashboard-status-badge');
+        const storeUrl = reviewerCommentForm.dataset.commentStoreUrl ?? reviewerCommentForm.action;
+        let openCommentMenu = null;
 
         // Scope-dependent controls remain absent from validation until the Reviewer selects them.
         const syncReviewerCommentScope = () => {
-            const referencesDocument = ['document', 'page'].includes(scope?.value);
-            const referencesPage = scope?.value === 'page';
+            const referencesDocument = scope?.value === 'document';
 
             if (documentField && documentInput) {
                 documentField.hidden = ! referencesDocument;
                 documentInput.disabled = ! referencesDocument || scope.disabled;
                 documentInput.required = referencesDocument;
             }
-            if (pageField && pageInput) {
-                pageField.hidden = ! referencesPage;
-                pageInput.disabled = ! referencesPage || scope.disabled;
-                pageInput.required = referencesPage;
+        };
+
+        const closeCommentMenu = (restoreFocus = false) => {
+            if (! openCommentMenu) {
+                return;
+            }
+
+            const toggle = openCommentMenu.querySelector('[data-reviewer-comment-menu-toggle]');
+            const popover = openCommentMenu.querySelector('[data-reviewer-comment-menu-popover]');
+            if (popover) {
+                popover.hidden = true;
+                popover.style.removeProperty('inset');
+            }
+            toggle?.setAttribute('aria-expanded', 'false');
+            openCommentMenu = null;
+            if (restoreFocus) {
+                toggle?.focus();
+            }
+        };
+
+        const openMenu = (menu, focusFirst = false) => {
+            closeCommentMenu();
+            const toggle = menu.querySelector('[data-reviewer-comment-menu-toggle]');
+            const popover = menu.querySelector('[data-reviewer-comment-menu-popover]');
+            if (! toggle || ! popover) {
+                return;
+            }
+
+            popover.hidden = false;
+            toggle.setAttribute('aria-expanded', 'true');
+            openCommentMenu = menu;
+            const toggleBounds = toggle.getBoundingClientRect();
+            const popoverBounds = popover.getBoundingClientRect();
+            const left = Math.max(12, Math.min(
+                toggleBounds.right - popoverBounds.width,
+                window.innerWidth - popoverBounds.width - 12,
+            ));
+            const opensAbove = toggleBounds.bottom + popoverBounds.height + 8 > window.innerHeight;
+            const top = opensAbove
+                ? Math.max(12, toggleBounds.top - popoverBounds.height - 6)
+                : toggleBounds.bottom + 6;
+            popover.style.inset = `${top}px auto auto ${left}px`;
+            if (focusFirst) {
+                popover.querySelector('[role="menuitem"]')?.focus();
+            }
+        };
+
+        const setCommentFeedback = (message = '', state = '') => {
+            if (! feedback) {
+                return;
+            }
+
+            feedback.textContent = message;
+            feedback.classList.toggle('is-error', state === 'error');
+            feedback.classList.toggle('is-success', state === 'success');
+        };
+
+        const syncCommentCount = (count = null) => {
+            const currentCount = count ?? commentList?.querySelectorAll('[data-reviewer-comment-item]').length ?? 0;
+
+            if (commentCount) {
+                commentCount.textContent = `${currentCount} recorded`;
+            }
+            if (emptyState) {
+                emptyState.hidden = currentCount > 0;
+            }
+        };
+
+        const commentElementFromHtml = (html) => {
+            const template = document.createElement('template');
+            template.innerHTML = html.trim();
+
+            return template.content.firstElementChild;
+        };
+
+        const resetCommentComposer = () => {
+            reviewerCommentForm.reset();
+            reviewerCommentForm.action = storeUrl;
+            delete reviewerCommentForm.dataset.editingCommentId;
+            if (methodInput) {
+                methodInput.value = 'POST';
+                methodInput.disabled = true;
+            }
+            if (submitLabel) {
+                submitLabel.textContent = 'Add Comment';
+            }
+            if (cancelButton) {
+                cancelButton.hidden = true;
+            }
+            syncReviewerCommentScope();
+        };
+
+        // Server-rendered fragments keep asynchronous comments escaped and identical to the no-JS fallback.
+        const submitCommentRequest = async () => {
+            if (! reviewerCommentForm.reportValidity()) {
+                return;
+            }
+
+            submitButton?.setAttribute('disabled', 'disabled');
+            reviewerCommentForm.setAttribute('aria-busy', 'true');
+            setCommentFeedback(reviewerCommentForm.dataset.editingCommentId ? 'Saving changes...' : 'Adding comment...');
+
+            try {
+                const response = await fetch(reviewerCommentForm.action, {
+                    method: 'POST',
+                    body: new FormData(reviewerCommentForm),
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (! response.ok) {
+                    const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                    throw new Error(validationMessage ?? payload.message ?? 'The comment could not be saved.');
+                }
+
+                const nextComment = commentElementFromHtml(payload.data?.html ?? '');
+                if (! nextComment || ! commentList) {
+                    throw new Error('The saved comment could not be displayed. Refresh to see the latest version.');
+                }
+
+                const editingId = reviewerCommentForm.dataset.editingCommentId;
+                const existingComment = editingId
+                    ? commentList.querySelector(`[data-reviewer-comment-item][data-comment-id="${editingId}"]`)
+                    : null;
+                if (existingComment) {
+                    existingComment.replaceWith(nextComment);
+                } else {
+                    commentList.prepend(nextComment);
+                }
+
+                resetCommentComposer();
+                syncCommentCount(payload.data?.count);
+                setCommentFeedback(existingComment ? 'Comment updated.' : 'Comment added.', 'success');
+            } catch (error) {
+                setCommentFeedback(error.message || 'Comment failed. Check your connection and try again.', 'error');
+            } finally {
+                reviewerCommentForm.removeAttribute('aria-busy');
+                submitButton?.removeAttribute('disabled');
             }
         };
 
         scope?.addEventListener('change', syncReviewerCommentScope);
+        reviewerCommentForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            submitCommentRequest();
+        });
+        cancelButton?.addEventListener('click', () => {
+            resetCommentComposer();
+            setCommentFeedback('Edit cancelled.');
+        });
+
+        commentList?.addEventListener('click', (event) => {
+            const menuToggle = event.target.closest?.('[data-reviewer-comment-menu-toggle]');
+            if (menuToggle) {
+                const menu = menuToggle.closest('[data-reviewer-comment-menu]');
+                if (! menu) {
+                    return;
+                }
+
+                if (openCommentMenu === menu) {
+                    closeCommentMenu(true);
+                } else {
+                    openMenu(menu);
+                }
+
+                return;
+            }
+
+            const editButton = event.target.closest?.('[data-reviewer-comment-edit]');
+            const comment = editButton?.closest('[data-reviewer-comment-item]');
+
+            if (! comment) {
+                return;
+            }
+
+            reviewerCommentForm.action = comment.dataset.commentUpdateUrl;
+            reviewerCommentForm.dataset.editingCommentId = comment.dataset.commentId;
+            if (methodInput) {
+                methodInput.value = 'PUT';
+                methodInput.disabled = false;
+            }
+            if (categoryInput) {
+                categoryInput.value = comment.dataset.commentCategory;
+            }
+            if (scope) {
+                scope.value = comment.dataset.commentScope === 'page'
+                    ? 'document'
+                    : comment.dataset.commentScope;
+            }
+            if (documentInput) {
+                documentInput.value = comment.dataset.commentDocumentId ?? '';
+            }
+            if (bodyInput) {
+                bodyInput.value = comment.dataset.commentBody ?? '';
+            }
+            if (submitLabel) {
+                submitLabel.textContent = 'Save Comment';
+            }
+            if (cancelButton) {
+                cancelButton.hidden = false;
+            }
+            closeCommentMenu();
+            syncReviewerCommentScope();
+            setCommentFeedback('Editing comment.');
+            bodyInput?.focus();
+        });
+
+        commentList?.addEventListener('submit', async (event) => {
+            const actionForm = event.target.closest?.('[data-reviewer-comment-action-form]');
+            const comment = actionForm?.closest('[data-reviewer-comment-item]');
+            if (! actionForm || ! comment) {
+                return;
+            }
+
+            event.preventDefault();
+            closeCommentMenu();
+            const action = actionForm.dataset.reviewerCommentActionForm;
+            const button = actionForm.querySelector('button[type="submit"]');
+            button?.setAttribute('disabled', 'disabled');
+            setCommentFeedback(action === 'delete' ? 'Removing comment...' : 'Updating comment...');
+
+            try {
+                const response = await fetch(actionForm.action, {
+                    method: 'POST',
+                    body: new FormData(actionForm),
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
+
+                if (! response.ok) {
+                    throw new Error(payload.message ?? 'The comment action could not be completed.');
+                }
+
+                if (action === 'delete') {
+                    if (reviewerCommentForm.dataset.editingCommentId === comment.dataset.commentId) {
+                        resetCommentComposer();
+                    }
+                    comment.remove();
+                    syncCommentCount();
+                    setCommentFeedback('Comment removed.', 'success');
+                } else {
+                    const nextComment = commentElementFromHtml(payload.data?.html ?? '');
+                    if (! nextComment) {
+                        throw new Error('The updated comment could not be displayed.');
+                    }
+                    comment.replaceWith(nextComment);
+                    syncCommentCount(payload.data?.count);
+                    setCommentFeedback(payload.data?.status === 'resolved' ? 'Comment resolved.' : 'Comment reopened.', 'success');
+                }
+            } catch (error) {
+                button?.removeAttribute('disabled');
+                setCommentFeedback(error.message || 'The comment action failed. Try again.', 'error');
+            }
+        });
+
+        const documentChoices = [...(reviewerStudio?.querySelectorAll('[data-reviewer-document-choice]') ?? [])];
+        const documentFrameShell = reviewerStudio?.querySelector('[data-reviewer-document-frame-shell]');
+        const documentFrame = reviewerStudio?.querySelector('[data-reviewer-document-frame]');
+        const documentLoading = reviewerStudio?.querySelector('[data-reviewer-document-loading]');
+        const documentTitle = reviewerStudio?.querySelector('[data-reviewer-document-title]');
+        const documentMeta = reviewerStudio?.querySelector('[data-reviewer-document-meta]');
+        const documentOpenTab = reviewerStudio?.querySelector('[data-reviewer-document-open-tab]');
+        const documentDownload = reviewerStudio?.querySelector('[data-reviewer-document-download]');
+
+        const selectReviewDocument = (choice) => {
+            documentChoices.forEach((candidate) => {
+                const selected = candidate === choice;
+                candidate.classList.toggle('is-active', selected);
+                candidate.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            });
+            if (documentTitle) {
+                documentTitle.textContent = choice.dataset.documentRequirement;
+            }
+            if (documentMeta) {
+                documentMeta.textContent = `${choice.dataset.documentName} - ${choice.dataset.documentKind} - ${choice.dataset.documentVersion}`;
+            }
+            if (documentOpenTab) {
+                documentOpenTab.href = choice.dataset.documentPreviewUrl;
+                documentOpenTab.hidden = false;
+            }
+            if (documentDownload) {
+                documentDownload.href = choice.dataset.documentDownloadUrl;
+                documentDownload.hidden = false;
+            }
+            if (documentFrame && documentFrameShell) {
+                documentFrameShell.setAttribute('aria-busy', 'true');
+                if (documentLoading) {
+                    documentLoading.hidden = false;
+                }
+                documentFrame.title = `Preview of ${choice.dataset.documentName}`;
+                documentFrame.src = choice.dataset.documentPreviewUrl;
+            }
+            if (documentInput && scope?.value === 'document') {
+                documentInput.value = choice.dataset.documentId;
+            }
+        };
+
+        documentChoices.forEach((choice) => {
+            choice.addEventListener('click', () => selectReviewDocument(choice));
+        });
+        documentFrame?.addEventListener('load', () => {
+            documentFrameShell?.setAttribute('aria-busy', 'false');
+            if (documentLoading) {
+                documentLoading.hidden = true;
+            }
+        });
+        documentFrame?.addEventListener('error', () => {
+            documentFrameShell?.setAttribute('aria-busy', 'false');
+            if (documentLoading) {
+                documentLoading.textContent = 'Preview could not be loaded. Use Open or Download to continue.';
+                documentLoading.hidden = false;
+            }
+        });
+
         syncReviewerCommentScope();
+        syncCommentCount();
+
+        commentList?.addEventListener('keydown', (event) => {
+            const toggle = event.target.closest?.('[data-reviewer-comment-menu-toggle]');
+            if (toggle && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
+                event.preventDefault();
+                const menu = toggle.closest('[data-reviewer-comment-menu]');
+                if (menu) {
+                    openMenu(menu, true);
+                }
+
+                return;
+            }
+
+            if (! openCommentMenu) {
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeCommentMenu(true);
+
+                return;
+            }
+
+            const menuItems = [...openCommentMenu.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+            const currentIndex = menuItems.indexOf(document.activeElement);
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                menuItems[(currentIndex + 1) % menuItems.length]?.focus();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                menuItems[(currentIndex - 1 + menuItems.length) % menuItems.length]?.focus();
+            } else if (event.key === 'Home') {
+                event.preventDefault();
+                menuItems[0]?.focus();
+            } else if (event.key === 'End') {
+                event.preventDefault();
+                menuItems.at(-1)?.focus();
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (openCommentMenu && ! openCommentMenu.contains(event.target)) {
+                closeCommentMenu();
+            }
+        });
+        window.addEventListener('scroll', () => closeCommentMenu(), { capture: true, passive: true });
+        window.addEventListener('resize', () => closeCommentMenu(), { passive: true });
     }
 
     // Populate the secure viewer only with controller URLs already rendered into the triggering row.
@@ -322,6 +862,15 @@ function initializeApplicationTools(shell) {
     const documentFallback = documentDialog?.querySelector('[data-document-fallback]');
     const documentPreview = documentDialog?.querySelector('[data-document-preview]');
     const documentToolbar = documentDialog?.querySelector('[data-document-toolbar]');
+    const documentRenderControls = documentDialog?.querySelectorAll([
+        '[data-document-zoom-out]',
+        '[data-document-zoom]',
+        '[data-document-zoom-in]',
+        '[data-document-fit-width]',
+        '[data-document-fit-page]',
+        '[data-document-reset]',
+        '[data-document-rotate]',
+    ].join(',')) ?? [];
     const documentZoom = documentDialog?.querySelector('[data-document-zoom]');
     const documentOpenTab = documentDialog?.querySelector('[data-document-open-tab]');
     const documentRotate = documentDialog?.querySelector('[data-document-rotate]');
@@ -367,9 +916,13 @@ function initializeApplicationTools(shell) {
 
     const openDocumentDialog = (button) => {
         const previewUrl = button.dataset.documentPreviewUrl ?? '';
-        const previewKind = ['pdf', 'image'].includes(button.dataset.documentPreviewKind)
-            ? button.dataset.documentPreviewKind
-            : 'download';
+        const declaredPreviewKind = button.dataset.documentPreviewKind ?? 'download';
+        // Legacy rows report every non-browser-native format as download-only. If the
+        // server supplied an authorized preview URL, keep that document inside the
+        // private first-party Office/fallback frame instead of bypassing the viewer.
+        const previewKind = ['pdf', 'image', 'office'].includes(declaredPreviewKind)
+            ? declaredPreviewKind
+            : (previewUrl === '' ? 'download' : 'office');
         documentTrigger = button;
         documentPreviewUrl = previewUrl;
         documentPreviewKind = previewUrl === '' ? 'download' : previewKind;
@@ -383,7 +936,9 @@ function initializeApplicationTools(shell) {
         }
 
         if (documentMeta) {
-            documentMeta.textContent = button.dataset.documentMeta ?? 'Selected requirement document';
+            const documentType = button.dataset.documentType ?? '';
+            const metadata = button.dataset.documentMeta ?? 'Selected requirement document';
+            documentMeta.textContent = documentType === '' ? metadata : `${documentType} · ${metadata}`;
         }
 
         if (documentDownload) {
@@ -404,10 +959,14 @@ function initializeApplicationTools(shell) {
         }
 
         if (documentFrame) {
-            documentFrame.hidden = documentPreviewKind !== 'pdf';
-            documentPreviewKind !== 'pdf'
+            const usesFrame = ['pdf', 'office'].includes(documentPreviewKind);
+            documentFrame.hidden = ! usesFrame;
+            ! usesFrame
                 ? documentFrame.removeAttribute('src')
-                : documentFrame.setAttribute('src', `${previewUrl}#zoom=100`);
+                : documentFrame.setAttribute(
+                    'src',
+                    documentPreviewKind === 'pdf' ? `${previewUrl}#zoom=100` : previewUrl,
+                );
         }
 
         if (documentImage) {
@@ -423,6 +982,9 @@ function initializeApplicationTools(shell) {
         if (documentToolbar) {
             documentToolbar.hidden = documentPreviewKind === 'download';
         }
+        documentRenderControls.forEach((control) => {
+            control.hidden = documentPreviewKind === 'office';
+        });
         if (documentRotate) {
             documentRotate.hidden = documentPreviewKind !== 'image';
         }

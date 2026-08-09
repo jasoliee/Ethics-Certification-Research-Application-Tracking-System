@@ -26,6 +26,8 @@ The service locks the application row, repeats policy authorization, rejects an 
 
 One `application_screenings` row preserves the actor, classification, reason, and timestamp. A unique application foreign key prevents two initial classifications.
 
+The classification editor uses the full available content width. Its desktop layout places Select Review Type and the three existing choices in the left column and Reason / Basis for Classification in the right column. The centered helper spans both columns, and the controls collapse to one column on smaller viewports. Saved Screening and Classification content also occupies the available width. When an application is already under review, Re-edit Decision is grouped beside View Assignment rather than separated from the related workflow action.
+
 ## Screening Corrections
 
 `PUT /res-lead/applications/{researchApplication}/classification` allows an authorized RES Lead to correct review type and reason during screening, reviewer assignment, active initial review, or the Exempted boundary. Later result, revision, certificate, and archive states are immutable from this surface. The workflow locks the application, classification, and current initial assignments before it reconciles status and stage.
@@ -46,7 +48,9 @@ Expedited review requires exactly one reviewer. Full Board review requires exact
 
 All active classification-matched candidates are visible by default. Exact application-department matches appear first, institution matches next, and other eligible candidates follow. Search covers name, position, and department, while Department provides an optional exact filter. Full-load rows remain visible with `current load / capacity` and disabled selection. Inactive, archived, setup-incomplete, classification-mismatched, and known-conflict accounts are omitted.
 
-The confirmation dialog requires the exact count. The transaction locks the application and selected reviewer rows and repeats every eligibility and capacity check. An unchanged set is idempotent. Removed assignments are superseded with actor, timestamp, reason, and prior status; retained assignments keep their identity; new rows link to replacements and receive the next sequence. Sorted reviewer locking limits deadlock risk during concurrent capacity checks.
+The confirmation dialog requires the exact count. On reassignment, the Reason for Reassignment field is shown inside Selected Reviewer immediately above Save Reviewer Set. The existing Form Request still requires 10 to 1,000 characters when the selected set changes, and the value remains part of the locked supersession/audit workflow. The redundant candidate-list message about known Applicant/Adviser conflicts is not shown; server-side conflict exclusion and final-write revalidation remain unchanged.
+
+The transaction locks the application and selected reviewer rows and repeats every eligibility and capacity check. An unchanged set is idempotent. Removed assignments are superseded with actor, timestamp, reason, and prior status; retained assignments keep their identity; new rows link to replacements and receive the next sequence. Sorted reviewer locking limits deadlock risk during concurrent capacity checks.
 
 Successful assignment advances the application to:
 

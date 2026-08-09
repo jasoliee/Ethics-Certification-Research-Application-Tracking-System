@@ -656,6 +656,8 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('participant-data.xlsx')
             ->assertSee('data-document-open', false)
+            ->assertSee('data-document-preview-kind="office"', false)
+            ->assertSee('data-document-type="Microsoft Excel workbook (.xlsx)"', false)
             ->assertSee('data-document-replace', false)
             ->assertSee('Preview unavailable')
             ->assertSee(route('applicant.applications.documents.preview', [$application, $document]), false)
@@ -666,7 +668,8 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->get(route('applicant.applications.documents.preview', [$application, $document]))
             ->assertOk()
             ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
-            ->assertSee('Preview unavailable in this browser')
+            ->assertSee('Secure inline preview unavailable')
+            ->assertSee('Microsoft Excel workbook (.xlsx)')
             ->assertSee(route('applicant.applications.documents.download', [$application, $document]), false);
     }
 

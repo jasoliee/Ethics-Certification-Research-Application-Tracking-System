@@ -58,7 +58,7 @@
                                 <span>Re-edit Decision</span>
                             </a>
                         @endif
-                        <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">View Assignment</a>
+                        <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">Re-edit Assignment</a>
                     </div>
                 @endif
             </section>
@@ -111,7 +111,9 @@
                         </thead>
                         <tbody>
                             @foreach ($requirementSummary['items'] as $item)
-                                @php($document = $item['document'])
+                                @php
+                                    $document = $item['document'];
+                                @endphp
                                 <tr>
                                     <td><strong>{{ $item['requirement']->name }}</strong></td>
                                     <td><x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" /></td>
@@ -124,8 +126,9 @@
                                                 type="button"
                                                 data-document-open
                                                 data-document-name="{{ $document->original_file_name }}"
+                                                data-document-type="{{ $document->fileTypeLabel() }}"
                                                 data-document-meta="{{ $item['requirement']->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
-                                                data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
+                                                data-document-preview-kind="{{ $document->previewKind() }}"
                                                 data-document-preview-url="{{ route('res.applications.documents.preview', [$application, $document]) }}"
                                                 data-document-download-url="{{ route('res.applications.documents.download', [$application, $document]) }}"
                                             >
@@ -243,6 +246,54 @@
                     @endif
                 </section>
             </div>
+        @endif
+
+        @if ($officialReviewArtifacts->isNotEmpty())
+            <section class="res-workflow-panel res-official-review-forms-panel">
+                <header class="res-workflow-panel-heading res-workflow-panel-heading-split">
+                    <div><x-dashboard.icon name="file-pdf" size="21" /><h2>Official Reviewer Forms</h2></div>
+                    <x-dashboard.status-badge :label="$officialReviewArtifacts->count().' finalized'" tone="success" />
+                </header>
+                <x-dashboard.overflow label="Finalized official reviewer forms" wide>
+                    <table class="dashboard-table res-official-review-forms-table">
+                        <thead><tr><th>Official Form</th><th>Reviewer</th><th>Assignment</th><th>Finalized</th><th>Artifact</th><th>Action</th></tr></thead>
+                        <tbody>
+                            @foreach ($officialReviewArtifacts as $artifact)
+                                @php
+                                    $form = $artifact->formSubmission;
+                                    $assignmentRecord = $form->assignment;
+                                @endphp
+                                <tr>
+                                    <td><strong>{{ $form->form_type->code() }}</strong><small>{{ $form->form_type->label() }}</small></td>
+                                    <td>{{ $assignmentRecord->reviewer?->name ?? 'Archived reviewer' }}</td>
+                                    <td>#{{ $assignmentRecord->assignment_sequence }}<small>{{ $assignmentRecord->isCurrent() ? 'Current' : 'Superseded record' }}</small></td>
+                                    <td>{{ $artifact->generated_at?->format('M j, Y g:i A') ?? 'Not recorded' }}</td>
+                                    <td>v{{ $artifact->artifact_version }}<small>SHA-256 {{ Str::upper(Str::substr($artifact->sha256, 0, 12)) }}...</small></td>
+                                    <td class="res-document-actions">
+                                        <a
+                                            class="dashboard-outline-action res-document-action"
+                                            href="{{ route('res.applications.review-form-artifacts.preview', [$application, $assignmentRecord, $form, $artifact]) }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                        >
+                                            <x-dashboard.icon name="eye" size="16" />
+                                            <span>Preview</span>
+                                        </a>
+                                        <a
+                                            class="dashboard-icon-action"
+                                            href="{{ route('res.applications.review-form-artifacts.download', [$application, $assignmentRecord, $form, $artifact]) }}"
+                                            title="Download finalized official form"
+                                            aria-label="Download {{ $artifact->original_file_name }}"
+                                        >
+                                            <x-dashboard.icon name="download" size="16" />
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </x-dashboard.overflow>
+            </section>
         @endif
 
         @if ($assignedCount > 0)

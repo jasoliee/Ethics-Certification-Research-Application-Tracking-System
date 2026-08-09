@@ -50,7 +50,7 @@ class ApplicationDocument extends Model
     }
 
     /**
-     * Limit inline rendering to browser-safe formats; all other files remain download-only.
+     * Limit direct byte rendering to formats browsers can safely display themselves.
      */
     public function supportsInlinePreview(): bool
     {
@@ -59,5 +59,41 @@ class ApplicationDocument extends Model
             'image/jpeg',
             'image/png',
         ], true);
+    }
+
+    /**
+     * Describe how the authenticated document dialog should present this file.
+     *
+     * Office files intentionally use a first-party fallback page. Sending a private
+     * URL to a public Office viewer would disclose protected research documents.
+     */
+    public function previewKind(): string
+    {
+        return match ($this->mime_type) {
+            'application/pdf' => 'pdf',
+            'image/jpeg', 'image/png' => 'image',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'office',
+            default => 'download',
+        };
+    }
+
+    /**
+     * Return a user-facing type derived from the server-verified MIME value.
+     */
+    public function fileTypeLabel(): string
+    {
+        return match ($this->mime_type) {
+            'application/pdf' => 'PDF document',
+            'application/msword' => 'Microsoft Word document (.doc)',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'Microsoft Word document (.docx)',
+            'application/vnd.ms-excel' => 'Microsoft Excel workbook (.xls)',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'Microsoft Excel workbook (.xlsx)',
+            'image/jpeg' => 'JPEG image',
+            'image/png' => 'PNG image',
+            default => 'Document',
+        };
     }
 }

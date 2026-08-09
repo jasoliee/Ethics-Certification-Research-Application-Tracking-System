@@ -20,7 +20,11 @@ class PreventBrowserHistory
         $response->headers->set('Expires', '0');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        // Allow security-sensitive endpoints (for example private document streams)
+        // to opt into a stricter policy without the dashboard default overwriting it.
+        if (! $response->headers->has('Referrer-Policy')) {
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        }
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
         if (app()->isProduction() && $request->isSecure()) {

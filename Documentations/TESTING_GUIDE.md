@@ -71,14 +71,16 @@ Reviewer:
 
 - Confirm assignment counts, deadlines, and table rows are scoped to the current reviewer.
 - Search and filter Assigned Applications, confirm pagination and empty state, and verify all displayed records belong to the signed-in Reviewer.
-- Open an assignment and confirm Applicant/Adviser profile identities are absent. Before conflict clearance, confirm private preview/download and the workspace are unavailable.
-- Record No Conflict and confirm the blind workspace and current private document preview/download become available. On another assignment, declare a conflict and confirm work remains blocked and repeated declarations fail.
+- Confirm the Reviewer sidebar contains only Home and Assignments. Confirm Review routes still open from dashboard cards/direct links, Notifications from the bell, and Settings from the profile menu.
+- Open an assignment and confirm Applicant/Adviser profile identities are absent and another Reviewer's assignment, workspace, comments, and documents remain forbidden.
+- Open PDF, Word, and Excel documents from the workspace. Confirm PDF/browser-safe content uses the protected inline viewer while Office files use the same-origin authorized fallback/download, the actual file type is identified, and no private storage path or third-party viewer URL appears.
 - Save and restore drafts for both official forms. Confirm unknown questions/answers fail, applicable final answers are required, and non-Approved recommendations require comments.
-- Add overall, document, and page comments; confirm scope fields validate, another assignment cannot own the target document/comment, and removal is blocked after submission.
+- Keep a selected document visible while adding overall, document, and page comments. Confirm create, edit, resolve/reopen, and remove update without a full-page refresh, newly added comments appear immediately, and loading, empty, success, validation-error, and request-error states are readable.
+- Disable JavaScript and confirm the comment form fallback still validates and persists. Confirm another assignment cannot own the target document/comment and all mutations are blocked after final submission.
 - Confirm writes fail when Reviewer Submission is unconfigured/upcoming/closed and read-only state remains visible.
 - Finalize both forms, submit one of the four decisions with a comment, and confirm the assignment becomes immutable. For a multi-reviewer cycle, confirm the application reaches pending release only after every Reviewer submits.
 - Confirm no Reviewer name, comment, form, or decision appears in Applicant pages before an explicit release feature exists.
-- Check the assignment list, conflict detail, workspace, forms, and documents at desktop, tablet, and phone widths; horizontal overflow must stay inside the document/table region.
+- Check the assignment list, workspace, forms, simultaneous document/comment panes, and documents at desktop, tablet, and phone widths; stacked layouts and internal overflow must not create whole-page horizontal scrolling.
 - Open notifications and profile pages.
 - Confirm another reviewer's assignment returns 403.
 
@@ -105,9 +107,9 @@ RES Lead:
 - Open a ready screening record and verify incomplete administrative gates or stale mandatory-document state cannot be classified.
 - Verify Expedited accepts exactly one eligible reviewer, Full Board exactly three distinct eligible reviewers, full-capacity rows cannot be selected, and Exempted exposes no assignment action.
 - Confirm department matches appear before institution/other eligible reviewers, Department filtering works, and no Availability column or filter is present.
-- Re-edit a saved screening: compatible assignments remain, incompatible pending assignments are removed, and a started assignment prevents the correction.
+- Re-edit a saved screening: Re-edit Decision sits beside View Assignment, the classification and saved summary fill the available width, and incompatible current assignments are superseded without deleting their history.
 - Confirm the RES requirement checklist provides authorized View and direct Download actions, while another role or mismatched nested document is denied.
-- Check the Reviewer assignment page at desktop, tablet, and phone widths: no Eligibility card, filters remain inside Eligible Reviewers, context text does not overlap, selected removal uses the X icon, and the confirmation action remains contained.
+- Check the Reviewer assignment page at desktop, tablet, and phone widths: no Eligibility card, filters remain inside Eligible Reviewers, context text does not overlap, selected removal uses the X icon, the reassignment reason sits above Save Reviewer Set, and the confirmation action remains contained.
 - Confirm ordered term/process ranges, inclusive Asia/Manila boundaries, explicit `On`/`Off` overrides, and date changes clearing an existing override.
 
 All roles:

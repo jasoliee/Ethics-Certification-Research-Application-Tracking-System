@@ -7,6 +7,7 @@ use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewFormArtifactStatus;
 use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
 use App\Enums\ReviewSubmissionStatus;
@@ -46,6 +47,25 @@ class ReviewerWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Confidential blind review')
             ->assertSee($document->original_file_name)
+            ->assertSee('data-reviewer-review-studio', false)
+            ->assertSee('data-reviewer-document-frame', false)
+            ->assertSee('data-reviewer-comment-form', false)
+            ->assertSeeInOrder(['reviewer-document-library', 'reviewer-document-pane', 'reviewer-review-rail'], false)
+            ->assertSeeInOrder(['Review Tools', 'Review Comments', 'Review Worksheets'])
+            ->assertSee('data-reviewer-worksheet-open', false)
+            ->assertSee('data-reviewer-worksheet-dialog', false)
+            ->assertSee('data-reviewer-form-open="protocol"', false)
+            ->assertSee('data-reviewer-form-open="informed_consent"', false)
+            ->assertSee('data-reviewer-form-status="protocol"', false)
+            ->assertSee('data-reviewer-form-progress="protocol"', false)
+            ->assertSee('0 of 15 items completed')
+            ->assertSee('data-reviewer-form-progress-bar', false)
+            ->assertSee('<dt>Date Received</dt>', false)
+            ->assertDontSee('Page Comment')
+            ->assertDontSee('data-reviewer-page-comment', false)
+            ->assertDontSee('<dt>Institution</dt>', false)
+            ->assertDontSee('<dt>Reviewer</dt>', false)
+            ->assertDontSee('<dt>Researcher / Study Leader</dt>', false)
             ->assertSee(route('reviewer.applications.documents.download', [$application, $document]), false)
             ->assertDontSee($applicant->name)
             ->assertDontSee($adviser->name);
@@ -61,6 +81,39 @@ class ReviewerWorkflowTest extends TestCase
             ->assertForbidden();
 
         $this->assertFalse(AuditLog::query()->where('action', 'review.conflict_declared')->exists());
+    }
+
+    public function test_only_a_writable_assignment_owner_receives_the_accessible_comment_action_menu(): void
+    {
+        $deadline = $this->openReviewWindow();
+        [$reviewer, , , , $assignment] = $this->assignmentFixture();
+        $comment = $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'general',
+            'body' => 'This comment exposes owner actions while the review remains writable.',
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.assignments.workspace', $assignment))
+            ->assertOk()
+            ->assertSee('data-comment-id="'.$comment->id.'"', false)
+            ->assertSee('data-reviewer-comment-menu-toggle', false)
+            ->assertSee('aria-haspopup="menu"', false)
+            ->assertSee('aria-expanded="false"', false)
+            ->assertSee('role="menu"', false);
+
+        $deadline->update([
+            'starts_at' => now()->subDays(2),
+            'due_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.assignments.workspace', $assignment))
+            ->assertOk()
+            ->assertSee($comment->body)
+            ->assertDontSee('data-reviewer-comment-menu-toggle', false)
+            ->assertDontSee('role="menu"', false);
     }
 
     public function test_superseded_assignment_immediately_revokes_the_old_reviewer_workspace(): void
@@ -124,7 +177,35 @@ class ReviewerWorkflowTest extends TestCase
                 'status' => 'resolved',
             ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'resolved');
+            ->assertJsonPath('data.status', 'resolved')
+            ->assertJsonPath('data.count', 1)
+            ->assertJsonPath('data.id', $storedComment->id)
+            ->assertJson(fn ($json) => $json->whereType('data.html', 'string')->etc());
+
+        $unsafeComment = '<script>alert("review-comment-xss")</script>';
+        $asyncResponse = $this->actingAs($reviewer)
+            ->postJson(route('reviewer.assignments.comments.store', $assignment), [
+                'scope' => 'document',
+                'category' => 'clarification',
+                'application_document_id' => $application->documents()->firstOrFail()->id,
+                'body' => $unsafeComment,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.count', 2)
+            ->assertJsonPath('data.scope', 'document')
+            ->assertJsonPath('data.page_number', null)
+            ->assertSee('data-reviewer-comment-item', false);
+
+        $asyncHtml = $asyncResponse->json('data.html');
+        $this->assertIsString($asyncHtml);
+        $this->assertStringNotContainsString('<script>', $asyncHtml);
+        $this->assertStringNotContainsString($unsafeComment, $asyncHtml);
+        $this->assertStringContainsString('&lt;script&gt;', $asyncHtml);
+
+        $asyncComment = $assignment->comments()->findOrFail($asyncResponse->json('data.id'));
+        $this->actingAs($reviewer)
+            ->deleteJson(route('reviewer.assignments.comments.destroy', [$assignment, $asyncComment]))
+            ->assertNoContent();
         $this->assertDatabaseHas('review_comment_status_changes', [
             'review_comment_id' => $storedComment->id,
             'from_status' => 'open',
@@ -141,6 +222,64 @@ class ReviewerWorkflowTest extends TestCase
         $encodedMetadata = json_encode($audit->metadata, JSON_THROW_ON_ERROR);
         $this->assertStringNotContainsString($comment, $encodedMetadata);
         $this->assertArrayNotHasKey('body', $audit->metadata);
+    }
+
+    public function test_foreign_reviewer_cannot_mutate_comments_or_save_an_official_form(): void
+    {
+        $this->openReviewWindow();
+        [$owner, , , , $assignment] = $this->assignmentFixture();
+        $foreignReviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+        $comment = $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'general',
+            'body' => 'Only the assigned reviewer may change this confidential comment.',
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($foreignReviewer)
+            ->postJson(route('reviewer.assignments.comments.store', $assignment), [
+                'scope' => 'overall',
+                'category' => 'general',
+                'body' => 'A foreign reviewer must not add a comment.',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($foreignReviewer)
+            ->putJson(route('reviewer.assignments.comments.update', [$assignment, $comment]), [
+                'scope' => 'overall',
+                'category' => 'required_revision',
+                'body' => 'A foreign reviewer must not edit an owner comment.',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($foreignReviewer)
+            ->patchJson(route('reviewer.assignments.comments.status', [$assignment, $comment]), [
+                'status' => 'resolved',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($foreignReviewer)
+            ->deleteJson(route('reviewer.assignments.comments.destroy', [$assignment, $comment]))
+            ->assertForbidden();
+
+        $this->actingAs($foreignReviewer)
+            ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+                'intent' => 'draft',
+                'responses' => [
+                    'protocol_01' => ['answer' => 'yes', 'comment' => 'Unauthorized draft attempt.'],
+                ],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('review_comments', [
+            'id' => $comment->id,
+            'reviewer_assignment_id' => $assignment->id,
+            'category' => 'general',
+            'status' => 'open',
+            'body' => $comment->body,
+        ]);
+        $this->assertDatabaseCount('review_form_submissions', 0);
+        $this->assertSame($owner->id, $assignment->reviewer_user_id);
     }
 
     public function test_closed_reviewer_window_keeps_the_workspace_read_only_and_rejects_writes(): void
@@ -178,14 +317,20 @@ class ReviewerWorkflowTest extends TestCase
         $this->openReviewWindow();
         [$reviewer, , , , $assignment] = $this->assignmentFixture();
 
-        $this->actingAs($reviewer)
-            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+        $draftResponse = $this->actingAs($reviewer)
+            ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
                 'intent' => 'draft',
                 'responses' => [
                     'protocol_01' => ['answer' => 'yes', 'comment' => 'Initial assessment.'],
+                    'protocol_02' => ['answer' => 'unable_to_assess', 'comment' => null],
                 ],
             ])
-            ->assertSessionHasNoErrors();
+            ->assertOk()
+            ->assertJsonPath('data.form_type', ReviewFormType::Protocol->value)
+            ->assertJsonPath('data.status', ReviewFormStatus::Draft->value)
+            ->assertJsonPath('data.answered_items', 2)
+            ->assertJsonPath('data.total_items', count(ReviewFormCatalog::questions(ReviewFormType::Protocol)));
+        $this->assertNull($draftResponse->json('data.finalized_at'));
         $this->assertDatabaseHas('review_form_submissions', [
             'reviewer_assignment_id' => $assignment->id,
             'form_type' => ReviewFormType::Protocol->value,
@@ -224,9 +369,11 @@ class ReviewerWorkflowTest extends TestCase
             $assignment->formSubmissions()->where('status', ReviewFormStatus::Final->value)->count(),
         );
         $protocol = $assignment->formSubmissions()->where('form_type', ReviewFormType::Protocol->value)->firstOrFail();
-        $this->assertSame('2026-08-05', $protocol->catalog_version);
+        $this->assertSame(ReviewFormCatalog::CATALOG_VERSION, $protocol->catalog_version);
         $this->assertCount(15, $protocol->catalog_snapshot['questions']);
         $this->assertNotNull($protocol->finalized_payload_snapshot);
+        $this->assertNotNull($protocol->finalized_context_snapshot);
+        $this->assertSame(ReviewFormArtifactStatus::Ready, $protocol->artifact->status);
         $this->assertCount(15, ReviewFormCatalog::questions(ReviewFormType::InformedConsent));
     }
 
@@ -394,7 +541,7 @@ class ReviewerWorkflowTest extends TestCase
     private function finalizeForms(ReviewerAssignment $assignment): void
     {
         foreach (ReviewFormType::cases() as $type) {
-            $assignment->formSubmissions()->create([
+            $form = $assignment->formSubmissions()->create([
                 'form_type' => $type,
                 'status' => ReviewFormStatus::Final,
                 'responses' => $this->completeResponses($type),
@@ -402,6 +549,20 @@ class ReviewerWorkflowTest extends TestCase
                 'recommendation' => ReviewDecision::Approved,
                 'review_date' => today(),
                 'finalized_at' => now(),
+            ]);
+            $form->artifacts()->create([
+                'artifact_version' => 1,
+                'status' => ReviewFormArtifactStatus::Ready,
+                'stored_file_path' => "review-form-artifacts/tests/{$assignment->id}-{$type->value}.pdf",
+                'original_file_name' => $type->code().'-test.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size_bytes' => 12,
+                'sha256' => str_repeat('a', 64),
+                'template_code' => $type->code(),
+                'template_version' => ReviewFormCatalog::CATALOG_VERSION,
+                'template_sha256' => ReviewFormCatalog::TEMPLATE_SHA256,
+                'generator_version' => ReviewFormCatalog::GENERATOR_VERSION,
+                'generated_at' => now(),
             ]);
         }
     }

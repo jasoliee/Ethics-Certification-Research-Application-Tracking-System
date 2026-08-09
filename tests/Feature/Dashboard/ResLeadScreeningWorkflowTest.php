@@ -185,7 +185,8 @@ class ResLeadScreeningWorkflowTest extends TestCase
             ->get(route('res.applications.show', $application))
             ->assertOk()
             ->assertSee('class="res-workflow-banner-actions"', false)
-            ->assertSeeInOrder(['Re-edit Decision', 'View Assignment']);
+            ->assertSee('href="'.route('res.applications.reviewers.index', $application).'"', false)
+            ->assertSeeInOrder(['Re-edit Decision', 'Re-edit Assignment']);
     }
 
     public function test_full_board_assignment_rejects_wrong_and_duplicate_counts_then_assigns_exactly_three(): void

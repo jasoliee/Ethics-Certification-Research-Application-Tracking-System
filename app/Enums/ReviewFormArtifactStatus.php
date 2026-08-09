@@ -1,0 +1,8 @@
+<?php
+
+namespace App\Enums;
+
+enum ReviewFormArtifactStatus: string
+{
+    case Ready = 'ready';
+}

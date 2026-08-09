@@ -29,26 +29,6 @@
                 </select>
             </div>
 
-            <div class="application-field res-filter-applicant-type">
-                <label for="res-applicant-type">Applicant Category</label>
-                <select id="res-applicant-type" name="applicant_type">
-                    <option value="">All categories</option>
-                    @foreach ($applicantTypes as $applicantType)
-                        <option value="{{ $applicantType->value }}" @selected(($filters['applicant_type'] ?? '') === $applicantType->value)>{{ Str::headline($applicantType->value) }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="application-field res-filter-research-type">
-                <label for="res-research-type">Research Type</label>
-                <select id="res-research-type" name="research_type">
-                    <option value="">All types</option>
-                    @foreach ($researchTypes as $researchType)
-                        <option value="{{ $researchType->value }}" @selected(($filters['research_type'] ?? '') === $researchType->value)>{{ $researchType->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-
             <div class="application-field res-filter-review-type">
                 <label for="res-review-type">Review Type</label>
                 <select id="res-review-type" name="review_type">
@@ -113,8 +93,6 @@
                             <tr>
                                 <th>Application Code</th>
                                 <th>Research Title</th>
-                                <th class="res-applicant-category">Applicant Category</th>
-                                <th>Research Type</th>
                                 <th>Adviser</th>
                                 <th>Institute / Program</th>
                                 <th class="dashboard-table-status">Current Status</th>
@@ -126,8 +104,6 @@
                                 <tr>
                                     <td><strong>{{ $application->application_code }}</strong></td>
                                     <td><x-dashboard.research-title :title="$application->research_title" :href="route('res.applications.show', $application)" /></td>
-                                    <td class="res-applicant-category">{{ Str::headline($application->applicant_type) }}</td>
-                                    <td>{{ $application->research_type?->label() ?? 'Not specified' }}</td>
                                     <td>{{ $application->adviser?->name ?? 'Archived adviser' }}</td>
                                     <td>
                                         <strong>{{ $application->institution ?: 'Not specified' }}</strong>

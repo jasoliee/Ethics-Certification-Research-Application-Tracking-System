@@ -18,6 +18,7 @@ use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\TimelineCalendarEvent;
 use App\Models\User;
+use App\Services\Dashboard\DashboardDataService;
 use Database\Seeders\DashboardDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -572,6 +573,41 @@ class RoleDashboardTest extends TestCase
             ->assertSee('aria-label="For Result Release: 1"', false)
             ->assertSee('RES-001')
             ->assertSee('RES-005');
+    }
+
+    public function test_res_dashboard_displays_eager_loaded_advisers_and_an_exact_unassigned_fallback(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $adviser = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'name' => 'Dashboard Ethics Adviser',
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'RES-WITH-ADVISER',
+            'adviser_user_id' => $adviser->id,
+            'application_status' => ApplicationStatus::AdviserEndorsed,
+            'submitted_at' => now()->subMinute(),
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'RES-WITHOUT-ADVISER',
+            'adviser_user_id' => null,
+            'application_status' => ApplicationStatus::UnderResScreening,
+            'submitted_at' => now(),
+        ]);
+
+        // Relation-loaded assertions guard the five-row dashboard against per-row Adviser queries.
+        $applications = app(DashboardDataService::class)->resLead()['applications'];
+        $this->assertTrue($applications->every(
+            fn (ResearchApplication $application): bool => $application->relationLoaded('adviser'),
+        ));
+
+        $this->actingAs($resLead)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('<th>Adviser</th>', false)
+            ->assertSee('Dashboard Ethics Adviser')
+            ->assertSee('Not assigned')
+            ->assertDontSee('<th>Applicant Category</th>', false);
     }
 
     /**

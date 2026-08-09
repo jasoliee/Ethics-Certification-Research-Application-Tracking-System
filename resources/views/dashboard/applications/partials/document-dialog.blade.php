@@ -11,18 +11,18 @@
         </header>
         <div class="application-document-toolbar" role="toolbar" aria-label="Document view controls" data-document-toolbar hidden>
             <button type="button" data-document-zoom-out aria-label="Zoom out">−</button>
-            <output data-document-zoom aria-live="polite">100%</output>
-            <button type="button" data-document-zoom-in aria-label="Zoom in">+</button>
-            <button type="button" data-document-fit-width>Fit width</button>
-            <button type="button" data-document-fit-page>Fit page</button>
-            <button type="button" data-document-reset>Reset</button>
-            <button type="button" data-document-rotate hidden>Rotate</button>
+            <output data-document-render-control data-document-zoom aria-live="polite">100%</output>
+            <button type="button" data-document-render-control data-document-zoom-in aria-label="Zoom in">+</button>
+            <button type="button" data-document-render-control data-document-fit-width>Fit width</button>
+            <button type="button" data-document-render-control data-document-fit-page>Fit page</button>
+            <button type="button" data-document-render-control data-document-reset>Reset</button>
+            <button type="button" data-document-render-control data-document-rotate hidden>Rotate</button>
             <button type="button" data-document-fullscreen>Fullscreen</button>
             <a href="#" target="_blank" rel="noopener" data-document-open-tab>Open in new tab</a>
         </div>
         {{-- Preview elements receive only a secure controller URL and never a private storage path. --}}
         <div class="application-document-preview" data-document-preview>
-            <iframe title="Secure document preview" sandbox data-document-frame hidden></iframe>
+            <iframe title="Secure document preview" sandbox="allow-downloads" data-document-frame hidden></iframe>
             <img alt="Secure document preview" data-document-image hidden>
             <div class="application-document-fallback" data-document-fallback hidden>
                 <x-dashboard.icon name="download" size="34" />

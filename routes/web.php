@@ -15,6 +15,7 @@ use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ResLeadApplicationController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
 use App\Http\Controllers\Dashboard\ReviewerWorkflowController;
+use App\Http\Controllers\Dashboard\ReviewFormArtifactController;
 use App\Http\Controllers\Identity\UserManagementController;
 use App\Http\Controllers\Settings\ResLeadSettingsController;
 use App\Http\Controllers\Settings\ReviewerSettingsController;
@@ -177,6 +178,10 @@ Route::middleware('no-store')->group(function (): void {
                 Route::put('/assignments/{reviewerAssignment}/forms/{reviewFormType}', [ReviewerWorkflowController::class, 'saveForm'])
                     ->middleware('throttle:reviewer-workflow')
                     ->name('assignments.forms.update');
+                Route::get('/assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/preview', [ReviewFormArtifactController::class, 'reviewerPreview'])
+                    ->name('assignments.forms.artifacts.preview');
+                Route::get('/assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/download', [ReviewFormArtifactController::class, 'reviewerDownload'])
+                    ->name('assignments.forms.artifacts.download');
                 Route::post('/assignments/{reviewerAssignment}/comments', [ReviewerWorkflowController::class, 'addComment'])
                     ->middleware('throttle:reviewer-workflow')
                     ->name('assignments.comments.store');
@@ -234,6 +239,10 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.documents.preview');
                 Route::get('/applications/{researchApplication}/documents/{applicationDocument}/download', [ApplicationDocumentController::class, 'download'])
                     ->name('applications.documents.download');
+                Route::get('/applications/{researchApplication}/reviewer-assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/preview', [ReviewFormArtifactController::class, 'resPreview'])
+                    ->name('applications.review-form-artifacts.preview');
+                Route::get('/applications/{researchApplication}/reviewer-assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/download', [ReviewFormArtifactController::class, 'resDownload'])
+                    ->name('applications.review-form-artifacts.download');
                 Route::get('/review-monitoring', ModulePageController::class)
                     ->defaults('pageTitle', 'Review Monitoring')
                     ->defaults('moduleMessage', 'Reviewer assignments, capacity, and progress will be monitored here.')

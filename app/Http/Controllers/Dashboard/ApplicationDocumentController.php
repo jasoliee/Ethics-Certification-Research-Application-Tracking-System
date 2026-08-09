@@ -174,7 +174,9 @@ class ApplicationDocumentController extends Controller
         Gate::authorize('viewDocument', $researchApplication);
         abort_unless(Storage::disk('local')->exists($applicationDocument->stored_file_path), 404);
 
-        // Office formats stay in the authorized viewer and receive a safe download fallback.
+        // Office formats stay inside ECRATS and receive a first-party download fallback.
+        // Public document-viewer services are deliberately avoided because they require
+        // disclosing the protected file to a third party.
         if (! $applicationDocument->supportsInlinePreview()) {
             return response()
                 ->view('dashboard.applications.document-preview-fallback', [
@@ -189,6 +191,8 @@ class ApplicationDocumentController extends Controller
                     'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'; base-uri 'none'; form-action 'self'",
                     'X-Content-Type-Options' => 'nosniff',
                     'X-Frame-Options' => 'SAMEORIGIN',
+                    'Referrer-Policy' => 'no-referrer',
+                    'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
                 ]);
         }
 
@@ -230,6 +234,7 @@ class ApplicationDocumentController extends Controller
                 'Content-Security-Policy' => "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
                 'X-Content-Type-Options' => 'nosniff',
                 'Cache-Control' => 'private, no-store, max-age=0',
+                'Referrer-Policy' => 'no-referrer',
             ],
             $disposition,
         );

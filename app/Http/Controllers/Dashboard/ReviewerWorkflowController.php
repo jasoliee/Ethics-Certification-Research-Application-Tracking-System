@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ReviewDecision;
+use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reviewer\SaveReviewerDecisionRequest;
@@ -11,6 +12,7 @@ use App\Http\Requests\Reviewer\StoreReviewCommentRequest;
 use App\Models\ReviewComment;
 use App\Models\ReviewerAssignment;
 use App\Services\Applications\ReviewerWorkflowService;
+use App\Support\ReviewFormCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,11 +35,37 @@ class ReviewerWorkflowController extends Controller
         );
 
         if ($request->expectsJson()) {
+            $form->loadMissing('artifact');
+            $totalItems = count(ReviewFormCatalog::questions($reviewFormType));
+            $answeredItems = $form->status === ReviewFormStatus::Final
+                ? $totalItems
+                : collect($form->responses ?? [])->filter(
+                    fn (array $response): bool => filled($response['answer'] ?? null),
+                )->count();
+
             return response()->json(['data' => [
                 'id' => $form->id,
                 'form_type' => $form->form_type->value,
                 'status' => $form->status->value,
                 'finalized_at' => $form->finalized_at?->toIso8601String(),
+                'answered_items' => $answeredItems,
+                'total_items' => $totalItems,
+                'artifact' => $form->artifact ? [
+                    'id' => $form->artifact->id,
+                    'status' => $form->artifact->status->value,
+                    'version' => $form->artifact->artifact_version,
+                    'sha256' => $form->artifact->sha256,
+                    'preview_url' => route('reviewer.assignments.forms.artifacts.preview', [
+                        $reviewerAssignment,
+                        $form,
+                        $form->artifact,
+                    ]),
+                    'download_url' => route('reviewer.assignments.forms.artifacts.download', [
+                        $reviewerAssignment,
+                        $form,
+                        $form->artifact,
+                    ]),
+                ] : null,
             ]]);
         }
 

@@ -114,8 +114,9 @@
                                                 type="button"
                                                 data-document-open
                                                 data-document-name="{{ $document->original_file_name }}"
+                                                data-document-type="{{ $document->fileTypeLabel() }}"
                                                 data-document-meta="{{ $item['requirement']->name }} - Uploaded {{ $document->uploaded_at?->format('M j, Y g:i A') }}"
-                                                data-document-preview-kind="{{ $document->mime_type === 'application/pdf' ? 'pdf' : (str_starts_with($document->mime_type, 'image/') ? 'image' : 'download') }}"
+                                                data-document-preview-kind="{{ $document->previewKind() }}"
                                                 data-document-preview-url="{{ route($documentRouteBase.'.preview', [$application, $document]) }}"
                                                 data-document-download-url="{{ route($documentRouteBase.'.download', [$application, $document]) }}"
                                                 data-document-replace-input="{{ $role === \App\Enums\UserRole::Applicant && $canEdit ? 'detail_replace_document_'.$item['requirement']->id : '' }}"

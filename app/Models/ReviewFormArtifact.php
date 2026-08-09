@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\ReviewFormArtifactStatus;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class ReviewFormArtifact extends Model
+{
+    protected $fillable = [
+        'review_form_submission_id',
+        'artifact_version',
+        'status',
+        'stored_file_path',
+        'original_file_name',
+        'mime_type',
+        'file_size_bytes',
+        'sha256',
+        'template_code',
+        'template_version',
+        'template_sha256',
+        'generator_version',
+        'generated_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'artifact_version' => 'integer',
+            'status' => ReviewFormArtifactStatus::class,
+            'file_size_bytes' => 'integer',
+            'generated_at' => 'datetime',
+        ];
+    }
+
+    public function formSubmission(): BelongsTo
+    {
+        return $this->belongsTo(ReviewFormSubmission::class, 'review_form_submission_id');
+    }
+}

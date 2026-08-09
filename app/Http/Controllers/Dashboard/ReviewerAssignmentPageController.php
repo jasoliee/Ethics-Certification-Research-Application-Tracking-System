@@ -109,9 +109,10 @@ class ReviewerAssignmentPageController extends Controller
                 'expected_end_date',
                 'abstract',
                 'review_type',
+                'submitted_at',
             ]),
             'reviewSubmission',
-            'formSubmissions',
+            'formSubmissions.artifact',
         ]);
 
         $canOpenWorkspace = Gate::allows('openWorkspace', $reviewerAssignment);
@@ -163,13 +164,14 @@ class ReviewerAssignmentPageController extends Controller
                 'expected_end_date',
                 'abstract',
                 'review_type',
+                'submitted_at',
             ]),
             'researchApplication.documents' => fn ($documents) => $documents
                 ->where('is_current', true)
                 ->with('requirement:id,name')
                 ->orderBy('document_requirement_id'),
             'reviewSubmission',
-            'formSubmissions',
+            'formSubmissions.artifact',
             'comments' => fn ($comments) => $comments
                 ->with('document:id,original_file_name')
                 ->latest(),
@@ -186,6 +188,7 @@ class ReviewerAssignmentPageController extends Controller
         $formCatalog = collect(ReviewFormType::cases())->mapWithKeys(
             fn (ReviewFormType $type): array => [$type->value => [
                 'type' => $type,
+                'items' => ReviewFormCatalog::items($type),
                 'questions' => ReviewFormCatalog::questions($type),
                 'answers' => ReviewFormCatalog::answers($type),
             ]],
@@ -199,7 +202,11 @@ class ReviewerAssignmentPageController extends Controller
             'forms' => $forms,
             'formCatalog' => $formCatalog,
             'decisions' => ReviewDecision::cases(),
-            'commentScopes' => ReviewCommentScope::cases(),
+            // Historical page-scoped comments remain readable, while new comments use the
+            // streamlined overall/document choices required by the current workspace.
+            'commentScopes' => collect(ReviewCommentScope::cases())
+                ->reject(fn (ReviewCommentScope $scope): bool => $scope === ReviewCommentScope::Page)
+                ->values(),
             'commentCategories' => ReviewCommentCategory::cases(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],

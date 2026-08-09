@@ -10,7 +10,9 @@
         "ext-zip": "*",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
-        "phpoffice/phpspreadsheet": "^5.9"
+        "phpoffice/phpspreadsheet": "^5.9",
+        "setasign/fpdf": "1.8.*",
+        "setasign/fpdi": "2.6.8"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -34,8 +36,15 @@
         }
     },
     "scripts": {
+        "preflight:runtime": "@php scripts/preflight.php",
+        "verify": [
+            "@preflight:runtime",
+            "@composer check-platform-reqs --no-dev"
+        ],
         "setup": [
-            "composer install",
+            "@preflight:runtime",
+            "@composer install",
+            "@verify",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",

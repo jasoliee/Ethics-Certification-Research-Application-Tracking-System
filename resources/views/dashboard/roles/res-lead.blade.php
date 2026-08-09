@@ -27,13 +27,12 @@
                 {{-- The shared overflow class contains RES screening columns without widening the page. --}}
                 <div class="dashboard-table-wrap dashboard-overflow-region" role="region" aria-label="Recent RES applications" tabindex="0">
                     <table class="dashboard-table">
-                        <thead><tr><th>Application Code</th><th>Applicant Category</th><th>Research Type</th><th class="dashboard-table-status">Current Status</th><th>Received Date</th><th class="dashboard-table-action">Action</th></tr></thead>
+                        <thead><tr><th>Application Code</th><th>Adviser</th><th class="dashboard-table-status">Current Status</th><th>Received Date</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>
                             @foreach ($applications as $application)
                                 <tr>
                                     <td><a href="{{ route('res.applications.show', $application) }}">{{ $application->application_code }}</a></td>
-                                    <td>{{ Str::headline($application->applicant_type) }}</td>
-                                    <td>{{ $application->review_type ? Str::headline($application->review_type) : 'Pending classification' }}</td>
+                                    <td>{{ $application->adviser?->name ?? 'Not assigned' }}</td>
                                     <td class="dashboard-table-status"><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
                                     <td>{{ $application->submitted_at?->format('M j, Y') ?? 'Not submitted' }}</td>
                                     <td class="dashboard-table-action"><x-dashboard.action-link :href="route('res.applications.show', $application)">View</x-dashboard.action-link></td>
