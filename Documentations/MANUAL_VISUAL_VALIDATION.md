@@ -87,7 +87,7 @@ These historical checks cover the requested RES details/assignment, Applicant li
 | 768px | Pass | RES context/assignment panels collapsed without overlap; filters and tables stayed within their panels. | Interactive local browser, 2026-08-04 |
 | 390px | Pass | Header actions stacked at 44px, wide tables scrolled internally with zero bottom padding, Reviewer panels/forms remained bounded, and there was no whole-page horizontal overflow. | Interactive local browser, 2026-08-04 |
 
-Remaining stakeholder checks: uploaded-document content may still contain identity, and the project has no approved anonymized-copy/redaction procedure, revision-comparison workspace, flattened official-form PDF generator, or result-release interface.
+Remaining stakeholder checks: uploaded-document content may still contain identity, and the project has no approved anonymized-copy/redaction procedure, revision-comparison workspace, or result-release interface. Versioned official-form PDF generation is implemented; every mapped source field and branded continuation record still requires final human print-layout acceptance.
 
 ## August 9 Continuation Verification
 

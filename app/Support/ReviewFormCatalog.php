@@ -14,7 +14,7 @@ final class ReviewFormCatalog
 
     public const TEMPLATE_SHA256 = '7231e839ed75dc8d3977f84c35d62c552b5b1919b4065efa412dbd122c960f16';
 
-    public const GENERATOR_VERSION = 'ecrats-fpdi-1';
+    public const GENERATOR_VERSION = 'ecrats-fpdi-2-final-review';
 
     /** @return array{version: string, sha256: string, generator_version: string, source_pages: array<int, int>} */
     public static function template(ReviewFormType $type): array
@@ -74,8 +74,8 @@ final class ReviewFormCatalog
                 'unable_to_assess' => 'Unable to Assess',
             ],
             ReviewFormType::InformedConsent => [
-                'no' => 'No',
                 'yes' => 'Yes',
+                'no' => 'No',
             ],
         };
     }

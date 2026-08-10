@@ -40,9 +40,11 @@
                     data-reviewer-comment-menu-popover
                     hidden
                 >
-                    <button class="reviewer-comment-menu-action" type="button" role="menuitem" data-reviewer-comment-edit>
-                        <x-dashboard.icon name="edit" size="15" /><span>Edit</span>
-                    </button>
+                    @unless ($comment->scope === \App\Enums\ReviewCommentScope::Page)
+                        <button class="reviewer-comment-menu-action" type="button" role="menuitem" data-reviewer-comment-edit>
+                            <x-dashboard.icon name="edit" size="15" /><span>Edit</span>
+                        </button>
+                    @endunless
                     <form method="POST" action="{{ route('reviewer.assignments.comments.status', [$assignment, $comment]) }}" data-reviewer-comment-action-form="status">
                         @csrf
                         @method('PATCH')

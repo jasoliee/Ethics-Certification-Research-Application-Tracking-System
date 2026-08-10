@@ -28,6 +28,7 @@ use App\Support\ReviewFormCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -51,118 +52,66 @@ class ReviewerWorkflowService
         array $payload,
         bool $final,
     ): ReviewFormSubmission {
-        $storedPath = null;
+        return DB::transaction(function () use ($actor, $assignment, $type, $payload, $final): ReviewFormSubmission {
+            $locked = $this->lockedAssignment($assignment);
+            $this->authorizeWritable($actor, $locked);
+            $this->assertReviewWindowOpen();
+            $normalized = $this->normalizeFormPayload($type, $payload);
+            $existing = $locked->formSubmissions()
+                ->where('form_type', $type->value)
+                ->lockForUpdate()
+                ->first();
 
-        try {
-            // A single transaction attempt lets us remove the exact private file on any
-            // database failure instead of leaving an orphan behind after an internal retry.
-            return DB::transaction(function () use ($actor, $assignment, $type, $payload, $final, &$storedPath): ReviewFormSubmission {
-                $locked = $this->lockedAssignment($assignment);
-                $this->authorizeWritable($actor, $locked);
-                $this->assertReviewWindowOpen();
-                $normalized = $this->normalizeFormPayload($type, $payload);
-                $existing = $locked->formSubmissions()
-                    ->where('form_type', $type->value)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($existing?->status === ReviewFormStatus::Final) {
-                    $existing->load('artifact');
-
-                    if ($final
-                        && $existing->artifact?->status === ReviewFormArtifactStatus::Ready
-                        && $this->sameFinalPayload($existing->finalized_payload_snapshot, $normalized)) {
-                        return $existing;
-                    }
-
-                    throw ValidationException::withMessages([
-                        'form' => $existing->artifact
-                            ? 'This reviewer form has already been finalized.'
-                            : 'This finalized reviewer form has no verified artifact. Contact the RES Lead.',
-                    ])->errorBag('reviewerForm');
+            if ($existing?->status === ReviewFormStatus::Final) {
+                if ($final && $this->sameFinalPayload($existing->finalized_payload_snapshot, $normalized)) {
+                    return $existing->load('artifact');
                 }
 
-                if ($final) {
-                    $this->validateFinalForm($type, $normalized);
-                }
-
-                $finalizedAt = now();
-                $context = $final
-                    ? $this->finalizedFormContext($actor, $locked, $finalizedAt)
-                    : null;
-                $catalogSnapshot = $final ? [
-                    'form_type' => $type->value,
-                    'form_code' => $type->code(),
-                    'form_label' => $type->label(),
-                    'items' => ReviewFormCatalog::items($type),
-                    'questions' => ReviewFormCatalog::questions($type),
-                    'answers' => ReviewFormCatalog::answers($type),
-                    'template' => ReviewFormCatalog::template($type),
-                ] : null;
-
-                // Keep the row draft until a verified private PDF and its metadata exist.
-                $form = $locked->formSubmissions()->updateOrCreate(
-                    ['form_type' => $type->value],
-                    [
-                        ...$normalized,
-                        'catalog_version' => $final ? ReviewFormCatalog::CATALOG_VERSION : null,
-                        'catalog_snapshot' => $catalogSnapshot,
-                        'finalized_payload_snapshot' => $final ? $normalized : null,
-                        'finalized_context_snapshot' => $context,
-                        'status' => ReviewFormStatus::Draft->value,
-                        'review_date' => $final ? $finalizedAt->toDateString() : null,
-                        'finalized_at' => null,
-                    ],
-                );
-
-                $artifact = null;
-
-                if ($final) {
-                    $artifactData = $this->officialForms->renderAndStore($type, $normalized, $context, 1);
-                    $storedPath = $artifactData['stored_file_path'];
-                    $artifact = $form->artifacts()->create([
-                        ...$artifactData,
-                        'artifact_version' => 1,
-                        'status' => ReviewFormArtifactStatus::Ready->value,
-                        'generated_at' => $finalizedAt,
-                    ]);
-                    $form->update([
-                        'status' => ReviewFormStatus::Final->value,
-                        'finalized_at' => $finalizedAt,
-                    ]);
-                }
-
-                $this->markInReview($locked);
-                $this->auditLog->record($actor, $final ? 'review.form_finalized' : 'review.form_draft_saved', $locked->researchApplication, [
-                    'assignment_id' => $locked->id,
-                    'form_type' => $type->value,
-                    'form_status' => $form->status->value,
-                    'artifact_id' => $artifact?->id,
-                    'artifact_version' => $artifact?->artifact_version,
-                    'artifact_sha256' => $artifact?->sha256,
-                    'template_version' => $artifact?->template_version,
-                    'generator_version' => $artifact?->generator_version,
-                ]);
-
-                return $form->refresh()->load('artifact');
-            }, 1);
-        } catch (OfficialReviewFormGenerationException $exception) {
-            if ($storedPath) {
-                Storage::disk('local')->delete($storedPath);
+                throw ValidationException::withMessages([
+                    'form' => 'This reviewer form has already been finalized.',
+                ])->errorBag('reviewerForm');
             }
 
-            report($exception);
-
-            throw ValidationException::withMessages([
-                'form' => 'The official completed PDF could not be generated securely. The form remains a draft; please try again.',
-            ])->errorBag('reviewerForm');
-        } catch (Throwable $exception) {
-            if ($storedPath) {
-                Storage::disk('local')->delete($storedPath);
+            if ($final) {
+                $this->validateFinalForm($type, $normalized);
             }
 
-            throw $exception;
-        }
+            $finalizedAt = now();
+            $context = $final
+                ? $this->finalizedFormContext($actor, $locked, $finalizedAt)
+                : null;
+            $catalogSnapshot = $final ? [
+                'form_type' => $type->value,
+                'form_code' => $type->code(),
+                'form_label' => $type->label(),
+                'items' => ReviewFormCatalog::items($type),
+                'questions' => ReviewFormCatalog::questions($type),
+                'answers' => ReviewFormCatalog::answers($type),
+                'template' => ReviewFormCatalog::template($type),
+            ] : null;
+            $form = $locked->formSubmissions()->updateOrCreate(
+                ['form_type' => $type->value],
+                [
+                    ...$normalized,
+                    'catalog_version' => $final ? ReviewFormCatalog::CATALOG_VERSION : null,
+                    'catalog_snapshot' => $catalogSnapshot,
+                    'finalized_payload_snapshot' => $final ? $normalized : null,
+                    'finalized_context_snapshot' => $context,
+                    'status' => $final ? ReviewFormStatus::Final->value : ReviewFormStatus::Draft->value,
+                    'review_date' => $final ? $finalizedAt->toDateString() : null,
+                    'finalized_at' => $final ? $finalizedAt : null,
+                ],
+            );
+
+            $this->markInReview($locked);
+            $this->auditLog->record($actor, $final ? 'review.form_finalized' : 'review.form_draft_saved', $locked->researchApplication, [
+                'assignment_id' => $locked->id,
+                'form_type' => $type->value,
+                'form_status' => $form->status->value,
+            ]);
+
+            return $form->refresh()->load('artifact');
+        }, 3);
     }
 
     /** @param array<string, mixed> $payload */
@@ -314,70 +263,146 @@ class ReviewerWorkflowService
         ?string $decisionComment,
         bool $submit,
     ): ReviewSubmission {
-        return DB::transaction(function () use ($actor, $assignment, $decision, $decisionComment, $submit): ReviewSubmission {
-            $locked = $this->lockedAssignment($assignment);
-            $this->authorizeWritable($actor, $locked);
-            $this->assertReviewWindowOpen();
+        $storedPaths = [];
 
-            if ($submit) {
-                $this->assertReviewReady($locked, $decision, $decisionComment);
-            }
+        try {
+            // PDF writes cannot participate in the database transaction, so do not retry
+            // automatically and remove every exact path if either artifact cannot commit.
+            return DB::transaction(function () use (
+                $actor,
+                $assignment,
+                $decision,
+                $decisionComment,
+                $submit,
+                &$storedPaths,
+            ): ReviewSubmission {
+                $locked = $this->lockedAssignment($assignment);
+                $this->authorizeWritable($actor, $locked);
+                $this->assertReviewWindowOpen();
+                $finalForms = collect();
 
-            $submission = $locked->reviewSubmission()->updateOrCreate([], [
-                'status' => $submit ? ReviewSubmissionStatus::Submitted->value : ReviewSubmissionStatus::Draft->value,
-                'decision' => $decision?->value,
-                'decision_comment' => filled($decisionComment) ? trim((string) $decisionComment) : null,
-                'submitted_at' => $submit ? now() : null,
-            ]);
+                if ($submit) {
+                    $finalForms = $this->finalFormsForSubmission($locked, $decision, $decisionComment);
+                }
 
-            if (! $submit) {
-                $this->markInReview($locked);
-                $this->auditLog->record($actor, 'review.decision_draft_saved', $locked->researchApplication, [
+                $submittedAt = $submit ? now() : null;
+                $submission = $locked->reviewSubmission()->updateOrCreate([], [
+                    'status' => $submit ? ReviewSubmissionStatus::Submitted->value : ReviewSubmissionStatus::Draft->value,
+                    'decision' => $decision?->value,
+                    'decision_comment' => filled($decisionComment) ? trim((string) $decisionComment) : null,
+                    'submitted_at' => $submittedAt,
+                ]);
+
+                if (! $submit) {
+                    $this->markInReview($locked);
+                    $this->auditLog->record($actor, 'review.decision_draft_saved', $locked->researchApplication, [
+                        'assignment_id' => $locked->id,
+                        'decision' => $decision?->value,
+                    ]);
+
+                    return $submission->refresh();
+                }
+
+                $comments = $locked->comments()
+                    ->with('document.requirement:id,name')
+                    ->orderBy('created_at')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+                $finalReview = $this->finalizedReviewContext($submission, $comments, $submittedAt);
+                $generatedArtifacts = collect();
+
+                foreach ($finalForms as $form) {
+                    $latestVersion = $form->artifacts()
+                        ->lockForUpdate()
+                        ->orderByDesc('artifact_version')
+                        ->value('artifact_version');
+                    $artifactVersion = ((int) $latestVersion) + 1;
+                    $context = [
+                        ...(array) $form->finalized_context_snapshot,
+                        'final_review' => $finalReview,
+                    ];
+                    $artifactData = $this->officialForms->renderAndStore(
+                        $form->form_type,
+                        (array) $form->finalized_payload_snapshot,
+                        $context,
+                        $artifactVersion,
+                    );
+                    $storedPaths[] = $artifactData['stored_file_path'];
+                    $generatedArtifacts->push($form->artifacts()->create([
+                        ...$artifactData,
+                        'artifact_version' => $artifactVersion,
+                        'status' => ReviewFormArtifactStatus::Ready->value,
+                        'generated_at' => $submittedAt,
+                    ]));
+                }
+
+                foreach ($finalForms as $form) {
+                    $currentArtifactId = $generatedArtifacts
+                        ->firstWhere('review_form_submission_id', $form->id)?->id;
+                    $form->artifacts()
+                        ->where('status', ReviewFormArtifactStatus::Ready->value)
+                        ->where('id', '!=', $currentArtifactId)
+                        ->update(['status' => ReviewFormArtifactStatus::Superseded->value]);
+                }
+
+                $locked->update([
+                    'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted->value,
+                    'submitted_at' => $submittedAt,
+                ]);
+
+                $application = ResearchApplication::query()
+                    ->whereKey($locked->research_application_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $allSubmitted = $application->reviewerAssignments()
+                    ->current()
+                    ->where('review_type', $locked->review_type)
+                    ->lockForUpdate()
+                    ->get()
+                    ->every(fn (ReviewerAssignment $item): bool => $item->assignment_status === ReviewerAssignmentStatus::DecisionSubmitted);
+
+                if ($allSubmitted) {
+                    $application->update([
+                        'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease->value,
+                        'current_stage' => ApplicationStage::DecisionRelease->value,
+                        'status_updated_at' => now(),
+                    ]);
+                    $this->notifyResLeads(
+                        'Reviewer decisions ready for release processing',
+                        'All required reviewer decisions for an application have been submitted.',
+                        $application,
+                    );
+                }
+
+                $this->auditLog->record($actor, 'review.decision_submitted', $application, [
                     'assignment_id' => $locked->id,
                     'decision' => $decision?->value,
+                    'artifact_ids' => $generatedArtifacts->pluck('id')->all(),
+                    'artifact_versions' => $generatedArtifacts->pluck('artifact_version')->all(),
+                    'all_reviewers_submitted' => $allSubmitted,
+                    'result' => $application->application_status->value,
                 ]);
 
                 return $submission->refresh();
+            }, 1);
+        } catch (OfficialReviewFormGenerationException $exception) {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk('local')->delete($storedPath);
             }
 
-            $locked->update([
-                'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted->value,
-                'submitted_at' => now(),
-            ]);
+            report($exception);
 
-            $application = ResearchApplication::query()
-                ->whereKey($locked->research_application_id)
-                ->lockForUpdate()
-                ->firstOrFail();
-            $allSubmitted = $application->reviewerAssignments()
-                ->current()
-                ->where('review_type', $locked->review_type)
-                ->lockForUpdate()
-                ->get()
-                ->every(fn (ReviewerAssignment $item): bool => $item->assignment_status === ReviewerAssignmentStatus::DecisionSubmitted);
-
-            if ($allSubmitted) {
-                $application->update([
-                    'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease->value,
-                    'current_stage' => ApplicationStage::DecisionRelease->value,
-                    'status_updated_at' => now(),
-                ]);
-                $this->notifyResLeads(
-                    'Reviewer decisions ready for release processing',
-                    'All required reviewer decisions for an application have been submitted.',
-                    $application,
-                );
+            throw ValidationException::withMessages([
+                'review' => 'The official completed PDFs could not be generated securely. The review was not submitted; your finalized worksheets remain saved.',
+            ])->errorBag('reviewDecision');
+        } catch (Throwable $exception) {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk('local')->delete($storedPath);
             }
 
-            $this->auditLog->record($actor, 'review.decision_submitted', $application, [
-                'assignment_id' => $locked->id,
-                'decision' => $decision?->value,
-                'all_reviewers_submitted' => $allSubmitted,
-                'result' => $application->application_status->value,
-            ]);
-
-            return $submission->refresh();
-        }, 3);
+            throw $exception;
+        }
     }
 
     private function lockedAssignment(ReviewerAssignment $assignment): ReviewerAssignment
@@ -454,6 +479,53 @@ class ReviewerWorkflowService
                 'statement' => 'The authenticated reviewer finalized this response as their official review record.',
                 'attested_at' => $finalizedAt->toIso8601String(),
             ],
+        ];
+    }
+
+    /**
+     * @param  Collection<int, ReviewComment>  $comments
+     * @return array<string, mixed>
+     */
+    private function finalizedReviewContext(
+        ReviewSubmission $submission,
+        Collection $comments,
+        mixed $submittedAt,
+    ): array {
+        return [
+            'review_submission_id' => $submission->id,
+            'decision' => $submission->decision?->value,
+            'decision_label' => $submission->decision?->label(),
+            'decision_comment' => $submission->decision_comment,
+            'submitted_at' => $submittedAt->toIso8601String(),
+            'submitted_at_display' => $submittedAt->format('M j, Y g:i A'),
+            // Comments have no form-type discriminator, so the complete frozen assignment
+            // record is applicable to both official forms and is preserved losslessly.
+            'assignment_comments' => $comments->map(function (ReviewComment $comment): array {
+                $documentLabel = $comment->document?->requirement?->name;
+                $reference = match ($comment->scope) {
+                    ReviewCommentScope::Overall => 'Overall review',
+                    ReviewCommentScope::Document => $documentLabel ?: 'Submitted document #'.$comment->application_document_id,
+                    ReviewCommentScope::Page => ($documentLabel ?: 'Submitted document #'.$comment->application_document_id)
+                        .' - page '.($comment->page_number ?? 'not recorded'),
+                };
+
+                return [
+                    'id' => $comment->id,
+                    'scope' => $comment->scope->value,
+                    'scope_label' => $comment->scope->label(),
+                    'category' => $comment->category->value,
+                    'category_label' => $comment->category->label(),
+                    'application_document_id' => $comment->application_document_id,
+                    'page_number' => $comment->page_number,
+                    'reference' => $reference,
+                    'status' => $comment->status,
+                    'body' => $comment->body,
+                    'created_at' => $comment->created_at?->toIso8601String(),
+                    'created_at_display' => $comment->created_at?->format('M j, Y g:i A'),
+                    'updated_at' => $comment->updated_at?->toIso8601String(),
+                    'updated_at_display' => $comment->updated_at?->format('M j, Y g:i A'),
+                ];
+            })->values()->all(),
         ];
     }
 
@@ -587,11 +659,12 @@ class ReviewerWorkflowService
         return $document;
     }
 
-    private function assertReviewReady(
+    /** @return Collection<int, ReviewFormSubmission> */
+    private function finalFormsForSubmission(
         ReviewerAssignment $assignment,
         ?ReviewDecision $decision,
         ?string $decisionComment,
-    ): void {
+    ): Collection {
         $errors = [];
 
         if (! $decision) {
@@ -603,15 +676,22 @@ class ReviewerWorkflowService
         }
 
         $finalForms = $assignment->formSubmissions()
-            ->where('status', ReviewFormStatus::Final->value)
-            ->whereHas('artifacts', fn ($artifacts) => $artifacts
-                ->where('status', ReviewFormArtifactStatus::Ready->value))
-            ->pluck('form_type')
-            ->map(fn (ReviewFormType $type): string => $type->value)
-            ->all();
+            ->whereIn('form_type', array_map(
+                fn (ReviewFormType $type): string => $type->value,
+                ReviewFormType::cases(),
+            ))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn (ReviewFormSubmission $form): string => $form->form_type->value);
 
         foreach (ReviewFormType::cases() as $type) {
-            if (! in_array($type->value, $finalForms, true)) {
+            $form = $finalForms->get($type->value);
+
+            if (! $form
+                || $form->status !== ReviewFormStatus::Final
+                || blank($form->catalog_snapshot)
+                || blank($form->finalized_payload_snapshot)
+                || blank($form->finalized_context_snapshot)) {
                 $errors['forms'] = 'Finalize both required reviewer forms before submitting the decision.';
             }
         }
@@ -619,6 +699,8 @@ class ReviewerWorkflowService
         if ($errors !== []) {
             throw ValidationException::withMessages($errors)->errorBag('reviewDecision');
         }
+
+        return $finalForms->values();
     }
 
     private function notifyResLeads(

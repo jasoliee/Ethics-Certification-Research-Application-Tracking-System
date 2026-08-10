@@ -136,6 +136,39 @@ function initializeApplicationTools(shell) {
         },
     ];
     const reviewerWorksheetDialog = shell.querySelector('[data-reviewer-worksheet-dialog]');
+    const modalFocusSelector = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    const modalInertState = new Map();
+
+    const focusableModalElements = (panel) => [...(panel?.querySelectorAll(modalFocusSelector) ?? [])]
+        .filter((element) => ! element.closest('[hidden]') && element.getAttribute('aria-hidden') !== 'true');
+
+    // Keep keyboard and scroll interaction inside the topmost dashboard modal.
+    const syncModalEnvironment = () => {
+        modalInertState.forEach((wasInert, element) => {
+            element.inert = wasInert;
+        });
+        modalInertState.clear();
+
+        const visibleDialogs = [...shell.querySelectorAll('.application-modal-backdrop:not([hidden])')];
+        const activeDialog = visibleDialogs.at(-1);
+        document.body.classList.toggle('has-application-modal-open', Boolean(activeDialog));
+
+        [...(activeDialog?.parentElement?.children ?? [])].forEach((sibling) => {
+            if (! (sibling instanceof HTMLElement) || sibling === activeDialog) {
+                return;
+            }
+
+            modalInertState.set(sibling, sibling.inert);
+            sibling.inert = true;
+        });
+    };
 
     // Each official Reviewer form owns a separate accessible dialog while sharing focus restoration.
     shell.querySelectorAll('[data-reviewer-form-dialog]').forEach((dialog) => {
@@ -179,6 +212,16 @@ function initializeApplicationTools(shell) {
 
         // Closing a dashboard application dialog always returns the user to its originating command.
         const closeDialog = () => {
+            if (trackedForm?.getAttribute('aria-busy') === 'true') {
+                const feedback = trackedForm.querySelector('[data-reviewer-form-feedback]');
+                if (feedback) {
+                    feedback.textContent = 'Wait for the worksheet draft to finish saving before closing.';
+                }
+                panel?.focus();
+
+                return false;
+            }
+
             if (hasUnsavedFormChanges() && ! window.confirm('Discard unsaved worksheet changes?')) {
                 panel?.focus();
 
@@ -194,8 +237,10 @@ function initializeApplicationTools(shell) {
             dialog.hidden = true;
             if (reviewerWorksheet && reviewerWorksheetDialog && returnFocus && reviewerWorksheetDialog.contains(returnFocus)) {
                 reviewerWorksheetDialog.hidden = false;
+                syncModalEnvironment();
                 returnFocus.focus();
             } else {
+                syncModalEnvironment();
                 returnFocus?.focus();
             }
 
@@ -211,6 +256,7 @@ function initializeApplicationTools(shell) {
                 }
                 dialog.hidden = false;
                 refreshPristineFormState();
+                syncModalEnvironment();
                 panel?.focus();
             });
         });
@@ -229,6 +275,29 @@ function initializeApplicationTools(shell) {
 
         // Escape provides the keyboard-equivalent dialog close action.
         dialog.addEventListener('keydown', (event) => {
+            if (event.key === 'Tab') {
+                const focusable = focusableModalElements(panel);
+                const first = focusable[0];
+                const last = focusable.at(-1);
+
+                if (! first || ! last) {
+                    event.preventDefault();
+                    panel?.focus();
+
+                    return;
+                }
+
+                if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (! event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+
+                return;
+            }
+
             if (event.key === 'Escape') {
                 event.preventDefault();
                 closeDialog();
@@ -241,6 +310,7 @@ function initializeApplicationTools(shell) {
         if (dialog.hasAttribute('data-open-on-load')) {
             dialog.hidden = false;
             refreshPristineFormState();
+            syncModalEnvironment();
             panel?.focus();
         }
     });
@@ -250,6 +320,14 @@ function initializeApplicationTools(shell) {
         const draftButton = form.querySelector('[data-reviewer-form-save-draft]');
         const feedback = form.querySelector('[data-reviewer-form-feedback]');
         const progressBar = form.querySelector('[data-reviewer-form-progress-bar]');
+        const formDialog = form.closest('[data-reviewer-form-dialog]');
+        const formCloseButtons = [...(formDialog?.querySelectorAll('[data-reviewer-form-close]') ?? [])];
+        const consentGate = form.querySelector('[data-reviewer-consent-gate]');
+        const consentExplanation = form.querySelector('[data-reviewer-consent-explanation]');
+        const consentExplanationInput = form.querySelector('[data-reviewer-consent-explanation-input]');
+        let draftSaveInFlight = false;
+        let worksheetControlsLocked = false;
+        const worksheetControlStates = new Map();
 
         const setFormFeedback = (message = '', state = '') => {
             if (! feedback) {
@@ -300,10 +378,61 @@ function initializeApplicationTools(shell) {
             });
         };
 
-        form.addEventListener('change', () => renderFormProgress(formProgress()));
-        form.addEventListener('reviewer:form-reset', () => renderFormProgress(formProgress()));
+        const setWorksheetControlsLocked = (locked) => {
+            const controls = new Set([...form.elements, ...formCloseButtons]);
+
+            if (locked) {
+                worksheetControlStates.clear();
+                controls.forEach((control) => {
+                    if (! (control instanceof HTMLElement) || ! ('disabled' in control)) {
+                        return;
+                    }
+
+                    worksheetControlStates.set(control, control.disabled);
+                    control.disabled = true;
+                });
+
+                return;
+            }
+
+            worksheetControlStates.forEach((wasDisabled, control) => {
+                if (control.isConnected) {
+                    control.disabled = wasDisabled;
+                }
+            });
+            worksheetControlStates.clear();
+        };
+
+        const syncConsentExplanation = () => {
+            if (! consentGate || ! consentExplanation || ! consentExplanationInput) {
+                return;
+            }
+
+            const consentIsNotRequired = consentGate.querySelector('input[name="consent_required"]:checked')?.value === '0';
+            const canWrite = consentGate.dataset.reviewerConsentWritable === 'true';
+            consentExplanation.hidden = ! consentIsNotRequired;
+            consentExplanationInput.disabled = ! consentIsNotRequired || ! canWrite || form.getAttribute('aria-busy') === 'true';
+        };
+
+        form.addEventListener('change', (event) => {
+            if (event.target.matches?.('input[name="consent_required"]')) {
+                syncConsentExplanation();
+            }
+            renderFormProgress(formProgress());
+        });
+        form.addEventListener('reviewer:form-reset', () => {
+            syncConsentExplanation();
+            renderFormProgress(formProgress());
+        });
+        syncConsentExplanation();
 
         form.addEventListener('submit', async (event) => {
+            if (draftSaveInFlight) {
+                event.preventDefault();
+
+                return;
+            }
+
             if (event.submitter !== draftButton) {
                 return;
             }
@@ -313,13 +442,15 @@ function initializeApplicationTools(shell) {
                 return;
             }
 
-            draftButton.disabled = true;
+            const formData = new FormData(form);
+            formData.set('intent', 'draft');
+            draftSaveInFlight = true;
             form.setAttribute('aria-busy', 'true');
+            setWorksheetControlsLocked(true);
+            worksheetControlsLocked = true;
             setFormFeedback('Saving draft...');
 
             try {
-                const formData = new FormData(form);
-                formData.set('intent', 'draft');
                 const response = await fetch(form.action, {
                     method: 'POST',
                     body: formData,
@@ -351,13 +482,22 @@ function initializeApplicationTools(shell) {
                 });
                 renderFormProgress(savedProgress, true);
                 preserveSavedFormDefaults();
+                form.removeAttribute('aria-busy');
+                setWorksheetControlsLocked(false);
+                worksheetControlsLocked = false;
+                syncConsentExplanation();
                 form.dispatchEvent(new CustomEvent('reviewer:form-saved'));
                 setFormFeedback('Draft saved.', 'success');
             } catch (error) {
                 setFormFeedback(error.message || 'The worksheet draft could not be saved. Check your connection and try again.', 'error');
             } finally {
+                draftSaveInFlight = false;
                 form.removeAttribute('aria-busy');
-                draftButton.disabled = false;
+                if (worksheetControlsLocked) {
+                    setWorksheetControlsLocked(false);
+                    worksheetControlsLocked = false;
+                }
+                syncConsentExplanation();
             }
         });
     });
@@ -468,8 +608,15 @@ function initializeApplicationTools(shell) {
         const commentList = reviewerStudio?.querySelector('[data-reviewer-comment-list]');
         const emptyState = reviewerStudio?.querySelector('[data-reviewer-comment-empty]');
         const commentCount = reviewerStudio?.querySelector('[data-reviewer-comment-count] .dashboard-status-badge');
+        const loadOlderCommentsButton = reviewerStudio?.querySelector('[data-reviewer-comments-load]');
+        const loadOlderCommentsLabel = loadOlderCommentsButton?.querySelector('[data-reviewer-comments-load-label]');
+        const commentsHistoryFeedback = reviewerStudio?.querySelector('[data-reviewer-comments-history-feedback]');
         const storeUrl = reviewerCommentForm.dataset.commentStoreUrl ?? reviewerCommentForm.action;
+        let authoritativeCommentCount = Number.parseInt(commentCount?.dataset.reviewerCommentTotal ?? '0', 10);
         let openCommentMenu = null;
+        let commentRequestInFlight = false;
+        let olderCommentsRequestInFlight = false;
+        const commentActionsInFlight = new Set();
 
         // Scope-dependent controls remain absent from validation until the Reviewer selects them.
         const syncReviewerCommentScope = () => {
@@ -537,14 +684,29 @@ function initializeApplicationTools(shell) {
             feedback.classList.toggle('is-success', state === 'success');
         };
 
+        const setCommentsHistoryFeedback = (message = '', state = '') => {
+            if (! commentsHistoryFeedback) {
+                return;
+            }
+
+            commentsHistoryFeedback.textContent = message;
+            commentsHistoryFeedback.classList.toggle('is-error', state === 'error');
+            commentsHistoryFeedback.classList.toggle('is-success', state === 'success');
+        };
+
         const syncCommentCount = (count = null) => {
-            const currentCount = count ?? commentList?.querySelectorAll('[data-reviewer-comment-item]').length ?? 0;
+            const parsedCount = Number.parseInt(count, 10);
+
+            if (Number.isFinite(parsedCount)) {
+                authoritativeCommentCount = parsedCount;
+            }
 
             if (commentCount) {
-                commentCount.textContent = `${currentCount} recorded`;
+                commentCount.textContent = `${authoritativeCommentCount} recorded`;
+                commentCount.dataset.reviewerCommentTotal = String(authoritativeCommentCount);
             }
             if (emptyState) {
-                emptyState.hidden = currentCount > 0;
+                emptyState.hidden = authoritativeCommentCount > 0;
             }
         };
 
@@ -574,10 +736,11 @@ function initializeApplicationTools(shell) {
 
         // Server-rendered fragments keep asynchronous comments escaped and identical to the no-JS fallback.
         const submitCommentRequest = async () => {
-            if (! reviewerCommentForm.reportValidity()) {
+            if (commentRequestInFlight || ! reviewerCommentForm.reportValidity()) {
                 return;
             }
 
+            commentRequestInFlight = true;
             submitButton?.setAttribute('disabled', 'disabled');
             reviewerCommentForm.setAttribute('aria-busy', 'true');
             setCommentFeedback(reviewerCommentForm.dataset.editingCommentId ? 'Saving changes...' : 'Adding comment...');
@@ -619,6 +782,7 @@ function initializeApplicationTools(shell) {
             } catch (error) {
                 setCommentFeedback(error.message || 'Comment failed. Check your connection and try again.', 'error');
             } finally {
+                commentRequestInFlight = false;
                 reviewerCommentForm.removeAttribute('aria-busy');
                 submitButton?.removeAttribute('disabled');
             }
@@ -655,6 +819,10 @@ function initializeApplicationTools(shell) {
             const comment = editButton?.closest('[data-reviewer-comment-item]');
 
             if (! comment) {
+                return;
+            }
+
+            if (commentActionsInFlight.has(comment.dataset.commentId)) {
                 return;
             }
 
@@ -698,10 +866,22 @@ function initializeApplicationTools(shell) {
             }
 
             event.preventDefault();
-            closeCommentMenu();
             const action = actionForm.dataset.reviewerCommentActionForm;
-            const button = actionForm.querySelector('button[type="submit"]');
-            button?.setAttribute('disabled', 'disabled');
+            const commentId = comment.dataset.commentId;
+
+            if (commentActionsInFlight.has(commentId)) {
+                return;
+            }
+
+            closeCommentMenu();
+            if (action === 'delete' && ! window.confirm('Delete this review comment? This action cannot be undone.')) {
+                return;
+            }
+
+            commentActionsInFlight.add(commentId);
+            comment.setAttribute('aria-busy', 'true');
+            const actionButtons = [...comment.querySelectorAll('button')];
+            actionButtons.forEach((button) => button.setAttribute('disabled', 'disabled'));
             setCommentFeedback(action === 'delete' ? 'Removing comment...' : 'Updating comment...');
 
             try {
@@ -713,7 +893,7 @@ function initializeApplicationTools(shell) {
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                 });
-                const payload = response.status === 204 ? {} : await response.json().catch(() => ({}));
+                const payload = await response.json().catch(() => ({}));
 
                 if (! response.ok) {
                     throw new Error(payload.message ?? 'The comment action could not be completed.');
@@ -724,7 +904,7 @@ function initializeApplicationTools(shell) {
                         resetCommentComposer();
                     }
                     comment.remove();
-                    syncCommentCount();
+                    syncCommentCount(payload.data?.count);
                     setCommentFeedback('Comment removed.', 'success');
                 } else {
                     const nextComment = commentElementFromHtml(payload.data?.html ?? '');
@@ -736,19 +916,157 @@ function initializeApplicationTools(shell) {
                     setCommentFeedback(payload.data?.status === 'resolved' ? 'Comment resolved.' : 'Comment reopened.', 'success');
                 }
             } catch (error) {
-                button?.removeAttribute('disabled');
                 setCommentFeedback(error.message || 'The comment action failed. Try again.', 'error');
+            } finally {
+                commentActionsInFlight.delete(commentId);
+                if (comment.isConnected) {
+                    comment.removeAttribute('aria-busy');
+                    actionButtons.forEach((button) => button.removeAttribute('disabled'));
+                }
             }
         });
 
+        const loadOlderComments = async () => {
+            const beforeId = loadOlderCommentsButton?.dataset.beforeId;
+            const commentsUrl = loadOlderCommentsButton?.dataset.commentsUrl;
+
+            if (olderCommentsRequestInFlight || ! loadOlderCommentsButton || ! beforeId || ! commentsUrl) {
+                return;
+            }
+
+            olderCommentsRequestInFlight = true;
+            loadOlderCommentsButton.setAttribute('disabled', 'disabled');
+            loadOlderCommentsButton.setAttribute('aria-busy', 'true');
+            commentList?.setAttribute('aria-busy', 'true');
+            if (loadOlderCommentsLabel) {
+                loadOlderCommentsLabel.textContent = 'Loading Older Comments...';
+            }
+            setCommentsHistoryFeedback('Loading older comments...');
+
+            try {
+                const url = new URL(commentsUrl, window.location.href);
+                url.searchParams.set('before_id', beforeId);
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (! response.ok) {
+                    const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                    throw new Error(validationMessage ?? payload.message ?? 'Older comments could not be loaded.');
+                }
+
+                const items = Array.isArray(payload.data?.items) ? payload.data.items : [];
+                let appendedCount = 0;
+
+                items.forEach((item) => {
+                    if (! commentList || commentList.querySelector(`[data-reviewer-comment-item][data-comment-id="${item.id}"]`)) {
+                        return;
+                    }
+
+                    const nextComment = commentElementFromHtml(item.html ?? '');
+                    if (! nextComment) {
+                        return;
+                    }
+
+                    commentList.insertBefore(nextComment, emptyState ?? null);
+                    appendedCount += 1;
+                });
+
+                const nextBeforeId = payload.data?.next_before_id;
+                const hasMore = Boolean(payload.data?.has_more && nextBeforeId);
+                loadOlderCommentsButton.dataset.beforeId = hasMore ? String(nextBeforeId) : '';
+                loadOlderCommentsButton.hidden = ! hasMore;
+                syncCommentCount(payload.data?.count);
+                setCommentsHistoryFeedback(
+                    appendedCount > 0
+                        ? `${appendedCount} older ${appendedCount === 1 ? 'comment' : 'comments'} loaded.`
+                        : 'No older comments remain.',
+                    'success',
+                );
+            } catch (error) {
+                setCommentsHistoryFeedback(error.message || 'Older comments could not be loaded. Try again.', 'error');
+            } finally {
+                olderCommentsRequestInFlight = false;
+                loadOlderCommentsButton.removeAttribute('aria-busy');
+                commentList?.setAttribute('aria-busy', 'false');
+                if (! loadOlderCommentsButton.hidden) {
+                    loadOlderCommentsButton.removeAttribute('disabled');
+                }
+                if (loadOlderCommentsLabel) {
+                    loadOlderCommentsLabel.textContent = 'Load Older Comments';
+                }
+            }
+        };
+
+        loadOlderCommentsButton?.addEventListener('click', loadOlderComments);
+
         const documentChoices = [...(reviewerStudio?.querySelectorAll('[data-reviewer-document-choice]') ?? [])];
         const documentFrameShell = reviewerStudio?.querySelector('[data-reviewer-document-frame-shell]');
-        const documentFrame = reviewerStudio?.querySelector('[data-reviewer-document-frame]');
+        let documentFrame = reviewerStudio?.querySelector('[data-reviewer-document-frame]');
         const documentLoading = reviewerStudio?.querySelector('[data-reviewer-document-loading]');
         const documentTitle = reviewerStudio?.querySelector('[data-reviewer-document-title]');
         const documentMeta = reviewerStudio?.querySelector('[data-reviewer-document-meta]');
         const documentOpenTab = reviewerStudio?.querySelector('[data-reviewer-document-open-tab]');
         const documentDownload = reviewerStudio?.querySelector('[data-reviewer-document-download]');
+        let documentPreviewRequestId = 0;
+
+        const settleDocumentPreview = (requestId, failed = false) => {
+            if (requestId !== documentPreviewRequestId) {
+                return;
+            }
+
+            documentFrameShell?.setAttribute('aria-busy', 'false');
+            if (! documentLoading) {
+                return;
+            }
+
+            if (failed) {
+                documentLoading.textContent = 'Preview could not be loaded. Use Open or Download to continue.';
+                documentLoading.hidden = false;
+            } else {
+                documentLoading.hidden = true;
+            }
+        };
+
+        const bindDocumentFrameLoad = (frame, requestId) => {
+            let settled = false;
+            const settle = (failed) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                settleDocumentPreview(requestId, failed);
+            };
+
+            frame.addEventListener('load', () => settle(false), { once: true });
+            frame.addEventListener('error', () => settle(true), { once: true });
+        };
+
+        const replaceDocumentFrame = (previewUrl, title, requestId) => {
+            if (! documentFrame) {
+                return;
+            }
+
+            // Replacing also covers an initial iframe whose load completed before dashboard startup.
+            const nextFrame = documentFrame.cloneNode(false);
+            nextFrame.removeAttribute('src');
+            nextFrame.loading = 'eager';
+            nextFrame.title = title;
+            nextFrame.dataset.reviewerDocumentFrame = '';
+            bindDocumentFrameLoad(nextFrame, requestId);
+            nextFrame.src = previewUrl;
+            documentFrame.replaceWith(nextFrame);
+            documentFrame = nextFrame;
+        };
+
+        if (documentFrame) {
+            replaceDocumentFrame(documentFrame.src, documentFrame.title, documentPreviewRequestId);
+        }
 
         const selectReviewDocument = (choice) => {
             documentChoices.forEach((candidate) => {
@@ -771,12 +1089,18 @@ function initializeApplicationTools(shell) {
                 documentDownload.hidden = false;
             }
             if (documentFrame && documentFrameShell) {
+                documentPreviewRequestId += 1;
                 documentFrameShell.setAttribute('aria-busy', 'true');
                 if (documentLoading) {
+                    documentLoading.textContent = 'Loading secure preview...';
                     documentLoading.hidden = false;
                 }
-                documentFrame.title = `Preview of ${choice.dataset.documentName}`;
-                documentFrame.src = choice.dataset.documentPreviewUrl;
+
+                replaceDocumentFrame(
+                    choice.dataset.documentPreviewUrl,
+                    `Preview of ${choice.dataset.documentName}`,
+                    documentPreviewRequestId,
+                );
             }
             if (documentInput && scope?.value === 'document') {
                 documentInput.value = choice.dataset.documentId;
@@ -785,19 +1109,6 @@ function initializeApplicationTools(shell) {
 
         documentChoices.forEach((choice) => {
             choice.addEventListener('click', () => selectReviewDocument(choice));
-        });
-        documentFrame?.addEventListener('load', () => {
-            documentFrameShell?.setAttribute('aria-busy', 'false');
-            if (documentLoading) {
-                documentLoading.hidden = true;
-            }
-        });
-        documentFrame?.addEventListener('error', () => {
-            documentFrameShell?.setAttribute('aria-busy', 'false');
-            if (documentLoading) {
-                documentLoading.textContent = 'Preview could not be loaded. Use Open or Download to continue.';
-                documentLoading.hidden = false;
-            }
         });
 
         syncReviewerCommentScope();

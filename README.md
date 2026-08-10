@@ -6,7 +6,7 @@ Ethics Certification Review Application and Tracking System (ECRATS) is a Larave
 
 The repository includes username authentication, role middleware, record policies, role dashboards, and controlled account administration. New users receive generated usernames and one-time password setup links; creators never choose a password. RES Lead and Adviser flows support role-specific individual creation plus Excel-only `.xlsx` preview and confirmation. RES Leads can safely restore preview-matched archived accounts without replacing their original records. Database-backed profile options retain immutable identities and historical label aliases so older workbooks can resolve renamed active options.
 
-Applicant draft creation/editing, private versioned requirement uploads, formal submission, Adviser return/endorsement, RES classification, non-destructive reviewer reassignment, blind reviewer workspaces, official protocol/consent form data, comment history, and reviewer decision submission are implemented and tested. Finalized reviewer forms preserve immutable catalog/payload snapshots. Later Applicant revision submission, RES result release, flattened PDF form artifacts, certificate rendering, and QR verification are not yet complete end-to-end workflows.
+Applicant draft creation/editing, private versioned requirement uploads, formal submission, Adviser return/endorsement, RES classification, non-destructive reviewer reassignment, blind reviewer workspaces, asynchronous comment history, reviewer decision submission, and versioned official protocol/consent PDF artifacts are implemented and tested. Finalized reviewer forms preserve immutable catalog/payload/context snapshots; complete overall submission generates both private artifacts from persisted form, decision, and comment data. Later Applicant revision submission, RES result release, certificate rendering, and QR verification are not yet complete end-to-end workflows.
 
 The dashboard database tables are an additive implementation slice of the larger module-based ERD. They do not replace the remaining blind-review, release, certificate, storage, and audit migrations described in `docs/architecture/database-design.md`.
 
@@ -61,7 +61,7 @@ Use `npm.cmd` rather than `npm` in PowerShell unless the local execution policy 
 
 Excel account import requires PHP's ZIP extension. `composer check-platform-reqs` must report `ext-zip` as successful. On Laragon, enable `extension=zip` in the active `php.ini`, restart affected terminals/services, and confirm it appears in `php -m`.
 
-When ZIP or the locked PhpSpreadsheet package is unavailable, workbook generation/import fails before file creation and returns a safe administrator-facing error. Flattened official reviewer-form PDFs remain disabled until a PDF renderer is explicitly approved and installed; finalized database snapshots are available in the meantime.
+When ZIP or the locked PhpSpreadsheet package is unavailable, workbook generation/import fails before file creation and returns a safe administrator-facing error. Official reviewer-form PDFs use the locked first-party FPDF/FPDI renderer, private storage, source-template integrity checks, authenticated routes, and append-only artifact versions.
 
 ## Dashboard Preview
 
@@ -95,6 +95,7 @@ Start with:
 - `CONTRIBUTING.md` for branch, commit, PR, and review rules
 - `Documentations/README.md` for the implemented dashboard, navigation, components, performance work, and testing guide
 - `Documentations/FEATURES_AND_FUNCTIONALITY.md` for the current role-by-role feature catalog and incomplete modules
+- `Documentations/IMPLEMENTATION_STATUS_2026-08-10.md` for the exact completed-versus-remaining status of the current implementation brief
 - `docs/setup/` for local development and workflow setup
 - `docs/requirements/` for source-of-truth summaries
 - `docs/architecture/` for module boundaries and database design

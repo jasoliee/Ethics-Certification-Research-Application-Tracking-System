@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-10
+
+### Changed
+
+- Made the reviewer-assignment history and official-artifact migrations resumable after partially committed MySQL DDL; repeated migration execution is idempotent and seeding completes normally.
+- Deferred official KLD-RES-04-001 and KLD-RES-04-002 PDF generation until the complete overall review is submitted. Both versioned artifacts now include persisted worksheet data plus the final decision and complete assignment-comment record, and incomplete legacy artifacts are not presented as current official versions.
+- Limited the initial Reviewer comment history to the newest 20 entries with assignment-authorized cursor loading, an independent bounded scrollbar, authoritative counts, duplicate-request guards, and delete confirmation.
+- Aligned the centered workspace summary and worksheet status/official-artifact controls with the current pages 54-69 reference and explicit metadata/page-comment overrides.
+
+### Security and Reliability
+
+- Overall submission and both private artifact rows commit atomically. A rendering failure removes partial files, retains Final worksheet snapshots, and leaves the decision unsubmitted with a safe validation error.
+- Ready artifacts require a submitted parent review and nested authenticated policy checks. Prior artifact versions are retained as Superseded rather than overwritten or deleted.
+
+### Verification
+
+- Added focused coverage for deferred generation, persisted decision/comment mapping, generation rollback, version supersession, pre-submission denial, private artifact integrity headers, comment pagination, and duplicate prevention.
+- Local MySQL migration and seeding completed successfully. Before verification was postponed, 81 focused tests passed with 1,649 assertions across official artifacts, Reviewer workflow/catalog, assignment pages, RES visibility/settings/screening, dashboard roles, and workbook templates.
+- Final code/fidelity items and deferred full-suite/browser/workbook/PDF acceptance are recorded in `IMPLEMENTATION_STATUS_2026-08-10.md`.
+
 ## 2026-08-04
 
 ### Added

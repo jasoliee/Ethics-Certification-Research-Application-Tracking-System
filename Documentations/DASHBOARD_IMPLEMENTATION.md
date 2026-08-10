@@ -38,7 +38,7 @@ The timeline reads active `timeline_calendar_events` records for the current act
 
 ## Known Limitations
 
-- RES classification/correction, non-destructive reviewer assignment/reassignment, Reviewer task tabs, blind evaluation, comments, and official forms are implemented. Later revision comparison, reports, result release, flattened form artifacts, and certificates remain temporary or partial modules.
+- RES classification/correction, non-destructive reviewer assignment/reassignment, Reviewer task tabs, blind evaluation, incrementally loaded comments, official forms, and versioned private official-form PDF artifacts are implemented. Later revision comparison, reports, result release, and certificates remain temporary or partial modules.
 - The profile page is read-only and links to the current settings workspace.
 - Existing applicant accounts created before the applicant category migration default to Student Researcher and should be reviewed if they represent faculty.
 - This implementation provides authorized private application-document preview/download and account import, but it does not add certificate generation or review-form workflows.

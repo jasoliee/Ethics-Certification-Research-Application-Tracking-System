@@ -16,7 +16,7 @@ class ReviewFormCatalogTest extends TestCase
         $this->assertSame([1, 2, 3], ReviewFormCatalog::template(ReviewFormType::Protocol)['source_pages']);
         $this->assertSame([7, 8], ReviewFormCatalog::template(ReviewFormType::InformedConsent)['source_pages']);
         $this->assertSame(['no', 'yes', 'unable_to_assess'], array_keys(ReviewFormCatalog::answers(ReviewFormType::Protocol)));
-        $this->assertSame(['no', 'yes'], array_keys(ReviewFormCatalog::answers(ReviewFormType::InformedConsent)));
+        $this->assertSame(['yes', 'no'], array_keys(ReviewFormCatalog::answers(ReviewFormType::InformedConsent)));
         $this->assertCount(15, $protocol);
         $this->assertCount(15, $consent);
         $this->assertSame(14, $protocol['protocol_14']['printed_number']);

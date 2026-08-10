@@ -79,9 +79,9 @@ See [RES Screening and Reviewer Assignment](RES_SCREENING_AND_REVIEWER_ASSIGNMEN
 
 ## Reviewer Assignment Workspace
 
-The Reviewer Assigned Applications page is implemented with owner-scoped search, review-type/status/research-type/deadline filters, 15-row pagination, empty state, responsive table containment, and protected details. The detail intentionally omits Applicant and Adviser profile identity. A one-time conflict gate blocks private documents and review work until cleared.
+The Reviewer Assigned Applications page is implemented with owner-scoped search, review-type/status/research-type/deadline filters, 15-row pagination, empty state, responsive table containment, and protected details. The detail intentionally omits Applicant and Adviser profile identity. Current assignment ownership gates private documents and review work directly; the retired conflict-declaration gate is absent.
 
-The blind workspace provides assignment-gated private documents, bounded overall/document/page comments, independently draftable/finalizable KLD-RES-04-001 and KLD-RES-04-002 forms, and one draft/final recommendation. Reviewer writes require the configured Reviewer Submission period. Both forms and a final comment are required before submission; submission freezes the assignment. The application reaches `review_submitted_pending_release` only after every initial Reviewer submits, without exposing Reviewer identity or private work to the Applicant.
+The blind workspace provides assignment-gated private documents, bounded asynchronous overall/document comments with incrementally loaded history, independently draftable/finalizable KLD-RES-04-001 and KLD-RES-04-002 forms, and one draft/final recommendation. Reviewer writes require the configured Reviewer Submission period. Both Final form snapshots and a final comment are required before submission; submission atomically generates both versioned private official PDFs and freezes the assignment. The application reaches `review_submitted_pending_release` only after every initial Reviewer submits, without exposing Reviewer identity or private work to the Applicant.
 
 See [Reviewer Workflow](REVIEWER_WORKFLOW.md) for the exact forms, validation, routes, authorization, persistence, and privacy contract.
 

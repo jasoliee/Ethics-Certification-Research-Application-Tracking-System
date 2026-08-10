@@ -28,7 +28,8 @@ This folder documents the implemented ECRATS system contract and clearly identif
 22. [Testing guide](TESTING_GUIDE.md)
 23. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
 24. [Known issues and pending verification](KNOWN_ISSUES.md)
-25. [Changelog](CHANGELOG.md)
+25. [August 10, 2026 implementation status](IMPLEMENTATION_STATUS_2026-08-10.md)
+26. [Changelog](CHANGELOG.md)
 
 ## Interface References
 
@@ -45,6 +46,6 @@ This folder documents the implemented ECRATS system contract and clearly identif
 
 ## Scope
 
-The documented implementation includes authentication, account setup, role onboarding, account administration, guarded Excel-only `.xlsx` generation and preview/confirmation, RES-only archived-account restoration, immutable dropdown identities with historical-label aliases, the canonical `/dashboard`, Applicant drafts and private documents, date-based research duration, configured initial submission, the three-formal-application limit, Adviser return/endorsement decisions, the RES queue, Expedited/Full Board/Exempted classification, non-destructive reviewer assignment/reassignment, current-assignment Reviewer workspaces, the two official Reviewer forms, private comment CRUD/resolution, initial review decisions, deadline/timeline configuration, shared navigation, notifications, functional Reviewer/RES account settings, and audit records. Uploaded-document content redaction, flattened official-form PDFs, revision comparison, result/certificate release, QR verification, Microsoft Excel acceptance, and final responsive acceptance remain explicitly identified as incomplete or pending.
+The documented implementation includes authentication, account setup, role onboarding, account administration, guarded Excel-only `.xlsx` generation and preview/confirmation, RES-only archived-account restoration, immutable dropdown identities with historical-label aliases, the canonical `/dashboard`, Applicant drafts and private documents, date-based research duration, configured initial submission, the three-formal-application limit, Adviser return/endorsement decisions, the RES queue, Expedited/Full Board/Exempted classification, non-destructive reviewer assignment/reassignment, current-assignment Reviewer workspaces, the two official Reviewer forms, asynchronous private comment CRUD/resolution with incremental history, initial review decisions, versioned private official-form PDFs, deadline/timeline configuration, shared navigation, notifications, functional Reviewer/RES account settings, and audit records. Uploaded-document content redaction, revision comparison/re-review, consolidated result/certificate release, QR verification, manual Microsoft Excel acceptance, and final responsive acceptance remain explicitly identified as incomplete or pending.
 
 Keep these files synchronized whenever dashboard routes, role rules, data queries, or shared components change.

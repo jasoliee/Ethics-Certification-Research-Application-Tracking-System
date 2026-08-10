@@ -103,7 +103,7 @@ class OfficialReviewFormArtifactService
             $this->overlaySourcePage($pdf, $type, $sourcePage, $payload, $context);
         }
 
-        $continuation = $this->continuationComments($type, $payload);
+        $continuation = $this->continuationComments($type, $payload, $context);
 
         if ($continuation !== []) {
             $this->addContinuationPages($pdf, $type, $continuation, $context);
@@ -301,9 +301,10 @@ class OfficialReviewFormArtifactService
 
     /**
      * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $context
      * @return array<int, array{label: string, comment: string}>
      */
-    private function continuationComments(ReviewFormType $type, array $payload): array
+    private function continuationComments(ReviewFormType $type, array $payload, array $context): array
     {
         $responses = (array) ($payload['responses'] ?? []);
         $comments = [];
@@ -336,6 +337,46 @@ class OfficialReviewFormArtifactService
             ];
         }
 
+        $finalReview = (array) ($context['final_review'] ?? []);
+
+        if (filled($finalReview['decision_label'] ?? null)) {
+            $comments[] = [
+                'label' => 'Overall final review decision',
+                'comment' => (string) $finalReview['decision_label'],
+            ];
+        }
+
+        if (filled($finalReview['decision_comment'] ?? null)) {
+            $comments[] = [
+                'label' => 'Final decision comment',
+                'comment' => (string) $finalReview['decision_comment'],
+            ];
+        }
+
+        if (filled($finalReview['submitted_at_display'] ?? null)) {
+            $comments[] = [
+                'label' => 'Overall review submitted',
+                'comment' => (string) $finalReview['submitted_at_display'],
+            ];
+        }
+
+        foreach ((array) ($finalReview['assignment_comments'] ?? []) as $entry) {
+            $comment = (array) $entry;
+            $metadata = array_filter([
+                filled($comment['scope_label'] ?? null) ? 'Scope: '.$comment['scope_label'] : null,
+                filled($comment['reference'] ?? null) ? 'Reference: '.$comment['reference'] : null,
+                filled($comment['status'] ?? null) ? 'Status: '.Str::headline((string) $comment['status']) : null,
+                filled($comment['created_at_display'] ?? null) ? 'Recorded: '.$comment['created_at_display'] : null,
+                filled($comment['updated_at_display'] ?? null) ? 'Last updated: '.$comment['updated_at_display'] : null,
+            ]);
+            $comments[] = [
+                'label' => 'Review comment #'.(int) ($comment['id'] ?? 0)
+                    .' - '.(string) ($comment['category_label'] ?? 'General Comment'),
+                'comment' => trim((string) ($comment['body'] ?? ''))
+                    .($metadata === [] ? '' : "\n".implode(' | ', $metadata)),
+            ];
+        }
+
         return $comments;
     }
 
@@ -345,23 +386,11 @@ class OfficialReviewFormArtifactService
     private function addContinuationPages(Fpdi $pdf, ReviewFormType $type, array $comments, array $context): void
     {
         $pdf->SetAutoPageBreak(true, 18);
-        $pdf->AddPage('P', 'A4');
-        $pdf->SetMargins(18, 18, 18);
-        $pdf->SetXY(18, 18);
-        $pdf->SetTextColor(0, 73, 35);
-        $pdf->SetFont('Helvetica', 'B', 14);
-        $pdf->Cell(0, 8, $this->pdfText($type->code().' RESPONSE CONTINUATION'), 0, 1);
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->MultiCell(0, 5, $this->pdfText(
-            'Confidential blind-review artifact - '.(string) ($context['application_code'] ?? '').' - page references preserve the finalized response record.',
-        ));
-        $pdf->Ln(3);
+        $this->startContinuationPage($pdf, $type, $context);
 
         foreach ($comments as $entry) {
             if ($pdf->GetY() > 255) {
-                $pdf->AddPage('P', 'A4');
-                $pdf->SetXY(18, 18);
+                $this->startContinuationPage($pdf, $type, $context);
             }
 
             $pdf->SetFont('Helvetica', 'B', 8);
@@ -370,6 +399,35 @@ class OfficialReviewFormArtifactService
             $pdf->MultiCell(174, 4.5, $this->pdfText('Comment: '.$entry['comment']));
             $pdf->Ln(2);
         }
+    }
+
+    /** @param array<string, mixed> $context */
+    private function startContinuationPage(Fpdi $pdf, ReviewFormType $type, array $context): void
+    {
+        $pdf->AddPage('P', 'A4');
+        $pdf->SetMargins(18, 18, 18);
+        $logoPath = base_path('assets/logo.png');
+
+        if (is_file($logoPath) && is_readable($logoPath)) {
+            $pdf->Image($logoPath, 18, 14, 18, 18, 'PNG');
+        }
+
+        $pdf->SetXY(42, 16);
+        $pdf->SetTextColor(0, 73, 35);
+        $pdf->SetFont('Helvetica', 'B', 13);
+        $pdf->Cell(150, 7, $this->pdfText($type->code().' RESPONSE CONTINUATION'), 0, 1);
+        $pdf->SetX(42);
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->Cell(150, 5, $this->pdfText('RESEARCH ETHICS SECTION - OFFICIAL REVIEW RECORD'), 0, 1);
+        $pdf->SetDrawColor(0, 111, 61);
+        $pdf->Line(18, 35, 192, 35);
+        $pdf->SetXY(18, 39);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->MultiCell(174, 5, $this->pdfText(
+            'Confidential blind-review artifact - '.(string) ($context['application_code'] ?? '').' - source pages retain the official form layout and this page preserves the complete submitted review record.',
+        ));
+        $pdf->Ln(3);
     }
 
     private function writeSingleLine(Fpdi $pdf, float $x, float $y, float $width, string $text): void

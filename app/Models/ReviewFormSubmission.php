@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ReviewDecision;
+use App\Enums\ReviewFormArtifactStatus;
 use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
 use Illuminate\Database\Eloquent\Model;
@@ -57,6 +58,8 @@ class ReviewFormSubmission extends Model
 
     public function artifact(): HasOne
     {
-        return $this->hasOne(ReviewFormArtifact::class)->ofMany('artifact_version', 'max');
+        return $this->hasOne(ReviewFormArtifact::class)
+            ->where('status', ReviewFormArtifactStatus::Ready->value)
+            ->ofMany('artifact_version', 'max');
     }
 }

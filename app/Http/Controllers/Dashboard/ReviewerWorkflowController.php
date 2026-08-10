@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reviewer\SaveReviewerDecisionRequest;
 use App\Http\Requests\Reviewer\SaveReviewerFormRequest;
@@ -12,13 +13,17 @@ use App\Http\Requests\Reviewer\StoreReviewCommentRequest;
 use App\Models\ReviewComment;
 use App\Models\ReviewerAssignment;
 use App\Services\Applications\ReviewerWorkflowService;
+use App\Services\Settings\DeadlineProcessAvailability;
 use App\Support\ReviewFormCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class ReviewerWorkflowController extends Controller
 {
+    private const COMMENT_PAGE_SIZE = 20;
+
     public function saveForm(
         SaveReviewerFormRequest $request,
         ReviewerAssignment $reviewerAssignment,
@@ -70,7 +75,7 @@ class ReviewerWorkflowController extends Controller
         }
 
         return back()->with('status', $final
-            ? $reviewFormType->label().' finalized.'
+            ? $reviewFormType->label().' finalized. Its official PDF will be generated with the final review submission.'
             : $reviewFormType->label().' draft saved.');
     }
 
@@ -86,6 +91,41 @@ class ReviewerWorkflowController extends Controller
         }
 
         return back()->with('status', 'Review comment added.');
+    }
+
+    public function olderComments(
+        Request $request,
+        ReviewerAssignment $reviewerAssignment,
+        DeadlineProcessAvailability $deadlines,
+    ): JsonResponse {
+        Gate::authorize('openWorkspace', $reviewerAssignment);
+        $validated = $request->validate([
+            'before_id' => ['required', 'integer', 'min:1'],
+        ]);
+        $reviewWindow = $deadlines->status(
+            'reviewer-submission',
+            UserRole::Reviewer,
+            'Reviewer submission',
+        );
+        $canWrite = Gate::allows('work', $reviewerAssignment) && $reviewWindow['open'];
+        $batch = $reviewerAssignment->comments()
+            ->where('id', '<', $validated['before_id'])
+            ->with('document:id,original_file_name')
+            ->latest('id')
+            ->limit(self::COMMENT_PAGE_SIZE + 1)
+            ->get();
+        $hasOlder = $batch->count() > self::COMMENT_PAGE_SIZE;
+        $comments = $batch->take(self::COMMENT_PAGE_SIZE)->values();
+
+        return response()->json(['data' => [
+            'items' => $comments->map(fn (ReviewComment $comment): array => [
+                'id' => $comment->id,
+                'html' => $this->commentHtml($comment, $reviewerAssignment, $canWrite),
+            ])->all(),
+            'count' => $reviewerAssignment->comments()->count(),
+            'has_more' => $hasOlder,
+            'next_before_id' => $hasOlder ? $comments->last()?->id : null,
+        ]]);
     }
 
     public function updateComment(
@@ -134,7 +174,10 @@ class ReviewerWorkflowController extends Controller
         $workflow->removeComment($request->user(), $reviewerAssignment, $reviewComment);
 
         if ($request->expectsJson()) {
-            return response()->json(null, 204);
+            return response()->json(['data' => [
+                'deleted_id' => $reviewComment->id,
+                'count' => $reviewerAssignment->comments()->count(),
+            ]]);
         }
 
         return back()->with('status', 'Review comment removed.');
@@ -156,13 +199,21 @@ class ReviewerWorkflowController extends Controller
             'resolved_at' => $comment->resolved_at?->toIso8601String(),
             'updated_at' => $comment->updated_at?->toIso8601String(),
             // Return server-rendered, escaped markup so asynchronous and fallback responses stay identical.
-            'html' => view('dashboard.assignments.partials.comment-item', [
-                'comment' => $comment,
-                'assignment' => $assignment,
-                'canWrite' => true,
-            ])->render(),
+            'html' => $this->commentHtml($comment, $assignment, true),
             'count' => $assignment->comments()->count(),
         ];
+    }
+
+    private function commentHtml(
+        ReviewComment $comment,
+        ReviewerAssignment $assignment,
+        bool $canWrite,
+    ): string {
+        return view('dashboard.assignments.partials.comment-item', [
+            'comment' => $comment,
+            'assignment' => $assignment,
+            'canWrite' => $canWrite,
+        ])->render();
     }
 
     public function saveDecision(

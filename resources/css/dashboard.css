@@ -4692,6 +4692,10 @@
         padding-left: 38px;
     }
 
+    .ecrats-dashboard-body.has-application-modal-open {
+        overflow: hidden;
+    }
+
     /* Covers the viewport and prevents the page behind a modal from receiving pointer input. */
     .application-modal-backdrop {
         position: fixed;
@@ -9019,7 +9023,7 @@
 
     .reviewer-workspace-meta-bar dl {
         display: grid;
-        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
         align-items: center;
         gap: 14px 22px;
         margin: 0;
@@ -9290,6 +9294,14 @@
 
     .reviewer-comment-list {
         display: grid;
+        max-height: clamp(220px, 32svh, 360px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+
+    .reviewer-comment-list[aria-busy="true"] {
+        cursor: progress;
     }
 
     .reviewer-comment-item {
@@ -9442,6 +9454,45 @@
     .reviewer-empty-copy {
         padding: 24px 20px;
         text-align: center;
+    }
+
+    .reviewer-comment-history-controls {
+        display: grid;
+        justify-items: center;
+        gap: 7px;
+        border-top: 1px solid #e3e9e5;
+        padding: 12px 16px 14px;
+    }
+
+    .reviewer-comment-history-controls .dashboard-outline-action {
+        min-height: 38px;
+        justify-content: center;
+    }
+
+    .reviewer-comment-history-controls [hidden] {
+        display: none;
+    }
+
+    .reviewer-comments-history-feedback,
+    .reviewer-comments-noscript {
+        min-height: 16px;
+        margin: 0;
+        color: #667085;
+        font-size: 11px;
+        line-height: 1.4;
+        text-align: center;
+    }
+
+    .reviewer-comments-history-feedback.is-success {
+        color: #08723d;
+    }
+
+    .reviewer-comments-history-feedback.is-error {
+        color: #b42318;
+    }
+
+    .reviewer-comment-item[aria-busy="true"] {
+        opacity: 0.68;
     }
 
     .reviewer-form-list {
@@ -9682,6 +9733,10 @@
         grid-column: 3;
     }
 
+    .reviewer-consent-explanation[hidden] {
+        display: none;
+    }
+
     .reviewer-form-question-list {
         display: grid;
         gap: 14px;
@@ -9769,6 +9824,42 @@
         border: 1px solid #dce5e0;
         border-radius: 7px;
         padding: 14px;
+    }
+
+    .reviewer-form-recommendation-options {
+        min-width: 0;
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        margin: 0;
+        border: 0;
+        padding: 0;
+    }
+
+    .reviewer-form-recommendation-options legend {
+        margin-bottom: 2px;
+        color: #344054;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .reviewer-form-recommendation-options label {
+        min-width: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        color: #445268;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .reviewer-form-recommendation-options input {
+        flex: 0 0 auto;
+        margin-top: 2px;
+    }
+
+    .reviewer-worksheet-form[aria-busy="true"] {
+        cursor: progress;
     }
 
     .reviewer-form-progress {

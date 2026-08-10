@@ -5,8 +5,7 @@
         $application = $assignment->researchApplication;
         $review = $assignment->reviewSubmission;
         $reviewSubmitted = $review?->status === \App\Enums\ReviewSubmissionStatus::Submitted;
-        $formIsComplete = static fn ($form): bool => $form?->status === \App\Enums\ReviewFormStatus::Final
-            && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready;
+        $formIsComplete = static fn ($form): bool => $form?->status === \App\Enums\ReviewFormStatus::Final;
         $completedForms = $forms->filter($formIsComplete)->count();
         $activeDocument = $application->documents->first();
         $formProgress = static function ($form, array $catalog) use ($formIsComplete): array {
@@ -59,6 +58,7 @@
         <section class="application-panel reviewer-workspace-meta-bar" aria-label="Application review summary">
             <dl>
                 <div><dt>Application Code</dt><dd>{{ $application->application_code }}</dd></div>
+                <div class="reviewer-workspace-meta-title"><dt>Research Title</dt><dd>{{ $application->research_title }}</dd></div>
                 <div><dt>Review Type</dt><dd>{{ filled($application->review_type) ? Str::headline($application->review_type) : 'Not specified' }}</dd></div>
                 <div><dt>Category</dt><dd>{{ $application->research_category ?: ($application->research_type?->label() ?? 'Not specified') }}</dd></div>
                 <div><dt>Review Deadline</dt><dd>{{ $assignment->review_deadline_at?->format('M j, Y g:i A') ?? 'Not configured' }}</dd></div>
@@ -72,7 +72,7 @@
                 @if ($application->documents->isEmpty())
                     <p class="reviewer-empty-copy">No supporting documents are available.</p>
                 @else
-                    <div class="reviewer-document-list" role="list">
+                    <div class="reviewer-document-list">
                         @foreach ($application->documents as $document)
                             @php
                                 $fileKind = $document->fileTypeLabel();
@@ -88,7 +88,6 @@
                             <button
                                 @class(['reviewer-document-choice', 'is-active' => $activeDocument?->is($document)])
                                 type="button"
-                                role="listitem"
                                 data-reviewer-document-choice
                                 data-document-id="{{ $document->id }}"
                                 data-document-name="{{ $document->original_file_name }}"
@@ -123,7 +122,7 @@
                     </div>
                 </header>
                 @if ($activeDocument)
-                    <div class="reviewer-document-frame-shell" data-reviewer-document-frame-shell aria-busy="false">
+                    <div class="reviewer-document-frame-shell" data-reviewer-document-frame-shell aria-busy="true">
                         <div class="reviewer-document-loading" data-reviewer-document-loading role="status">Loading secure preview...</div>
                         <iframe
                             src="{{ route('reviewer.applications.documents.preview', [$application, $activeDocument]) }}"
@@ -179,7 +178,9 @@
                 <section class="application-panel reviewer-comments-panel">
                 <header class="application-panel-heading">
                     <div><h2>Review Comments</h2><p>Comments stay confidential and are not visible to the Applicant before official release.</p></div>
-                    <span data-reviewer-comment-count><x-dashboard.status-badge :label="$assignment->comments->count().' recorded'" tone="neutral" /></span>
+                    <span data-reviewer-comment-count>
+                        <x-dashboard.status-badge :label="$commentTotal.' recorded'" tone="neutral" data-reviewer-comment-total="{{ $commentTotal }}" />
+                    </span>
                 </header>
 
                 @if ($errors->reviewComment->any())
@@ -236,12 +237,30 @@
                     </div>
                 </form>
 
-                <div class="reviewer-comment-list" aria-live="polite" data-reviewer-comment-list>
-                    @forelse ($assignment->comments as $comment)
+                <div class="reviewer-comment-list" id="reviewer-comment-history" aria-live="polite" aria-busy="false" data-reviewer-comment-list>
+                    @forelse ($comments as $comment)
                         @include('dashboard.assignments.partials.comment-item', ['comment' => $comment, 'assignment' => $assignment, 'canWrite' => $canWrite])
                     @empty
                     @endforelse
-                    <p class="reviewer-empty-copy" data-reviewer-comment-empty @if ($assignment->comments->isNotEmpty()) hidden @endif>No review comments recorded yet. Add an overall or document comment while reviewing.</p>
+                    <p class="reviewer-empty-copy" data-reviewer-comment-empty @if ($comments->isNotEmpty()) hidden @endif>No review comments recorded yet. Add an overall or document comment while reviewing.</p>
+                </div>
+                <div class="reviewer-comment-history-controls">
+                    <button
+                        class="dashboard-outline-action"
+                        type="button"
+                        aria-controls="reviewer-comment-history"
+                        data-reviewer-comments-load
+                        data-comments-url="{{ route('reviewer.assignments.comments.index', $assignment) }}"
+                        data-before-id="{{ $commentsNextBeforeId }}"
+                        @if (! $commentsHaveOlder) hidden @endif
+                    >
+                        <x-dashboard.icon name="refresh" size="16" />
+                        <span data-reviewer-comments-load-label>Load Older Comments</span>
+                    </button>
+                    <p class="reviewer-comments-history-feedback" role="status" aria-live="polite" data-reviewer-comments-history-feedback></p>
+                    @if ($commentsHaveOlder)
+                        <noscript><p class="reviewer-comments-noscript">The newest 20 comments are shown. Enable JavaScript to load older comments.</p></noscript>
+                    @endif
                 </div>
                 </section>
 
@@ -277,6 +296,7 @@
                             $formIsFinal = $formIsComplete($form);
                             $progress = $formProgress($form, $catalog);
                             $statusLabel = $formIsFinal ? 'Complete' : ($form ? 'Draft Saved' : 'Not Started');
+                            $openLabel = $formIsFinal || ! $canWrite ? 'View' : ($form ? 'Continue' : 'Start');
                         @endphp
                         <article class="reviewer-worksheet-option">
                             <span class="reviewer-worksheet-option-icon"><x-dashboard.icon name="clipboard" size="23" /></span>
@@ -290,16 +310,23 @@
                                         data-reviewer-form-status="{{ $type->value }}"
                                     />
                                     <span data-reviewer-form-progress="{{ $type->value }}">{{ $progress['answered'] }} of {{ $progress['total'] }} items completed</span>
-                                    @if ($formIsFinal)
+                                    @if ($reviewSubmitted && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready)
                                         <span class="reviewer-worksheet-artifact-actions">
                                             <a href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">Preview official PDF</a>
                                             <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $form->artifact]) }}">Download</a>
                                         </span>
+                                    @elseif ($formIsFinal && ! $reviewSubmitted)
+                                        <span>Official PDF will be generated with the final review submission.</span>
                                     @endif
                                 </div>
                             </div>
-                            <button class="dashboard-outline-action" type="button" data-reviewer-form-open="{{ $type->value }}">
-                                <span data-reviewer-form-open-label="{{ $type->value }}">{{ $formIsFinal || ! $canWrite ? 'View' : ($form ? 'Continue' : 'Start') }}</span>
+                            <button
+                                class="dashboard-outline-action"
+                                type="button"
+                                aria-label="{{ $openLabel }} {{ $type->label() }}"
+                                data-reviewer-form-open="{{ $type->value }}"
+                            >
+                                <span data-reviewer-form-open-label="{{ $type->value }}">{{ $openLabel }}</span>
                                 <x-dashboard.icon name="arrow-right" size="16" />
                             </button>
                         </article>
@@ -322,6 +349,9 @@
                 $consentValue = old('form_type') === $type->value
                     ? old('consent_required', '')
                     : ($form?->consent_required === null ? '' : (string) (int) $form->consent_required);
+                $recommendationValue = old('form_type') === $type->value
+                    ? old('recommendation')
+                    : $form?->recommendation?->value;
             @endphp
             <section
                 class="application-modal-backdrop"
@@ -369,13 +399,17 @@
                         <input type="hidden" name="form_type" value="{{ $type->value }}">
 
                         @if ($type === \App\Enums\ReviewFormType::InformedConsent)
-                            <fieldset class="reviewer-consent-gate">
+                            <fieldset
+                                class="reviewer-consent-gate"
+                                data-reviewer-consent-gate
+                                data-reviewer-consent-writable="{{ $formCanWrite ? 'true' : 'false' }}"
+                            >
                                 <legend>Is it necessary to seek the informed consent of the participants?</legend>
                                 <label><input type="radio" name="consent_required" value="1" @checked((string) $consentValue === '1') @disabled(! $formCanWrite)> Yes</label>
                                 <label><input type="radio" name="consent_required" value="0" @checked((string) $consentValue === '0') @disabled(! $formCanWrite)> No</label>
-                                <label class="application-field reviewer-consent-explanation">
+                                <label class="application-field reviewer-consent-explanation" data-reviewer-consent-explanation @if ((string) $consentValue !== '0') hidden @endif>
                                     <span>If NO, please explain (answer briefly)</span>
-                                    <textarea name="consent_not_required_explanation" rows="3" maxlength="2000" @disabled(! $formCanWrite)>{{ old('form_type') === $type->value ? old('consent_not_required_explanation') : $form?->consent_not_required_explanation }}</textarea>
+                                    <textarea name="consent_not_required_explanation" rows="3" maxlength="2000" data-reviewer-consent-explanation-input @disabled(! $formCanWrite || (string) $consentValue !== '0')>{{ old('form_type') === $type->value ? old('consent_not_required_explanation') : $form?->consent_not_required_explanation }}</textarea>
                                 </label>
                             </fieldset>
                         @endif
@@ -393,9 +427,7 @@
                                 @endphp
                                 <fieldset class="reviewer-form-question" data-reviewer-form-question>
                                     <legend>
-                                        @if (array_key_exists('printed_number', $item) && $item['printed_number'] !== null)
-                                            <span>{{ $item['printed_number'] }}</span>
-                                        @endif
+                                        <span>{{ $item['printed_number'] ?? $loop->iteration }}</span>
                                         {{ $question }}
                                     </legend>
                                     <div class="reviewer-form-answer-options">
@@ -412,15 +444,21 @@
                         </div>
 
                         <div class="reviewer-form-recommendation">
-                            <div class="application-field">
-                                <label for="{{ $type->value }}-recommendation">Recommendation</label>
-                                <select id="{{ $type->value }}-recommendation" name="recommendation" @disabled(! $formCanWrite)>
-                                    <option value="">Select a recommendation</option>
-                                    @foreach ($decisions as $decision)
-                                        <option value="{{ $decision->value }}" @selected((old('form_type') === $type->value ? old('recommendation') : $form?->recommendation?->value) === $decision->value)>{{ $decision->label() }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            <fieldset class="reviewer-form-recommendation-options">
+                                <legend>Recommendation</legend>
+                                @foreach ($decisions as $decision)
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="recommendation"
+                                            value="{{ $decision->value }}"
+                                            @checked($recommendationValue === $decision->value)
+                                            @disabled(! $formCanWrite)
+                                        >
+                                        <span>{{ $decision->label() }}</span>
+                                    </label>
+                                @endforeach
+                            </fieldset>
                             <div class="application-field">
                                 <label for="{{ $type->value }}-recommendation-comments">Recommendation Comments</label>
                                 <textarea id="{{ $type->value }}-recommendation-comments" name="recommendation_comments" rows="4" maxlength="2000" @disabled(! $formCanWrite)>{{ old('form_type') === $type->value ? old('recommendation_comments') : $form?->recommendation_comments }}</textarea>
@@ -428,14 +466,14 @@
                         </div>
 
                         <div class="reviewer-form-progress" aria-live="polite">
-                            <span data-reviewer-form-progress="{{ $type->value }}">{{ $progress['answered'] }} of {{ $progress['total'] }} items completed</span>
-                            <progress value="{{ $progress['answered'] }}" max="{{ $progress['total'] }}" data-reviewer-form-progress-bar>{{ $progress['answered'] }} / {{ $progress['total'] }}</progress>
+                            <span id="reviewer-form-{{ $type->value }}-progress-label" data-reviewer-form-progress="{{ $type->value }}">{{ $progress['answered'] }} of {{ $progress['total'] }} items completed</span>
+                            <progress value="{{ $progress['answered'] }}" max="{{ $progress['total'] }}" aria-labelledby="reviewer-form-{{ $type->value }}-progress-label" data-reviewer-form-progress-bar>{{ $progress['answered'] }} / {{ $progress['total'] }}</progress>
                         </div>
                         <p class="reviewer-form-feedback" role="status" aria-live="polite" data-reviewer-form-feedback></p>
 
                         <div class="application-modal-actions reviewer-form-actions">
                             <button class="dashboard-outline-action" type="button" data-reviewer-form-close>Back to Worksheets</button>
-                            @if ($formIsFinal)
+                            @if ($reviewSubmitted && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready)
                                 <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">
                                     <x-dashboard.icon name="eye" size="16" />
                                     <span>Preview Official PDF</span>
@@ -447,7 +485,7 @@
                             @endif
                             @if ($formCanWrite)
                                 <button class="dashboard-outline-action" type="submit" name="intent" value="draft" data-reviewer-form-save-draft>Save Draft</button>
-                                <button class="dashboard-primary-action" type="submit" name="intent" value="final">Finalize Form</button>
+                                <button class="dashboard-primary-action" type="submit" name="intent" value="final" data-reviewer-form-submit-final>Submit Final</button>
                             @endif
                         </div>
                     </form>

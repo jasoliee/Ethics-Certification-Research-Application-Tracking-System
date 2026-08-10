@@ -182,6 +182,8 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('assignments.forms.artifacts.preview');
                 Route::get('/assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/download', [ReviewFormArtifactController::class, 'reviewerDownload'])
                     ->name('assignments.forms.artifacts.download');
+                Route::get('/assignments/{reviewerAssignment}/comments', [ReviewerWorkflowController::class, 'olderComments'])
+                    ->name('assignments.comments.index');
                 Route::post('/assignments/{reviewerAssignment}/comments', [ReviewerWorkflowController::class, 'addComment'])
                     ->middleware('throttle:reviewer-workflow')
                     ->name('assignments.comments.store');

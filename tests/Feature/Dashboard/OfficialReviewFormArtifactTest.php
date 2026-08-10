@@ -9,12 +9,14 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewFormArtifactStatus;
 use App\Enums\ReviewFormStatus;
 use App\Enums\ReviewFormType;
+use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\OfficialReviewFormGenerationException;
 use App\Models\DeadlineConfiguration;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\ReviewFormArtifact;
+use App\Models\ReviewFormSubmission;
 use App\Models\User;
 use App\Services\Applications\OfficialReviewFormArtifactService;
 use App\Support\ReviewFormCatalog;
@@ -44,7 +46,7 @@ class OfficialReviewFormArtifactTest extends TestCase
         ]);
     }
 
-    public function test_finalization_creates_an_integrity_checked_flattened_official_pdf_idempotently(): void
+    public function test_form_finalization_creates_immutable_snapshots_without_an_artifact(): void
     {
         [$reviewer, $applicant, $adviser, $application, $assignment] = $this->fixture();
         $payload = $this->finalPayload(ReviewFormType::Protocol);
@@ -53,93 +55,327 @@ class OfficialReviewFormArtifactTest extends TestCase
             ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), $payload)
             ->assertOk()
             ->assertJsonPath('data.status', ReviewFormStatus::Final->value)
-            ->assertJsonPath('data.artifact.status', ReviewFormArtifactStatus::Ready->value)
-            ->assertJsonPath('data.artifact.version', 1);
+            ->assertJsonPath('data.artifact', null);
 
-        $artifact = ReviewFormArtifact::query()->firstOrFail();
-        $form = $artifact->formSubmission;
-        $bytes = Storage::disk('local')->get($artifact->stored_file_path);
+        $form = $assignment->formSubmissions()
+            ->where('form_type', ReviewFormType::Protocol)
+            ->firstOrFail();
 
-        $this->assertSame($artifact->id, $first->json('data.artifact.id'));
-        $this->assertSame(strlen($bytes), $artifact->file_size_bytes);
-        $this->assertSame(hash('sha256', $bytes), $artifact->sha256);
-        $this->assertSame(ReviewFormCatalog::TEMPLATE_SHA256, $artifact->template_sha256);
-        $this->assertSame(ReviewFormCatalog::CATALOG_VERSION, $artifact->template_version);
-        $this->assertStringStartsWith('%PDF-', $bytes);
-        $this->assertStringNotContainsString('/AcroForm', $bytes);
-        $this->assertStringNotContainsString('/Widget', $bytes);
-        $this->assertStringNotContainsString('/JavaScript', $bytes);
-
-        $parser = new Fpdi;
-        $this->assertSame(3, $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)));
+        $this->assertSame($form->id, $first->json('data.id'));
+        $this->assertSame(ReviewFormCatalog::CATALOG_VERSION, $form->catalog_version);
+        $this->assertSame($payload['responses'], $form->finalized_payload_snapshot['responses']);
         $this->assertSame($application->research_title, $form->finalized_context_snapshot['research_title']);
         $this->assertSame($application->institution, $form->finalized_context_snapshot['institution']);
         $this->assertSame('authenticated_electronic_attestation', $form->finalized_context_snapshot['attestation']['method']);
         $this->assertStringNotContainsString($applicant->name, json_encode($form->finalized_context_snapshot, JSON_THROW_ON_ERROR));
         $this->assertStringNotContainsString($adviser->name, json_encode($form->finalized_context_snapshot, JSON_THROW_ON_ERROR));
+        $this->assertDatabaseCount('review_form_artifacts', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
 
-        // A retried final request is idempotent and returns the immutable artifact.
+        // A retried finalization is idempotent even though artifact generation is intentionally deferred.
         $this->actingAs($reviewer)
             ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), $payload)
             ->assertOk()
-            ->assertJsonPath('data.artifact.id', $artifact->id);
-        $this->assertDatabaseCount('review_form_artifacts', 1);
-        $this->assertSame($artifact->sha256, ReviewFormArtifact::query()->firstOrFail()->sha256);
+            ->assertJsonPath('data.id', $form->id)
+            ->assertJsonPath('data.artifact', null);
+
+        $this->assertDatabaseCount('review_form_submissions', 1);
+        $this->assertDatabaseCount('review_form_artifacts', 0);
     }
 
-    public function test_consent_form_uses_only_official_pages_seven_and_eight(): void
+    public function test_overall_submission_generates_both_ready_pdfs_from_persisted_decision_and_comments(): void
     {
         [$reviewer, , , , $assignment] = $this->fixture();
+        $this->finalizeForms($reviewer, $assignment);
+        $firstComment = $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'general',
+            'body' => 'The protocol and consent materials are internally consistent.',
+            'status' => 'open',
+        ]);
+        $secondComment = $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'required_revision',
+            'body' => 'Clarify the participant withdrawal language before release.',
+            'status' => 'resolved',
+            'resolved_at' => now(),
+            'resolved_by_user_id' => $reviewer->id,
+        ]);
+        $decisionComment = 'Approve after preserving the resolved withdrawal-language clarification.';
 
         $this->actingAs($reviewer)
-            ->putJson(
-                route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::InformedConsent]),
-                $this->finalPayload(ReviewFormType::InformedConsent),
-            )
+            ->postJson(route('reviewer.assignments.review.store', $assignment), [
+                'intent' => 'submit',
+                'decision' => ReviewDecision::MinorRevision->value,
+                'decision_comment' => $decisionComment,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', ReviewSubmissionStatus::Submitted->value)
+            ->assertJsonPath('data.decision', ReviewDecision::MinorRevision->value);
+
+        $review = $assignment->reviewSubmission()->firstOrFail();
+        $this->assertSame(ReviewSubmissionStatus::Submitted, $review->status);
+        $this->assertSame(ReviewDecision::MinorRevision, $review->decision);
+        $this->assertSame($decisionComment, $review->decision_comment);
+        $this->assertNotNull($review->submitted_at);
+        $this->assertDatabaseHas('review_comments', ['id' => $firstComment->id, 'body' => $firstComment->body]);
+        $this->assertDatabaseHas('review_comments', ['id' => $secondComment->id, 'body' => $secondComment->body]);
+
+        $artifacts = ReviewFormArtifact::query()
+            ->with('formSubmission')
+            ->orderBy('review_form_submission_id')
+            ->get();
+
+        $this->assertCount(2, $artifacts);
+        $this->assertEqualsCanonicalizing(
+            [ReviewFormType::Protocol->value, ReviewFormType::InformedConsent->value],
+            $artifacts->map(
+                fn (ReviewFormArtifact $artifact): string => $artifact->formSubmission->form_type->value,
+            )->all(),
+        );
+
+        foreach ($artifacts as $artifact) {
+            $bytes = Storage::disk('local')->get($artifact->stored_file_path);
+            $this->assertSame(ReviewFormArtifactStatus::Ready, $artifact->status);
+            $this->assertSame(1, $artifact->artifact_version);
+            $this->assertSame(strlen($bytes), $artifact->file_size_bytes);
+            $this->assertSame(hash('sha256', $bytes), $artifact->sha256);
+            $this->assertSame(ReviewFormCatalog::TEMPLATE_SHA256, $artifact->template_sha256);
+            $this->assertSame(ReviewFormCatalog::GENERATOR_VERSION, $artifact->generator_version);
+            $this->assertStringStartsWith('%PDF-', $bytes);
+            $this->assertStringNotContainsString('/AcroForm', $bytes);
+            $this->assertStringNotContainsString('/Widget', $bytes);
+            $this->assertStringNotContainsString('/JavaScript', $bytes);
+
+            $parser = new Fpdi;
+            $expectedPages = $artifact->formSubmission->form_type === ReviewFormType::Protocol ? 4 : 3;
+            $this->assertSame(
+                $expectedPages,
+                $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)),
+            );
+        }
+    }
+
+    public function test_submission_passes_persisted_decision_and_assignment_comments_to_both_renderers(): void
+    {
+        [$reviewer, , , , $assignment] = $this->fixture();
+        $this->finalizeForms($reviewer, $assignment);
+        $firstComment = $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'general',
+            'body' => 'FIRST-PERSISTED-ARTIFACT-COMMENT',
+            'status' => 'open',
+        ]);
+        $secondComment = $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'clarification',
+            'body' => 'SECOND-PERSISTED-ARTIFACT-COMMENT',
+            'status' => 'resolved',
+            'resolved_at' => now(),
+            'resolved_by_user_id' => $reviewer->id,
+        ]);
+        $capturedContexts = [];
+        $renderer = Mockery::mock(OfficialReviewFormArtifactService::class);
+        $renderer->shouldReceive('renderAndStore')
+            ->twice()
+            ->andReturnUsing(function (
+                ReviewFormType $type,
+                array $payload,
+                array $context,
+                int $version,
+            ) use (&$capturedContexts): array {
+                $capturedContexts[$type->value] = [
+                    'payload' => $payload,
+                    'context' => $context,
+                    'version' => $version,
+                ];
+                $bytes = "%PDF-1.4\n% ECRATS persisted-context fixture {$type->value}\n%%EOF";
+                $path = "review-form-artifacts/tests/persisted-{$type->value}-v{$version}.pdf";
+                Storage::disk('local')->put($path, $bytes);
+
+                return $this->artifactData($type, $path, $bytes);
+            });
+        $this->app->instance(OfficialReviewFormArtifactService::class, $renderer);
+        $decisionComment = 'PERSISTED-FINAL-DECISION-COMMENT-4827';
+
+        $this->actingAs($reviewer)
+            ->postJson(route('reviewer.assignments.review.store', $assignment), [
+                'intent' => 'submit',
+                'decision' => ReviewDecision::MajorRevision->value,
+                'decision_comment' => $decisionComment,
+            ])
             ->assertOk();
 
-        $artifact = ReviewFormArtifact::query()->firstOrFail();
+        $this->assertCount(2, $capturedContexts);
+
+        foreach (ReviewFormType::cases() as $type) {
+            $captured = $capturedContexts[$type->value];
+            $finalReview = $captured['context']['final_review'];
+            $this->assertSame(1, $captured['version']);
+            $this->assertSame(ReviewDecision::MajorRevision->value, $finalReview['decision']);
+            $this->assertSame(ReviewDecision::MajorRevision->label(), $finalReview['decision_label']);
+            $this->assertSame($decisionComment, $finalReview['decision_comment']);
+            $this->assertNotNull($finalReview['review_submission_id']);
+            $this->assertNotNull($finalReview['submitted_at']);
+            $this->assertSame(
+                [$firstComment->id, $secondComment->id],
+                array_column($finalReview['assignment_comments'], 'id'),
+            );
+            $this->assertSame(
+                [$firstComment->body, $secondComment->body],
+                array_column($finalReview['assignment_comments'], 'body'),
+            );
+            $this->assertSame(
+                ['open', 'resolved'],
+                array_column($finalReview['assignment_comments'], 'status'),
+            );
+        }
+
+        $this->assertDatabaseHas('review_submissions', [
+            'reviewer_assignment_id' => $assignment->id,
+            'status' => ReviewSubmissionStatus::Submitted->value,
+            'decision' => ReviewDecision::MajorRevision->value,
+            'decision_comment' => $decisionComment,
+        ]);
+        $this->assertDatabaseCount('review_form_artifacts', 2);
+    }
+
+    public function test_consent_artifact_uses_official_pages_seven_and_eight_plus_the_submission_continuation(): void
+    {
+        [$reviewer, , , , $assignment] = $this->fixture();
+        $this->finalizeForms($reviewer, $assignment);
+        $this->submitReview($reviewer, $assignment);
+
+        $artifact = ReviewFormArtifact::query()
+            ->where('template_code', ReviewFormType::InformedConsent->code())
+            ->firstOrFail();
         $parser = new Fpdi;
 
-        $this->assertSame(2, $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)));
+        $this->assertSame(3, $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)));
         $this->assertSame('KLD-RES-04-002', $artifact->template_code);
     }
 
-    public function test_long_printed_responses_are_preserved_in_a_flattened_continuation_page(): void
+    public function test_long_form_decision_and_assignment_comments_are_preserved_on_continuation_pages(): void
     {
         [$reviewer, , , , $assignment] = $this->fixture();
-        $payload = $this->finalPayload(ReviewFormType::Protocol);
+        $protocolPayload = $this->finalPayload(ReviewFormType::Protocol);
         $questionComment = trim('QUESTION-CONTINUATION-'.str_repeat('Complete source response ', 35));
         $recommendationComment = trim('RECOMMENDATION-CONTINUATION-'.str_repeat('Required revision detail ', 45));
-        $payload['responses']['protocol_02']['comment'] = $questionComment;
-        $payload['recommendation'] = ReviewDecision::MinorRevision->value;
-        $payload['recommendation_comments'] = $recommendationComment;
+        $protocolPayload['responses']['protocol_02']['comment'] = $questionComment;
+        $protocolPayload['recommendation'] = ReviewDecision::MinorRevision->value;
+        $protocolPayload['recommendation_comments'] = $recommendationComment;
+        $this->finalizeForms($reviewer, $assignment, [
+            ReviewFormType::Protocol->value => $protocolPayload,
+        ]);
+        $assignmentComment = trim('ASSIGNMENT-CONTINUATION-'.str_repeat('Confidential assignment comment ', 45));
+        $assignment->comments()->create([
+            'scope' => 'overall',
+            'category' => 'required_revision',
+            'body' => $assignmentComment,
+            'status' => 'open',
+        ]);
+        $decisionComment = trim('DECISION-CONTINUATION-'.str_repeat('Final decision rationale ', 45));
 
-        $this->actingAs($reviewer)
-            ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), $payload)
-            ->assertOk();
+        $this->submitReview(
+            $reviewer,
+            $assignment,
+            ReviewDecision::MinorRevision,
+            $decisionComment,
+        );
 
-        $artifact = ReviewFormArtifact::query()->firstOrFail();
+        $artifact = ReviewFormArtifact::query()
+            ->where('template_code', ReviewFormType::Protocol->code())
+            ->firstOrFail();
         $form = $artifact->formSubmission;
         $parser = new Fpdi;
 
-        $this->assertSame(4, $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)));
+        $this->assertGreaterThanOrEqual(4, $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)));
         $this->assertSame($questionComment, $form->finalized_payload_snapshot['responses']['protocol_02']['comment']);
         $this->assertSame($recommendationComment, $form->finalized_payload_snapshot['recommendation_comments']);
+        $this->assertDatabaseHas('review_comments', [
+            'reviewer_assignment_id' => $assignment->id,
+            'body' => $assignmentComment,
+        ]);
+        $this->assertDatabaseHas('review_submissions', [
+            'reviewer_assignment_id' => $assignment->id,
+            'decision_comment' => $decisionComment,
+        ]);
     }
 
-    public function test_artifact_routes_enforce_role_parent_current_assignment_and_private_headers(): void
+    public function test_legacy_ready_artifact_is_hidden_until_submission_then_superseded_by_a_ready_version(): void
+    {
+        [$reviewer, , , $application, $assignment] = $this->fixture();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $this->finalizeForms($reviewer, $assignment);
+        $protocol = $assignment->formSubmissions()
+            ->where('form_type', ReviewFormType::Protocol)
+            ->firstOrFail();
+        $legacy = $this->createStoredArtifact(
+            $protocol,
+            ReviewFormArtifactStatus::Ready,
+            1,
+            'legacy-pre-submission-v1.pdf',
+        );
+        $reviewerPreview = route('reviewer.assignments.forms.artifacts.preview', [$assignment, $protocol, $legacy]);
+        $resPreview = route('res.applications.review-form-artifacts.preview', [$application, $assignment, $protocol, $legacy]);
+
+        $this->actingAs($reviewer)->get($reviewerPreview)->assertForbidden();
+        $this->actingAs($resLead)->get($resPreview)->assertForbidden();
+        $this->actingAs($resLead)
+            ->get(route('res.applications.show', $application))
+            ->assertOk()
+            ->assertDontSee('Official Reviewer Forms')
+            ->assertDontSee($legacy->original_file_name);
+
+        $this->submitReview($reviewer, $assignment);
+
+        $legacy->refresh();
+        $currentProtocol = ReviewFormArtifact::query()
+            ->where('review_form_submission_id', $protocol->id)
+            ->where('status', ReviewFormArtifactStatus::Ready->value)
+            ->firstOrFail();
+        $currentConsent = ReviewFormArtifact::query()
+            ->whereHas('formSubmission', fn ($forms) => $forms
+                ->where('reviewer_assignment_id', $assignment->id)
+                ->where('form_type', ReviewFormType::InformedConsent->value))
+            ->where('status', ReviewFormArtifactStatus::Ready->value)
+            ->firstOrFail();
+
+        $this->assertSame(ReviewFormArtifactStatus::Superseded, $legacy->status);
+        $this->assertSame(2, $currentProtocol->artifact_version);
+        $this->assertSame(1, $currentConsent->artifact_version);
+        $this->assertSame($currentProtocol->id, $protocol->fresh()->artifact->id);
+        $this->assertDatabaseCount('review_form_artifacts', 3);
+        $this->assertDatabaseHas('review_form_artifacts', [
+            'id' => $legacy->id,
+            'status' => ReviewFormArtifactStatus::Superseded->value,
+            'artifact_version' => 1,
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.applications.show', $application))
+            ->assertOk()
+            ->assertSee('Official Reviewer Forms')
+            ->assertSee($currentProtocol->original_file_name)
+            ->assertSee($currentConsent->original_file_name)
+            ->assertDontSee($legacy->original_file_name);
+
+        // Historical versions remain private and authorized after the parent review is submitted.
+        $this->actingAs($resLead)->get($resPreview)->assertOk();
+        $this->actingAs($reviewer)->get($reviewerPreview)->assertOk();
+    }
+
+    public function test_artifact_routes_enforce_role_parent_current_assignment_and_private_integrity_headers(): void
     {
         [$reviewer, $applicant, $adviser, $application, $assignment] = $this->fixture();
         $otherReviewer = User::factory()->create(['role' => UserRole::Reviewer]);
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $this->actingAs($reviewer)
-            ->putJson(
-                route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]),
-                $this->finalPayload(ReviewFormType::Protocol),
-            )
-            ->assertOk();
-        $artifact = ReviewFormArtifact::query()->firstOrFail();
+        $this->finalizeForms($reviewer, $assignment);
+        $this->submitReview($reviewer, $assignment);
+        $artifact = ReviewFormArtifact::query()
+            ->where('template_code', ReviewFormType::Protocol->code())
+            ->where('status', ReviewFormArtifactStatus::Ready->value)
+            ->firstOrFail();
         $form = $artifact->formSubmission;
         $reviewerPreview = route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $artifact]);
 
@@ -148,6 +384,7 @@ class OfficialReviewFormArtifactTest extends TestCase
         $this->assertStringContainsString('inline', (string) $response->headers->get('content-disposition'));
         $this->assertStringContainsString('no-store', (string) $response->headers->get('cache-control'));
         $this->assertSame('nosniff', $response->headers->get('x-content-type-options'));
+        $this->assertSame('SAMEORIGIN', $response->headers->get('x-frame-options'));
 
         $this->actingAs($reviewer)
             ->get(route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $artifact]))
@@ -185,51 +422,69 @@ class OfficialReviewFormArtifactTest extends TestCase
         $this->actingAs($resLead)->get($resPreview)->assertStatus(409);
     }
 
-    public function test_generation_failure_rolls_back_finalization_and_final_rows_without_ready_artifacts_do_not_gate_decisions(): void
+    public function test_generation_failure_rolls_back_submission_and_artifacts_but_leaves_forms_final(): void
     {
-        [$reviewer, , , , $assignment] = $this->fixture();
+        [$reviewer, , , $application, $assignment] = $this->fixture();
+        $this->finalizeForms($reviewer, $assignment);
+        $draftDecisionComment = 'Preserve this earlier decision draft after artifact generation fails.';
         $this->actingAs($reviewer)
-            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), [
+            ->post(route('reviewer.assignments.review.store', $assignment), [
                 'intent' => 'draft',
-                'responses' => ['protocol_01' => ['answer' => 'no', 'comment' => 'Preserved draft response.']],
+                'decision' => ReviewDecision::MinorRevision->value,
+                'decision_comment' => $draftDecisionComment,
             ])
             ->assertSessionHasNoErrors();
 
+        $calls = 0;
         $renderer = Mockery::mock(OfficialReviewFormArtifactService::class);
         $renderer->shouldReceive('renderAndStore')
-            ->once()
-            ->andThrow(new OfficialReviewFormGenerationException('Simulated renderer failure.'));
+            ->twice()
+            ->andReturnUsing(function (
+                ReviewFormType $type,
+                array $payload,
+                array $context,
+                int $version,
+            ) use (&$calls): array {
+                $calls++;
+
+                if ($calls === 2) {
+                    throw new OfficialReviewFormGenerationException('Simulated second-renderer failure.');
+                }
+
+                $bytes = "%PDF-1.4\n% ECRATS partial artifact\n%%EOF";
+                $path = "review-form-artifacts/tests/partial-{$type->value}-v{$version}.pdf";
+                Storage::disk('local')->put($path, $bytes);
+
+                return $this->artifactData($type, $path, $bytes);
+            });
         $this->app->instance(OfficialReviewFormArtifactService::class, $renderer);
-
-        $this->actingAs($reviewer)
-            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), $this->finalPayload(ReviewFormType::Protocol))
-            ->assertSessionHasErrorsIn('reviewerForm', ['form']);
-
-        $form = $assignment->formSubmissions()->where('form_type', ReviewFormType::Protocol)->firstOrFail();
-        $this->assertSame(ReviewFormStatus::Draft, $form->status);
-        $this->assertSame('no', $form->responses['protocol_01']['answer']);
-        $this->assertDatabaseCount('review_form_artifacts', 0);
-
-        foreach (ReviewFormType::cases() as $type) {
-            $assignment->formSubmissions()->updateOrCreate(
-                ['form_type' => $type->value],
-                [
-                    'status' => ReviewFormStatus::Final,
-                    'responses' => $this->completeResponses($type),
-                    'consent_required' => $type === ReviewFormType::InformedConsent ? true : null,
-                    'recommendation' => ReviewDecision::Approved,
-                    'finalized_at' => now(),
-                ],
-            );
-        }
 
         $this->actingAs($reviewer)
             ->post(route('reviewer.assignments.review.store', $assignment), [
                 'intent' => 'submit',
                 'decision' => ReviewDecision::Approved->value,
-                'decision_comment' => 'The forms are final rows but have no verified artifacts.',
+                'decision_comment' => 'This final submission must roll back when the second PDF fails.',
             ])
-            ->assertSessionHasErrorsIn('reviewDecision', ['forms']);
+            ->assertSessionHasErrorsIn('reviewDecision', ['review']);
+
+        $review = $assignment->reviewSubmission()->firstOrFail();
+        $this->assertSame(ReviewSubmissionStatus::Draft, $review->status);
+        $this->assertSame(ReviewDecision::MinorRevision, $review->decision);
+        $this->assertSame($draftDecisionComment, $review->decision_comment);
+        $this->assertNull($review->submitted_at);
+        $this->assertSame(
+            2,
+            $assignment->formSubmissions()->where('status', ReviewFormStatus::Final->value)->count(),
+        );
+        $this->assertTrue($assignment->formSubmissions()->get()->every(
+            fn (ReviewFormSubmission $form): bool => filled($form->finalized_payload_snapshot)
+                && filled($form->finalized_context_snapshot),
+        ));
+        $this->assertSame(ReviewerAssignmentStatus::InReview, $assignment->fresh()->assignment_status);
+        $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->fresh()->application_status);
+        $this->assertSame(ApplicationStage::EthicsReview, $application->fresh()->current_stage);
+        $this->assertDatabaseCount('review_form_artifacts', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
     /** @return array{User, User, User, ResearchApplication, ReviewerAssignment} */
@@ -257,6 +512,39 @@ class OfficialReviewFormArtifactTest extends TestCase
         return [$reviewer, $applicant, $adviser, $application, $assignment];
     }
 
+    /** @param array<string, array<string, mixed>> $payloads */
+    private function finalizeForms(User $reviewer, ReviewerAssignment $assignment, array $payloads = []): void
+    {
+        foreach (ReviewFormType::cases() as $type) {
+            $payload = $payloads[$type->value] ?? $this->finalPayload($type);
+
+            $this->actingAs($reviewer)
+                ->putJson(route('reviewer.assignments.forms.update', [$assignment, $type]), $payload)
+                ->assertOk()
+                ->assertJsonPath('data.status', ReviewFormStatus::Final->value)
+                ->assertJsonPath('data.artifact', null);
+        }
+
+        $this->assertDatabaseCount('review_form_artifacts', 0);
+    }
+
+    private function submitReview(
+        User $reviewer,
+        ReviewerAssignment $assignment,
+        ReviewDecision $decision = ReviewDecision::Approved,
+        string $decisionComment = 'The complete persisted review supports this final decision.',
+    ): void {
+        $this->actingAs($reviewer)
+            ->postJson(route('reviewer.assignments.review.store', $assignment), [
+                'intent' => 'submit',
+                'decision' => $decision->value,
+                'decision_comment' => $decisionComment,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', ReviewSubmissionStatus::Submitted->value)
+            ->assertJsonPath('data.decision', $decision->value);
+    }
+
     /** @return array<string, mixed> */
     private function finalPayload(ReviewFormType $type): array
     {
@@ -276,5 +564,43 @@ class OfficialReviewFormArtifactTest extends TestCase
                 $key => ['answer' => 'yes', 'comment' => null],
             ])
             ->all();
+    }
+
+    private function createStoredArtifact(
+        ReviewFormSubmission $form,
+        ReviewFormArtifactStatus $status,
+        int $version,
+        string $fileName,
+    ): ReviewFormArtifact {
+        $bytes = "%PDF-1.4\n% ECRATS historical artifact\n%%EOF";
+        $path = "review-form-artifacts/tests/{$form->id}-{$version}-{$fileName}";
+        Storage::disk('local')->put($path, $bytes);
+
+        return $form->artifacts()->create([
+            ...$this->artifactData($form->form_type, $path, $bytes, $fileName),
+            'artifact_version' => $version,
+            'status' => $status->value,
+            'generated_at' => now(),
+        ]);
+    }
+
+    /** @return array<string, int|string> */
+    private function artifactData(
+        ReviewFormType $type,
+        string $path,
+        string $bytes,
+        ?string $fileName = null,
+    ): array {
+        return [
+            'stored_file_path' => $path,
+            'original_file_name' => $fileName ?? $type->code().'-test.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size_bytes' => strlen($bytes),
+            'sha256' => hash('sha256', $bytes),
+            'template_code' => $type->code(),
+            'template_version' => ReviewFormCatalog::CATALOG_VERSION,
+            'template_sha256' => ReviewFormCatalog::TEMPLATE_SHA256,
+            'generator_version' => ReviewFormCatalog::GENERATOR_VERSION,
+        ];
     }
 }

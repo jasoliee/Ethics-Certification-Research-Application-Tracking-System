@@ -72,7 +72,7 @@ class ReviewFormArtifactController extends Controller
                 && $artifact->review_form_submission_id === $form->id,
             404,
         );
-        $artifact->loadMissing('formSubmission.assignment');
+        $artifact->loadMissing('formSubmission.assignment.reviewSubmission');
     }
 
     private function assertResNesting(

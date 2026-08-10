@@ -21,6 +21,8 @@ use Illuminate\View\View;
 
 class ReviewerAssignmentPageController extends Controller
 {
+    private const COMMENT_PAGE_SIZE = 20;
+
     /**
      * List only assignments owned by the authenticated Reviewer.
      */
@@ -172,9 +174,6 @@ class ReviewerAssignmentPageController extends Controller
                 ->orderBy('document_requirement_id'),
             'reviewSubmission',
             'formSubmissions.artifact',
-            'comments' => fn ($comments) => $comments
-                ->with('document:id,original_file_name')
-                ->latest(),
         ]);
 
         $reviewWindow = $deadlines->status(
@@ -183,6 +182,14 @@ class ReviewerAssignmentPageController extends Controller
             'Reviewer submission',
         );
         $canWrite = Gate::allows('work', $reviewerAssignment) && $reviewWindow['open'];
+        $commentTotal = $reviewerAssignment->comments()->count();
+        $commentBatch = $reviewerAssignment->comments()
+            ->with('document:id,original_file_name')
+            ->latest('id')
+            ->limit(self::COMMENT_PAGE_SIZE + 1)
+            ->get();
+        $commentsHaveOlder = $commentBatch->count() > self::COMMENT_PAGE_SIZE;
+        $comments = $commentBatch->take(self::COMMENT_PAGE_SIZE)->values();
         $forms = $reviewerAssignment->formSubmissions
             ->keyBy(fn ($form): string => $form->form_type->value);
         $formCatalog = collect(ReviewFormType::cases())->mapWithKeys(
@@ -199,6 +206,10 @@ class ReviewerAssignmentPageController extends Controller
             'assignment' => $reviewerAssignment,
             'reviewWindow' => $reviewWindow,
             'canWrite' => $canWrite,
+            'comments' => $comments,
+            'commentTotal' => $commentTotal,
+            'commentsHaveOlder' => $commentsHaveOlder,
+            'commentsNextBeforeId' => $commentsHaveOlder ? $comments->last()?->id : null,
             'forms' => $forms,
             'formCatalog' => $formCatalog,
             'decisions' => ReviewDecision::cases(),

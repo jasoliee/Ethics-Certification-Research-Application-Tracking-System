@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewFormArtifactStatus;
+use App\Enums\ReviewSubmissionStatus;
 use App\Enums\ReviewType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\AssignApplicationReviewersRequest;
@@ -130,10 +132,14 @@ class ResLeadApplicationController extends Controller
         $application = $this->loadResApplication($researchApplication);
         $canUpdateScreening = $request->user()->can('updateScreening', $application);
         $officialReviewArtifacts = ReviewFormArtifact::query()
+            ->where('status', ReviewFormArtifactStatus::Ready->value)
             ->whereHas('formSubmission.assignment', fn (Builder $assignments) => $assignments
-                ->where('research_application_id', $application->id))
+                ->where('research_application_id', $application->id)
+                ->whereHas('reviewSubmission', fn (Builder $submissions) => $submissions
+                    ->where('status', ReviewSubmissionStatus::Submitted->value)))
             ->with([
                 'formSubmission.assignment.reviewer:id,name',
+                'formSubmission.assignment.reviewSubmission',
             ])
             ->latest('generated_at')
             ->get();
