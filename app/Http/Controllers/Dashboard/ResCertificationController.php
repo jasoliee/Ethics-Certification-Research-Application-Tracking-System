@@ -92,6 +92,11 @@ class ResCertificationController extends Controller
                 'certificate.versions' => fn ($versions) => $versions
                     ->with('background:id,asset_version,source_kind')
                     ->orderByDesc('certificate_version'),
+                'documents' => fn ($documents) => $documents
+                    ->where('is_current', true)
+                    ->with('requirement:id,name')
+                    ->orderBy('document_requirement_id')
+                    ->orderBy('id'),
                 'decisionReleases' => fn ($releases) => $releases->latest('review_cycle'),
                 'reviewerAssignments' => fn ($assignments) => $assignments
                     ->current()
@@ -145,6 +150,7 @@ class ResCertificationController extends Controller
             $researchApplication,
             ReviewDecision::from($request->validated('decision')),
             $request->validated('comment_ids', []),
+            $request->validated('revision_document_ids', []),
         );
 
         return back()->with('status', 'Decision and selected comments released to the Applicant.');

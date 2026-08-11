@@ -34,7 +34,7 @@
             </div>
         @endif
 
-        @foreach (['revisionUpload', 'revisionSubmission', 'certificateSurvey', 'certificateClaim'] as $bag)
+        @foreach (['revisionUpload', 'revisionSubmission'] as $bag)
             @if ($errors->{$bag}->any())
                 <div class="res-form-error-summary" role="alert">
                     <x-dashboard.icon name="alert-triangle" size="19" />
@@ -255,6 +255,19 @@
                             <x-dashboard.status-badge :label="$certificationState->label()" :tone="$certificationState->tone()" />
                         </header>
 
+                        @if ($errors->certificateSurvey->any())
+                            <div class="res-form-error-summary certificate-action-error" role="alert">
+                                <x-dashboard.icon name="alert-triangle" size="19" />
+                                <div><strong>Evaluation was not submitted.</strong><span>{{ $errors->certificateSurvey->first() }}</span></div>
+                            </div>
+                        @endif
+                        @if ($errors->certificateClaim->any())
+                            <div class="res-form-error-summary certificate-action-error" role="alert">
+                                <x-dashboard.icon name="alert-triangle" size="19" />
+                                <div><strong>Certificate was not claimed.</strong><span>{{ $errors->certificateClaim->first() }}</span></div>
+                            </div>
+                        @endif
+
                         @if ($certificationState === \App\Enums\CertificationState::SurveyRequired)
                             <form method="POST" action="{{ route('applicant.revision-certificates.survey.store', $application) }}" class="certificate-survey-form" data-disable-on-submit>
                                 @csrf
@@ -272,10 +285,19 @@
                                                 <label><input type="radio" name="ratings[{{ $ratingKey }}]" value="{{ $rating }}" @checked((int) old("ratings.{$ratingKey}") === $rating) required> {{ $rating }}</label>
                                             @endforeach
                                         </div>
+                                        @error("ratings.{$ratingKey}", 'certificateSurvey')<small class="certificate-survey-field-error">{{ $message }}</small>@enderror
                                     </fieldset>
                                 @endforeach
-                                <label><span>What worked well?</span><textarea name="positive_feedback" maxlength="500" required>{{ old('positive_feedback') }}</textarea></label>
-                                <label><span>What can be improved?</span><textarea name="improvement_feedback" maxlength="500" required>{{ old('improvement_feedback') }}</textarea></label>
+                                <label>
+                                    <span>What worked well?</span>
+                                    <textarea name="positive_feedback" minlength="5" maxlength="500" required>{{ old('positive_feedback') }}</textarea>
+                                    @error('positive_feedback', 'certificateSurvey')<small class="certificate-survey-field-error">{{ $message }}</small>@enderror
+                                </label>
+                                <label>
+                                    <span>What can be improved?</span>
+                                    <textarea name="improvement_feedback" minlength="5" maxlength="500" required>{{ old('improvement_feedback') }}</textarea>
+                                    @error('improvement_feedback', 'certificateSurvey')<small class="certificate-survey-field-error">{{ $message }}</small>@enderror
+                                </label>
                                 <label><span>Additional comments (optional)</span><textarea name="additional_comments" maxlength="500">{{ old('additional_comments') }}</textarea></label>
                                 <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="16" /><span>Submit Evaluation</span></button>
                             </form>

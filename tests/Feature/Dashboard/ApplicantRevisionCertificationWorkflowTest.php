@@ -119,6 +119,53 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_res_can_map_a_current_document_for_an_already_submitted_general_overall_comment(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [, , $resLead, $application, $assignment, $document] = $this->reviewedApplication();
+        $this->openWindow('revision-period', UserRole::Applicant);
+        $legacyOverallComment = ReviewComment::create([
+            'reviewer_assignment_id' => $assignment->id,
+            'scope' => ReviewCommentScope::Overall,
+            'category' => ReviewCommentCategory::General,
+            'body' => 'This submitted comment needs a document recovery mapping.',
+        ]);
+
+        try {
+            app(ApplicationRevisionWorkflowService::class)->releaseDecision(
+                $resLead,
+                $application,
+                ReviewDecision::MinorRevision,
+                [$legacyOverallComment->id],
+            );
+            $this->fail('An overall General comment must not create an untraceable revision requirement.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('revision_document_ids', $exception->errors());
+        }
+
+        $this->assertSame(0, $application->decisionReleases()->count());
+        $this->actingAs($resLead)
+            ->from(route('res.certificates.index'))
+            ->post(route('res.certificates.decisions.release', $application), [
+                'application_id' => $application->id,
+                'decision' => ReviewDecision::MinorRevision->value,
+                'comment_ids' => [$legacyOverallComment->id],
+                'revision_document_ids' => [$document->id],
+            ])
+            ->assertRedirect(route('res.certificates.index'))
+            ->assertSessionHasNoErrors();
+
+        $release = $application->decisionReleases()->firstOrFail();
+        $requirement = $application->revisions()->firstOrFail()->requirements()->firstOrFail();
+        $this->assertSame($document->id, $requirement->source_application_document_id);
+        $this->assertSame($document->document_requirement_id, $requirement->document_requirement_id);
+        $this->assertSame($release->id, $legacyOverallComment->refresh()->application_decision_release_id);
+        $this->assertSame(ReviewCommentScope::Overall, $legacyOverallComment->scope);
+        $this->assertNull($legacyOverallComment->application_document_id);
+        $this->assertSame(ApplicationStatus::RevisionWindowOpen, $application->refresh()->application_status);
+    }
+
     public function test_revision_upload_is_idempotent_for_the_same_file_and_cross_application_ids_are_rejected(): void
     {
         Storage::fake('local');

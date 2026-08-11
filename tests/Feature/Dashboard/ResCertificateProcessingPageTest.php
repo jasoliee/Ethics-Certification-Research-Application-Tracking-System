@@ -43,8 +43,12 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertSee('data-certificate-background-dialog', false)
             ->assertSee('data-certificate-application-dialog="'.$eligible->id.'"', false)
             ->assertSee('data-certificate-application-dialog="'.$pending->id.'"', false)
+            ->assertSee('data-certificate-row-number="1"', false)
+            ->assertSee('data-certificate-row-number="2"', false)
+            ->assertDontSee('certificate-row-state', false)
             ->assertSee(route('res.certificates.release', $eligible), false)
             ->assertSee(route('res.certificates.decisions.release', $pending), false)
+            ->assertSee('Documents requiring revision')
             ->assertSee(route('res.certificate-backgrounds.store'), false)
             ->assertSee($eligible->research_title)
             ->assertSee($pending->research_title);
@@ -64,6 +68,22 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertSee($eligible->research_title)
             ->assertDontSee($pending->research_title)
             ->assertSee('(filtered)');
+    }
+
+    public function test_queue_numbers_continue_across_pagination(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        foreach (range(1, 16) as $number) {
+            $this->application('NUMBER-'.str_pad((string) $number, 2, '0', STR_PAD_LEFT), ApplicationStatus::ReviewSubmittedPendingRelease, $resLead);
+        }
+
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index', ['page' => 2]))
+            ->assertOk()
+            ->assertSee('data-certificate-row-number="16"', false)
+            ->assertDontSee('data-certificate-row-number="1"', false);
     }
 
     public function test_decision_service_validation_reopens_the_correct_application_dialog(): void

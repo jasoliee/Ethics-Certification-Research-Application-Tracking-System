@@ -6,6 +6,7 @@ use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreReviewCommentRequest extends FormRequest
 {
@@ -39,5 +40,26 @@ class StoreReviewCommentRequest extends FormRequest
             ],
             'body' => ['required', 'string', 'min:3', 'max:2000'],
         ];
+    }
+
+    /**
+     * Required Revision comments must identify the source file the Applicant must replace.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($this->input('category') !== ReviewCommentCategory::RequiredRevision->value
+                || in_array($this->input('scope'), [
+                    ReviewCommentScope::Document->value,
+                    ReviewCommentScope::Page->value,
+                ], true)) {
+                return;
+            }
+
+            $validator->errors()->add(
+                'scope',
+                'A Required Revision comment must apply to a specific document.',
+            );
+        });
     }
 }

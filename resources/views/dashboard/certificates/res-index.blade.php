@@ -117,7 +117,7 @@
                     <table class="dashboard-table certificate-queue-table">
                         <thead>
                             <tr>
-                                <th><span class="sr-only">Record state</span></th>
+                                <th class="certificate-row-number">#</th>
                                 <th>Application</th>
                                 <th>Applicant</th>
                                 <th>Final Review</th>
@@ -132,6 +132,7 @@
                         <tbody>
                             @foreach ($applications as $application)
                                 @php
+                                    $rowNumber = ($applications->firstItem() ?? 1) + $loop->index;
                                     $state = $certificationStates[$application->id];
                                     $certificate = $application->certificate;
                                     $currentVersion = $certificate?->currentVersion;
@@ -149,9 +150,7 @@
                                     $claimTone = $isClaimed ? 'success' : ($surveyComplete && $isReleased ? 'blue' : 'neutral');
                                 @endphp
                                 <tr class="{{ $isReleased ? 'is-certificate-ready' : '' }}">
-                                    <td class="certificate-row-state">
-                                        <span class="{{ $isReleased ? 'is-complete' : '' }}" aria-hidden="true">@if ($isReleased)<x-dashboard.icon name="check" size="13" />@endif</span>
-                                    </td>
+                                    <td class="certificate-row-number" data-certificate-row-number="{{ $rowNumber }}">{{ $rowNumber }}</td>
                                     <td class="certificate-application-cell">
                                         <small>{{ $application->application_code }}</small>
                                         <strong>{{ $application->research_title }}</strong>
@@ -195,6 +194,7 @@
                 $reopenApplicationDialog = $dialogApplicationId === $application->id
                     && ($errors->decisionRelease->any() || $errors->certificateRelease->any());
                 $oldCommentIds = $dialogApplicationId === $application->id ? old('comment_ids', []) : [];
+                $oldRevisionDocumentIds = $dialogApplicationId === $application->id ? old('revision_document_ids', []) : [];
             @endphp
             <section
                 class="application-modal-backdrop"
@@ -251,6 +251,21 @@
                                         </section>
                                     @endforeach
                                 </div>
+                                <fieldset class="certificate-revision-document-picker">
+                                    <legend>Documents requiring revision</legend>
+                                    <p>For a minor or major revision, confirm the exact current files the Applicant must replace. Document-linked Required Revision comments are already matched; use this list to recover older submitted comments recorded as General or Overall.</p>
+                                    @forelse ($application->documents as $document)
+                                        <label>
+                                            <input type="checkbox" name="revision_document_ids[]" value="{{ $document->id }}" @checked(in_array($document->id, $oldRevisionDocumentIds))>
+                                            <span>
+                                                <strong>{{ $document->requirement?->name ?? 'Supporting Document' }}</strong>
+                                                <small>{{ $document->original_file_name }}</small>
+                                            </span>
+                                        </label>
+                                    @empty
+                                        <p>No current application documents are available for revision mapping.</p>
+                                    @endforelse
+                                </fieldset>
                                 <div class="certificate-decision-controls">
                                     <label>
                                         <span>Official released decision</span>
@@ -263,7 +278,7 @@
                                     </label>
                                     <button class="dashboard-primary-action" type="submit">Release Decision and Selected Comments</button>
                                 </div>
-                                <p class="certificate-release-note">A revision decision requires at least one selected document-linked Required Revision comment.</p>
+                                <p class="certificate-release-note">A revision decision requires at least one selected Reviewer comment and one exact source document, supplied by a document-linked Required Revision comment or the recovery mapping above.</p>
                             </form>
                         </section>
                     @endif

@@ -7,6 +7,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreApplicantSurveyRequest extends FormRequest
 {
+    protected $errorBag = 'certificateSurvey';
+
     public function authorize(): bool
     {
         $application = $this->route('researchApplication');

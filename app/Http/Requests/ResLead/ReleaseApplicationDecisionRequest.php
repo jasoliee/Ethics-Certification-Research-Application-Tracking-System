@@ -23,6 +23,8 @@ class ReleaseApplicationDecisionRequest extends FormRequest
             'decision' => ['required', Rule::enum(ReviewDecision::class)],
             'comment_ids' => ['nullable', 'array', 'max:200'],
             'comment_ids.*' => ['integer', 'distinct'],
+            'revision_document_ids' => ['nullable', 'array', 'max:100'],
+            'revision_document_ids.*' => ['integer', 'distinct'],
         ];
     }
 }

@@ -60,6 +60,112 @@ Date:
 
 ## Active Plans
 
+## Plan: Visible Applicant evaluation validation and claim handoff
+
+Status: Completed on 2026-08-12.
+
+### Goal
+Ensure an Applicant who submits an invalid post-review evaluation sees the exact validation problem in the Certification panel, and verify that a valid evaluation immediately exposes and completes the explicit certificate claim action.
+
+### Source Documents
+- Primary issue: August 12 report that submitting the evaluation did not allow certificate claim.
+- Live read-only evidence: the newest released certificate and ready version have complete release provenance, but no `applicant_survey_responses` row or survey audit event exists for that application.
+- Workflow authority: evaluation completion remains required before explicit claim.
+
+### Scope
+Included:
+- Route survey FormRequest validation into the `certificateSurvey` error bag already rendered by the Applicant page.
+- Align textarea browser constraints with the server's five-character minimum and keep invalid values visible.
+- Render evaluation validation feedback next to the survey form and cover the complete HTTP evaluation-to-claim handoff.
+
+Excluded:
+- Auto-claiming a certificate, bypassing evaluation, changing survey answers, mutating live Applicant data, changing claim authorization, or changing database schema.
+
+### Implementation Approach
+- Add the intended named error bag to `StoreApplicantSurveyRequest`.
+- Add matching `minlength` attributes and contextual error rendering in the certification panel.
+- Exercise invalid evaluation, valid evaluation, claim-form visibility, successful claim, and persisted version ownership through real routes.
+
+### Files Expected to Change
+- `app/Http/Requests/Applicant/StoreApplicantSurveyRequest.php`
+- `resources/views/dashboard/applications/revision-certificates.blade.php`
+- `tests/Feature/Dashboard/CertificateReleaseWorkflowTest.php`
+- affected planning/changelog/workflow documentation
+
+### Tests and Verification
+- Focused certificate release/evaluation/claim tests, Blade compilation, changed-file Pint, the Vite production build, `git diff --check`, and the complete Laravel suite.
+
+### Risks and Rollback
+- The persistence and claim gates remain unchanged; this corrects validation visibility and client/server constraint parity only.
+- No live survey is synthesized and no existing certificate record is mutated.
+
+### Approval Notes
+Approved by: August 12 user report requesting repair of the evaluation-to-claim failure.
+Date: 2026-08-12
+
+### Completion Notes
+- `StoreApplicantSurveyRequest` now flashes validation failures to the Certification panel's `certificateSurvey` error bag, and the panel renders both a contextual summary and field-level messages while preserving submitted values.
+- Both required feedback fields expose the server-owned five-character minimum to the browser. A valid evaluation continues through the existing explicit claim gate without changing certificate eligibility, ownership, or persistence rules.
+- The focused certification/Reviewer/RES regression set passes with 28 tests and 358 assertions. The complete Laravel suite passes with 241 tests and 3,541 assertions; changed-file Pint, Blade compilation, the Vite production build, and `git diff --check` pass.
+
+## Plan: Numbered certification queue and document-linked revision comments
+
+Status: Completed on 2026-08-12, with live responsive acceptance pending because no controllable browser instance was available.
+
+### Goal
+Replace the RES certification queue's non-interactive circular status markers with pagination-aware row numbers, prevent the responsive Reviewer rail from overlapping its comment controls, and ensure both new and already-submitted reviews can supply the exact documents needed for an RES minor/major revision release.
+
+### Source Documents
+- Primary issue evidence: the screenshots supplied on August 12, 2026 showing static queue circles, the RES revision-release validation failure, and the Review Worksheets card overlapping the Reviewer comment Reference, Document, and Comment controls at a narrow width.
+- Workflow authority: `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md` and the existing rule that revision requirements must identify an exact protected source document.
+
+### Scope
+Included:
+- Number-only, pagination-aware certification queue row labels.
+- Intrinsic Reviewer rail row sizing so Review Worksheets cannot overlay the comment form at narrow or zoomed widths.
+- Reviewer composer wording, visible guidance, current-document synchronization, and automatic document scope for Required Revision comments.
+- Server validation that prevents new or edited Required Revision comments from being stored without a document.
+- An RES recovery mapping that lets an authorized lead associate current application documents with selected legacy General/Overall comments after the Reviewer submission is already immutable.
+- Focused regression coverage and documentation updates.
+
+Excluded:
+- Weakening the RES revision-release requirement, mutating Reviewer-authored comment scope/content, or changing routes, authorization, Applicant visibility, certificate generation, or database schema.
+
+### Implementation Approach
+- Frontend: make Reviewer rail rows intrinsic and scrollable without overlap; expose an understandable `Applies to` choice, identify the exact document and filename, synchronize the composer when a Reviewer selects a document, and automatically switch Required Revision comments to that selected document.
+- Backend: validate the category/scope relationship before the workflow service persists a comment; for immutable legacy overall comments, validate RES-selected current documents and merge them with any documents already linked by selected Required Revision comments.
+- RES queue: derive row numbers from the paginator's `firstItem()` plus the loop index so filtering and later pages remain correctly numbered.
+
+### Files Expected to Change
+- `resources/views/dashboard/certificates/res-index.blade.php`
+- `resources/views/dashboard/assignments/workspace.blade.php`
+- `resources/js/dashboard.js`
+- `resources/css/dashboard.css`
+- `app/Http/Requests/Reviewer/StoreReviewCommentRequest.php`
+- `app/Http/Requests/ResLead/ReleaseApplicationDecisionRequest.php`
+- `app/Services/Applications/ApplicationRevisionWorkflowService.php`
+- `app/Http/Controllers/Dashboard/ResCertificationController.php`
+- focused Reviewer and RES feature tests plus affected documentation
+
+### Tests and Verification
+- Cover pagination-aware number rendering, non-overlapping rail contracts, Reviewer document choices, automatic composer hooks, rejection/acceptance of unlinked/linked Required Revision comments, and RES recovery mapping for already-submitted General/Overall comments.
+- Re-run affected certification/reviewer workflow tests, Blade compilation, Pint, the Vite production build, `git diff --check`, and the full Laravel suite.
+- Exercise the Reviewer composer and RES queue in the local browser when a controllable instance is available.
+
+### Risks and Rollback
+- Existing historical General/Overall comments remain readable and unchanged; only new/edited Required Revision comments receive the stricter invariant, while RES recovery stores the chosen source document on the new revision requirement rather than rewriting Reviewer authorship.
+- No migration or stored workflow record is altered. Rollback is limited to view, JavaScript, CSS, request-validation, test, plan, and documentation changes.
+
+### Approval Notes
+Approved by: August 12 user request to replace static certification markers and fix the missing Reviewer document-comment path.
+Date: 2026-08-12
+
+### Completion Notes
+- Certification queue markers are now paginator-aware numbers; no selection behavior was removed because the original circles were non-interactive status decoration.
+- Reviewer rail rows use intrinsic max-content sizing, the composer synchronizes the selected document, and request validation prevents new or edited Required Revision comments without a document.
+- RES can recover an immutable submitted General/Overall comment by selecting the exact current same-application source documents; the mapping is written only to the new revision requirements and counted in bounded audit metadata.
+- Before the evaluation follow-up, the complete Laravel suite passed with 240 tests and 3,517 assertions. The 22-test focused workflow set passed with 296 assertions; Blade compilation, changed-file Pint, the Vite production build, and `git diff --check` passed. The unavailable browser runtime is recorded in `Documentations/MANUAL_VISUAL_VALIDATION.md`.
+
 ## Plan: RES certificate-processing information architecture refresh
 
 Status: Completed on 2026-08-12, with live viewport acceptance pending because no controllable browser instance was available.

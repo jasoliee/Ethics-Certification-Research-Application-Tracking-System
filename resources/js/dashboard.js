@@ -658,14 +658,26 @@ function initializeApplicationTools(shell) {
         let olderCommentsRequestInFlight = false;
         const commentActionsInFlight = new Set();
 
-        // Scope-dependent controls remain absent from validation until the Reviewer selects them.
+        // Required revisions always identify an exact source file; the current viewer selection
+        // supplies that reference while the server remains authoritative.
         const syncReviewerCommentScope = () => {
+            const requiresDocument = categoryInput?.value === 'required_revision';
+
+            if (scope && requiresDocument && ! scope.disabled) {
+                scope.value = 'document';
+            }
+
             const referencesDocument = scope?.value === 'document';
 
             if (documentField && documentInput) {
                 documentField.hidden = ! referencesDocument;
                 documentInput.disabled = ! referencesDocument || scope.disabled;
                 documentInput.required = referencesDocument;
+
+                if (referencesDocument && ! documentInput.value) {
+                    const activeDocument = reviewerStudio?.querySelector('[data-reviewer-document-choice].is-active');
+                    documentInput.value = activeDocument?.dataset.documentId ?? '';
+                }
             }
         };
 
@@ -828,6 +840,7 @@ function initializeApplicationTools(shell) {
             }
         };
 
+        categoryInput?.addEventListener('change', syncReviewerCommentScope);
         scope?.addEventListener('change', syncReviewerCommentScope);
         reviewerCommentForm.addEventListener('submit', (event) => {
             event.preventDefault();
@@ -1142,8 +1155,11 @@ function initializeApplicationTools(shell) {
                     documentPreviewRequestId,
                 );
             }
-            if (documentInput && scope?.value === 'document') {
+            if (documentInput && scope && ! scope.disabled) {
+                scope.value = 'document';
                 documentInput.value = choice.dataset.documentId;
+                syncReviewerCommentScope();
+                setCommentFeedback(`Comment reference set to ${choice.dataset.documentRequirement}.`);
             }
         };
 

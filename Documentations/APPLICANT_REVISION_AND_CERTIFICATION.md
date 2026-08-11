@@ -47,7 +47,9 @@ Rollback intentionally refuses while decision, revision, or certificate-version 
 ## Revision behavior
 
 - Applicants see only comments attached to an explicit RES release. Reviewer identities are rendered as `Reviewer 1`, `Reviewer 2`, and so on.
-- A minor/major revision release must include at least one `required_revision` comment linked to a protected document.
+- A minor/major revision release must include at least one selected Reviewer comment and at least one exact protected source document. The normal path is a document-linked `required_revision` comment; the explicit RES recovery mapping covers immutable older comments that lack that link.
+- New or edited Reviewer `Required Revision` comments must apply to a specific current document. The narrow Reviewer rail uses intrinsic rows so Review Worksheets cannot cover the comment Reference, Document, or Comment controls; selecting a file in the document library also synchronizes the comment composer.
+- For an already-submitted historical review whose General/Overall comments cannot be edited, RES may select the exact current source documents while releasing at least one selected comment. The service validates application ownership/currentness and stores the mapping on the new revision requirement without changing the Reviewer-authored comment.
 - The RES-configured `revision-period` must be current when a revision decision is released and remains enforced on upload and submission. The revision also stores its own due date.
 - Only document requirements selected by RES become mandatory replacements.
 - Each replacement is stored on the private local disk as a new immutable version. The prior database row and bytes remain available to authorized workflow participants.
@@ -82,13 +84,15 @@ An RES Lead may:
 
 The RES page presents four unfiltered lifecycle counts—relevant applications, released certificates, pending final approvals, and released certificates still requiring a survey—above a filtered, paginated queue. Search and queue-state filters change only the table results; the summary remains a stable overview of the complete relevant-record scope.
 
-Each row exposes the authoritative final-review, released-decision, certificate-generation, survey, claim, and last-updated states. Opening a record keeps all record-specific work together in one dialog: released-decision details and selected comments, decision release when eligible, certificate generation or retry, preview/download/regeneration, and immutable version history. Bulk release has an explicit confirmation dialog. Background administration is intentionally separate and retains its own preview, upload, activation, reset, version history, and pagination.
+Each numbered row exposes the authoritative final-review, released-decision, certificate-generation, survey, claim, and last-updated states. Opening a record keeps all record-specific work together in one dialog: released-decision details and selected comments, decision release and any required legacy document mapping when eligible, certificate generation or retry, preview/download/regeneration, and immutable version history. Bulk release has an explicit confirmation dialog. Background administration is intentionally separate and retains its own preview, upload, activation, reset, version history, and pagination.
 
 These dialogs are a presentation boundary only. Their actions remain ordinary authenticated server-rendered routes, including server-side authorization, validation, audit/notification effects, and postback feedback. Validation reopens the affected application or background dialog so entered values and errors remain in context.
 
 Accepted background formats are a decodable one-page portrait A4-compatible PDF, JPEG, or PNG. Raster assets must be at least 596 by 842 pixels. Activation affects future generations only; each existing version retains its background ID and hashes.
 
 Applicants cannot preview or download a merely released certificate. After the required evaluation is stored, an explicit claim binds the Applicant to the current ready version. Regeneration clears the aggregate claim pointer, preserves prior version claim metadata, and requires a new explicit claim of the replacement version.
+
+Evaluation validation is shown inside the Certification panel and preserves the Applicant's submitted ratings and text. Both required feedback fields enforce five to 500 characters in the browser and on the server. A rejected evaluation creates no response and keeps the certificate at `Survey Required`; a valid response immediately changes the rendered state to `Claimable`, after which the Applicant performs the separate explicit claim action.
 
 ## Routes and authorization
 

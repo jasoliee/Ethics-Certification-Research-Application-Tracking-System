@@ -3034,19 +3034,10 @@
         background: #f8fcf9;
     }
 
-    .certificate-row-state > span {
-        width: 19px;
-        height: 19px;
-        display: inline-grid;
-        place-items: center;
-        border: 1.5px solid #9aabb8;
-        border-radius: 50%;
-        color: #ffffff;
-    }
-
-    .certificate-row-state > span.is-complete {
-        border-color: #087241;
-        background: #087241;
+    .certificate-row-number {
+        color: #52645a;
+        font-variant-numeric: tabular-nums;
+        font-weight: 750;
     }
 
     .certificate-application-cell,
@@ -3242,6 +3233,72 @@
         padding: 8px 10px;
         background: #ffffff;
         font: inherit;
+    }
+
+    .certificate-revision-document-picker {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0;
+        border: 1px solid #dbe5df;
+        border-radius: 7px;
+        padding: 12px;
+        background: #f9fbfa;
+    }
+
+    .certificate-revision-document-picker legend {
+        padding: 0 5px;
+        color: #26362d;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .certificate-revision-document-picker > p {
+        grid-column: 1 / -1;
+        margin: 0 0 3px;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.45;
+    }
+
+    .certificate-revision-document-picker > label {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+        gap: 8px;
+        border: 1px solid #e0e8e3;
+        border-radius: 6px;
+        padding: 9px 10px;
+        background: #ffffff;
+        cursor: pointer;
+    }
+
+    .certificate-revision-document-picker input {
+        margin-top: 2px;
+        accent-color: #087241;
+    }
+
+    .certificate-revision-document-picker label > span {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+    }
+
+    .certificate-revision-document-picker strong,
+    .certificate-revision-document-picker small {
+        overflow-wrap: anywhere;
+    }
+
+    .certificate-revision-document-picker strong {
+        color: #26362d;
+        font-size: 11px;
+    }
+
+    .certificate-revision-document-picker small {
+        color: #64748b;
+        font-size: 10px;
     }
 
     .certificate-modal-actions {
@@ -3491,7 +3548,8 @@
 
     .certificate-metric-strip,
     .certificate-queue-filters,
-    .certificate-modal-status-grid {
+    .certificate-modal-status-grid,
+    .certificate-revision-document-picker {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -9975,6 +10033,16 @@
         font: inherit;
     }
 
+    .certificate-action-error {
+        margin: 0 16px 14px;
+    }
+
+    .certificate-survey-field-error {
+        color: #b42318;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
     .certificate-action-state {
         gap: 10px;
         border-radius: 7px;
@@ -10705,11 +10773,17 @@
 
     .reviewer-review-rail {
         display: grid;
+        grid-auto-rows: max-content;
         align-content: start;
         gap: 12px;
         overflow-y: auto;
         overscroll-behavior: contain;
         scrollbar-gutter: stable;
+    }
+
+    .reviewer-review-rail > .application-panel {
+        min-height: max-content;
+        align-self: start;
     }
 
     .reviewer-document-list {
@@ -10879,9 +10953,20 @@
 
     .reviewer-comment-form .application-field-full,
     .reviewer-comment-form > .dashboard-primary-action,
+    .reviewer-comment-guidance,
     .reviewer-comment-feedback,
     .reviewer-comment-form-actions {
         grid-column: auto;
+    }
+
+    .reviewer-comment-guidance {
+        margin: -2px 0 0;
+        border-left: 3px solid #80ae91;
+        padding: 7px 9px;
+        color: #52645a;
+        background: #f4faf6;
+        font-size: 11px;
+        line-height: 1.45;
     }
 
     .reviewer-comment-form-actions {

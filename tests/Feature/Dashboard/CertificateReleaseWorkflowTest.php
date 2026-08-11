@@ -73,6 +73,75 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame(1, $claimed->versions()->count());
     }
 
+    public function test_http_evaluation_validation_is_visible_and_a_valid_submission_can_claim_immediately(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('HTTPCLAIM');
+        $released = app(CertificateReleaseService::class)->release($resLead, $application);
+        $certificate = $released['certificate'];
+        $version = $certificate->currentVersion;
+        $indexUrl = route('applicant.revision-certificates.index', ['application' => $application->id]);
+        $invalidPayload = $this->surveyPayload();
+        $invalidPayload['positive_feedback'] = 'x';
+        $invalidPayload['improvement_feedback'] = 'y';
+
+        $invalidResponse = $this->actingAs($applicant)
+            ->from($indexUrl)
+            ->post(route('applicant.revision-certificates.survey.store', $application), $invalidPayload);
+
+        $invalidResponse
+            ->assertRedirect($indexUrl)
+            ->assertSessionHasErrorsIn('certificateSurvey', [
+                'positive_feedback',
+                'improvement_feedback',
+            ]);
+        $this->actingAs($applicant)
+            ->followingRedirects()
+            ->from($indexUrl)
+            ->post(route('applicant.revision-certificates.survey.store', $application), $invalidPayload)
+            ->assertOk()
+            ->assertSee('Evaluation was not submitted.')
+            ->assertSee('must be at least 5 characters')
+            ->assertSee('minlength="5"', false);
+        $this->assertDatabaseMissing('applicant_survey_responses', [
+            'research_application_id' => $application->id,
+        ]);
+
+        $this->actingAs($applicant)
+            ->from($indexUrl)
+            ->post(route('applicant.revision-certificates.survey.store', $application), $this->surveyPayload())
+            ->assertRedirect($indexUrl)
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Evaluation completed. Your released certificate is now ready to claim.');
+        $this->assertDatabaseHas('applicant_survey_responses', [
+            'research_application_id' => $application->id,
+            'applicant_user_id' => $applicant->id,
+        ]);
+        $this->actingAs($applicant)
+            ->get($indexUrl)
+            ->assertOk()
+            ->assertSee('Certificate ready to claim')
+            ->assertSee(route('applicant.revision-certificates.certificate.claim', $application), false);
+
+        $this->actingAs($applicant)
+            ->from($indexUrl)
+            ->post(route('applicant.revision-certificates.certificate.claim', $application))
+            ->assertRedirect($indexUrl)
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Certificate claimed. You may now view or download the current version.');
+        $this->assertDatabaseHas('certificates', [
+            'id' => $certificate->id,
+            'status' => CertificateStatus::Claimed->value,
+            'claimed_by_user_id' => $applicant->id,
+            'claimed_certificate_version_id' => $version->id,
+        ]);
+        $this->assertDatabaseHas('certificate_versions', [
+            'id' => $version->id,
+            'claimed_by_user_id' => $applicant->id,
+        ]);
+    }
+
     public function test_a_new_background_affects_only_future_certificate_versions(): void
     {
         Storage::fake('local');

@@ -12,6 +12,7 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
+use App\Models\ApplicationDocument;
 use App\Models\ApplicationRevision;
 use App\Models\ResearchApplication;
 use App\Models\ReviewComment;
@@ -33,14 +34,18 @@ class ApplicationRevisionWorkflowService
         private readonly AuditLogService $auditLog,
     ) {}
 
-    /** @param array<int, int|string> $commentIds */
+    /**
+     * @param  array<int, int|string>  $commentIds
+     * @param  array<int, int|string>  $revisionDocumentIds
+     */
     public function releaseDecision(
         User $actor,
         ResearchApplication $application,
         ReviewDecision $decision,
         array $commentIds,
+        array $revisionDocumentIds = [],
     ): ApplicationDecisionRelease {
-        $release = DB::transaction(function () use ($actor, $application, $decision, $commentIds): ApplicationDecisionRelease {
+        $release = DB::transaction(function () use ($actor, $application, $decision, $commentIds, $revisionDocumentIds): ApplicationDecisionRelease {
             $locked = ResearchApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
             Gate::forUser($actor)->authorize('releaseDecision', $locked);
 
@@ -102,8 +107,9 @@ class ApplicationRevisionWorkflowService
                 ])->errorBag('decisionRelease');
             }
 
-            $requiredDocuments = $comments
-                ->filter(fn (ReviewComment $comment): bool => $comment->category === ReviewCommentCategory::RequiredRevision)
+            $selectedRequiredRevisionComments = $comments
+                ->filter(fn (ReviewComment $comment): bool => $comment->category === ReviewCommentCategory::RequiredRevision);
+            $requiredDocuments = $selectedRequiredRevisionComments
                 ->filter(fn (ReviewComment $comment): bool => $comment->document !== null)
                 ->map(fn (ReviewComment $comment): array => [
                     'requirement_id' => $comment->document->document_requirement_id,
@@ -111,6 +117,7 @@ class ApplicationRevisionWorkflowService
                 ])
                 ->unique('requirement_id')
                 ->values();
+            $selectedRevisionDocuments = collect();
 
             if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
                 if ($reviewCycle >= self::MAX_REVISION_CYCLES) {
@@ -119,9 +126,42 @@ class ApplicationRevisionWorkflowService
                     ])->errorBag('decisionRelease');
                 }
 
+                if ($comments->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'comment_ids' => 'Select at least one Reviewer comment for a revision decision.',
+                    ])->errorBag('decisionRelease');
+                }
+
+                $revisionDocumentIds = collect($revisionDocumentIds)
+                    ->map(fn (mixed $id): int => (int) $id)
+                    ->unique()
+                    ->values();
+                $selectedRevisionDocuments = $revisionDocumentIds->isEmpty()
+                    ? collect()
+                    : ApplicationDocument::query()
+                        ->where('research_application_id', $locked->id)
+                        ->where('is_current', true)
+                        ->whereIn('id', $revisionDocumentIds)
+                        ->lockForUpdate()
+                        ->get();
+
+                if ($selectedRevisionDocuments->count() !== $revisionDocumentIds->count()) {
+                    throw ValidationException::withMessages([
+                        'revision_document_ids' => 'One or more selected revision documents are not current files for this application.',
+                    ])->errorBag('decisionRelease');
+                }
+
+                $requiredDocuments = $requiredDocuments
+                    ->concat($selectedRevisionDocuments->map(fn (ApplicationDocument $document): array => [
+                        'requirement_id' => $document->document_requirement_id,
+                        'source_document_id' => $document->id,
+                    ]))
+                    ->unique('requirement_id')
+                    ->values();
+
                 if ($requiredDocuments->isEmpty()) {
                     throw ValidationException::withMessages([
-                        'comment_ids' => 'Release at least one required-revision comment linked to a document.',
+                        'revision_document_ids' => 'The selected comments do not identify a source file. Select at least one current application document that the Applicant must revise.',
                     ])->errorBag('decisionRelease');
                 }
             }
@@ -210,6 +250,7 @@ class ApplicationRevisionWorkflowService
                 'decision' => $decision->value,
                 'released_comment_count' => $comments->count(),
                 'required_document_count' => $requiredDocuments->count(),
+                'manual_revision_document_count' => $selectedRevisionDocuments->count(),
                 'result' => $locked->application_status->value,
             ]);
 

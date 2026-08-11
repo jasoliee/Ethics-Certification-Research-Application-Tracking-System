@@ -8,11 +8,17 @@
 - Moved application-specific decision release, selected comments, certificate generation/retry/preview/download/regeneration, and immutable version history into a focused selected-application dialog.
 - Moved certificate-background preview, upload, activation, reset, version history, and independent pagination into a separate management dialog; bulk eligible release now uses its own confirmation dialog.
 - Added responsive queue containment, compact semantic state badges, phone-stacked dialog content, shared focus trapping/Escape/backdrop closing, focus restoration, scroll locking, and validation-aware dialog reopening without changing server routes or workflow rules.
+- Replaced the certification queue's decorative circular state markers with pagination-aware row numbers.
+- Prevented the narrow Reviewer review rail from compressing the Review Comments card beneath Review Worksheets. Required Revision comments now select a specific source document automatically, show the exact requirement and filename, and are rejected server-side if stored as overall-only.
+- Added an RES recovery mapping for immutable submitted reviews whose older General/Overall comments lack a document link. RES must select at least one comment and explicitly map one or more current application files; the resulting revision requirement records the mapping without rewriting Reviewer-authored content.
+- Fixed an invisible Applicant evaluation-validation failure that left the certification state at Survey Required with no explanation. Survey validation now uses the page's `certificateSurvey` error bag, errors render inside the Certification panel and beside affected fields, and both feedback fields expose the same five-character minimum in the browser and server.
 
 ### Verification
 
 - Added RES Certificate Processing feature coverage for global metrics, filtered queue results, preserved action URLs/dialog contracts, application-scoped validation re-entry, and role isolation.
 - Focused certification workflow tests pass with 9 tests and 68 assertions. Blade compilation, changed-file Pint, the Vite production build, and `git diff --check` pass.
+- The numbered queue, Reviewer comment invariant, intrinsic rail sizing, and RES legacy-comment recovery path pass 22 focused tests with 296 assertions. Blade compilation, changed-file Pint, the production Vite build, and `git diff --check` also pass.
+- The combined certification, Reviewer, and RES regression set passes with 28 tests and 358 assertions. The complete Laravel suite passes with 241 tests and 3,541 assertions.
 - The in-app browser runtime exposed no controllable browser instance, so final live viewport and modal interaction acceptance remains documented as pending.
 
 ## 2026-08-10

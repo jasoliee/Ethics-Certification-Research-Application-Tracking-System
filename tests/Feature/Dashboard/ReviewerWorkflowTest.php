@@ -78,6 +78,9 @@ class ReviewerWorkflowTest extends TestCase
             ->assertSee('data-reviewer-review-studio', false)
             ->assertSee('data-reviewer-document-frame', false)
             ->assertSee('data-reviewer-comment-form', false)
+            ->assertSee('data-reviewer-comment-category', false)
+            ->assertSee('Required Revision comments must identify a specific document.')
+            ->assertSee('Specific document')
             ->assertSeeInOrder(['reviewer-document-library', 'reviewer-document-pane', 'reviewer-review-rail'], false)
             ->assertSeeInOrder(['Review Tools', 'Review Comments', 'Review Worksheets'])
             ->assertSee('data-reviewer-worksheet-open', false)
@@ -208,7 +211,7 @@ class ReviewerWorkflowTest extends TestCase
     public function test_comments_are_validated_audited_and_hidden_from_the_applicant(): void
     {
         $this->openReviewWindow();
-        [$reviewer, $applicant, , $application, $assignment] = $this->assignmentFixture();
+        [$reviewer, $applicant, , $application, $assignment, $document] = $this->assignmentFixture();
         $comment = 'CONFIDENTIAL-REVISION-NOTE-4821';
 
         $this->actingAs($reviewer)
@@ -225,10 +228,25 @@ class ReviewerWorkflowTest extends TestCase
                 'category' => 'required_revision',
                 'body' => $comment,
             ])
+            ->assertSessionHasErrorsIn('reviewComment', ['scope']);
+
+        $this->assertDatabaseMissing('review_comments', [
+            'reviewer_assignment_id' => $assignment->id,
+            'body' => $comment,
+        ]);
+
+        $this->actingAs($reviewer)
+            ->post(route('reviewer.assignments.comments.store', $assignment), [
+                'scope' => 'document',
+                'category' => 'required_revision',
+                'application_document_id' => $document->id,
+                'body' => $comment,
+            ])
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('review_comments', [
             'reviewer_assignment_id' => $assignment->id,
+            'application_document_id' => $document->id,
             'body' => $comment,
             'released_at' => null,
             'status' => 'open',
@@ -236,8 +254,9 @@ class ReviewerWorkflowTest extends TestCase
         $storedComment = $assignment->comments()->firstOrFail();
         $this->actingAs($reviewer)
             ->putJson(route('reviewer.assignments.comments.update', [$assignment, $storedComment]), [
-                'scope' => 'overall',
+                'scope' => 'document',
                 'category' => 'required_revision',
+                'application_document_id' => $document->id,
                 'body' => $comment.' updated',
             ])
             ->assertOk()
@@ -376,6 +395,10 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString('olderCommentsRequestInFlight', $javascript);
         $this->assertStringContainsString('Delete this review comment? This action cannot be undone.', $javascript);
         $this->assertStringContainsString("setCommentsHistoryFeedback('Loading older comments...')", $javascript);
+        $this->assertStringContainsString('grid-auto-rows: max-content;', $css);
+        $this->assertStringContainsString("categoryInput?.value === 'required_revision'", $javascript);
+        $this->assertStringContainsString("scope.value = 'document';", $javascript);
+        $this->assertStringContainsString('Comment reference set to ${choice.dataset.documentRequirement}.', $javascript);
     }
 
     public function test_workspace_ui_exposes_preview_form_and_modal_accessibility_contracts(): void

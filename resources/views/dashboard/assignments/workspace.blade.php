@@ -210,17 +210,17 @@
                     <input type="hidden" name="_method" value="POST" data-reviewer-comment-method disabled>
                     <div class="application-field">
                         <label for="review-comment-category">Category</label>
-                        <select id="review-comment-category" name="category" @disabled(! $canWrite) required>
+                        <select id="review-comment-category" name="category" data-reviewer-comment-category @disabled(! $canWrite) required>
                             @foreach ($commentCategories as $category)
                                 <option value="{{ $category->value }}" @selected(old('category') === $category->value)>{{ $category->label() }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="application-field">
-                        <label for="review-comment-scope">Reference</label>
+                        <label for="review-comment-scope">Applies to</label>
                         <select id="review-comment-scope" name="scope" data-reviewer-comment-scope @disabled(! $canWrite) required>
                             @foreach ($commentScopes as $scope)
-                                <option value="{{ $scope->value }}" @selected(old('scope', 'overall') === $scope->value)>{{ $scope->label() }}</option>
+                                <option value="{{ $scope->value }}" @selected(old('scope', 'overall') === $scope->value)>{{ $scope === \App\Enums\ReviewCommentScope::Overall ? 'Entire application' : 'Specific document' }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -229,10 +229,11 @@
                         <select id="review-comment-document" name="application_document_id" data-reviewer-comment-document @disabled(! $canWrite)>
                             <option value="">Select a document</option>
                             @foreach ($application->documents as $document)
-                                <option value="{{ $document->id }}" @selected((string) old('application_document_id') === (string) $document->id)>{{ $document->requirement?->name ?? $document->original_file_name }}</option>
+                                <option value="{{ $document->id }}" @selected((string) old('application_document_id') === (string) $document->id)>{{ $document->requirement?->name ?? 'Supporting Document' }} — {{ $document->original_file_name }}</option>
                             @endforeach
                         </select>
                     </div>
+                    <p class="reviewer-comment-guidance">Required Revision comments must identify a specific document. Selecting a file in the Documents panel also sets it here automatically.</p>
                     <div class="application-field application-field-full">
                         <label for="review-comment-body">Comment</label>
                         <textarea id="review-comment-body" name="body" rows="4" minlength="3" maxlength="2000" @disabled(! $canWrite) required>{{ old('body') }}</textarea>
