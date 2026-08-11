@@ -39,12 +39,13 @@ This is the current handoff for the requirements in the attached ECRATS Laravel 
 
 ### Reviewer worksheets
 
-- Required worksheets open from Review Tools and retain separate Not Started/draft/final state, progress, draft restoration, and direct navigation.
+- Required worksheets open from Review Tools and consistently display `Not Started`, `In Progress`, or `Completed` while retaining the existing Draft/Final persistence values, progress, draft restoration, and direct navigation.
 - Closing a worksheet warns about unsaved changes; closing is blocked while a draft save is in progress. Modal focus is contained and restored.
 - Institution, Reviewer, and Researcher / Study Leader were removed from both modal metadata summaries. Title, application code, review type, and date received remain.
 - Question blocks have reusable responsive spacing; long questions wrap; Protocol retains No/Yes/Unable to Assess and Informed Consent retains Yes/No.
 - The consent explanation is shown and enabled only when consent is marked unnecessary.
 - Recommendations use accessible radio groups, and finalization remains server-validated and immutable.
+- Final review submission now uses a styled confirmation/result dialog instead of the native browser confirmation. It shows the selected decision and irreversible warning, blocks incomplete worksheets/decision/comment before opening, traps and restores focus, supports Escape/cancel, prevents duplicate requests, and reports loading, validation, request-error, and success states. The ordinary POST remains the no-JavaScript fallback and server validation remains authoritative.
 
 ### Official review documents
 
@@ -54,33 +55,44 @@ This is the current handoff for the requirements in the attached ECRATS Laravel 
 - Artifacts use private storage, authenticated nested routes, hashes, template/generator metadata, timestamps, and monotonically increasing versions. Older Ready versions become `Superseded` rather than being overwritten or deleted.
 - RES lists only current Ready artifacts backed by a Submitted review. The owning current Reviewer and authorized RES Lead are checked by policy; incomplete or failed submissions are not exposed as official.
 - If either PDF fails, partial files are removed, the database transaction rolls back, finalized worksheet snapshots remain, and the overall review remains unsubmitted with a non-sensitive error.
+- Authenticated PDF/image application-document previews now use the same non-sandboxed, same-origin framing CSP as official artifacts, plus `no-store`, `nosniff`, no-referrer, and restricted Permissions Policy headers. Office formats retain the separate protected fallback and download path.
 
-### Documentation and focused verification already completed
+### Deadline date compatibility
+
+- Term dates use required native date controls and one ordering rule: Ending Date must be on or after Starting Date. Existing historical starts remain editable, new terms retain the current-date browser minimum, JavaScript updates the ending-date minimum from the selected start, and the server retains the same `after_or_equal` authority without changing stored terms.
+
+### Documentation and verification
 
 - Updated the README, implementation plan, changelog, requirements traceability, Reviewer/application/dashboard/database/document-generation/features/testing/manual-validation/known-issues guides, and this handoff.
-- Before the instruction to postpone further testing, 81 focused tests passed with 1,649 assertions across official artifacts, Reviewer workflow/catalog, assignment pages, RES visibility/settings/screening, dashboard roles, and workbook templates.
-- A direct local render produced both official forms with their continuation content. These automated checks do not replace final human/browser acceptance.
+- The continuation-focused set passed 64 tests with 1,586 assertions. The complete Laravel suite then passed 226 tests with 3,386 assertions.
+- Changed PHP files pass Pint. Strict Composer validation, Composer platform requirements, all 116 application routes, migration status, Blade compilation, the Vite production build, and `git diff --check` pass. All migrations through `2026_08_09_000000_create_review_form_artifacts` are already applied, so no migration or seed command was needed in this continuation.
+- Composer installed the existing lock without package changes. FPDF 1.8.6 and FPDI 2.6.8 are installed; the FPDI root constraint is `~2.6.8`, and only the lock content hash changed.
+- A clean localhost session inspected the Reviewer workspace/worksheet chooser at 1280, 1024, 768, and 390 pixels with no page-level horizontal overflow. The chooser's focus entry, Escape close, body scroll lock, and trigger-focus restoration worked. The browser backend capped the attempted 1440-pixel viewport at 1280.
+- A direct local render previously produced both official forms with their continuation content. Automated checks and the partial browser pass do not replace final human spreadsheet/PDF acceptance.
 
 ## Remaining
 
-### Code/fidelity follow-up
+### External/manual acceptance
 
-- Change worksheet draft/final display wording from `Draft Saved`/`Complete` to the requested `In Progress`/`Completed` terminology consistently.
-- Replace the overall decision's native browser confirmation with the styled high-fidelity confirmation/result dialog flow if exact modal fidelity is required.
-- Remove or relax the browser `min=today` constraint for an already configured term whose start is in the past; server validation already permits ordered historical dates.
-- Confirm and, if necessary, adjust the inline uploaded-PDF Content Security Policy because the current sandbox directive can prevent some built-in PDF viewers from rendering inside the Reviewer preview.
-- Perform one final source-diff reconciliation for documentation, dependency metadata, and any remaining selector/route mismatch.
-
-### Deferred verification (no further checks were run after the user's instruction)
-
-- Run the complete Laravel regression suite, Pint, strict Composer validation/platform requirements, route listing, migration status, Blade compilation, the production Vite build, and `git diff --check` after all remaining code changes are complete.
-- Inspect localhost at 1440, 1280, 1024, 768, and 390 pixels, including keyboard navigation and modal focus.
+- Complete a true 1440-pixel browser pass. Recheck the final-review confirmation/result states with a writable, fully completed assignment; the available seeded assignment was correctly read-only because its Reviewer Submission window was closed.
+- Manually check the historical configured-term and blank new-term date controls. The local browser disconnected before this page-level check; automated Blade/JavaScript/server tests passed.
 - Download/open the workbook in a clean browser/device and Microsoft Excel or another supported spreadsheet application; confirm no repair/corruption warning and complete one import round trip.
 - Visually compare every generated Protocol and Informed Consent field plus continuation pages against the official source templates.
+- Approve a dependency refresh for the current Guzzle and CommonMark advisories recorded in `KNOWN_ISSUES.md`.
 
 ## Intentional Differences from the Prototype
 
 - `+ Page Comment` is absent because the written requirement explicitly overrides the prototype.
 - Institution, Reviewer, and Researcher / Study Leader are absent from worksheet modal metadata because the written requirement explicitly overrides the prototype; internal audit context remains stored.
 - Office documents are not sent to third-party viewers. Unsupported inline formats use the authenticated first-party fallback and Download action to preserve confidentiality.
+## August 11 continuation: Applicant revision and certification
 
+Completed after the August 10 baseline:
+
+- explicit RES decision and selected-comment release;
+- two-cycle, document-specific Applicant revision with immutable versions and direct same-Reviewer re-review;
+- Applicant evaluation followed by explicit claim;
+- official-template private certificate generation, release, bulk release, regeneration history, and future-only background versioning;
+- Applicant, Reviewer-history, and RES interfaces, authorization, throttles, notifications, audit events, tests, and synchronized documentation.
+
+Verification passed for 8 focused tests/71 assertions, one full suite of 233 tests/3,454 assertions, Pint, Composer validity/platform requirements, route discovery, isolated fresh migrations, configured MySQL migration application, Blade compilation, Vite production build, diff whitespace, and rendered A4 certificate inspection. The migration's guarded resume path recovered safely after MySQL first rejected an overlong generated constraint name; the affected names are now explicit and portable. Eight pre-existing locked-package advisories remain documented. Live Applicant/RES viewport acceptance remains pending because the in-app browser exposed no controllable instance.

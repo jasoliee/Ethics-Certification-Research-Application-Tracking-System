@@ -25,10 +25,10 @@ use App\Notifications\DashboardUpdateNotification;
 use App\Services\AuditLogService;
 use App\Services\Settings\DeadlineProcessAvailability;
 use App\Support\ReviewFormCatalog;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -55,7 +55,7 @@ class ReviewerWorkflowService
         return DB::transaction(function () use ($actor, $assignment, $type, $payload, $final): ReviewFormSubmission {
             $locked = $this->lockedAssignment($assignment);
             $this->authorizeWritable($actor, $locked);
-            $this->assertReviewWindowOpen();
+            $this->assertReviewWindowOpen($locked);
             $normalized = $this->normalizeFormPayload($type, $payload);
             $existing = $locked->formSubmissions()
                 ->where('form_type', $type->value)
@@ -123,7 +123,7 @@ class ReviewerWorkflowService
         return DB::transaction(function () use ($actor, $assignment, $payload): ReviewComment {
             $locked = $this->lockedAssignment($assignment);
             $this->authorizeWritable($actor, $locked);
-            $this->assertReviewWindowOpen();
+            $this->assertReviewWindowOpen($locked);
 
             $scope = ReviewCommentScope::from($payload['scope']);
             $document = $this->resolveCommentDocument($locked, $scope, $payload['application_document_id'] ?? null);
@@ -154,7 +154,7 @@ class ReviewerWorkflowService
         DB::transaction(function () use ($actor, $assignment, $comment): void {
             $locked = $this->lockedAssignment($assignment);
             $this->authorizeWritable($actor, $locked);
-            $this->assertReviewWindowOpen();
+            $this->assertReviewWindowOpen($locked);
             $lockedComment = ReviewComment::query()->whereKey($comment->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedComment->reviewer_assignment_id !== $locked->id) {
@@ -182,7 +182,7 @@ class ReviewerWorkflowService
         return DB::transaction(function () use ($actor, $assignment, $comment, $payload): ReviewComment {
             $locked = $this->lockedAssignment($assignment);
             $this->authorizeWritable($actor, $locked);
-            $this->assertReviewWindowOpen();
+            $this->assertReviewWindowOpen($locked);
             $lockedComment = ReviewComment::query()->whereKey($comment->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedComment->reviewer_assignment_id !== $locked->id) {
@@ -217,7 +217,7 @@ class ReviewerWorkflowService
         return DB::transaction(function () use ($actor, $assignment, $comment, $status): ReviewComment {
             $locked = $this->lockedAssignment($assignment);
             $this->authorizeWritable($actor, $locked);
-            $this->assertReviewWindowOpen();
+            $this->assertReviewWindowOpen($locked);
             $lockedComment = ReviewComment::query()->whereKey($comment->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedComment->reviewer_assignment_id !== $locked->id) {
@@ -278,7 +278,7 @@ class ReviewerWorkflowService
             ): ReviewSubmission {
                 $locked = $this->lockedAssignment($assignment);
                 $this->authorizeWritable($actor, $locked);
-                $this->assertReviewWindowOpen();
+                $this->assertReviewWindowOpen($locked);
                 $finalForms = collect();
 
                 if ($submit) {
@@ -358,6 +358,7 @@ class ReviewerWorkflowService
                 $allSubmitted = $application->reviewerAssignments()
                     ->current()
                     ->where('review_type', $locked->review_type)
+                    ->where('review_cycle', $locked->review_cycle)
                     ->lockForUpdate()
                     ->get()
                     ->every(fn (ReviewerAssignment $item): bool => $item->assignment_status === ReviewerAssignmentStatus::DecisionSubmitted);
@@ -427,13 +428,16 @@ class ReviewerWorkflowService
         Gate::forUser($actor)->authorize('work', $assignment);
     }
 
-    private function assertReviewWindowOpen(): void
+    private function assertReviewWindowOpen(ReviewerAssignment $assignment): void
     {
+        $revisionReview = $assignment->review_type === 'revision_review'
+            || (int) $assignment->review_cycle > 0;
+
         try {
             $this->deadlines->assertOpen(
-                'reviewer-submission',
+                $revisionReview ? 'reviewing-revision-period' : 'reviewer-submission',
                 UserRole::Reviewer,
-                'Reviewer submission',
+                $revisionReview ? 'Reviewing of revision' : 'Reviewer submission',
             );
         } catch (ValidationException $exception) {
             throw $exception->errorBag('reviewerWorkflow');

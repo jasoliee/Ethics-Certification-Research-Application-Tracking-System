@@ -71,5 +71,4 @@ These rules are derived from the consolidated project documentation, supporting 
 ## Details Still Needed Before Coding
 
 - Exact certificate wording for Exempted applications.
-- Exact control-number format.
 - Exact public certificate metadata fields allowed during QR/control-number verification.

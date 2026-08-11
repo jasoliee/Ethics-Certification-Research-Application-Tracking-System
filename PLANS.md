@@ -60,15 +60,89 @@ Date:
 
 ## Active Plans
 
+## Plan: Applicant revision, released feedback, and certificate lifecycle
+
+Status: Completed on 2026-08-11, with live browser viewport acceptance explicitly pending because no controllable browser instance was available.
+
+### Goal
+Complete the post-review workflow from an authorized RES result release through Applicant document revision, assignment-owned re-review, final approval, official-template certificate generation/release, required evaluation, explicit claim, and private certificate access without returning revisions to Adviser endorsement or initial RES screening.
+
+### Source Documents
+- Primary authority: the August 11 Applicant Revision and Certification continuation prompt attached to this work session.
+- Business rules: `context_files/[DRAFT] ECRATS_System_Project_Documentation.docx`, limited to revision, result visibility, certificate, feedback, authorization, status, and data requirements.
+- Applicant UI authority: local-only `context_files/references/ECRATS High Fidelity (8).pdf`, pages 18-27. Page 28 begins a different role section.
+- Certificate authority: tracked `context_files/RES CERTIFIACTE.pdf` (source SHA-256 `998e7a943c81a83afb13df162a85eb08007c4eb2aa1ea51fedfa9909cd5ff960`). Its A4 page, embedded institutional background/watermark, labels, and field placement will control generation.
+- Missing reference: the supplied high-fidelity files contain 30 and 104 pages respectively, so requested RES Lead pages 106-108 do not exist locally. RES queue/background UI will follow the continuation prompt and the established dashboard design system; this limitation will be recorded in the completion report.
+- Intentional precedence: the continuation prompt requires RES to release/generate before the Applicant completes the survey and claims the certificate. This supersedes older documentation wording that places feedback before certificate generation/release. Claim/view/download remains gated by survey completion.
+
+### Scope
+Included:
+- Explicit, auditable release of an aggregate Applicant-visible decision and selected reviewer comments by RES.
+- At most two application-revision cycles, deadline-enforced revised uploads, required-document replacement tracking, immutable document history, and idempotent submission.
+- New re-review assignment rows linked to prior assignments, preserving every prior review/form/comment record and using the reviewing-revision deadline.
+- Current Reviewer access to current revised files plus bounded read-only prior document/comment history, while superseded/unrelated Reviewers remain denied.
+- Applicant revision/certification workspace with high-fidelity-inspired progress, released feedback, uploads, evaluation, claim, and private certificate actions.
+- RES certification queue, single/bulk release, explicit regeneration, failure reporting, and versioned private background management.
+- Official-background certificate generation, version metadata/hashes, eligibility/release/claim state, private access, notifications, audit events, tests, and documentation.
+
+Excluded:
+- Adviser or initial RES screening during re-review.
+- Public certificate lookup/verification, third-party rendering/viewers, external publishing/deployment, and silent rewriting of issued certificate files.
+- Invented signatory, approval, validity, or document-review data when authoritative database values are absent; generation will use documented safe labels or fail before release where a required value has no source.
+
+### Implementation Approach
+- Backend: add focused workflow services for decision release/revisions and certificate lifecycle; use row locks, idempotency checks, safe file cleanup, server-side eligibility, and application-scoped queries.
+- Frontend: replace Applicant and RES certificate placeholders with responsive dashboard pages, progressive server-rendered forms, accessible confirmations/status feedback, secure previews, bounded filters, and mobile stacking.
+- Database: add non-destructive decision-release, revision, revision-requirement, survey, certificate, certificate-version, and background-version records; add reviewer cycle linkage and comment releasing actor metadata with foreign keys/indexes.
+- Authorization: extend application policy abilities for owned revision/survey/claim/certificate access; retain current-assignment Reviewer authorization; add RES-only result/certificate/background abilities and nested controller checks.
+- Files/storage: preserve application document history; store revised files, generated PDFs, and uploaded backgrounds on the private disk; keep the official source intact and use its extracted embedded background/watermark for stable server-owned certificate rendering.
+- Notifications/audit: notify Applicants only after authorized result/certificate actions and notify the correct active Reviewers after revision submission. Audit metadata will contain bounded IDs/status/count/hash data, never comment bodies, survey answers, file bytes, private paths, or raw exceptions.
+
+### Expected Files and Public Contracts
+- New migrations/models/enums/factories for releases, revisions, evaluation completion, certificates/versions, and background versions.
+- New Applicant and RES controllers, Form Requests, policies/service methods, routes, views, and focused CSS/JavaScript enhancements.
+- Reviewer workspace/controller/service integration for revision deadlines and read-only prior versions/comments.
+- Certificate renderer and derived official background resource, with source/template/generator version mapping documented.
+- Feature tests covering ownership, released visibility, deadlines, versioning, assignment linkage, prior-history authorization, survey/claim gates, single/bulk release, generation cleanup, private access, and background future-only behavior.
+
+### Tests and Verification
+- Complete code/documentation before final verification, then review the entire diff and run the continuation-focused feature tests.
+- Run the complete Laravel suite once, followed by Pint, strict Composer validation, platform requirements, route listing, migration status, Blade compilation, Vite production build, and `git diff --check`.
+- Apply migrations to the local database if required after automated tests pass.
+- Inspect Applicant and RES pages at 1440, 1280, 1024, 768, and 390 pixels, including keyboard/dialog/scrolling/loading/error behavior.
+- Generate local sample certificates, render them privately, compare against the official template, and verify background changes affect only newly generated versions.
+
+### Risks and Rollback
+- Migration rollback will refuse to drop issued certificate or submitted revision history rather than silently discard it.
+- A certificate file is written before release state commits and deleted if persistence fails; failed generation never becomes released or claimable.
+- Bulk release processes records independently so one safe failure does not roll back successful releases.
+- Uploaded background activation is transactional; invalid assets leave the prior active version untouched. Existing certificate versions are immutable, and regeneration is an explicit audited action.
+
+### Approval Notes
+Approved by: August 11 user instruction to apply the complete attached guideline.
+Date: 2026-08-11
+
+### Completion Record
+- Added the persisted release/revision/survey/certificate/background schema and non-destructive version relationships.
+- Implemented selective RES decision release, two-cycle Applicant replacement submission, same-Reviewer re-review history, certificate eligibility/generation/release/regeneration, background provenance, evaluation, explicit claim, and private access.
+- Replaced the Applicant and RES placeholders and extended the Reviewer workspace with bounded prior-cycle context.
+- Added focused workflow/security/failure tests and synchronized the feature, security, deadline, Reviewer, certificate, visual-validation, known-issues, changelog, and traceability documentation.
+- Verification: 8 focused tests / 71 assertions passed; the single full-suite run passed 233 tests / 3,454 assertions; Pint, strict Composer validation, platform requirements, route listing, isolated fresh migrations, Blade cache, Vite production build, and `git diff --check` passed. The configured MySQL migration was applied successfully; its guarded resume path recovered from MySQL's initial rejection of an overlong generated constraint name after the constraint was shortened. Composer audit continues to report the eight pre-existing advisories recorded in Known Issues.
+- A real A4 certificate was generated and rendered. Visual review found and corrected the official signature transparency mask before the final render passed. Applicant/RES live viewport acceptance remains pending because browser discovery returned no available instance.
+
 ## Plan: Reviewer workflow correction, RES reassignment, deadline semantics, and shared reliability fixes
 
-Status: In progress from 2026-08-05.
+Status: Implemented on 2026-08-10; external acceptance items remain documented.
 
 Continuation checkpoint: 2026-08-09. Functionality is prioritized over final pixel polishing, with the Reviewer Workspace, asynchronous comments, secure document access, simplified Reviewer navigation, and RES classification/reassignment layout as the current acceptance slice.
 
 Continuation checkpoint: 2026-08-10. The attached implementation brief and local-only `context_files/references/ECRATS High Fidelity (8).pdf` pages 54-69 are the current acceptance authority for this slice. The reference PDF is explicitly ignored by Git. Existing completed behavior will be preserved while the remaining gaps are closed: resumable MySQL migrations, final-review-time official artifact generation, inclusion of the persisted overall decision and applicable assignment comments in those artifacts, RES-only visibility after complete submission, bounded/incrementally loaded comments, duplicate-request protection, delete confirmation, and local responsive/accessibility verification. The explicit brief overrides the prototype by removing `+ Page Comment` and hiding Institution, Reviewer, and Researcher / Study Leader rows in worksheet modals.
 
 Handoff checkpoint: 2026-08-10. Implementation and prior focused results are recorded in `Documentations/IMPLEMENTATION_STATUS_2026-08-10.md`. Further automated/browser verification is intentionally postponed until the remaining code/fidelity items in that handoff are completed. No additional test, build, migration, or browser command was run after the user requested implementation-first sequencing.
+
+Completion checkpoint: 2026-08-10. The remaining implementation items are now represented in source and focused tests: worksheet UI states are Not Started/In Progress/Completed; final review uses an accessible asynchronous confirmation/result dialog with progressive POST fallback; term-date controls enforce ordering without rejecting stored historical starts; and authorized PDF/image previews use a non-sandboxed same-origin CSP while Office fallback behavior remains unchanged. Source, dependency, documentation, and automated verification reconciliation is complete; only the recorded external acceptance items remain.
+
+Verification checkpoint: 2026-08-10. The continuation-focused set passed 64 tests/1,586 assertions and the complete suite passed 226 tests/3,386 assertions. Changed-file Pint, strict Composer validation, platform requirements, route listing, migration status, Blade compilation, Vite production build, and `git diff --check` pass. Local Reviewer checks passed at 1280, 1024, 768, and 390 pixels; the browser capped 1440 at 1280 and disconnected before the RES date-control check. Manual Excel/PDF acceptance, a writable final-review browser path, existing Composer advisories, and unrelated repository-wide Pint drift remain tracked in the implementation status and known issues.
 
 The interrupted MySQL DDL state found on 2026-08-10 is handled by guarding each independently committed migration operation. Both affected migrations now resume safely after partial application; `php artisan migrate --no-interaction` and `php artisan db:seed --no-interaction` complete on the local MySQL database. No existing application or reviewer data is deleted by this recovery.
 
@@ -86,11 +160,11 @@ Apply the August 5 client requirements across the Applicant, Adviser, Reviewer, 
 - Shared documents: make `eye` unslashed, retain independent password reveal controls, add trusted preview-kind metadata, and provide keyboard-accessible 25%-200% image/PDF controls, reset, fit, supported rotation/fullscreen, and same-origin new-tab access without exposing storage paths. PDF and browser-safe images may render inline; Word and Excel remain behind the same authorized viewer route and protected download fallback until a local, privacy-preserving Office renderer is approved and installed.
 - Applicant timeline: replace collection-index progress with canonical milestone keys derived from application status/stage; scope scheduled dates to the application's academic term and preserve honest missing/skipped states when deadline rows are absent or reordered.
 - Reviewer access and tasks: drop conflict columns through a forward migration; remove conflict enum/request/route/policy/service/UI/audit/notification behavior; retain owner-scoped task, notification, and settings routes while limiting the Reviewer sidebar to Home and Assignments.
-- Reviewer workspace: keep the selected private document and comment composer/list visible together in a responsive review studio; keep current and historical versions bounded; add asynchronous JSON comment create/update/delete and resolution/reopen operations with immediate server-rendered updates, loading/empty/success/error states, nested ownership, CSRF, deadline checks, audit history, and progressive form fallback.
+- Reviewer workspace: keep the selected private document and comment composer/list visible together in a responsive review studio; keep current and historical versions bounded; add asynchronous JSON comment create/update/delete and resolution/reopen operations with immediate server-rendered updates, loading/empty/success/error states, nested ownership, CSRF, deadline checks, audit history, and progressive form fallback. Use Not Started/In Progress/Completed worksheet labels and a focus-contained final-review confirmation/result dialog that displays the selected decision without replacing authoritative server validation.
 - Official forms: retain the exact 15 protocol and 15 consent items, stable keys, exact options, per-item comments, consent gate, other concerns, and recommendation-specific reasons. Draft/final requests return JSON when requested and finalized records preserve immutable catalog/data snapshots. Overall submission generates versioned private artifacts from those snapshots plus the persisted final decision and complete assignment-comment record; failures roll back submission and clean up partial files.
 - Adviser: remove the In Review query/card, count every post-endorsement state under Endorsed, and use a three-card responsive grid plus container-aware submitted-application filters.
 - RES classification/reassignment: forward-drop the six Administrative Screening columns while retaining classification, basis, actor, and timestamp; repeat mandatory-document readiness under lock; use a full-width responsive two-column classification editor, align Re-edit Decision with View Assignment, and keep saved screening content full width. Place the validated reassignment reason in Selected Reviewer immediately above Save Reviewer Set and remove the redundant conflict-exclusion note. Replace destructive assignment deletion with supersession history, linked replacements, required reasons, current-set scopes, transactional eligibility/capacity rechecks, immediate old-reviewer access revocation, neutral notifications, and completion recomputation.
-- Deadlines: retire only matching result-release configuration/timeline rows through a forward deactivation migration. Keep six scheduled processes; display effective `On`/`Off`; persist explicit Open/Closed overrides; clear overrides when dates change; evaluate inclusive Asia/Manila boundaries with missing/reversed intervals closed.
+- Deadlines: retire only matching result-release configuration/timeline rows through a forward deactivation migration. Keep six scheduled processes; display effective `On`/`Off`; persist explicit Open/Closed overrides; clear overrides when dates change; evaluate inclusive Asia/Manila boundaries with missing/reversed intervals closed. Keep existing historical term starts editable, preserve the current-date minimum for blank new entries, and keep end-after-start ordering aligned across Blade, JavaScript, and server validation.
 - Profile options/workbooks: preserve the paginator's Eloquent collection and eager-load aliases before usage counting. Add a spreadsheet runtime guard so missing ZIP/PhpSpreadsheet yields an administrator-safe validation error before writing or returning XLSX headers; retain private cleanup and the official workbook contract. The environment still requires approved manual ZIP enablement and `composer install` before genuine round-trip verification.
 - Documentation: update current contracts across project guidelines, README files, feature/workflow/security/testing/responsive/import/dropdown/deadline/database guides, requirements, architecture, known issues, manual validation, and changelog while preserving historical changelog/plan entries as historical records.
 
@@ -103,7 +177,7 @@ Apply the August 5 client requirements across the Applicant, Adviser, Reviewer, 
 ### Tests and Verification
 - Add focused coverage for eye/password separation, viewer metadata/controls/security headers, every application timeline state and term/missing-row case, conflict removal, Reviewer task scoping, AJAX comment CRUD/resolution, exact form catalogs and snapshots, Adviser counts/filter markup, classification simplification, reassignment history/access/completion, deadline boundaries/overrides/retirement, profile-option pagination/aliases, and missing spreadsheet-runtime handling.
 - Run focused suites first, then the full Laravel suite, route list, migration status, strict Composer validation, platform requirements, Pint, the Vite production build, and `git diff --check`.
-- Browser verification targets 1440, 1280, 1024, 768, and 390 pixels for document controls, payment images, Reviewer task/workspace/modals/navigation, Adviser filters, RES classification/reassignment, deadline controls, and keyboard focus. The in-app browser is currently unavailable. The high-fidelity PDF workspace/comment pages 4-7 and form pages 12-13 were rendered to PNG and inspected; the implementation was aligned to their document-library, central-viewer, review-tools, asynchronous-comment, and form-context hierarchy. Source inspection, feature tests, Blade compilation, and the production build pass, while pixel-level application-output acceptance remains pending in a working browser.
+- Browser verification targets 1440, 1280, 1024, 768, and 390 pixels for document controls, payment images, Reviewer task/workspace/modals/navigation, Adviser filters, RES classification/reassignment, deadline controls, and keyboard focus. This continuation inspected the Reviewer workspace/chooser at 1280, 1024, 768, and 390 pixels with working Escape/focus restoration and no page-level horizontal overflow. The browser capped 1440 at 1280 and disconnected before the deadline page check. The high-fidelity PDF workspace/comment pages 4-7 and form pages 12-13 were previously rendered on the original device; final side-by-side stakeholder acceptance remains pending.
 - August 9 verification: the focused continuation suite passed 45 tests with 664 assertions; the full Laravel suite completed 201 tests with 175 passed, 26 environment-dependent skips, and 1,949 assertions. Pint, Blade compilation, the Vite production build, and `git diff --check` passed.
 - Rerun genuine XLSX package/round-trip tests and desktop spreadsheet acceptance on the agreed application matrix. Render both submitted official form artifacts and visually compare their source pages and branded continuation records before final stakeholder acceptance.
 

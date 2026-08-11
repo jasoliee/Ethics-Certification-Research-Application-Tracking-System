@@ -238,7 +238,13 @@ class ReviewerWorkflowController extends Controller
                 'id' => $review->id,
                 'status' => $review->status->value,
                 'decision' => $review->decision?->value,
+                'decision_label' => $review->decision?->label(),
                 'submitted_at' => $review->submitted_at?->toIso8601String(),
+                'submitted_at_label' => $review->submitted_at?->format('M j, Y g:i A'),
+                'message' => $submit
+                    ? 'Review submitted successfully and is pending RES release.'
+                    : 'Review decision draft saved.',
+                'redirect_url' => route('reviewer.assignments.show', $reviewerAssignment),
             ]]);
         }
 

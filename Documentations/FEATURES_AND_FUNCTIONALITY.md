@@ -80,11 +80,11 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 - RES Lead dashboard shows stored administrative queue counts, recent pending actions, active deadlines, and timeline data.
 - RES Lead Applications Queue lists all formally submitted records that have entered the RES workflow, with bounded pagination, full approved search/filter coverage, protected detail links, and an internal horizontal-scroll table.
 - Application dashboard queries do not hide relevant Applicant, Adviser, or RES records solely because a term link is absent or historical. Deadline and timeline queries remain tied to the current active term.
-- RES Lead configures Semester, Academic Year, term dates, and seven process rows; the result/certificate release row uses one exact date/time.
+- RES Lead configures Semester, Academic Year, term dates, and six scheduled process rows. The retired result/certificate release schedule is not part of this interface.
 - ECRATS evaluates workflow dates in `Asia/Manila`.
 - A toggle change stores explicit `On` or `Off`; changing either process date clears the override and returns the process to automatic date evaluation.
 - Automatic mode is open only from the configured opening time through its deadline; missing, future, expired, inactive, or outside-term configurations fail closed.
-- Term dates and every process opening, deadline, or release value reject past values in both browser and server validation, including manually open rows.
+- New term entry uses a current-date browser minimum, while already configured historical term starts remain editable. Ending Date must remain on or after Starting Date in Blade, JavaScript, and server validation. Ordered historical process ranges are accepted; runtime availability still evaluates dates and explicit overrides authoritatively.
 - Saving deadline settings also synchronizes role timeline events used by dashboards.
 
 ## RES Screening and Initial Reviewer Assignment
@@ -105,9 +105,9 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 - Reviewers receive an owner-scoped Assigned Applications page with search, review type, status, research type, and deadline filters.
 - The six-column table uses 15-row pagination, an empty state, and contained responsive overflow.
 - Assignment details omit Applicant and Adviser profile identities; current assignment ownership directly gates private document access without a conflict-declaration screen.
-- PDF/images stream inline. Word/Excel use the authorized fallback. Every preview/download remains nested, assignment-gated, and private-storage backed.
-- Reviewers can add overall or document comments while retaining historical page comments; the newest 20 load first and older history loads incrementally without a page refresh. They can save/finalize KLD-RES-04-001 and KLD-RES-04-002 independently and save or submit one Approved, Minor Revision, Major Revision, or Disapproved decision.
-- Final submission requires both official forms to be Final plus a decision comment of at least 10 characters. It generates both versioned private official PDFs from persisted form, decision, and comment data before freezing the assignment; failed generation leaves the review unsubmitted.
+- PDF/images stream inline with private, non-sandboxed, same-origin framing headers compatible with native PDF viewers. Word/Excel use the authorized first-party fallback. Every preview/download remains nested, assignment-gated, and private-storage backed.
+- Reviewers can add overall or document comments while retaining historical page comments; the newest 20 load first and older history loads incrementally without a page refresh. KLD-RES-04-001 and KLD-RES-04-002 independently display `Not Started`, `In Progress`, or `Completed` while preserving Draft/Final persistence. Reviewers may save or submit one Approved, Minor Revision, Major Revision, or Disapproved decision.
+- Final submission requires both official forms to be Final plus a decision comment of at least 10 characters. A focus-contained confirmation shows the selected decision and irreversible warning, submits only once, and presents validation/error/success result states; Save Draft and the server-rendered fallback remain available. Successful submission generates both versioned private official PDFs from persisted form, decision, and comment data before freezing the assignment; failed generation leaves the review unsubmitted.
 - Reviewer writes fail closed outside the configured Reviewer Submission period. Read-only access remains available to the owning Reviewer.
 - Applicant routes do not expose Reviewer identity, comments, forms, or decisions. These records remain unreleased until a later RES result-release workflow.
 - The application advances to `review_submitted_pending_release` only after every active initial Reviewer assignment for that review cycle is submitted.
@@ -116,7 +116,7 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 
 - All Blade tables use the reusable `dashboard-overflow-region` boundary so wide columns scroll inside their container rather than widening the page.
 - Applicant list, details, requirements, Adviser and RES lists/decision controls, the six-row deadline table, account actions, and import surfaces include desktop, tablet, and narrow-screen layouts.
-- Modals restore focus, close by explicit control, backdrop, or Escape, and keep private content bounded.
+- Modals restore focus, close by explicit control, backdrop, or Escape where cancellation is safe, and keep private content bounded. The final-review dialog locks cancellation while its irreversible request is in flight and redirects through a same-origin result action after success.
 - Buttons, status badges, tooltips, pagination, empty states, and validation summaries use shared components and accessible labels.
 
 ## Security and Audit Boundaries
@@ -129,9 +129,11 @@ This file is the current implemented-feature catalog for ECRATS as of August 3, 
 ## Not Yet Complete End to End
 
 - Detection/redaction of identity embedded inside uploaded document content and production anonymized-copy generation.
-- Reviewer reassignment after a declared conflict and later revision/re-review comparison.
-- Applicant revision workflow after official RES result release.
-- Final result release, Exempted direct release, feedback gate, certificate rendering, protected certificate download, and QR verification.
+- Reviewer reassignment after a declared conflict and automated side-by-side document comparison. Revision/re-review history itself is implemented.
+- Public-safe QR/control-number verification; issued certificate files remain protected through authenticated claim-bound routes.
 - Production deployment, production mail provider configuration, backup/restore operations, and final browser acceptance evidence.
 
 Update this catalog and the affected topic guide in the same change whenever behavior, validation, role access, workflow status, storage, or user-visible functionality changes.
+## Applicant revision and certification (August 11, 2026)
+
+The Applicant Revision and Certificates module is no longer a placeholder. It provides released Reviewer comments, document-specific immutable revision upload/submission, read-only version history, a post-release evaluation, and explicit certificate claim/download. The RES Lead Certificate Processing module provides authorized decision release, single/bulk certificate release, regeneration history, and future-only background management. See `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md` for the full lifecycle and gates.

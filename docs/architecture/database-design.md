@@ -210,5 +210,4 @@ Public QR/control-number verification should expose only approved certificate me
 
 - Should the team keep Laravel default `users.id` or convert to custom `user_id` primary keys? Recommendation: keep `id`.
 - Exact public certificate metadata fields allowed in QR/control-number verification.
-- Exact certificate control-number format.
 - Exact table-by-table `deleted_at` list.

@@ -62,5 +62,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('res-workflow', fn (Request $request) => Limit::perMinute(8)->by($key($request)));
         // Reviewer drafts, comments, forms, and decisions share one role-specific write budget.
         RateLimiter::for('reviewer-workflow', fn (Request $request) => Limit::perMinute(20)->by($key($request)));
+        RateLimiter::for('revision-workflow', fn (Request $request) => Limit::perMinute(8)->by($key($request)));
+        RateLimiter::for('certificate-workflow', fn (Request $request) => Limit::perMinute(6)->by($key($request)));
+        RateLimiter::for('certificate-bulk', fn (Request $request) => Limit::perMinute(2)->by($key($request)));
+        RateLimiter::for('certificate-background', fn (Request $request) => Limit::perMinute(4)->by($key($request)));
     }
 }

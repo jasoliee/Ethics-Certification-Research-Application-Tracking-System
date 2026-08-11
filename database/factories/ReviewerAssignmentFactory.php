@@ -22,6 +22,7 @@ class ReviewerAssignmentFactory extends Factory
             ]),
             'reviewer_user_id' => User::factory()->state(['role' => UserRole::Reviewer]),
             'review_type' => 'initial_review',
+            'review_cycle' => 0,
             'assignment_status' => ReviewerAssignmentStatus::Pending,
             'assignment_sequence' => 1,
             'assigned_at' => now()->subDay(),

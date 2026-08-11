@@ -5,12 +5,14 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Dashboard\AdviserApplicationController;
 use App\Http\Controllers\Dashboard\AdviserEndorsementController;
 use App\Http\Controllers\Dashboard\ApplicantApplicationController;
+use App\Http\Controllers\Dashboard\ApplicantRevisionCertificateController;
 use App\Http\Controllers\Dashboard\ApplicationDocumentController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\ModulePageController;
 use App\Http\Controllers\Dashboard\NotificationPageController;
 use App\Http\Controllers\Dashboard\OnboardingController;
 use App\Http\Controllers\Dashboard\ProfilePageController;
+use App\Http\Controllers\Dashboard\ResCertificationController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ResLeadApplicationController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
@@ -98,12 +100,24 @@ Route::middleware('no-store')->group(function (): void {
                 Route::post('/applications/{researchApplication}/submit', [ResearchApplicationPageController::class, 'submit'])
                     ->middleware('throttle:application-submit')
                     ->name('applications.submit');
-                Route::get('/revision-certificates', ModulePageController::class)
-                    ->defaults('pageTitle', 'Revision and Certificates')
-                    ->defaults('moduleTitle', 'Revision and Certificates')
-                    ->defaults('moduleMessage', 'Revision milestones, reviewer feedback, and released certificates will appear here.')
-                    ->defaults('moduleIcon', 'award')
+                Route::get('/revision-certificates', [ApplicantRevisionCertificateController::class, 'index'])
                     ->name('revision-certificates.index');
+                Route::post('/revision-certificates/applications/{researchApplication}/revisions/{applicationRevision}/requirements/{applicationRevisionRequirement}', [ApplicantRevisionCertificateController::class, 'uploadRevision'])
+                    ->middleware('throttle:application-upload')
+                    ->name('revision-certificates.revisions.documents.store');
+                Route::post('/revision-certificates/applications/{researchApplication}/revisions/{applicationRevision}/submit', [ApplicantRevisionCertificateController::class, 'submitRevision'])
+                    ->middleware('throttle:revision-workflow')
+                    ->name('revision-certificates.revisions.submit');
+                Route::post('/revision-certificates/applications/{researchApplication}/survey', [ApplicantRevisionCertificateController::class, 'submitSurvey'])
+                    ->middleware('throttle:revision-workflow')
+                    ->name('revision-certificates.survey.store');
+                Route::post('/revision-certificates/applications/{researchApplication}/certificate/claim', [ApplicantRevisionCertificateController::class, 'claim'])
+                    ->middleware('throttle:certificate-workflow')
+                    ->name('revision-certificates.certificate.claim');
+                Route::get('/revision-certificates/applications/{researchApplication}/certificates/{certificate}/versions/{certificateVersion}/preview', [ApplicantRevisionCertificateController::class, 'preview'])
+                    ->name('revision-certificates.certificate.preview');
+                Route::get('/revision-certificates/applications/{researchApplication}/certificates/{certificate}/versions/{certificateVersion}/download', [ApplicantRevisionCertificateController::class, 'download'])
+                    ->name('revision-certificates.certificate.download');
                 Route::redirect('/reviewer', '/student-faculty-researcher/revision-certificates')->name('reviewer.index');
                 Route::redirect('/certificates', '/student-faculty-researcher/revision-certificates')->name('certificates.index');
                 Route::get('/reports', ModulePageController::class)
@@ -250,11 +264,35 @@ Route::middleware('no-store')->group(function (): void {
                     ->defaults('moduleMessage', 'Reviewer assignments, capacity, and progress will be monitored here.')
                     ->defaults('moduleIcon', 'users')
                     ->name('review-monitoring.index');
-                Route::get('/certificates', ModulePageController::class)
-                    ->defaults('pageTitle', 'Certificates')
-                    ->defaults('moduleMessage', 'Certificate release and hold actions will be managed here.')
-                    ->defaults('moduleIcon', 'award')
+                Route::get('/certificates', [ResCertificationController::class, 'index'])
                     ->name('certificates.index');
+                Route::post('/certificates/applications/{researchApplication}/decision-release', [ResCertificationController::class, 'releaseDecision'])
+                    ->middleware('throttle:res-workflow')
+                    ->name('certificates.decisions.release');
+                Route::post('/certificates/applications/{researchApplication}/release', [ResCertificationController::class, 'releaseCertificate'])
+                    ->middleware('throttle:certificate-workflow')
+                    ->name('certificates.release');
+                Route::post('/certificates/release-eligible', [ResCertificationController::class, 'bulkRelease'])
+                    ->middleware('throttle:certificate-bulk')
+                    ->name('certificates.release-eligible');
+                Route::post('/certificates/applications/{researchApplication}/regenerate', [ResCertificationController::class, 'regenerate'])
+                    ->middleware('throttle:certificate-workflow')
+                    ->name('certificates.regenerate');
+                Route::post('/certificate-backgrounds', [ResCertificationController::class, 'uploadBackground'])
+                    ->middleware('throttle:certificate-background')
+                    ->name('certificate-backgrounds.store');
+                Route::patch('/certificate-backgrounds/{certificateBackground}/activate', [ResCertificationController::class, 'activateBackground'])
+                    ->middleware('throttle:certificate-background')
+                    ->name('certificate-backgrounds.activate');
+                Route::post('/certificate-backgrounds/reset', [ResCertificationController::class, 'resetBackground'])
+                    ->middleware('throttle:certificate-background')
+                    ->name('certificate-backgrounds.reset');
+                Route::get('/certificate-backgrounds/{certificateBackground}/preview', [ResCertificationController::class, 'previewBackground'])
+                    ->name('certificate-backgrounds.preview');
+                Route::get('/certificates/{certificate}/versions/{certificateVersion}/preview', [ResCertificationController::class, 'previewCertificate'])
+                    ->name('certificates.versions.preview');
+                Route::get('/certificates/{certificate}/versions/{certificateVersion}/download', [ResCertificationController::class, 'downloadCertificate'])
+                    ->name('certificates.versions.download');
                 Route::get('/reports', ModulePageController::class)
                     ->defaults('pageTitle', 'Reports')
                     ->defaults('moduleMessage', 'Operational and ethics review reports will be available here.')

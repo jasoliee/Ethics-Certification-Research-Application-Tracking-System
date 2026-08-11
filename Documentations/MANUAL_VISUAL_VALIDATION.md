@@ -97,18 +97,35 @@ The in-app browser/runtime was unavailable for this continuation. The high-fidel
 | --- | --- | --- |
 | Reviewer navigation | Sidebar data and rendered markup must contain only Home and Assignments; the Review, notification, and settings routes must still authorize the Reviewer. | Verify the bell and profile-menu entry points and spacing at all target widths. |
 | Reviewer Workspace | A compact summary precedes a three-column document library, authorized central viewer, and review-tools rail. The selected document and comment composer/list coexist; comment create/edit/status/delete uses the JSON path without a page refresh and exposes loading, empty, success, validation-error, and request-error states. Reference pages 4-7 and 12-13 were rendered and used for structural comparison. | Confirm pane proportions, hierarchy, spacing, scroll behavior, form dialogs, and stacked phone layout in the running application. |
+| Reviewer final review | Worksheet badges read Not Started/In Progress/Completed. Submit Review validates prerequisites before a styled confirmation that shows the decision and irreversible warning; cancel/Escape restore focus, Tab is contained, loading prevents duplicates, recoverable errors remain in the dialog, and success shows the result action. | Exercise keyboard and pointer paths at 1440, 1280, 1024, 768, and 390 pixels, including the no-JavaScript POST fallback. |
 | RES classification | Full-width two-column editor, full-span centered helper, full-width saved summary, and aligned Re-edit Decision/View Assignment controls are source requirements. | Compare at 1440, 1280, 1024, 768, and 390 pixels. |
 | RES reassignment | Reason for Reassignment appears in Selected Reviewer above Save Reviewer Set; the redundant conflict-exclusion message is absent. | Verify validation errors, long text, confirmation flow, and stacked mobile layout. |
-| Private documents | PDF/browser-safe content remains policy-authorized inline; Word/Excel stays in the same-origin protected fallback/download flow and never exposes a storage path or third-party viewer. | Exercise `.pdf`, `.doc`, `.docx`, `.xls`, and `.xlsx` with every applicable role. |
+| Private documents | PDF/browser-safe content remains policy-authorized inline without a CSP `sandbox` renderer failure; Word/Excel stays in the same-origin protected fallback/download flow and never exposes a storage path or third-party viewer. | Exercise `.pdf`, `.png`, `.jpg`, `.doc`, `.docx`, `.xls`, and `.xlsx` with every applicable role and supported browser. |
+| Historical term dates | Starting Date accepts a stored date before today; Ending Date's browser minimum follows Starting Date, and reversed ranges show validation without altering saved term data. | Check an existing historical term and a blank/new configuration in a supported browser. |
 
 ## Viewport Runs
+
+### August 10 continuation result
+
+- Reviewer workspace and worksheet chooser inspected on localhost at 1280, 1024, 768, and 390 pixels. The document reported no page-level horizontal overflow at each width; the dialog remained inside the viewport and stacked its controls at 390 pixels.
+- Keyboard inspection confirmed focus enters the worksheet dialog, Escape closes it, body scrolling is locked while open, and focus returns to `Open Review Worksheet`.
+- The browser backend capped the requested 1440 width at 1280. The seeded assignment was read-only because Reviewer Submission was closed, so the writable final-review confirmation/result path remains pending manual acceptance.
+- The browser disconnected before the historical/new term-control page check. Automated source/feature coverage passed, but this item remains unchecked here.
 
 Repeat applicable browser rows at each width.
 
 | Width | Result | Notes | Screenshot Evidence |
 | --- | --- | --- | --- |
-| 1440px | Pending | Browser runtime unavailable; manual visual verification required. | Not captured |
-| 1280px | Pending | Browser runtime unavailable; manual visual verification required. | Not captured |
-| 1024px | Pending | Browser runtime unavailable; manual visual verification required. | Not captured |
-| 768px | Pending | Browser runtime unavailable; manual visual verification required. | Not captured |
-| 390px | Pending | Browser runtime unavailable; manual visual verification required. | Not captured |
+| 1440px | Pending | Requested width was capped at 1280 by the browser backend. | Not captured |
+| 1280px | Partial pass | Reviewer workspace/chooser contained; no page-level horizontal overflow; keyboard close/restoration passed. Broader role checklist remains pending. | Inspected in the local browser session; not retained |
+| 1024px | Partial pass | Reviewer chooser contained with no page-level horizontal overflow. Broader role checklist remains pending. | Inspected in the local browser session; not retained |
+| 768px | Partial pass | Reviewer chooser contained with no page-level horizontal overflow. Broader role checklist remains pending. | Inspected in the local browser session; not retained |
+| 390px | Partial pass | Reviewer chooser stacked and remained within the viewport with no page-level horizontal overflow. Broader role checklist remains pending. | Inspected in the local browser session; not retained |
+## Revision and certificate visual pass (August 11, 2026)
+
+Validate both new pages at 1440x900, 1024x768, 768x1024, and 390x844. On Applicant Revision and Certificates, check the application switcher, five-step progress rail, released comment grouping, replacement upload cards, survey controls, and claim actions. On RES Certificate Processing, check queue filters, decision-release details, single/bulk controls, version history, and background manager. Render a generated PDF to an image and compare its static frame, typography hierarchy, signature, wrapping, and A4 bounds with `context_files/RES CERTIFIACTE.pdf`.
+
+August 11 result:
+
+- A real generated certificate was rendered at 595.28 by 841.89 points and inspected at 1191 by 1684 pixels. The initial extraction exposed a missing PDF transparency mask on the official signature; the asset was re-extracted with its source mask, its integrity hash was updated, and the regenerated A4 output passed inspection for background proportions, signature transparency, hierarchy, long-title wrapping, and page-bound containment.
+- The in-app browser runtime exposed no controllable browser instance during this continuation. The required Applicant/RES viewport and interaction pass therefore remains pending; no unrelated browser backend was substituted. Blade compilation, responsive source rules, focused rendered-view assertions, and the Vite production build passed but do not replace live viewport acceptance.

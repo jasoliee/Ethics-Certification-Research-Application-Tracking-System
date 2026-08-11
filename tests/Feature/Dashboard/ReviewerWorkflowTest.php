@@ -391,10 +391,16 @@ class ReviewerWorkflowTest extends TestCase
         );
         $this->assertStringContainsString('data-reviewer-consent-explanation', $blade);
         $this->assertStringContainsString('class="reviewer-form-recommendation-options"', $blade);
+        $this->assertStringContainsString("\$statusLabel = \$formIsFinal ? 'Completed' : (\$form ? 'In Progress' : 'Not Started');", $blade);
+        $this->assertStringNotContainsString("\$formIsFinal ? 'Complete' : (\$form ? 'Draft Saved'", $blade);
         $this->assertStringContainsString("\$openLabel = \$formIsFinal || ! \$canWrite ? 'View' : (\$form ? 'Continue' : 'Start');", $blade);
         $this->assertStringContainsString('aria-label="{{ $openLabel }} {{ $type->label() }}"', $blade);
         $this->assertStringContainsString('data-reviewer-form-submit-final>Submit Final', $blade);
         $this->assertStringContainsString('aria-labelledby="reviewer-form-{{ $type->value }}-progress-label"', $blade);
+        $this->assertStringContainsString('data-reviewer-submit-dialog', $blade);
+        $this->assertStringContainsString('data-reviewer-submit-confirmation', $blade);
+        $this->assertStringContainsString('data-reviewer-submit-result', $blade);
+        $this->assertStringContainsString('This action is irreversible.', $blade);
 
         $this->assertStringContainsString('draftSaveInFlight', $javascript);
         $this->assertStringContainsString('setWorksheetControlsLocked', $javascript);
@@ -403,8 +409,14 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString('modalFocusSelector', $javascript);
         $this->assertStringContainsString('documentPreviewRequestId', $javascript);
         $this->assertStringContainsString("documentLoading.textContent = 'Loading secure preview...'", $javascript);
+        $this->assertStringContainsString("status.textContent = 'In Progress';", $javascript);
+        $this->assertStringContainsString('finalSubmissionInFlight', $javascript);
+        $this->assertStringContainsString('validateFinalReview', $javascript);
+        $this->assertStringNotContainsString('Submit this final review? Submitted forms, comments, and the decision can no longer be changed.', $javascript);
         $this->assertStringContainsString('.ecrats-dashboard-body.has-application-modal-open', $css);
         $this->assertStringContainsString('.reviewer-form-recommendation-options', $css);
+        $this->assertStringContainsString('.reviewer-submit-modal', $css);
+        $this->assertStringContainsString('.reviewer-submit-summary', $css);
     }
 
     public function test_foreign_reviewer_cannot_mutate_comments_or_save_an_official_form(): void
@@ -578,12 +590,16 @@ class ReviewerWorkflowTest extends TestCase
         $this->finalizeForms($assignment);
 
         $this->actingAs($reviewer)
-            ->post(route('reviewer.assignments.review.store', $assignment), [
+            ->postJson(route('reviewer.assignments.review.store', $assignment), [
                 'intent' => 'submit',
                 'decision' => ReviewDecision::Approved->value,
                 'decision_comment' => $decisionComment,
             ])
-            ->assertRedirect(route('reviewer.assignments.show', $assignment));
+            ->assertOk()
+            ->assertJsonPath('data.status', ReviewSubmissionStatus::Submitted->value)
+            ->assertJsonPath('data.decision', ReviewDecision::Approved->value)
+            ->assertJsonPath('data.decision_label', ReviewDecision::Approved->label())
+            ->assertJsonPath('data.redirect_url', route('reviewer.assignments.show', $assignment));
 
         $this->assertDatabaseHas('review_submissions', [
             'reviewer_assignment_id' => $assignment->id,
@@ -594,6 +610,14 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertSame(ReviewerAssignmentStatus::DecisionSubmitted, $assignment->fresh()->assignment_status);
         $this->assertSame(ApplicationStatus::ReviewSubmittedPendingRelease, $application->fresh()->application_status);
         $this->assertSame(ApplicationStage::DecisionRelease, $application->fresh()->current_stage);
+
+        $this->actingAs($reviewer)
+            ->postJson(route('reviewer.assignments.review.store', $assignment), [
+                'intent' => 'submit',
+                'decision' => ReviewDecision::Approved->value,
+                'decision_comment' => $decisionComment,
+            ])
+            ->assertForbidden();
 
         $this->actingAs($reviewer)
             ->post(route('reviewer.assignments.comments.store', $assignment), [

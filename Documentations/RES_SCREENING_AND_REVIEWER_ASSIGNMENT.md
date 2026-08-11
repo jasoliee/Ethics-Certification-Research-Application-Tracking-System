@@ -4,7 +4,7 @@
 
 The RES workflow is implemented from the adviser-endorsed queue through classification and, when required, initial assignment or non-destructive reviewer reassignment.
 
-The Reviewer task list, blind workspace, assignment-gated private document access, official forms, comments, initial recommendation submission, and reassignment history are implemented. This slice does not implement document-content redaction, official result release, certificate generation, or QR verification.
+The Reviewer task list, blind workspace, assignment-gated private document access, official forms, comments, initial recommendation submission, and reassignment history are implemented. The continuation now also implements explicit result release, revision re-review, and private certificate generation/claim. Document-content redaction and public QR verification remain outside the current scope.
 
 ## Applications Queue
 
@@ -94,4 +94,4 @@ The existing RES private document preview/download routes remain unchanged.
 - Automated blind/anonymized document generation and content-level identity redaction are not implemented.
 - There is no availability calendar. Capacity is displayed and enforced, but it is not presented as a separate availability column or filter.
 - Reviewer deadlines come from the active Reviewer Submission configuration; there is no per-assignment deadline picker.
-- Reviewer evaluation forms, held initial decisions, and non-destructive replacement are implemented; Exempted direct release, consolidated official result release, certificates, and QR verification remain pending.
+- Reviewer evaluation forms, held initial decisions, non-destructive replacement, Exempted certificate eligibility, explicit official result release, and certificates are implemented; public QR verification remains pending.

@@ -14,11 +14,14 @@ ECRATS is the Ethics Certification Review Application and Tracking System for th
 - RES Lead dropdown-option administration and filtered account audit reporting with recursive sensitive-metadata sanitization.
 - Applicant-owned draft information, validated Starting/Ending Dates, a three-formal-application limit, database-driven requirement completion, private versioned/batch uploads, configured initial submission, and confirmation before workflow transition.
 - Assigned-Adviser visibility, deadline-gated return-for-correction and endorsement decisions, Applicant notification, and auditable advancement to RES Screening.
+- RES Expedited/Full Board/Exempted classification, non-destructive Reviewer assignment, blind review forms/comments, held recommendations, and explicit decision release.
+- Applicant document-specific revisions with two-cycle enforcement, same-Reviewer re-review history, and separate Applicant/Reviewer deadlines.
+- Official-template private certificate generation, single/bulk release, immutable regeneration, background versioning, post-release evaluation, and explicit Applicant claim.
 - Current role dashboards, profile/settings access, notifications, audit records, active-term deadlines/timelines, reusable horizontal table overflow, and responsive shared layout.
 
 ## Partially Implemented or Planned
 
-Several module pages are still workspaces. RES Expedited/Full Board/Exempted classification, non-destructive reviewer assignment/reassignment, blind reviewer forms, comments, and initial decisions are implemented. Later revision comparison, final result release, Exempted direct release, flattened official-form artifacts, certificates, QR verification, payments, and full official-document generation are not complete end-to-end workflows. Adviser return/endorsement is implemented only for a complete initial submission in its configured deadline period. The repository includes the approved OVPRII background asset, but no certificate/document rendering service or route currently consumes it.
+Several module pages are still workspaces. Automated document identity redaction, automated side-by-side revision comparison, public QR verification, payments, production integrations, and final deployment acceptance are not complete end-to-end workflows. Adviser return/endorsement is implemented only for a complete initial submission in its configured deadline period. Reviewer official-form generation and the separate RES certificate pipeline are implemented from their integrity-checked supplied sources.
 
 ## Main Boundaries
 

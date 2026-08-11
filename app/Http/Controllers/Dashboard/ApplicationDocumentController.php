@@ -171,7 +171,7 @@ class ApplicationDocumentController extends Controller
     ): StreamedResponse|Response {
         // Verify nested ownership before applying the parent application's role-aware policy.
         $documents->assertBelongsTo($researchApplication, $applicationDocument);
-        Gate::authorize('viewDocument', $researchApplication);
+        Gate::authorize('viewDocument', [$researchApplication, $applicationDocument]);
         abort_unless(Storage::disk('local')->exists($applicationDocument->stored_file_path), 404);
 
         // Office formats stay inside ECRATS and receive a first-party download fallback.
@@ -210,7 +210,7 @@ class ApplicationDocumentController extends Controller
     ): StreamedResponse {
         // Verify nested ownership before applying the parent application's role-aware policy.
         $documents->assertBelongsTo($researchApplication, $applicationDocument);
-        Gate::authorize('viewDocument', $researchApplication);
+        Gate::authorize('viewDocument', [$researchApplication, $applicationDocument]);
 
         return $this->fileResponse($applicationDocument, 'attachment');
     }
@@ -225,16 +225,19 @@ class ApplicationDocumentController extends Controller
         $disk = Storage::disk('local');
         abort_unless($disk->exists($document->stored_file_path), 404);
 
-        // Prevent uploaded content from gaining ambient page privileges during inline rendering.
+        // Native PDF viewers cannot render inside an iframe when the response uses CSP sandbox.
+        // Keep the stream private and same-origin framed without granting ambient page privileges.
         return $disk->response(
             $document->stored_file_path,
             $document->original_file_name,
             [
                 'Content-Type' => $document->mime_type ?? 'application/octet-stream',
-                'Content-Security-Policy' => "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+                'Content-Security-Policy' => "default-src 'none'; frame-ancestors 'self'; base-uri 'none'",
                 'X-Content-Type-Options' => 'nosniff',
+                'X-Frame-Options' => 'SAMEORIGIN',
                 'Cache-Control' => 'private, no-store, max-age=0',
                 'Referrer-Policy' => 'no-referrer',
+                'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
             ],
             $disposition,
         );

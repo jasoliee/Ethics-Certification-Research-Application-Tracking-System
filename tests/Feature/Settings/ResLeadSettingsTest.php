@@ -162,6 +162,42 @@ class ResLeadSettingsTest extends TestCase
         $this->assertSame(1, AcademicTerm::query()->count());
     }
 
+    public function test_term_date_controls_enforce_ordering_without_rejecting_historical_starts(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $newTermHtml = $this->actingAs($resLead)
+            ->get(route('res.settings.index'))
+            ->assertOk()
+            ->getContent();
+        preg_match('/<input id="term_starts_on"[^>]*>/', $newTermHtml, $newStartInput);
+        preg_match('/<input id="term_ends_on"[^>]*>/', $newTermHtml, $newEndInput);
+        $this->assertStringContainsString('min="'.now()->toDateString().'"', $newStartInput[0]);
+        $this->assertStringContainsString('min="'.now()->toDateString().'"', $newEndInput[0]);
+
+        $historicalStart = now()->subYear()->startOfDay();
+        AcademicTerm::create([
+            'semester' => 'Historical Semester',
+            'academic_year' => '2025-2026',
+            'starts_at' => $historicalStart,
+            'ends_at' => $historicalStart->copy()->addMonths(4),
+            'is_active' => true,
+        ]);
+
+        $historicalHtml = $this->actingAs($resLead)
+            ->get(route('res.settings.index'))
+            ->assertOk()
+            ->getContent();
+        preg_match('/<input id="term_starts_on"[^>]*>/', $historicalHtml, $historicalStartInput);
+        preg_match('/<input id="term_ends_on"[^>]*>/', $historicalHtml, $historicalEndInput);
+        $this->assertStringNotContainsString(' min=', $historicalStartInput[0]);
+        $this->assertStringContainsString('min="'.$historicalStart->toDateString().'"', $historicalEndInput[0]);
+
+        $javascript = (string) file_get_contents(resource_path('js/dashboard.js'));
+        $this->assertStringContainsString("termEnd.min = termStart.value || termStart.min || '';", $javascript);
+        $this->assertStringNotContainsString('termEnd.dataset.minimumDate', $javascript);
+    }
+
     public function test_settings_term_label_uses_only_the_current_configured_timeframe(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);

@@ -147,11 +147,19 @@
                         </div>
                     @endif
 
-                    <form class="reviewer-decision-form" method="POST" action="{{ route('reviewer.assignments.review.store', $assignment) }}" data-confirm-review-submit>
+                    <form
+                        class="reviewer-decision-form"
+                        method="POST"
+                        action="{{ route('reviewer.assignments.review.store', $assignment) }}"
+                        data-reviewer-decision-form
+                        data-completed-reviewer-forms="{{ $completedForms }}"
+                        data-required-reviewer-forms="2"
+                        data-reviewer-result-url="{{ route('reviewer.assignments.show', $assignment) }}"
+                    >
                         @csrf
                         <div class="application-field">
                             <label for="review-decision">Decision</label>
-                            <select id="review-decision" name="decision" @disabled(! $canWrite)>
+                            <select id="review-decision" name="decision" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>
                                 <option value="">Select a decision</option>
                                 @foreach ($decisions as $decision)
                                     <option value="{{ $decision->value }}" @selected(old('decision', $review?->decision?->value) === $decision->value)>{{ $decision->label() }}</option>
@@ -160,14 +168,15 @@
                         </div>
                         <div class="application-field">
                             <label for="review-decision-comment">Decision Comment</label>
-                            <textarea id="review-decision-comment" name="decision_comment" rows="4" minlength="10" maxlength="2000" @disabled(! $canWrite)>{{ old('decision_comment', $review?->decision_comment) }}</textarea>
+                            <textarea id="review-decision-comment" name="decision_comment" rows="4" minlength="10" maxlength="2000" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>{{ old('decision_comment', $review?->decision_comment) }}</textarea>
                         </div>
+                        <p class="reviewer-decision-feedback" id="review-decision-feedback" role="alert" aria-live="assertive" tabindex="-1" data-reviewer-decision-feedback></p>
                         @if ($reviewSubmitted)
                             <div class="reviewer-submitted-notice"><x-dashboard.icon name="check" size="18" /><span>Submitted {{ $review->submitted_at?->format('M j, Y g:i A') }}</span></div>
                         @else
                             <div class="reviewer-decision-actions">
                                 <button class="dashboard-outline-action" type="submit" name="intent" value="draft" @disabled(! $canWrite)>Save Draft</button>
-                                <button class="dashboard-primary-action" type="submit" name="intent" value="submit" @disabled(! $canWrite || $completedForms !== 2)>
+                                <button class="dashboard-primary-action" type="submit" name="intent" value="submit" @disabled(! $canWrite)>
                                     <x-dashboard.icon name="check" size="17" /><span>Submit Review</span>
                                 </button>
                             </div>
@@ -267,7 +276,7 @@
                 <section class="application-panel reviewer-form-panel reviewer-worksheet-launch-panel">
                     <header class="application-panel-heading">
                         <div><h2>Review Worksheets</h2><p>Complete both official worksheets before submitting the decision.</p></div>
-                        <x-dashboard.status-badge :label="$completedForms.' / 2 complete'" :tone="$completedForms === 2 ? 'success' : 'orange'" />
+                        <x-dashboard.status-badge :label="$completedForms.' / 2 completed'" :tone="$completedForms === 2 ? 'success' : 'orange'" />
                     </header>
                     <button class="dashboard-outline-action reviewer-worksheet-launch" type="button" data-reviewer-worksheet-open>
                         <x-dashboard.icon name="clipboard" size="18" />
@@ -277,6 +286,162 @@
 
             </aside>
         </div>
+
+        @if ((int) $assignment->review_cycle > 0)
+            <section class="application-panel reviewer-revision-history" aria-labelledby="reviewer-revision-history-title">
+                <header class="application-panel-heading">
+                    <div>
+                        <h2 id="reviewer-revision-history-title">Previous Versions and Comments</h2>
+                        <p>Read-only reference from earlier authorized review cycles. Historical comments never enter the current composer.</p>
+                    </div>
+                    <x-dashboard.status-badge :label="'Revision '.$assignment->review_cycle" tone="violet" />
+                </header>
+
+                <div class="reviewer-revision-history-grid">
+                    <div>
+                        <h3>Previous document versions</h3>
+                        @forelse ($historicalDocuments->groupBy('document_requirement_id') as $versions)
+                            <details class="reviewer-history-disclosure">
+                                <summary>
+                                    <span>{{ $versions->first()?->requirement?->name ?? 'Supporting Document' }}</span>
+                                    <small>{{ $versions->count() }} stored {{ Str::plural('version', $versions->count()) }}</small>
+                                </summary>
+                                <div class="reviewer-history-list">
+                                    @foreach ($versions as $document)
+                                        <article>
+                                            <div>
+                                                <strong>Version {{ $document->document_version }}</strong>
+                                                <span>{{ $document->original_file_name }}</span>
+                                                <small>{{ $document->uploaded_at?->format('M j, Y g:i A') ?? 'Date not recorded' }} · {{ $document->validation_status?->label() ?? 'Stored' }}</small>
+                                            </div>
+                                            <div class="reviewer-history-actions">
+                                                <a href="{{ route('reviewer.applications.documents.preview', [$application, $document]) }}" target="_blank" rel="noopener">Preview</a>
+                                                <a href="{{ route('reviewer.applications.documents.download', [$application, $document]) }}">Download</a>
+                                            </div>
+                                        </article>
+                                    @endforeach
+                                </div>
+                            </details>
+                        @empty
+                            <p class="reviewer-empty-copy">No earlier document versions are available for this revision cycle.</p>
+                        @endforelse
+                        @if ($historicalDocuments->count() >= 100)
+                            <p class="reviewer-history-limit">The newest 100 authorized historical files are shown.</p>
+                        @endif
+                    </div>
+
+                    <div>
+                        <h3>My previous review comments</h3>
+                        @forelse ($historicalReviews as $historicalReview)
+                            <details class="reviewer-history-disclosure">
+                                <summary>
+                                    <span>{{ $historicalReview->review_cycle === 0 ? 'Initial review' : 'Revision '.$historicalReview->review_cycle }}</span>
+                                    <small>{{ $historicalReview->reviewSubmission?->decision?->label() ?? 'Decision not recorded' }} · {{ $historicalReview->comments->count() }} {{ Str::plural('comment', $historicalReview->comments->count()) }}</small>
+                                </summary>
+                                <div class="reviewer-history-comments">
+                                    @forelse ($historicalReview->comments as $historicalComment)
+                                        <article>
+                                            <header>
+                                                <x-dashboard.status-badge :label="$historicalComment->category->label()" :tone="$historicalComment->category->tone()" />
+                                                <span>{{ $historicalComment->scope->label() }}</span>
+                                                <time datetime="{{ $historicalComment->created_at?->toIso8601String() }}">{{ $historicalComment->created_at?->format('M j, Y g:i A') }}</time>
+                                            </header>
+                                            <p>{{ $historicalComment->body }}</p>
+                                            <small>
+                                                {{ $historicalComment->document?->requirement?->name ?? 'Overall review' }}
+                                                @if ($historicalComment->document)
+                                                    · document version {{ $historicalComment->document->document_version }}
+                                                @endif
+                                                · {{ Str::headline($historicalComment->status) }}
+                                            </small>
+                                        </article>
+                                    @empty
+                                        <p class="reviewer-empty-copy">No comments were recorded in this cycle.</p>
+                                    @endforelse
+                                </div>
+                            </details>
+                        @empty
+                            <p class="reviewer-empty-copy">No prior authorized review comments are available.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </section>
+        @endif
+
+        <section class="application-modal-backdrop" data-reviewer-submit-dialog hidden>
+            <div
+                class="application-modal reviewer-submit-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="reviewer-submit-title"
+                aria-describedby="reviewer-submit-description reviewer-submit-warning"
+                tabindex="-1"
+                data-reviewer-submit-panel
+            >
+                <button class="application-modal-close" type="button" aria-label="Cancel final review submission" data-reviewer-submit-cancel><x-dashboard.icon name="x" size="20" /></button>
+
+                <div class="reviewer-submit-state" data-reviewer-submit-confirmation>
+                    <header class="application-modal-heading">
+                        <span class="application-modal-icon"><x-dashboard.icon name="clipboard" size="24" /></span>
+                        <div>
+                            <h2 id="reviewer-submit-title">Submit Final Review</h2>
+                            <p id="reviewer-submit-description">Confirm the decision that will be sent into the protected RES workflow.</p>
+                        </div>
+                    </header>
+
+                    <dl class="reviewer-submit-summary">
+                        <div>
+                            <dt>Selected Final Decision</dt>
+                            <dd data-reviewer-submit-decision>Not selected</dd>
+                        </div>
+                        <div>
+                            <dt>Required Worksheets</dt>
+                            <dd>{{ $completedForms }} of 2 completed</dd>
+                        </div>
+                    </dl>
+
+                    <div class="reviewer-submit-warning" id="reviewer-submit-warning" role="note">
+                        <x-dashboard.icon name="alert-triangle" size="20" />
+                        <p><strong>This action is irreversible.</strong> Your worksheets, comments, and final decision cannot be changed after submission.</p>
+                    </div>
+                    <p class="reviewer-submit-feedback" role="alert" aria-live="assertive" data-reviewer-submit-feedback></p>
+
+                    <div class="application-modal-actions reviewer-submit-actions">
+                        <button class="dashboard-outline-action" type="button" data-reviewer-submit-cancel>Cancel</button>
+                        <button class="dashboard-primary-action" type="button" data-reviewer-submit-confirm>
+                            <x-dashboard.icon name="check" size="17" />
+                            <span data-reviewer-submit-confirm-label>Confirm Final Submission</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="reviewer-submit-state reviewer-submit-result" data-reviewer-submit-result hidden>
+                    <header class="application-modal-heading">
+                        <span class="application-modal-icon reviewer-submit-result-icon"><x-dashboard.icon name="check" size="24" /></span>
+                        <div>
+                            <h2 id="reviewer-submit-result-title">Review Submitted</h2>
+                            <p id="reviewer-submit-result-description" data-reviewer-submit-result-message>Your final review was recorded and is pending the next authorized RES action.</p>
+                        </div>
+                    </header>
+                    <dl class="reviewer-submit-summary">
+                        <div>
+                            <dt>Final Decision</dt>
+                            <dd data-reviewer-submit-result-decision></dd>
+                        </div>
+                        <div>
+                            <dt>Submitted</dt>
+                            <dd data-reviewer-submit-result-time></dd>
+                        </div>
+                    </dl>
+                    <div class="application-modal-actions reviewer-submit-actions">
+                        <a class="dashboard-primary-action" href="{{ route('reviewer.assignments.show', $assignment) }}" data-reviewer-submit-result-link>
+                            <span>Return to Assignment</span>
+                            <x-dashboard.icon name="arrow-right" size="17" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <section class="application-modal-backdrop" data-reviewer-worksheet-dialog hidden>
             <div class="application-modal reviewer-worksheet-modal" role="dialog" aria-modal="true" aria-labelledby="reviewer-worksheet-title" tabindex="-1">
@@ -295,7 +460,7 @@
                             $form = $forms->get($type->value);
                             $formIsFinal = $formIsComplete($form);
                             $progress = $formProgress($form, $catalog);
-                            $statusLabel = $formIsFinal ? 'Complete' : ($form ? 'Draft Saved' : 'Not Started');
+                            $statusLabel = $formIsFinal ? 'Completed' : ($form ? 'In Progress' : 'Not Started');
                             $openLabel = $formIsFinal || ! $canWrite ? 'View' : ($form ? 'Continue' : 'Start');
                         @endphp
                         <article class="reviewer-worksheet-option">
@@ -345,7 +510,7 @@
                 $formIsFinal = $formIsComplete($form);
                 $formCanWrite = $canWrite && ! $formIsFinal;
                 $progress = $formProgress($form, $catalog);
-                $statusLabel = $formIsFinal ? 'Complete' : ($form ? 'Draft Saved' : 'Not Started');
+                $statusLabel = $formIsFinal ? 'Completed' : ($form ? 'In Progress' : 'Not Started');
                 $consentValue = old('form_type') === $type->value
                     ? old('consent_required', '')
                     : ($form?->consent_required === null ? '' : (string) (int) $form->consent_required);

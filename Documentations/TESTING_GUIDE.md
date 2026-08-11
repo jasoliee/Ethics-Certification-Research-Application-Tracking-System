@@ -34,6 +34,14 @@ vendor\bin\pint --test
 npm.cmd run build
 ```
 
+## August 10, 2026 Continuation Verification
+
+- Focused Reviewer/artifact/preview/settings/workbook coverage: 64 tests, 1,586 assertions, passed.
+- Complete Laravel suite: 226 tests, 3,386 assertions, passed.
+- Passed: changed-file Pint, `composer validate --strict`, `composer check-platform-reqs`, 116-route listing, migration status, `php artisan view:cache`, `npm run build`, and `git diff --check`.
+- At the August 10 checkpoint, repository-wide Pint had one unrelated service formatting finding; the August 11 cycle-aware update resolved it and repository-wide Pint now passes. Composer audit still has the current Guzzle/CommonMark advisories. See `KNOWN_ISSUES.md` before release.
+- Local browser coverage completed at 1280, 1024, 768, and 390 pixels for the Reviewer workspace/chooser and its Escape/focus-restoration behavior. Remaining manual items are recorded in `MANUAL_VISUAL_VALIDATION.md`.
+
 ## Manual Role Checks
 
 Applicant:
@@ -73,12 +81,13 @@ Reviewer:
 - Search and filter Assigned Applications, confirm pagination and empty state, and verify all displayed records belong to the signed-in Reviewer.
 - Confirm the Reviewer sidebar contains only Home and Assignments. Confirm Review routes still open from dashboard cards/direct links, Notifications from the bell, and Settings from the profile menu.
 - Open an assignment and confirm Applicant/Adviser profile identities are absent and another Reviewer's assignment, workspace, comments, and documents remain forbidden.
-- Open PDF, Word, and Excel documents from the workspace. Confirm PDF/browser-safe content uses the protected inline viewer while Office files use the same-origin authorized fallback/download, the actual file type is identified, and no private storage path or third-party viewer URL appears.
-- Save and restore drafts for both official forms. Confirm unknown questions/answers fail, applicable final answers are required, and non-Approved recommendations require comments.
+- Open PDF, Word, and Excel documents from the workspace. Confirm PDF/browser-safe content uses the protected inline viewer with no CSP `sandbox`, while Office files use the same-origin authorized fallback/download; verify the actual file type is identified and no private storage path or third-party viewer URL appears.
+- Save and restore drafts for both official forms. Confirm the visible states move from Not Started to In Progress to Completed, unknown questions/answers fail, applicable final answers are required, and non-Approved recommendations require comments.
 - Keep a selected document visible while adding overall and document comments. Confirm create, edit, resolve/reopen, and confirmed remove update without a full-page refresh; newly added comments appear immediately; duplicate requests are blocked; the newest 20 and Load Older cursor preserve total/history; and loading, empty, success, validation-error, and request-error states are readable. Historical page comments must remain readable without being silently remapped.
 - Disable JavaScript and confirm the comment form fallback still validates and persists. Confirm another assignment cannot own the target document/comment and all mutations are blocked after final submission.
 - Confirm writes fail when Reviewer Submission is unconfigured/upcoming/closed and read-only state remains visible.
-- Finalize both forms and confirm no official artifact is exposed yet. Submit one of the four decisions with a comment; confirm two Ready private PDFs are generated from persisted form/decision/comment data, prior versions become Superseded without deletion, and the assignment becomes immutable. Simulate one renderer failure and confirm no partial artifact or submitted review commits. For a multi-reviewer cycle, confirm the application reaches pending release only after every Reviewer submits.
+- Confirm Submit Review does not open the final dialog until both worksheets, one decision, and a 10-to-2,000-character comment are present. Verify the dialog shows the selected decision and irreversible warning; cancel, backdrop, and Escape restore focus; focus remains trapped; one request enters a loading state; safe server/network errors remain recoverable; and success shows the result state and return action. Save Draft must remain independent, and a no-JavaScript final POST must still use server validation.
+- Finalize both forms and confirm no official artifact is exposed yet. Submit one of the four decisions with a comment; confirm two Ready private PDFs are generated from persisted form/decision/comment data, prior versions become Superseded without deletion, a duplicate final request is denied, and the assignment becomes immutable. Simulate one renderer failure and confirm no partial artifact or submitted review commits. For a multi-reviewer cycle, confirm the application reaches pending release only after every Reviewer submits.
 - Confirm no Reviewer name, comment, form, or decision appears in Applicant pages before an explicit release feature exists.
 - Check the assignment list, workspace, forms, simultaneous document/comment panes, and documents at desktop, tablet, and phone widths; stacked layouts and internal overflow must not create whole-page horizontal scrolling.
 - Open notifications and profile pages.
@@ -110,7 +119,7 @@ RES Lead:
 - Re-edit a saved screening: Re-edit Decision sits beside View Assignment, the classification and saved summary fill the available width, and incompatible current assignments are superseded without deleting their history.
 - Confirm the RES requirement checklist provides authorized View and direct Download actions, while another role or mismatched nested document is denied.
 - Check the Reviewer assignment page at desktop, tablet, and phone widths: no Eligibility card, filters remain inside Eligible Reviewers, context text does not overlap, selected removal uses the X icon, the reassignment reason sits above Save Reviewer Set, and the confirmation action remains contained.
-- Confirm ordered term/process ranges, inclusive Asia/Manila boundaries, explicit `On`/`Off` overrides, and date changes clearing an existing override.
+- Confirm a new term exposes the current-date Starting Date minimum, an existing configured historical start remains editable, and Ending Date follows Starting Date in the browser while the server rejects only reversed ranges. Also confirm inclusive Asia/Manila process boundaries, explicit `On`/`Off` overrides, and date changes clearing an existing override.
 
 All roles:
 
@@ -127,3 +136,6 @@ All roles:
 ## Verification Baseline
 
 The expanded automated suite covers authentication, role authorization, dashboard reflection across term links, onboarding, account creation, setup-link expiry/single use, Excel generation/import, workbook-structure rejection, marker-controlled example rows, active/archive separation and secure restoration, dropdown identities and historical aliases, mass actions, username correction, Applicant date-pair validation, formal-count limits, private-document behavior, shared completion, configured/manual-open submission, confirmation structure, Adviser visibility/decisions, MIME icons, audit filtering/sanitization, and rate limiting. Always report the exact current test count from command output instead of preserving a count in this document.
+## Applicant revision and certificate coverage (August 11, 2026)
+
+Focused feature coverage lives in `tests/Feature/Dashboard/ApplicantRevisionCertificationWorkflowTest.php` and `tests/Feature/Dashboard/CertificateReleaseWorkflowTest.php`. It exercises selective comment release, Reviewer anonymity, immutable/idempotent replacement versions, direct same-Reviewer re-routing, cross-user denial, real official PDF generation, survey-before-claim enforcement, private access, background version isolation, and safe generation failure.

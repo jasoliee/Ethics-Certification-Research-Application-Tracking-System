@@ -22,18 +22,15 @@ Worksheet finalization stores immutable catalog, payload, context, and attestati
 
 Artifact versions are append-only. A later submitted version supersedes the prior Ready version without deleting its row or private file. Only the current Ready version is listed as official on the RES application page; authenticated nested routes and policy checks protect preview/download. Applicants and Advisers have no artifact route.
 
-## Certificate Limitation
+Official artifact previews and authenticated browser-native application PDF/image previews use private no-store responses with safe MIME types, `nosniff`, `SAMEORIGIN`, no-referrer, restricted browser-feature permissions, and a CSP limited to no ambient source access, same-origin frame ancestors, and no base URI. CSP `sandbox` is intentionally absent because it prevents some built-in PDF viewers from loading inside the authorized iframe. This does not create public links or alter the stricter first-party HTML fallback used for Word and Excel files.
 
-The repository does not yet contain an approved certificate rendering service, generation route, release policy, or QR verification contract. The OVPRII background asset is prepared for that future generator and is not proof that certificate generation is complete.
+The styled final-review dialog does not generate documents on the client. It posts to the same authorized overall-submission endpoint, and only the locked server transaction may create both artifacts and return the non-sensitive decision label, submitted timestamp, and same-origin assignment return URL used by the result state. Repeated or stale submissions remain blocked by assignment/review state.
 
-## Required Future Controls
+## Certificate implementation
 
-- Keep certificate templates, generated certificates, and research documents outside `public/`.
-- Authorize generation and download through policies.
-- Bind generated output to an immutable application/result version.
-- Preserve approved background proportions and print resolution.
-- Store generation/release audit events and file hashes.
-- Expose only approved public-safe metadata through QR verification.
-- Test sample PDF output visually and verify that no text clips or overlaps.
+The certificate path is implemented from the separately supplied `context_files/RES CERTIFIACTE.pdf`, not from the OVPRII background. It uses integrity-checked official artwork and signature resources, immutable private PDF versions, policy-protected streams, application-code control numbers, explicit RES release, post-release evaluation, and explicit Applicant claim. Generation/release audit events include provenance and file hashes without private answers or paths.
 
-Do not implement certificate wording, signatures, serial numbering, QR visibility, or release conditions without approved requirements.
+The remaining certificate limitation is public QR/control-number verification: the supplied official certificate has no QR area and no approved public metadata contract. No QR is added until both are approved. See `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md` for the complete mapping and operational checks.
+## Official RES certificate pipeline (August 11, 2026)
+
+Certificates are now generated as private, immutable PDF versions from the supplied `context_files/RES CERTIFIACTE.pdf` design and verified derived resources. Eligibility, generation success, explicit RES release, Applicant evaluation, and explicit claim are separate server-enforced states. An activated background affects future generations only; existing version records preserve their template/background hashes. Full field mapping, integrity hashes, failure behavior, and operational checks are in `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md`.

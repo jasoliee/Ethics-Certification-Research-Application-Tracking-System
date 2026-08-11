@@ -28,6 +28,10 @@
         $activeDateRangeDays = $configuredTerm
             ? (int) $configuredTerm->starts_at->copy()->startOfDay()->diffInDays($configuredTerm->ends_at->copy()->startOfDay()) + 1
             : null;
+        $termStartsOn = old('term_starts_on', $configuredTerm?->starts_at?->format('Y-m-d'));
+        $termEndsOn = old('term_ends_on', $configuredTerm?->ends_at?->format('Y-m-d'));
+        $termStartMinimum = $configuredTerm ? null : $minimumDate;
+        $termEndMinimum = $termStartsOn ?: $termStartMinimum;
     @endphp
 
     <div class="dashboard-page res-settings-page" data-settings-tabs data-settings-active-tab="{{ $initialTab }}">
@@ -114,11 +118,11 @@
                                 </div>
                                 <div class="settings-field settings-date-field">
                                     <label for="term_starts_on">Starting Date</label>
-                                    <input id="term_starts_on" name="term_starts_on" type="date" min="{{ $minimumDate }}" value="{{ old('term_starts_on', $configuredTerm?->starts_at?->format('Y-m-d')) }}" data-minimum-date="{{ $minimumDate }}" required>
+                                    <input id="term_starts_on" name="term_starts_on" type="date" @if ($termStartMinimum) min="{{ $termStartMinimum }}" @endif value="{{ $termStartsOn }}" required>
                                 </div>
                                 <div class="settings-field settings-date-field">
                                     <label for="term_ends_on">Ending Date</label>
-                                    <input id="term_ends_on" name="term_ends_on" type="date" min="{{ $minimumDate }}" value="{{ old('term_ends_on', $configuredTerm?->ends_at?->format('Y-m-d')) }}" data-minimum-date="{{ $minimumDate }}" required>
+                                    <input id="term_ends_on" name="term_ends_on" type="date" @if ($termEndMinimum) min="{{ $termEndMinimum }}" @endif value="{{ $termEndsOn }}" required>
                                 </div>
                             </div>
                         </section>

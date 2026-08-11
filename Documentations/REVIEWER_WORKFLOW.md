@@ -30,6 +30,8 @@ Current application documents remain on the private `local` disk. Preview and do
 
 The interface displays the stored file name/type and uses same-origin, policy-authorized routes. PDF and browser-safe image files may stream inline. `.doc`, `.docx`, `.xls`, and `.xlsx` files use the authorized no-store viewer fallback with a protected download because the repository has no approved local Office-to-browser renderer. Remote Office/Google viewers are not used because they would disclose private file contents to a third party. Uploaded content itself may still contain typed names or other identity; ECRATS does not claim content-level anonymization until an approved redaction procedure exists.
 
+Inline PDF/image responses use a non-sandboxed CSP limited to `default-src 'none'`, same-origin frame ancestors, and no base URI so native browser PDF viewers can render inside the authorized workspace iframe. They also retain `SAMEORIGIN`, `nosniff`, private `no-store`, no-referrer, and restricted browser-feature headers. The Office fallback keeps its separate HTML CSP and does not expose a public URL.
+
 ## Official Forms
 
 Each assignment has at most one persisted row per form type. The server owns all question keys and allowed answers; browser-supplied labels or unknown keys are rejected.
@@ -44,6 +46,8 @@ Both forms support independent Draft and Final states and one recommendation:
 - Minor Revision;
 - Major Revision; or
 - Disapproved.
+
+The Reviewer interface presents those persisted states as `Not Started`, `In Progress`, and `Completed`. Saving an incomplete worksheet draft changes its display to In Progress; finalizing a valid worksheet changes it to Completed. The database continues to store the established Draft/Final enum values.
 
 Finalization requires every applicable answer and a recommendation. A non-Approved recommendation also requires comments of at least 10 characters. A finalized form cannot be edited. Finalization stores immutable catalog, payload, context, and authenticated-attestation snapshots; it does not yet make the incomplete overall review an official document.
 
@@ -74,6 +78,8 @@ A Reviewer may save a decision draft at any time the assignment is writable. Fin
 - a final decision comment of 10 to 2,000 characters.
 
 Submitting writes the one-per-assignment `review_submissions` row, generates and versions both verified private official artifacts, changes the assignment to `decision_submitted`, records `submitted_at`, and freezes further forms, comments, and decisions. RES may list/preview/download only the current Ready artifacts after this submitted state; Applicant and Adviser routes expose none.
+
+With JavaScript available, final submission first validates the two Completed worksheets, selected decision, and 10-character decision comment, then opens a focus-contained confirmation dialog showing the selected decision and an irreversible-action warning. Cancel, Escape, and backdrop dismissal restore focus before a request begins. Confirm submits once through the same protected endpoint, locks dialog controls while pending, and shows safe validation/request errors or a success result with a return link. Save Draft does not open this dialog. Without JavaScript, the normal form POST remains available and the same Form Request, policy, deadline, transaction lock, and service checks remain authoritative.
 
 For an initial review cycle, the application moves to `review_submitted_pending_release` and `decision_release` only after every assignment in that cycle has submitted. Active RES Leads then receive a neutral notification. No Applicant notification or result visibility is created at this boundary.
 
@@ -111,5 +117,9 @@ Metadata is limited to assignment/comment IDs, form type/status, comment scope/s
 
 - No approved automatic/manual document-content redaction or anonymized-copy generation.
 - No privacy-preserving Word/Excel content renderer is installed; Office files retain authorized fallback and download behavior rather than being sent to a third-party viewer.
-- No Applicant revision comparison or Reviewer re-review implementation.
-- No consolidated Full Board decision, official result release, Applicant feedback view, certificate generation, or QR verification.
+- No automated side-by-side document diff. Reviewers instead receive authorized read-only prior versions beside current replacement files.
+- No public QR verification. Explicit result release, Applicant feedback, re-review, and private certificate generation/claim are implemented.
+
+## Revision re-review continuation (August 11, 2026)
+
+Applicant revisions route directly to the same current Reviewer set through linked `revision_review` assignments; they do not repeat Adviser or initial RES screening. The `reviewing-revision-period` is enforced independently of the initial Reviewer deadline. In a revision workspace, the Reviewer sees current replacement files plus bounded, read-only earlier versions and only that Reviewer's earlier comments/submission. Completion remains cycle-aware: the application waits for every current assignment in the same `review_cycle` before entering authorized RES release.

@@ -20,6 +20,7 @@ class ReviewerAssignment extends Model
         'research_application_id',
         'reviewer_user_id',
         'review_type',
+        'review_cycle',
         'assignment_status',
         'assignment_sequence',
         'replaces_assignment_id',
@@ -36,6 +37,7 @@ class ReviewerAssignment extends Model
     {
         return [
             'assignment_status' => ReviewerAssignmentStatus::class,
+            'review_cycle' => 'integer',
             'assigned_at' => 'datetime',
             'review_deadline_at' => 'datetime',
             'submitted_at' => 'datetime',

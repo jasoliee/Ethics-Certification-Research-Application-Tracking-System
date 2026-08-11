@@ -95,11 +95,18 @@ class ApplicationDocumentPreviewTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', $mimeType)
             ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
             ->assertHeader('Referrer-Policy', 'no-referrer')
+            ->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
             ->assertDontSee('Secure inline preview unavailable');
 
         $this->assertStringContainsString('inline', (string) $response->headers->get('Content-Disposition'));
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $contentSecurityPolicy = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("default-src 'none'", $contentSecurityPolicy);
+        $this->assertStringContainsString("frame-ancestors 'self'", $contentSecurityPolicy);
+        $this->assertStringContainsString("base-uri 'none'", $contentSecurityPolicy);
+        $this->assertStringNotContainsString('sandbox', $contentSecurityPolicy);
     }
 
     /**

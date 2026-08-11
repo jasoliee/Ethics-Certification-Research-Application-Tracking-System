@@ -19,6 +19,7 @@ class ApplicationDocument extends Model
         'stored_file_path',
         'mime_type',
         'file_size_bytes',
+        'file_sha256',
         'document_version',
         'validation_status',
         'is_current',

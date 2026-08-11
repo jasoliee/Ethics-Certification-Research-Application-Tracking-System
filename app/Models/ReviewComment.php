@@ -19,7 +19,9 @@ class ReviewComment extends Model
         'status',
         'resolved_at',
         'resolved_by_user_id',
+        'application_decision_release_id',
         'released_at',
+        'released_by_user_id',
     ];
 
     protected function casts(): array
@@ -46,5 +48,15 @@ class ReviewComment extends Model
     public function resolvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by_user_id')->withTrashed();
+    }
+
+    public function decisionRelease(): BelongsTo
+    {
+        return $this->belongsTo(ApplicationDecisionRelease::class, 'application_decision_release_id');
+    }
+
+    public function releasedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'released_by_user_id')->withTrashed();
     }
 }

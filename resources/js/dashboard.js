@@ -5,6 +5,25 @@ export function initializeDashboard() {
         return;
     }
 
+    shell.querySelectorAll('[data-disable-on-submit]').forEach((form) => {
+        form.addEventListener('submit', () => {
+            if (form.getAttribute('aria-busy') === 'true') {
+                return;
+            }
+
+            form.setAttribute('aria-busy', 'true');
+            form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                button.disabled = true;
+                button.setAttribute('aria-disabled', 'true');
+                const label = button.querySelector('span');
+                if (label) {
+                    label.dataset.originalLabel = label.textContent;
+                    label.textContent = 'Processing...';
+                }
+            });
+        });
+    });
+
     const menuToggles = [...shell.querySelectorAll('[data-menu-toggle]')];
     const menus = [...shell.querySelectorAll('[data-menu]')];
 
@@ -475,7 +494,7 @@ function initializeApplicationTools(shell) {
                         .filter((className) => className.startsWith('tone-'))
                         .forEach((className) => status.classList.remove(className));
                     status.classList.add('tone-blue');
-                    status.textContent = 'Draft Saved';
+                    status.textContent = 'In Progress';
                 });
                 shell.querySelectorAll(`[data-reviewer-form-open-label="${formType}"]`).forEach((label) => {
                     label.textContent = 'Continue';
@@ -487,7 +506,7 @@ function initializeApplicationTools(shell) {
                 worksheetControlsLocked = false;
                 syncConsentExplanation();
                 form.dispatchEvent(new CustomEvent('reviewer:form-saved'));
-                setFormFeedback('Draft saved.', 'success');
+                setFormFeedback('Progress saved.', 'success');
             } catch (error) {
                 setFormFeedback(error.message || 'The worksheet draft could not be saved. Check your connection and try again.', 'error');
             } finally {
@@ -1475,6 +1494,278 @@ function initializeApplicationTools(shell) {
         }
     };
 
+    const reviewerDecisionForm = shell.querySelector('[data-reviewer-decision-form]');
+
+    if (reviewerDecisionForm) {
+        const submitDialog = shell.querySelector('[data-reviewer-submit-dialog]');
+        const submitPanel = submitDialog?.querySelector('[data-reviewer-submit-panel]');
+        const confirmationState = submitDialog?.querySelector('[data-reviewer-submit-confirmation]');
+        const resultState = submitDialog?.querySelector('[data-reviewer-submit-result]');
+        const cancelButtons = [...(submitDialog?.querySelectorAll('[data-reviewer-submit-cancel]') ?? [])];
+        const closeButton = submitDialog?.querySelector('.application-modal-close[data-reviewer-submit-cancel]');
+        const confirmButton = submitDialog?.querySelector('[data-reviewer-submit-confirm]');
+        const confirmLabel = submitDialog?.querySelector('[data-reviewer-submit-confirm-label]');
+        const dialogFeedback = submitDialog?.querySelector('[data-reviewer-submit-feedback]');
+        const formFeedback = reviewerDecisionForm.querySelector('[data-reviewer-decision-feedback]');
+        const decisionField = reviewerDecisionForm.querySelector('[name="decision"]');
+        const commentField = reviewerDecisionForm.querySelector('[name="decision_comment"]');
+        const confirmationDecision = submitDialog?.querySelector('[data-reviewer-submit-decision]');
+        const resultDecision = submitDialog?.querySelector('[data-reviewer-submit-result-decision]');
+        const resultTime = submitDialog?.querySelector('[data-reviewer-submit-result-time]');
+        const resultMessage = submitDialog?.querySelector('[data-reviewer-submit-result-message]');
+        const resultLink = submitDialog?.querySelector('[data-reviewer-submit-result-link]');
+        const completedForms = Number.parseInt(reviewerDecisionForm.dataset.completedReviewerForms ?? '0', 10);
+        const requiredForms = Number.parseInt(reviewerDecisionForm.dataset.requiredReviewerForms ?? '2', 10);
+        let returnFocus = null;
+        let finalSubmissionInFlight = false;
+        let finalSubmissionSucceeded = false;
+
+        const selectedDecisionLabel = () => decisionField?.selectedOptions?.[0]?.textContent?.trim() ?? '';
+
+        const setDecisionFeedback = (message = '') => {
+            if (formFeedback) {
+                formFeedback.textContent = message;
+                formFeedback.classList.toggle('is-error', Boolean(message));
+            }
+        };
+
+        const setSubmitDialogFeedback = (message = '') => {
+            if (dialogFeedback) {
+                dialogFeedback.textContent = message;
+                dialogFeedback.classList.toggle('is-error', Boolean(message));
+            }
+        };
+
+        const validateFinalReview = () => {
+            decisionField?.removeAttribute('aria-invalid');
+            commentField?.removeAttribute('aria-invalid');
+            setDecisionFeedback();
+
+            if (completedForms < requiredForms) {
+                setDecisionFeedback(`Complete both required worksheets before submitting the final review (${completedForms} of ${requiredForms} completed).`);
+                shell.querySelector('[data-reviewer-worksheet-open]')?.focus();
+
+                return false;
+            }
+
+            if (! decisionField?.value) {
+                decisionField?.setAttribute('aria-invalid', 'true');
+                setDecisionFeedback('Select a final decision before continuing.');
+                decisionField?.focus();
+
+                return false;
+            }
+
+            if ((commentField?.value.trim().length ?? 0) < 10) {
+                commentField?.setAttribute('aria-invalid', 'true');
+                setDecisionFeedback('Enter a decision comment of at least 10 characters before continuing.');
+                commentField?.focus();
+
+                return false;
+            }
+
+            if (! reviewerDecisionForm.reportValidity()) {
+                return false;
+            }
+
+            return true;
+        };
+
+        const closeSubmitDialog = () => {
+            if (! submitDialog || finalSubmissionInFlight) {
+                if (finalSubmissionInFlight) {
+                    setSubmitDialogFeedback('Wait for the final review submission to finish.');
+                    submitPanel?.focus();
+                }
+
+                return;
+            }
+
+            if (finalSubmissionSucceeded) {
+                window.location.assign(resultLink?.href ?? reviewerDecisionForm.dataset.reviewerResultUrl);
+
+                return;
+            }
+
+            submitDialog.hidden = true;
+            syncModalEnvironment();
+            returnFocus?.focus();
+        };
+
+        const openSubmitDialog = (trigger) => {
+            if (! submitDialog || ! validateFinalReview()) {
+                return;
+            }
+
+            returnFocus = trigger;
+            finalSubmissionSucceeded = false;
+            closeButton?.setAttribute('aria-label', 'Cancel final review submission');
+            if (confirmationDecision) {
+                confirmationDecision.textContent = selectedDecisionLabel();
+            }
+            if (confirmationState) {
+                confirmationState.hidden = false;
+            }
+            if (resultState) {
+                resultState.hidden = true;
+            }
+            submitPanel?.setAttribute('aria-labelledby', 'reviewer-submit-title');
+            submitPanel?.setAttribute('aria-describedby', 'reviewer-submit-description reviewer-submit-warning');
+            setSubmitDialogFeedback();
+            submitDialog.hidden = false;
+            syncModalEnvironment();
+            submitPanel?.focus();
+        };
+
+        reviewerDecisionForm.addEventListener('input', (event) => {
+            if (event.target === decisionField || event.target === commentField) {
+                event.target.removeAttribute('aria-invalid');
+                setDecisionFeedback();
+            }
+        });
+
+        reviewerDecisionForm.addEventListener('change', (event) => {
+            if (event.target === decisionField) {
+                decisionField.removeAttribute('aria-invalid');
+                setDecisionFeedback();
+            }
+        });
+
+        reviewerDecisionForm.addEventListener('submit', (event) => {
+            if (event.submitter?.value !== 'submit') {
+                return;
+            }
+
+            event.preventDefault();
+            if (! finalSubmissionInFlight) {
+                openSubmitDialog(event.submitter);
+            }
+        });
+
+        cancelButtons.forEach((button) => {
+            button.addEventListener('click', closeSubmitDialog);
+        });
+
+        submitDialog?.addEventListener('click', (event) => {
+            if (event.target === submitDialog) {
+                closeSubmitDialog();
+            }
+        });
+
+        submitDialog?.addEventListener('keydown', (event) => {
+            if (event.key === 'Tab') {
+                const focusable = focusableModalElements(submitPanel);
+                const first = focusable[0];
+                const last = focusable.at(-1);
+
+                if (! first || ! last) {
+                    event.preventDefault();
+                    submitPanel?.focus();
+
+                    return;
+                }
+
+                if (event.shiftKey && (document.activeElement === first || document.activeElement === submitPanel)) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (! event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeSubmitDialog();
+            }
+        });
+
+        confirmButton?.addEventListener('click', async () => {
+            if (finalSubmissionInFlight || ! validateFinalReview()) {
+                return;
+            }
+
+            const formData = new FormData(reviewerDecisionForm);
+            formData.set('intent', 'submit');
+            finalSubmissionInFlight = true;
+            submitPanel?.setAttribute('aria-busy', 'true');
+            confirmButton.disabled = true;
+            cancelButtons.forEach((button) => {
+                button.disabled = true;
+            });
+            if (confirmLabel) {
+                confirmLabel.textContent = 'Submitting Review...';
+            }
+            setSubmitDialogFeedback('Submitting your final review...');
+
+            try {
+                const response = await fetch(reviewerDecisionForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await parseJson(response);
+
+                if (! response.ok) {
+                    const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                    throw new Error(validationMessage ?? payload.message ?? 'The final review could not be submitted.');
+                }
+
+                finalSubmissionSucceeded = true;
+                closeButton?.setAttribute('aria-label', 'Return to assignment');
+                const decisionLabel = payload.data?.decision_label ?? selectedDecisionLabel();
+                const submittedAt = payload.data?.submitted_at ? new Date(payload.data.submitted_at) : new Date();
+                if (resultDecision) {
+                    resultDecision.textContent = decisionLabel;
+                }
+                if (resultTime) {
+                    resultTime.textContent = payload.data?.submitted_at_label ?? (Number.isNaN(submittedAt.getTime())
+                        ? 'Recorded successfully'
+                        : submittedAt.toLocaleString());
+                }
+                if (resultMessage && payload.data?.message) {
+                    resultMessage.textContent = payload.data.message;
+                }
+                if (resultLink && payload.data?.redirect_url) {
+                    const redirectUrl = new URL(payload.data.redirect_url, window.location.origin);
+                    if (redirectUrl.origin === window.location.origin) {
+                        resultLink.href = redirectUrl.href;
+                    }
+                }
+                setSubmitDialogFeedback();
+                if (confirmationState) {
+                    confirmationState.hidden = true;
+                }
+                if (resultState) {
+                    resultState.hidden = false;
+                }
+                submitPanel?.setAttribute('aria-labelledby', 'reviewer-submit-result-title');
+                submitPanel?.setAttribute('aria-describedby', 'reviewer-submit-result-description');
+                submitPanel?.removeAttribute('aria-busy');
+                resultLink?.focus();
+            } catch (error) {
+                setSubmitDialogFeedback(error.message || 'The final review could not be submitted. Check your connection and try again.');
+            } finally {
+                finalSubmissionInFlight = false;
+                submitPanel?.removeAttribute('aria-busy');
+                cancelButtons.forEach((button) => {
+                    button.disabled = false;
+                });
+                if (! finalSubmissionSucceeded) {
+                    confirmButton.disabled = false;
+                    if (confirmLabel) {
+                        confirmLabel.textContent = 'Confirm Final Submission';
+                    }
+                }
+            }
+        });
+    }
+
     const uploadOne = async (form) => {
         const input = form.querySelector('[data-requirement-file]');
         const requirementId = form.dataset.requirementId;
@@ -1563,14 +1854,6 @@ function initializeApplicationTools(shell) {
         // Screening corrections require a deliberate confirmation before the locked workflow update runs.
         if (form.matches?.('[data-confirm-screening-update]')
             && ! window.confirm('Update this screening decision? Incompatible unstarted reviewer assignments may be removed.')) {
-            event.preventDefault();
-
-            return;
-        }
-
-        if (form.matches?.('[data-confirm-review-submit]')
-            && event.submitter?.value === 'submit'
-            && ! window.confirm('Submit this final review? Submitted forms, comments, and the decision can no longer be changed.')) {
             event.preventDefault();
 
             return;
@@ -1772,17 +2055,11 @@ function initializeSettingsTools(shell) {
     const termEnd = settings.querySelector('#term_ends_on');
     termStart?.addEventListener('change', () => {
         if (termEnd) {
-            const absoluteMinimum = termEnd.dataset.minimumDate ?? '';
-            termEnd.min = termStart.value && termStart.value > absoluteMinimum
-                ? termStart.value
-                : absoluteMinimum;
+            termEnd.min = termStart.value || termStart.min || '';
         }
     });
     if (termEnd) {
-        const absoluteMinimum = termEnd.dataset.minimumDate ?? '';
-        termEnd.min = termStart?.value && termStart.value > absoluteMinimum
-            ? termStart.value
-            : absoluteMinimum;
+        termEnd.min = termStart?.value || termStart?.min || '';
     }
 
     const confirmationDialog = settings.querySelector('[data-settings-confirm-dialog]');

@@ -8,17 +8,24 @@
 - Deferred official KLD-RES-04-001 and KLD-RES-04-002 PDF generation until the complete overall review is submitted. Both versioned artifacts now include persisted worksheet data plus the final decision and complete assignment-comment record, and incomplete legacy artifacts are not presented as current official versions.
 - Limited the initial Reviewer comment history to the newest 20 entries with assignment-authorized cursor loading, an independent bounded scrollbar, authoritative counts, duplicate-request guards, and delete confirmation.
 - Aligned the centered workspace summary and worksheet status/official-artifact controls with the current pages 54-69 reference and explicit metadata/page-comment overrides.
+- Standardized Reviewer worksheet presentation as `Not Started`, `In Progress`, and `Completed` without changing the persisted Draft/Final enum contract.
+- Replaced the final-review native confirmation with an accessible styled confirmation/result dialog that displays the selected decision, blocks incomplete submissions, prevents duplicate requests, preserves Save Draft and no-JavaScript POST behavior, and exposes loading, validation, error, and success states.
+- Limited the term `min=today` browser rule to new term entry. Existing configured historical starts remain editable, while Ending Date dynamically stays on or after Starting Date and server ordering remains authoritative.
 
 ### Security and Reliability
 
 - Overall submission and both private artifact rows commit atomically. A rendering failure removes partial files, retains Final worksheet snapshots, and leaves the decision unsubmitted with a safe validation error.
 - Ready artifacts require a submitted parent review and nested authenticated policy checks. Prior artifact versions are retained as Superseded rather than overwritten or deleted.
+- Native PDF/image application-document streams retain private nested authorization and defensive headers while replacing CSP `sandbox` with the official-artifact same-origin framing policy; protected Office fallback behavior is unchanged.
 
 ### Verification
 
 - Added focused coverage for deferred generation, persisted decision/comment mapping, generation rollback, version supersession, pre-submission denial, private artifact integrity headers, comment pagination, and duplicate prevention.
+- Added focused contracts for worksheet wording, final-review modal/accessibility selectors and JSON result data, duplicate final-submission denial, historical term controls, and non-sandboxed private preview headers.
 - Local MySQL migration and seeding completed successfully. Before verification was postponed, 81 focused tests passed with 1,649 assertions across official artifacts, Reviewer workflow/catalog, assignment pages, RES visibility/settings/screening, dashboard roles, and workbook templates.
-- Final code/fidelity items and deferred full-suite/browser/workbook/PDF acceptance are recorded in `IMPLEMENTATION_STATUS_2026-08-10.md`.
+- Continuation verification passed 64 focused tests with 1,586 assertions and the complete 226-test suite with 3,386 assertions. Changed-file Pint, strict Composer validation, platform requirements, 116-route listing, migration status, Blade compilation, Vite production build, and `git diff --check` pass.
+- Composer metadata now uses the patch-compatible FPDI `~2.6.8` constraint without changing the locked FPDI 2.6.8 or FPDF 1.8.6 packages. Repository-wide Pint still reports an untouched service file, and Composer audit reports existing dependency advisories; both are documented for separate team action.
+- Local browser checks covered the Reviewer worksheet chooser at 1280, 1024, 768, and 390 pixels plus Escape/focus restoration. The remaining 1440, writable final-result, spreadsheet-application, and official-PDF visual checks are recorded in `IMPLEMENTATION_STATUS_2026-08-10.md`.
 
 ## 2026-08-04
 
@@ -287,3 +294,12 @@
 ### Preserved
 
 - Authentication, CSRF logout, role middleware, record policies, route authorization, database-driven populated states, and empty states.
+## 2026-08-11
+
+### Applicant revision and certification
+
+- Replaced Applicant and RES certificate placeholders with complete, role-scoped dashboards.
+- Added explicit decision/comment release, two-cycle revision records, requirement-specific immutable replacements, and direct same-Reviewer re-review.
+- Added official-template certificate generation, single/bulk release, regeneration/version history, safe failure state, and future-only background versioning.
+- Added post-release Applicant evaluation, explicit claim, and private claimed-version preview/download.
+- Added audit events, notifications, throttles, ownership checks, deadline enforcement, focused tests, and workflow documentation.

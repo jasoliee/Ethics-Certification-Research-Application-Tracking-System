@@ -2,13 +2,19 @@
 
 namespace App\Services\Applications;
 
+use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStage;
+use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
+use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
+use App\Models\ApplicationRevision;
+use App\Models\ApplicationRevisionRequirement;
 use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\Settings\DeadlineProcessAvailability;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -44,6 +50,7 @@ class ApplicationDocumentService
 
     public function __construct(
         private readonly AuditLogService $auditLog,
+        private readonly DeadlineProcessAvailability $deadlines,
     ) {}
 
     /**
@@ -74,6 +81,14 @@ class ApplicationDocumentService
             ]);
         }
 
+        $fileHash = hash_file('sha256', (string) $file->getRealPath());
+
+        if (! is_string($fileHash)) {
+            throw ValidationException::withMessages([
+                'document' => 'The document could not be verified securely.',
+            ]);
+        }
+
         // Randomized paths prevent traversal, collisions, and disclosure of original filenames.
         $directory = "applications/{$application->id}/requirements/{$requirement->id}";
         $storedName = Str::uuid().'.'.$extension;
@@ -94,6 +109,7 @@ class ApplicationDocumentService
                 $file,
                 $storedPath,
                 $mimeType,
+                $fileHash,
             ): ApplicationDocument {
                 $lockedApplication = ResearchApplication::query()
                     ->whereKey($application->id)
@@ -124,6 +140,7 @@ class ApplicationDocumentService
                     'stored_file_path' => $storedPath,
                     'mime_type' => $mimeType,
                     'file_size_bytes' => $file->getSize(),
+                    'file_sha256' => $fileHash,
                     'document_version' => $documentVersion,
                     'validation_status' => RequirementStatus::Completed,
                     'is_current' => true,
@@ -154,6 +171,151 @@ class ApplicationDocumentService
             }, 3);
         } catch (Throwable $exception) {
             // Remove only the uncommitted new private file; previously stored versions remain untouched.
+            Storage::disk('local')->delete($storedPath);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Store a required Applicant revision as a new immutable document version.
+     */
+    public function uploadRevision(
+        User $actor,
+        ResearchApplication $application,
+        ApplicationRevision $revision,
+        ApplicationRevisionRequirement $revisionRequirement,
+        UploadedFile $file,
+    ): ApplicationDocument {
+        Gate::forUser($actor)->authorize('submitRevision', $application);
+        abort_unless($revision->research_application_id === $application->id, 404);
+        abort_unless($revisionRequirement->application_revision_id === $revision->id, 404);
+
+        $mimeType = (string) $file->getMimeType();
+        $extension = self::ALLOWED_MIME_EXTENSIONS[$mimeType] ?? null;
+        if ($extension === null) {
+            throw ValidationException::withMessages([
+                'document' => 'Upload a PDF, Word document, Excel workbook, JPEG image, or PNG image.',
+            ])->errorBag('revisionUpload');
+        }
+
+        $fileHash = hash_file('sha256', (string) $file->getRealPath());
+        if (! is_string($fileHash)) {
+            throw ValidationException::withMessages([
+                'document' => 'The revised document could not be verified securely.',
+            ])->errorBag('revisionUpload');
+        }
+
+        $directory = "applications/{$application->id}/revisions/{$revision->revision_number}/requirements/{$revisionRequirement->document_requirement_id}";
+        $storedPath = $file->storeAs($directory, Str::uuid().'.'.$extension, 'local');
+        if (! is_string($storedPath)) {
+            throw ValidationException::withMessages([
+                'document' => 'The revised document could not be stored securely.',
+            ])->errorBag('revisionUpload');
+        }
+
+        try {
+            return DB::transaction(function () use (
+                $actor,
+                $application,
+                $revision,
+                $revisionRequirement,
+                $file,
+                $mimeType,
+                $fileHash,
+                $storedPath,
+            ): ApplicationDocument {
+                $lockedApplication = ResearchApplication::query()
+                    ->whereKey($application->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $lockedRevision = ApplicationRevision::query()
+                    ->whereKey($revision->id)
+                    ->where('research_application_id', $lockedApplication->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $lockedRequirement = ApplicationRevisionRequirement::query()
+                    ->whereKey($revisionRequirement->id)
+                    ->where('application_revision_id', $lockedRevision->id)
+                    ->with('requirement')
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                Gate::forUser($actor)->authorize('submitRevision', $lockedApplication);
+
+                if ($lockedApplication->application_status !== ApplicationStatus::RevisionWindowOpen
+                    || $lockedRevision->status !== ApplicationRevisionStatus::PendingUploads) {
+                    throw ValidationException::withMessages([
+                        'document' => 'This revision is no longer accepting document replacements.',
+                    ])->errorBag('revisionUpload');
+                }
+
+                $this->deadlines->assertOpen(
+                    'revision-period',
+                    UserRole::Applicant,
+                    'Applicant revision submission',
+                );
+                if ($lockedRevision->due_at->isPast()) {
+                    throw ValidationException::withMessages([
+                        'document' => 'The application-specific revision deadline has passed.',
+                    ])->errorBag('revisionUpload');
+                }
+
+                $targetVersion = ((int) $lockedRevision->revision_number) + 1;
+                $documents = ApplicationDocument::query()
+                    ->where('research_application_id', $lockedApplication->id)
+                    ->where('document_requirement_id', $lockedRequirement->document_requirement_id)
+                    ->lockForUpdate()
+                    ->get();
+                $current = $documents->firstWhere('is_current', true);
+
+                if ($current
+                    && (int) $current->document_version === $targetVersion
+                    && hash_equals((string) $current->file_sha256, $fileHash)) {
+                    Storage::disk('local')->delete($storedPath);
+                    $lockedRequirement->update([
+                        'replacement_application_document_id' => $current->id,
+                    ]);
+
+                    return $current->load('requirement');
+                }
+
+                ApplicationDocument::query()
+                    ->whereIn('id', $documents->pluck('id'))
+                    ->where('is_current', true)
+                    ->update(['is_current' => false]);
+
+                $document = ApplicationDocument::create([
+                    'research_application_id' => $lockedApplication->id,
+                    'document_requirement_id' => $lockedRequirement->document_requirement_id,
+                    'uploaded_by_user_id' => $actor->id,
+                    'original_file_name' => Str::limit(basename($file->getClientOriginalName()), 255, ''),
+                    'stored_file_path' => $storedPath,
+                    'mime_type' => $mimeType,
+                    'file_size_bytes' => $file->getSize(),
+                    'file_sha256' => $fileHash,
+                    'document_version' => $targetVersion,
+                    'validation_status' => RequirementStatus::Completed,
+                    'is_current' => true,
+                    'uploaded_at' => now(),
+                ]);
+                $lockedRequirement->update([
+                    'replacement_application_document_id' => $document->id,
+                ]);
+
+                $this->auditLog->record($actor, 'application.revision_document_uploaded', $document, [
+                    'application_id' => $lockedApplication->id,
+                    'application_revision_id' => $lockedRevision->id,
+                    'revision_number' => $lockedRevision->revision_number,
+                    'requirement_code' => $lockedRequirement->requirement?->code,
+                    'document_version' => $targetVersion,
+                    'mime_type' => $mimeType,
+                    'file_size_bytes' => $file->getSize(),
+                    'result' => $current ? 'replaced' : 'uploaded',
+                ]);
+
+                return $document->load('requirement');
+            }, 3);
+        } catch (Throwable $exception) {
             Storage::disk('local')->delete($storedPath);
 
             throw $exception;

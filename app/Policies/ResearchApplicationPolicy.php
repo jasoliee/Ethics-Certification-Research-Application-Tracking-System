@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
+use App\Models\ApplicationDocument;
 use App\Models\ResearchApplication;
 use App\Models\User;
 
@@ -79,16 +80,55 @@ class ResearchApplicationPolicy
     /**
      * Restrict protected document access to users already authorized for the parent application.
      */
-    public function viewDocument(User $user, ResearchApplication $researchApplication): bool
-    {
+    public function viewDocument(
+        User $user,
+        ResearchApplication $researchApplication,
+        ?ApplicationDocument $applicationDocument = null,
+    ): bool {
         if ($user->role !== UserRole::Reviewer) {
             return $this->view($user, $researchApplication);
         }
 
+        $minimumCycle = $applicationDocument
+            ? max(0, ((int) $applicationDocument->document_version) - 1)
+            : 0;
+
         return $researchApplication->reviewerAssignments()
             ->current()
             ->where('reviewer_user_id', $user->id)
+            ->where('review_cycle', '>=', $minimumCycle)
             ->exists();
+    }
+
+    public function viewRevisionCertification(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::Applicant
+            && $researchApplication->applicant_user_id === $user->id;
+    }
+
+    public function submitRevision(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $this->viewRevisionCertification($user, $researchApplication);
+    }
+
+    public function submitSurvey(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $this->viewRevisionCertification($user, $researchApplication);
+    }
+
+    public function claimCertificate(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $this->viewRevisionCertification($user, $researchApplication);
+    }
+
+    public function releaseDecision(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::ResLead;
+    }
+
+    public function releaseCertificate(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $user->role === UserRole::ResLead;
     }
 
     /**
