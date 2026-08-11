@@ -153,6 +153,16 @@ function initializeApplicationTools(shell) {
             openSelector: '[data-reviewer-worksheet-open]',
             closeSelector: '[data-reviewer-worksheet-close]',
         },
+        {
+            dialog: shell.querySelector('[data-certificate-background-dialog]'),
+            openSelector: '[data-certificate-background-open]',
+            closeSelector: '[data-certificate-background-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-certificate-bulk-dialog]'),
+            openSelector: '[data-certificate-bulk-open]',
+            closeSelector: '[data-certificate-bulk-close]',
+        },
     ];
     const reviewerWorksheetDialog = shell.querySelector('[data-reviewer-worksheet-dialog]');
     const modalFocusSelector = [
@@ -198,6 +208,17 @@ function initializeApplicationTools(shell) {
             openSelector: `[data-reviewer-form-open="${type}"]`,
             closeSelector: '[data-reviewer-form-close]',
             reviewerWorksheet: true,
+        });
+    });
+
+    // Certification queue rows keep their forms server-rendered while opening one focused record at a time.
+    shell.querySelectorAll('[data-certificate-application-dialog]').forEach((dialog) => {
+        const applicationId = dialog.dataset.certificateApplicationDialog;
+
+        modalConfigurations.push({
+            dialog,
+            openSelector: `[data-certificate-application-open="${applicationId}"]`,
+            closeSelector: '[data-certificate-application-close]',
         });
     });
 

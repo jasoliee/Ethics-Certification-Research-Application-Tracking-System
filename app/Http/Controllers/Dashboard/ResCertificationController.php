@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\CertificateStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -36,7 +37,7 @@ class ResCertificationController extends Controller
             'q' => ['nullable', 'string', 'max:150'],
             'state' => ['nullable', Rule::in(['decision', 'eligible', 'released', 'failed', 'claimed'])],
         ]);
-        $applications = ResearchApplication::query()
+        $relevantApplications = ResearchApplication::query()
             ->where(function (Builder $query): void {
                 $query->whereIn('application_status', [
                     ApplicationStatus::ReviewSubmittedPendingRelease->value,
@@ -44,7 +45,26 @@ class ResCertificationController extends Controller
                     ApplicationStatus::Exempted->value,
                     ApplicationStatus::CertificateReleased->value,
                 ])->orWhereHas('certificate');
-            })
+            });
+        $queueMetrics = [
+            'relevant' => (clone $relevantApplications)->count(),
+            'released' => (clone $relevantApplications)
+                ->whereHas('certificate', fn (Builder $certificates) => $certificates
+                    ->whereIn('status', [
+                        CertificateStatus::Released->value,
+                        CertificateStatus::Claimed->value,
+                    ]))
+                ->count(),
+            'pending_final_approval' => (clone $relevantApplications)
+                ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value)
+                ->count(),
+            'survey_required' => (clone $relevantApplications)
+                ->whereHas('certificate', fn (Builder $certificates) => $certificates
+                    ->where('status', CertificateStatus::Released->value))
+                ->whereDoesntHave('surveyResponse')
+                ->count(),
+        ];
+        $applications = (clone $relevantApplications)
             ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
                 $search = trim((string) $filters['q']);
                 $query->where(fn (Builder $matching) => $matching
@@ -102,6 +122,7 @@ class ResCertificationController extends Controller
         return view('dashboard.certificates.res-index', [
             'pageTitle' => 'Certificate Processing',
             'applications' => $applications,
+            'queueMetrics' => $queueMetrics,
             'certificationStates' => $states,
             'backgrounds' => $backgrounds,
             'activeBackground' => $activeBackground,

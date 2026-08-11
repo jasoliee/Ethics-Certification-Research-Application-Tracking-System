@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-12
+
+### Changed
+
+- Reorganized RES Certificate Processing around a concise four-metric summary, bounded search/state filters, and one readable certification queue instead of dense per-application action cards.
+- Moved application-specific decision release, selected comments, certificate generation/retry/preview/download/regeneration, and immutable version history into a focused selected-application dialog.
+- Moved certificate-background preview, upload, activation, reset, version history, and independent pagination into a separate management dialog; bulk eligible release now uses its own confirmation dialog.
+- Added responsive queue containment, compact semantic state badges, phone-stacked dialog content, shared focus trapping/Escape/backdrop closing, focus restoration, scroll locking, and validation-aware dialog reopening without changing server routes or workflow rules.
+
+### Verification
+
+- Added RES Certificate Processing feature coverage for global metrics, filtered queue results, preserved action URLs/dialog contracts, application-scoped validation re-entry, and role isolation.
+- Focused certification workflow tests pass with 9 tests and 68 assertions. Blade compilation, changed-file Pint, the Vite production build, and `git diff --check` pass.
+- The in-app browser runtime exposed no controllable browser instance, so final live viewport and modal interaction acceptance remains documented as pending.
+
 ## 2026-08-10
 
 ### Changed

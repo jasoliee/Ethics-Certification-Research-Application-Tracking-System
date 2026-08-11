@@ -1,6 +1,6 @@
 # Applicant Revision and Certification Workflow
 
-Last updated: August 11, 2026
+Last updated: August 12, 2026
 
 ## Implemented outcome
 
@@ -77,6 +77,14 @@ An RES Lead may:
 - release all currently eligible certificates with an independent per-application summary;
 - regenerate an already issued certificate as a new immutable version;
 - upload, validate, preview, activate, or reset a certificate background.
+
+## RES Certificate Processing interface
+
+The RES page presents four unfiltered lifecycle counts—relevant applications, released certificates, pending final approvals, and released certificates still requiring a survey—above a filtered, paginated queue. Search and queue-state filters change only the table results; the summary remains a stable overview of the complete relevant-record scope.
+
+Each row exposes the authoritative final-review, released-decision, certificate-generation, survey, claim, and last-updated states. Opening a record keeps all record-specific work together in one dialog: released-decision details and selected comments, decision release when eligible, certificate generation or retry, preview/download/regeneration, and immutable version history. Bulk release has an explicit confirmation dialog. Background administration is intentionally separate and retains its own preview, upload, activation, reset, version history, and pagination.
+
+These dialogs are a presentation boundary only. Their actions remain ordinary authenticated server-rendered routes, including server-side authorization, validation, audit/notification effects, and postback feedback. Validation reopens the affected application or background dialog so entered values and errors remain in context.
 
 Accepted background formats are a decodable one-page portrait A4-compatible PDF, JPEG, or PNG. Raster assets must be at least 596 by 842 pixels. Activation affects future generations only; each existing version retains its background ID and hashes.
 

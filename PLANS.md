@@ -60,6 +60,59 @@ Date:
 
 ## Active Plans
 
+## Plan: RES certificate-processing information architecture refresh
+
+Status: Completed on 2026-08-12, with live viewport acceptance pending because no controllable browser instance was available.
+
+### Goal
+Replace the dense certificate cards and always-visible background controls with the supplied clean queue-and-modal design while preserving every existing server-authorized decision, certificate, version, survey/claim, background, audit, notification, and pagination workflow.
+
+### Source Documents
+- Primary visual authority: the two Certificate Processing screenshots supplied on August 12, 2026.
+- Functional authority: the completed Applicant revision and certification lifecycle documented in `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md`.
+- Existing dashboard components, typography, status badges, overflow regions, pagination, and accessible modal behavior remain the design-system baseline.
+
+### Scope
+Included:
+- RES-only Certificate Processing page hierarchy, metrics, filters, queue table, selected-application modal, bulk confirmation modal, and background-management modal.
+- Responsive table containment, modal focus/escape/backdrop behavior, validation re-entry, action loading states, and clear empty/result states.
+- Controller-provided unfiltered queue metrics and focused rendered-view/interaction contracts.
+
+Excluded:
+- Changes to certificate eligibility, decision-release rules, generation, files, database schema, routes, authorization, audit payloads, notifications, or Applicant workflow.
+
+### Implementation Approach
+- Backend: derive four summary counts from the same relevant-record scope without changing filtered pagination or eager-loaded workflow data.
+- Frontend: render a compact summary strip and one queue table; move record-specific actions/history into application-scoped dialogs and all background actions/history into one separate dialog.
+- Accessibility: reuse the shared focus-restoring, scroll-locking, backdrop, Escape, and Tab-trapping modal infrastructure; reopen the correct dialog on server validation.
+- Responsive behavior: preserve a readable wide table inside the established keyboard-focusable overflow component and stack modal summaries/actions on narrow viewports.
+
+### Files Expected to Change
+- `app/Http/Controllers/Dashboard/ResCertificationController.php`
+- `resources/views/dashboard/certificates/res-index.blade.php`
+- `resources/css/dashboard.css`
+- `resources/js/dashboard.js`
+- focused Certificate Processing feature tests and affected documentation
+
+### Tests and Verification
+- Focused RES page tests for metrics, queue labels, modal action preservation, background management, filters, validation reopening, and role denial.
+- Blade compilation, Pint, Vite production build, `git diff --check`, and the relevant Laravel feature tests.
+- Local browser viewport/modal checks when a controllable browser instance is available; otherwise record the limitation without substituting a different backend.
+
+### Risks and Rollback
+- Actions remain ordinary POST/PATCH/GET routes inside server-rendered dialogs, so disabling JavaScript changes presentation rather than authorization or data flow.
+- Metrics use cloned read-only queries; filtered queue data and pagination remain authoritative.
+- Rollback is limited to view/controller/CSS/JavaScript/test/documentation changes; no migration or stored workflow data changes.
+
+### Approval Notes
+Approved by: August 12 user request to redesign certification from the supplied references without compromising functionality or data flow.
+Date: 2026-08-12
+
+### Completion Notes
+- Replaced the dense application cards and inline background manager with an unfiltered metric strip, bounded queue filters, one responsive certification table, application-scoped workflow dialogs, a bulk-release confirmation, and a separate background-management dialog.
+- Preserved every existing route, ordinary server-rendered form, eligibility rule, validation re-entry path, private preview/download path, immutable version history, audit/notification effect, and independent application/background paginator.
+- Focused certification tests, Blade compilation, Pint, the Vite production build, and `git diff --check` pass. The browser runtime exposed no controllable instance, so target-width interaction acceptance remains explicitly recorded in `Documentations/MANUAL_VISUAL_VALIDATION.md`.
+
 ## Plan: Applicant revision, released feedback, and certificate lifecycle
 
 Status: Completed on 2026-08-11, with live browser viewport acceptance explicitly pending because no controllable browser instance was available.
