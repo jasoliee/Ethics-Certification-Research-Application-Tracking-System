@@ -14,7 +14,7 @@
             <x-dashboard.summary-card label="Completed Reviews" :count="$counts['completed']" icon="clipboard" tone="green" :href="route('reviewer.reviews.index')" />
         </div>
 
-        <x-dashboard.section title="Assigned Reviews" view-all-route="reviewer.assignments.index">
+        <x-dashboard.section title="Latest Assigned Reviews" view-all-route="reviewer.assignments.index">
             @if ($assignments->isEmpty())
                 <x-dashboard.empty-state
                     image="no-assignments"

@@ -40,7 +40,8 @@ class UserFactory extends Factory
             'institutional_identifier' => fake()->unique()->bothify('KLD-####??'),
             'phone_number' => null,
             'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
-            'department' => null,
+            // Keep the default Applicant/Adviser pair eligible for the department-scoped workflow.
+            'department' => 'Computer Studies',
             'program' => null,
             'year_level' => null,
             'position_title' => null,

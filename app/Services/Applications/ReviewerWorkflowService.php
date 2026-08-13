@@ -50,9 +50,9 @@ class ReviewerWorkflowService
         ReviewerAssignment $assignment,
         ReviewFormType $type,
         array $payload,
-        bool $final,
+        bool $complete,
     ): ReviewFormSubmission {
-        return DB::transaction(function () use ($actor, $assignment, $type, $payload, $final): ReviewFormSubmission {
+        return DB::transaction(function () use ($actor, $assignment, $type, $payload, $complete): ReviewFormSubmission {
             $locked = $this->lockedAssignment($assignment);
             $this->authorizeWritable($actor, $locked);
             $this->assertReviewWindowOpen($locked);
@@ -63,48 +63,33 @@ class ReviewerWorkflowService
                 ->first();
 
             if ($existing?->status === ReviewFormStatus::Final) {
-                if ($final && $this->sameFinalPayload($existing->finalized_payload_snapshot, $normalized)) {
-                    return $existing->load('artifact');
-                }
-
                 throw ValidationException::withMessages([
-                    'form' => 'This reviewer form has already been finalized.',
+                    'form' => 'This worksheet is locked with the submitted overall review.',
                 ])->errorBag('reviewerForm');
             }
 
-            if ($final) {
+            if ($complete) {
                 $this->validateFinalForm($type, $normalized);
             }
 
-            $finalizedAt = now();
-            $context = $final
-                ? $this->finalizedFormContext($actor, $locked, $finalizedAt)
-                : null;
-            $catalogSnapshot = $final ? [
-                'form_type' => $type->value,
-                'form_code' => $type->code(),
-                'form_label' => $type->label(),
-                'items' => ReviewFormCatalog::items($type),
-                'questions' => ReviewFormCatalog::questions($type),
-                'answers' => ReviewFormCatalog::answers($type),
-                'template' => ReviewFormCatalog::template($type),
-            ] : null;
+            $completedAt = $complete ? now() : null;
             $form = $locked->formSubmissions()->updateOrCreate(
                 ['form_type' => $type->value],
                 [
                     ...$normalized,
-                    'catalog_version' => $final ? ReviewFormCatalog::CATALOG_VERSION : null,
-                    'catalog_snapshot' => $catalogSnapshot,
-                    'finalized_payload_snapshot' => $final ? $normalized : null,
-                    'finalized_context_snapshot' => $context,
-                    'status' => $final ? ReviewFormStatus::Final->value : ReviewFormStatus::Draft->value,
-                    'review_date' => $final ? $finalizedAt->toDateString() : null,
-                    'finalized_at' => $final ? $finalizedAt : null,
+                    'catalog_version' => null,
+                    'catalog_snapshot' => null,
+                    'finalized_payload_snapshot' => null,
+                    'finalized_context_snapshot' => null,
+                    'status' => $complete ? ReviewFormStatus::Completed->value : ReviewFormStatus::Draft->value,
+                    'review_date' => null,
+                    'completed_at' => $completedAt,
+                    'finalized_at' => null,
                 ],
             );
 
             $this->markInReview($locked);
-            $this->auditLog->record($actor, $final ? 'review.form_finalized' : 'review.form_draft_saved', $locked->researchApplication, [
+            $this->auditLog->record($actor, $complete ? 'review.form_completed' : 'review.form_draft_saved', $locked->researchApplication, [
                 'assignment_id' => $locked->id,
                 'form_type' => $type->value,
                 'form_status' => $form->status->value,
@@ -125,13 +110,15 @@ class ReviewerWorkflowService
             $this->authorizeWritable($actor, $locked);
             $this->assertReviewWindowOpen($locked);
 
-            $scope = ReviewCommentScope::from($payload['scope']);
+            $scope = filled($payload['application_document_id'] ?? null)
+                ? ReviewCommentScope::Document
+                : ReviewCommentScope::Overall;
             $document = $this->resolveCommentDocument($locked, $scope, $payload['application_document_id'] ?? null);
             $comment = $locked->comments()->create([
                 'application_document_id' => $document?->id,
                 'scope' => $scope->value,
                 'category' => $payload['category'],
-                'page_number' => $scope === ReviewCommentScope::Page ? $payload['page_number'] : null,
+                'page_number' => null,
                 'body' => trim($payload['body']),
             ]);
 
@@ -189,13 +176,15 @@ class ReviewerWorkflowService
                 abort(404);
             }
 
-            $scope = ReviewCommentScope::from($payload['scope']);
+            $scope = filled($payload['application_document_id'] ?? null)
+                ? ReviewCommentScope::Document
+                : ReviewCommentScope::Overall;
             $document = $this->resolveCommentDocument($locked, $scope, $payload['application_document_id'] ?? null);
             $lockedComment->update([
                 'application_document_id' => $document?->id,
                 'scope' => $scope->value,
                 'category' => $payload['category'],
-                'page_number' => $scope === ReviewCommentScope::Page ? $payload['page_number'] : null,
+                'page_number' => null,
                 'body' => trim($payload['body']),
             ]);
             $this->auditLog->record($actor, 'review.comment_updated', $locked->researchApplication, [
@@ -303,6 +292,9 @@ class ReviewerWorkflowService
                     return $submission->refresh();
                 }
 
+                // Complete worksheets become immutable snapshots only inside the same transaction as the decision.
+                $finalForms = $this->finalizeFormsForDecision($actor, $locked, $finalForms, $submittedAt);
+
                 $comments = $locked->comments()
                     ->with('document.requirement:id,name')
                     ->orderBy('created_at')
@@ -395,7 +387,7 @@ class ReviewerWorkflowService
             report($exception);
 
             throw ValidationException::withMessages([
-                'review' => 'The official completed PDFs could not be generated securely. The review was not submitted; your finalized worksheets remain saved.',
+                'review' => 'The official completed PDFs could not be generated securely. The review was not submitted; your completed worksheets remain editable.',
             ])->errorBag('reviewDecision');
         } catch (Throwable $exception) {
             foreach ($storedPaths as $storedPath) {
@@ -533,30 +525,6 @@ class ReviewerWorkflowService
         ];
     }
 
-    /** @param array<string, mixed>|null $stored
-     * @param  array<string, mixed>  $submitted
-     */
-    private function sameFinalPayload(?array $stored, array $submitted): bool
-    {
-        return $this->sortSnapshot($stored ?? []) === $this->sortSnapshot($submitted);
-    }
-
-    /** @param array<string, mixed> $value
-     * @return array<string, mixed>
-     */
-    private function sortSnapshot(array $value): array
-    {
-        foreach ($value as &$item) {
-            if (is_array($item)) {
-                $item = $this->sortSnapshot($item);
-            }
-        }
-        unset($item);
-        ksort($value);
-
-        return $value;
-    }
-
     /** @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
@@ -586,15 +554,23 @@ class ReviewerWorkflowService
 
             $normalizedResponses[$key] = [
                 'answer' => filled($answer) ? $answer : null,
-                'comment' => filled($response['comment'] ?? null) ? trim($response['comment']) : null,
+                'comment' => $type === ReviewFormType::InformedConsent
+                    ? null
+                    : (filled($response['comment'] ?? null) ? trim($response['comment']) : null),
             ];
+        }
+
+        $consentRequired = $type === ReviewFormType::InformedConsent
+            ? ($payload['consent_required'] ?? null)
+            : null;
+        if ($type === ReviewFormType::InformedConsent && $consentRequired === false) {
+            // The gate and explanation are the traceable source; hidden dependent answers are never retained.
+            $normalizedResponses = [];
         }
 
         return [
             'responses' => $normalizedResponses ?: null,
-            'consent_required' => $type === ReviewFormType::InformedConsent
-                ? ($payload['consent_required'] ?? null)
-                : null,
+            'consent_required' => $consentRequired,
             'consent_not_required_explanation' => filled($payload['consent_not_required_explanation'] ?? null)
                 ? trim($payload['consent_not_required_explanation'])
                 : null,
@@ -633,9 +609,10 @@ class ReviewerWorkflowService
 
         if (blank($payload['recommendation'])) {
             $errors['recommendation'] = 'Select a recommendation.';
-        } elseif ($payload['recommendation'] !== ReviewDecision::Approved->value
-            && mb_strlen((string) $payload['recommendation_comments']) < 10) {
-            $errors['recommendation_comments'] = 'Explain the required revision or disapproval recommendation.';
+        }
+
+        if ($this->nonWhitespaceLength((string) $payload['recommendation_comments']) < 15) {
+            $errors['recommendation_comments'] = 'Enter recommendation comments with at least 15 non-whitespace characters.';
         }
 
         if ($errors !== []) {
@@ -652,9 +629,13 @@ class ReviewerWorkflowService
             return null;
         }
 
-        $document = ApplicationDocument::query()->whereKey((int) $documentId)->first();
+        $document = ApplicationDocument::query()
+            ->whereKey((int) $documentId)
+            ->where('research_application_id', $assignment->research_application_id)
+            ->where('is_current', true)
+            ->first();
 
-        if (! $document || $document->research_application_id !== $assignment->research_application_id) {
+        if (! $document) {
             throw ValidationException::withMessages([
                 'application_document_id' => 'Select a document from this assigned application.',
             ])->errorBag('reviewComment');
@@ -692,11 +673,8 @@ class ReviewerWorkflowService
             $form = $finalForms->get($type->value);
 
             if (! $form
-                || $form->status !== ReviewFormStatus::Final
-                || blank($form->catalog_snapshot)
-                || blank($form->finalized_payload_snapshot)
-                || blank($form->finalized_context_snapshot)) {
-                $errors['forms'] = 'Finalize both required reviewer forms before submitting the decision.';
+                || $form->status !== ReviewFormStatus::Completed) {
+                $errors['forms'] = 'Complete both required reviewer worksheets before submitting the decision.';
             }
         }
 
@@ -705,6 +683,55 @@ class ReviewerWorkflowService
         }
 
         return $finalForms->values();
+    }
+
+    /**
+     * Snapshot current completed worksheet values at the overall final-submission boundary.
+     *
+     * @param  Collection<int, ReviewFormSubmission>  $forms
+     * @return Collection<int, ReviewFormSubmission>
+     */
+    private function finalizeFormsForDecision(
+        User $actor,
+        ReviewerAssignment $assignment,
+        Collection $forms,
+        mixed $finalizedAt,
+    ): Collection {
+        return $forms->map(function (ReviewFormSubmission $form) use ($actor, $assignment, $finalizedAt): ReviewFormSubmission {
+            $payload = $this->normalizeFormPayload($form->form_type, [
+                'responses' => $form->responses ?? [],
+                'consent_required' => $form->consent_required,
+                'consent_not_required_explanation' => $form->consent_not_required_explanation,
+                'recommendation' => $form->recommendation?->value,
+                'recommendation_comments' => $form->recommendation_comments,
+            ]);
+            $this->validateFinalForm($form->form_type, $payload);
+            $catalogSnapshot = [
+                'form_type' => $form->form_type->value,
+                'form_code' => $form->form_type->code(),
+                'form_label' => $form->form_type->label(),
+                'items' => ReviewFormCatalog::items($form->form_type),
+                'questions' => ReviewFormCatalog::questions($form->form_type),
+                'answers' => ReviewFormCatalog::answers($form->form_type),
+                'template' => ReviewFormCatalog::template($form->form_type),
+            ];
+            $form->update([
+                'catalog_version' => ReviewFormCatalog::CATALOG_VERSION,
+                'catalog_snapshot' => $catalogSnapshot,
+                'finalized_payload_snapshot' => $payload,
+                'finalized_context_snapshot' => $this->finalizedFormContext($actor, $assignment, $finalizedAt),
+                'status' => ReviewFormStatus::Final->value,
+                'review_date' => $finalizedAt->toDateString(),
+                'finalized_at' => $finalizedAt,
+            ]);
+
+            return $form->refresh();
+        })->values();
+    }
+
+    private function nonWhitespaceLength(string $value): int
+    {
+        return mb_strlen((string) preg_replace('/\s+/u', '', $value));
     }
 
     private function notifyResLeads(

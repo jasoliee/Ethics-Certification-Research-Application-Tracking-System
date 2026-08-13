@@ -12,7 +12,9 @@ Reviewer actions are `review.conflict_declared`, `review.form_draft_saved`, `rev
 
 ## RES Lead Report
 
-The report supports search plus actor role, action, result, target type, and inclusive date filters. Pagination preserves all active filters. Normal reporting hides onboarding-completion and initial password-setup-completion events while retaining the underlying records.
+The Audit Log is owned by the RES-only Reports module at `/res-lead/reports/audit-log` (`res.reports.audit.index`). The former User Management URL is a compatibility redirect, not a primary navigation destination. The report supports search plus actor role, action, result, target type, academic-term, and inclusive date filters. Pagination preserves all active filters. Normal reporting hides onboarding-completion and initial password-setup-completion events while retaining the underlying records.
+
+Release auditing includes the exact source Reviewer submission for a decision release, the acting RES Lead, three-mode bulk release type and start/end timestamps, outcome counts and affected application identifiers, certificate version/background provenance, and background-regeneration batch results. Comment bodies, worksheet answers, private filenames/paths, and certificate bytes are excluded.
 
 No token filter is provided. The current schema has no separate non-secret request, trace, or correlation identifier, and authentication/setup tokens are secrets. A correlation filter should be added only after a safe public identifier is designed and stored.
 

@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests\ResLead;
 
-use App\Enums\ReviewDecision;
 use App\Models\ResearchApplication;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class ReleaseApplicationDecisionRequest extends FormRequest
 {
+    protected $errorBag = 'decisionRelease';
+
     public function authorize(): bool
     {
         $application = $this->route('researchApplication');
@@ -20,11 +20,7 @@ class ReleaseApplicationDecisionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'decision' => ['required', Rule::enum(ReviewDecision::class)],
-            'comment_ids' => ['nullable', 'array', 'max:200'],
-            'comment_ids.*' => ['integer', 'distinct'],
-            'revision_document_ids' => ['nullable', 'array', 'max:100'],
-            'revision_document_ids.*' => ['integer', 'distinct'],
+            'review_submission_id' => ['required', 'integer', 'exists:review_submissions,id'],
         ];
     }
 }

@@ -20,7 +20,7 @@ class ReviewFormCatalogTest extends TestCase
         $this->assertCount(15, $protocol);
         $this->assertCount(15, $consent);
         $this->assertSame(14, $protocol['protocol_14']['printed_number']);
-        $this->assertSame(14, $protocol['protocol_15']['printed_number']);
+        $this->assertSame(15, $protocol['protocol_15']['printed_number']);
         $this->assertSame(3, $protocol['protocol_15']['source_page']);
         $this->assertNull($consent['consent_01']['printed_number'] ?? null);
         $this->assertSame(7, $consent['consent_12']['source_page']);

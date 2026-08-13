@@ -115,12 +115,15 @@ class ResLeadApplicationVisibilityTest extends TestCase
         }
     }
 
-    public function test_res_queue_searches_every_approved_identity_field_and_combines_workflow_filters(): void
+    public function test_res_queue_searches_allowed_application_fields_but_never_applicant_identity(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $targetApplicant = User::factory()->create([
             'role' => UserRole::Applicant,
-            'name' => 'Queue Needle Applicant',
+            'name' => 'Solelyhidden Applicantname',
+            'first_name' => 'Solelyhidden',
+            'middle_name' => 'Privateidentity',
+            'last_name' => 'Applicantname',
         ]);
         $targetAdviser = User::factory()->create([
             'role' => UserRole::Adviser,
@@ -133,7 +136,9 @@ class ResLeadApplicationVisibilityTest extends TestCase
             'applicant_type' => 'student',
             'research_title' => 'Queue Needle Privacy Study',
             'research_type' => ResearchType::Capstone,
+            'research_category' => 'Needle Ethics Category',
             'institution' => 'Needle Institute',
+            'department' => 'Needle Department',
             'program' => 'Needle Research Program',
             'review_type' => 'expedited',
             'application_status' => ApplicationStatus::AwaitingReviewerAssignment,
@@ -173,9 +178,10 @@ class ResLeadApplicationVisibilityTest extends TestCase
         foreach ([
             $target->application_code,
             'Needle Privacy',
-            'Needle Applicant',
             'Needle Adviser',
+            'Needle Ethics Category',
             'Needle Institute',
+            'Needle Department',
             'Needle Research Program',
         ] as $search) {
             $this->actingAs($resLead)
@@ -183,6 +189,13 @@ class ResLeadApplicationVisibilityTest extends TestCase
                 ->assertOk()
                 ->assertSee($target->research_title)
                 ->assertDontSee($other->research_title);
+        }
+
+        foreach (['Solelyhidden', 'Privateidentity', 'Applicantname'] as $applicantName) {
+            $this->actingAs($resLead)
+                ->get(route('res.applications.index', ['q' => $applicantName]))
+                ->assertOk()
+                ->assertDontSee($target->research_title);
         }
 
         $this->actingAs($resLead)

@@ -27,13 +27,13 @@ Each role owns named notification, profile, settings, and module routes. Direct 
 
 Adviser applicant administration is under `/adviser/applicants` with route prefix `adviser.applicants.`. RES Lead administration is under `/res-lead/users` with route prefix `res.users.`.
 
-Both authorized surfaces provide list, create, store, `.xlsx` import form/upload/confirmation/template, show, edit, update, username correction, and setup/reset-link actions. RES Lead additionally provides mass actions, status changes, `/audit-log`, and `/profile-options` management. Import templates no longer use a format route parameter; the only active format is `.xlsx`.
+Both authorized surfaces provide list, create, store, `.xlsx` import form/upload/confirmation/template, show, edit, update, username correction, and setup/reset-link actions. RES Lead additionally provides mass actions, status changes, and `/profile-options` management. The Audit Log is under `/res-lead/reports/audit-log`; `/res-lead/users/audit-log` only redirects old bookmarks. Import templates no longer use a format route parameter; the only active format is `.xlsx`.
 
 Profile-option writes use POST for add, PUT for rename, and PATCH for deactivate/restore. All write routes retain CSRF protection, role authorization, Form Request validation, and named rate limits.
 
 ## Applicant Navigation
 
-The applicant sidebar contains Home, Application, Revision and Certificates, and Reports. Settings remains available through the profile menu. The combined destination is:
+The applicant sidebar contains Home, Application, and Revision and Certificates. Applicant Reports routes are not registered; Reports and Audit Log are RES-only. Settings remains available through the profile menu. The combined destination is:
 
 - URI: `/student-faculty-researcher/revision-certificates`
 - Name: `applicant.revision-certificates.index`

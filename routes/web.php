@@ -15,6 +15,7 @@ use App\Http\Controllers\Dashboard\ProfilePageController;
 use App\Http\Controllers\Dashboard\ResCertificationController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ResLeadApplicationController;
+use App\Http\Controllers\Dashboard\ResReportController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
 use App\Http\Controllers\Dashboard\ReviewerWorkflowController;
 use App\Http\Controllers\Dashboard\ReviewFormArtifactController;
@@ -120,11 +121,6 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('revision-certificates.certificate.download');
                 Route::redirect('/reviewer', '/student-faculty-researcher/revision-certificates')->name('reviewer.index');
                 Route::redirect('/certificates', '/student-faculty-researcher/revision-certificates')->name('certificates.index');
-                Route::get('/reports', ModulePageController::class)
-                    ->defaults('pageTitle', 'Reports')
-                    ->defaults('moduleMessage', 'Your application reports will appear here.')
-                    ->defaults('moduleIcon', 'chart')
-                    ->name('reports.index');
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
                 Route::get('/settings', ModulePageController::class)
@@ -266,6 +262,8 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('review-monitoring.index');
                 Route::get('/certificates', [ResCertificationController::class, 'index'])
                     ->name('certificates.index');
+                Route::get('/certificates/applications/{researchApplication}/workspace', [ResCertificationController::class, 'workspace'])
+                    ->name('certificates.workspace');
                 Route::post('/certificates/applications/{researchApplication}/decision-release', [ResCertificationController::class, 'releaseDecision'])
                     ->middleware('throttle:res-workflow')
                     ->name('certificates.decisions.release');
@@ -293,11 +291,10 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('certificates.versions.preview');
                 Route::get('/certificates/{certificate}/versions/{certificateVersion}/download', [ResCertificationController::class, 'downloadCertificate'])
                     ->name('certificates.versions.download');
-                Route::get('/reports', ModulePageController::class)
-                    ->defaults('pageTitle', 'Reports')
-                    ->defaults('moduleMessage', 'Operational and ethics review reports will be available here.')
-                    ->defaults('moduleIcon', 'chart')
-                    ->name('reports.index');
+                Route::controller(ResReportController::class)->prefix('reports')->name('reports.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('/audit-log', 'auditIndex')->name('audit.index');
+                });
                 Route::controller(UserManagementController::class)->prefix('users')->name('users.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/create', 'create')->name('create');
@@ -311,7 +308,8 @@ Route::middleware('no-store')->group(function (): void {
                     // Rate-limit verified workbook generation while retaining the RES Lead role and catalog checks.
                     Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');
                     Route::post('/mass-action', 'massAction')->middleware('throttle:account-mass-action')->name('mass-action');
-                    Route::get('/audit-log', 'auditIndex')->name('audit.index');
+                    // Preserve old bookmarks while keeping the Audit Log owned by Reports.
+                    Route::redirect('/audit-log', '/res-lead/reports/audit-log')->name('audit.index');
                     Route::get('/profile-options', 'profileOptionsIndex')->name('profile-options.index');
                     Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-option')->name('profile-options.store');
                     Route::put('/profile-options/{profileOption}', 'updateProfileOption')->middleware('throttle:account-option')->name('profile-options.update');

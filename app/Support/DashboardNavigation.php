@@ -14,7 +14,6 @@ class DashboardNavigation
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Application', 'applicant.applications.index', 'file-text', 'applicant.applications.*'),
                 self::item('Revision and Certificates', 'applicant.revision-certificates.index', 'award', 'applicant.revision-certificates.*'),
-                self::item('Reports', 'applicant.reports.index', 'chart', 'applicant.reports.*'),
             ],
             UserRole::Adviser => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),

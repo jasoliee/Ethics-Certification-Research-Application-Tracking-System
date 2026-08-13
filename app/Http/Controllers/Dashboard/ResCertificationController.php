@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ApplicationStatus;
+use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
-use App\Enums\ReviewDecision;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\ReleaseApplicationDecisionRequest;
@@ -13,7 +13,10 @@ use App\Models\Certificate;
 use App\Models\CertificateBackground;
 use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
+use App\Models\ReviewSubmission;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
+use App\Services\Certificates\BulkReleaseService;
+use App\Services\Certificates\CertificateBackgroundRegenerationService;
 use App\Services\Certificates\CertificateBackgroundService;
 use App\Services\Certificates\CertificateReleaseService;
 use App\Services\Certificates\CertificationEligibilityService;
@@ -31,6 +34,7 @@ class ResCertificationController extends Controller
         Request $request,
         CertificationEligibilityService $eligibility,
         CertificateBackgroundService $backgroundService,
+        BulkReleaseService $bulkReleases,
     ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $request->validate([
@@ -132,7 +136,7 @@ class ResCertificationController extends Controller
             'backgrounds' => $backgrounds,
             'activeBackground' => $activeBackground,
             'filters' => $filters,
-            'decisions' => ReviewDecision::cases(),
+            'bulkEligibleCounts' => $bulkReleases->eligibleCounts($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Certificate Processing'],
@@ -148,12 +152,48 @@ class ResCertificationController extends Controller
         $workflow->releaseDecision(
             $request->user(),
             $researchApplication,
-            ReviewDecision::from($request->validated('decision')),
-            $request->validated('comment_ids', []),
-            $request->validated('revision_document_ids', []),
+            ReviewSubmission::query()->findOrFail($request->validated('review_submission_id')),
         );
 
-        return back()->with('status', 'Decision and selected comments released to the Applicant.');
+        return back()->with('status', 'The selected Reviewer decision and its comments were released to the Applicant.');
+    }
+
+    public function workspace(Request $request, ResearchApplication $researchApplication): View
+    {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $cycle = max(0, ((int) $researchApplication->current_revision_cycle) - 1);
+        $researchApplication->load([
+            'applicant:id,name',
+            'documents' => fn ($documents) => $documents
+                ->where('is_current', true)
+                ->with('requirement:id,name')
+                ->orderBy('document_requirement_id')
+                ->orderBy('id'),
+            'reviewerAssignments' => fn ($assignments) => $assignments
+                ->current()
+                ->where('review_cycle', $cycle)
+                ->with([
+                    'reviewer:id,name',
+                    'reviewSubmission',
+                    'comments' => fn ($comments) => $comments
+                        ->with('document.requirement:id,name')
+                        ->orderBy('created_at')
+                        ->orderBy('id'),
+                    'formSubmissions.artifact',
+                ])
+                ->orderBy('assignment_sequence')
+                ->orderBy('id'),
+        ]);
+
+        return view('dashboard.certificates.res-workspace', [
+            'pageTitle' => 'Read-only Review Workspace',
+            'application' => $researchApplication,
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Certificate Processing', 'route' => 'res.certificates.index'],
+                ['label' => $researchApplication->application_code],
+            ],
+        ]);
     }
 
     public function releaseCertificate(
@@ -168,11 +208,16 @@ class ResCertificationController extends Controller
             : 'Certificate generated from the official template and released securely.');
     }
 
-    public function bulkRelease(Request $request, CertificateReleaseService $certificates): RedirectResponse
+    public function bulkRelease(Request $request, BulkReleaseService $bulkReleases): RedirectResponse
     {
-        $validated = $request->validate(['confirmation' => ['required', Rule::in(['release_all_eligible'])]]);
-        unset($validated);
-        $summary = $certificates->releaseAllEligible($request->user());
+        $validated = $request->validateWithBag('bulkRelease', [
+            'release_type' => ['required', Rule::enum(BulkReleaseType::class)],
+            'confirmation' => ['required', Rule::in(['release_all_eligible'])],
+        ]);
+        $summary = $bulkReleases->release(
+            $request->user(),
+            BulkReleaseType::from($validated['release_type']),
+        );
 
         return back()->with('bulk_certificate_summary', $summary);
     }
@@ -191,27 +236,41 @@ class ResCertificationController extends Controller
     public function uploadBackground(
         UploadCertificateBackgroundRequest $request,
         CertificateBackgroundService $backgrounds,
+        CertificateBackgroundRegenerationService $regeneration,
     ): RedirectResponse {
-        $backgrounds->uploadAndActivate($request->user(), $request->file('background'));
+        $background = $backgrounds->uploadAndActivate($request->user(), $request->file('background'));
+        $summary = $regeneration->regenerateActive($request->user(), $background);
 
-        return back()->with('status', 'Background validated and activated for future certificate generations.');
+        return back()
+            ->with('status', 'Background validated and applied to active certificates.')
+            ->with('background_regeneration_summary', $summary);
     }
 
     public function activateBackground(
         Request $request,
         CertificateBackground $certificateBackground,
         CertificateBackgroundService $backgrounds,
+        CertificateBackgroundRegenerationService $regeneration,
     ): RedirectResponse {
-        $backgrounds->activate($request->user(), $certificateBackground);
+        $background = $backgrounds->activate($request->user(), $certificateBackground);
+        $summary = $regeneration->regenerateActive($request->user(), $background);
 
-        return back()->with('status', 'Selected background activated for future certificate generations.');
+        return back()
+            ->with('status', 'Selected background applied to active certificates.')
+            ->with('background_regeneration_summary', $summary);
     }
 
-    public function resetBackground(Request $request, CertificateBackgroundService $backgrounds): RedirectResponse
-    {
-        $backgrounds->resetToOfficial($request->user());
+    public function resetBackground(
+        Request $request,
+        CertificateBackgroundService $backgrounds,
+        CertificateBackgroundRegenerationService $regeneration,
+    ): RedirectResponse {
+        $background = $backgrounds->resetToOfficial($request->user());
+        $summary = $regeneration->regenerateActive($request->user(), $background);
 
-        return back()->with('status', 'Official default background restored for future certificate generations.');
+        return back()
+            ->with('status', 'Official default background restored for active certificates.')
+            ->with('background_regeneration_summary', $summary);
     }
 
     public function previewBackground(Request $request, CertificateBackground $certificateBackground): StreamedResponse

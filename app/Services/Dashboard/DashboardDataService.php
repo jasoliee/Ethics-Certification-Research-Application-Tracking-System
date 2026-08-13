@@ -134,8 +134,13 @@ class DashboardDataService
     /** @return array<string, mixed> */
     public function reviewer(User $user): array
     {
-        $base = ReviewerAssignment::query()->current()->where('reviewer_user_id', $user->id);
-        $this->scopeAssignmentsToCurrentTerm($base);
+        // Current assignment history, not academic-term cache state, is authoritative for Reviewer visibility.
+        $base = ReviewerAssignment::query()
+            ->current()
+            ->where('reviewer_user_id', $user->id)
+            ->where('assignment_status', '!=', ReviewerAssignmentStatus::Superseded->value)
+            ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                ->where('application_status', '!=', ApplicationStatus::Archived->value));
         $statusCounts = $this->groupedCounts($base, 'assignment_status');
 
         return [
@@ -152,8 +157,10 @@ class DashboardDataService
                     'assignment_status',
                     'assigned_at',
                     'review_deadline_at',
+                    'updated_at',
                 ])
                 ->with('researchApplication:id,application_code,research_title,submitted_at')
+                ->latest('updated_at')
                 ->latest('assigned_at')
                 ->latest('id')
                 ->limit(5)
@@ -449,18 +456,6 @@ class DashboardDataService
             ApplicationStatus::RevisionSubmitted, ApplicationStatus::UnderReReview => 'reviewing-revision',
             default => null,
         };
-    }
-
-    private function scopeAssignmentsToCurrentTerm(Builder $query): void
-    {
-        $currentTerm = $this->terms->current();
-
-        if ($currentTerm) {
-            $query->whereHas('researchApplication', fn (Builder $applications) => $applications
-                ->where('academic_term_id', $currentTerm->id));
-        } elseif ($this->terms->hasConfiguredTerms()) {
-            $query->whereRaw('1 = 0');
-        }
     }
 
     /**

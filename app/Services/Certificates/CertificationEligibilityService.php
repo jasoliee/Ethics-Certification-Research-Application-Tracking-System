@@ -21,6 +21,11 @@ class CertificationEligibilityService
             ApplicationStatus::ResultReleasedAccepted,
             ApplicationStatus::CertificateReleased,
         ], true)) {
+            if ($application->relationLoaded('decisionReleases')) {
+                return $application->decisionReleases
+                    ->contains(fn ($release): bool => $release->decision === ReviewDecision::Approved);
+            }
+
             return $application->decisionReleases()
                 ->where('decision', ReviewDecision::Approved->value)
                 ->exists();

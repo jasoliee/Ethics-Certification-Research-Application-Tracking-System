@@ -28,7 +28,7 @@ class SaveReviewerFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'intent' => ['required', Rule::in(['draft', 'final'])],
+            'intent' => ['required', Rule::in(['draft', 'submit'])],
             'responses' => ['nullable', 'array', 'max:20'],
             'responses.*' => ['array:answer,comment'],
             'responses.*.answer' => ['nullable', Rule::in(['yes', 'no', 'unable_to_assess'])],

@@ -3178,9 +3178,11 @@
     .certificate-modal-status-grid > div {
         min-width: 0;
         display: grid;
+        justify-items: center;
         gap: 7px;
         padding: 10px 12px;
         border-left: 1px solid #e5eae7;
+        text-align: center;
     }
 
     .certificate-modal-status-grid > div:first-child {
@@ -3196,6 +3198,9 @@
     .certificate-modal-status-grid dd {
         min-width: 0;
         margin: 0;
+        display: flex;
+        justify-content: center;
+        width: 100%;
     }
 
     .certificate-modal-status-grid .dashboard-status-badge {
@@ -3440,6 +3445,61 @@
 
     .application-modal.certificate-bulk-modal {
         width: min(100%, 520px);
+    }
+
+    .certificate-bulk-options {
+        display: grid;
+        gap: 8px;
+        margin: 0 0 14px;
+        border: 0;
+        padding: 0;
+    }
+
+    .certificate-bulk-options legend {
+        margin-bottom: 8px;
+        color: #1f2e25;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .certificate-bulk-options label {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 11px;
+        min-height: 54px;
+        border: 1px solid #dce6df;
+        border-radius: 8px;
+        padding: 9px 12px;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .certificate-bulk-options label:has(input:checked) {
+        border-color: #15834a;
+        box-shadow: 0 0 0 1px #15834a;
+        background: #f2faf5;
+    }
+
+    .certificate-bulk-options input {
+        width: 17px;
+        height: 17px;
+        accent-color: #15834a;
+    }
+
+    .certificate-bulk-options span {
+        display: grid;
+        gap: 2px;
+    }
+
+    .certificate-bulk-options strong {
+        color: #17231c;
+        font-size: 13px;
+    }
+
+    .certificate-bulk-options small {
+        color: #64748b;
+        font-size: 11px;
     }
 
     .certificate-bulk-confirmation-copy {
@@ -8691,6 +8751,31 @@
     .res-requirement-table th:nth-child(4) { width: 120px; }
     .res-requirement-table th:nth-child(5) { width: 130px; }
 
+    /* The checklist leads the page at full width; the three detail cards share the next desktop row. */
+    .res-screening-overview-grid > .res-requirement-panel {
+        grid-column: 1 / -1;
+        order: -1;
+    }
+
+    .res-screening-overview-grid > form.res-screening-decision-layout {
+        grid-column: 1 / -1;
+    }
+
+    .res-requirement-table th:nth-child(2),
+    .res-requirement-table td:nth-child(2),
+    .res-requirement-table th:nth-child(4),
+    .res-requirement-table td:nth-child(4),
+    .res-requirement-table th:nth-child(5),
+    .res-requirement-table td:nth-child(5) {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .res-requirement-table td:nth-child(3) {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
     .res-document-action {
         min-height: 36px;
         padding: 7px 10px;
@@ -9162,6 +9247,18 @@
         min-width: 760px;
     }
 
+    .reviewer-document-table th,
+    .reviewer-document-table td {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .reviewer-document-table td:nth-child(2) strong {
+        display: inline-block;
+        max-width: 280px;
+        overflow-wrap: anywhere;
+    }
+
     .reviewer-document-table button.dashboard-action-link {
         border: 0;
         padding: 0;
@@ -9374,6 +9471,33 @@
 
     .res-assignment-guidelines {
         grid-column: 1 / -1;
+    }
+}
+
+/* Keep the three RES detail cards in one scan row whenever the content canvas is genuinely wide. */
+@container application-workspace (min-width: 900px) {
+    .res-screening-overview-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .res-screening-overview-grid > form.res-screening-decision-layout {
+        grid-column: auto;
+    }
+
+    .res-screening-overview-grid .res-classification-fields,
+    .res-screening-overview-grid .res-screening-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .res-screening-overview-grid .res-classification-reason {
+        border-top: 1px solid #e3e9e5;
+        border-left: 0;
+    }
+
+    .res-screening-overview-grid > .res-overview-panel .res-compact-details > div,
+    .res-screening-overview-grid > .res-research-panel .res-compact-details > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
     }
 }
 
@@ -9660,6 +9784,14 @@
         margin: 0;
     }
 
+    .certificate-bulk-summary dl {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .certificate-bulk-summary .certificate-background-summary-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
     .revision-status-overview dl > div,
     .certificate-queue-metadata > div,
     .certificate-bulk-summary dl > div {
@@ -9693,6 +9825,96 @@
         overflow-wrap: anywhere;
         font-size: 13px;
         font-weight: 700;
+    }
+
+    .res-readonly-review-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 16px;
+    }
+
+    .res-readonly-review-card {
+        min-width: 0;
+    }
+
+    .res-readonly-review-card > form {
+        display: flex;
+        justify-content: flex-end;
+        padding: 14px 18px 18px;
+    }
+
+    .res-readonly-review-section {
+        display: grid;
+        gap: 9px;
+        border-top: 1px solid #e4eae6;
+        padding: 15px 18px;
+    }
+
+    .res-readonly-review-section h3,
+    .res-readonly-review-section p {
+        margin: 0;
+    }
+
+    .res-readonly-review-section h3 {
+        color: #1d2b22;
+        font-size: 13px;
+    }
+
+    .res-readonly-review-section p {
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+    }
+
+    .res-readonly-comment {
+        display: grid;
+        gap: 7px;
+        border: 1px solid #e2e8e4;
+        border-radius: 8px;
+        padding: 11px;
+        background: #fbfdfb;
+    }
+
+    .res-readonly-comment header {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 7px;
+        color: #64748b;
+        font-size: 11px;
+    }
+
+    .res-readonly-worksheet {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid #e2e8e4;
+        border-radius: 8px;
+        padding: 10px 11px;
+        color: #334155;
+        font-size: 12px;
+    }
+
+    .res-readonly-worksheet > span {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .res-readonly-worksheet a {
+        color: #08743e;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    @media (max-width: 900px) {
+        .res-readonly-review-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     .revision-workspace-grid {
@@ -10870,7 +11092,9 @@
     }
 
     .reviewer-document-pane-actions .dashboard-outline-action {
+        width: 112px;
         min-height: 36px;
+        justify-content: center;
         padding: 7px 10px;
         font-size: 11px;
     }
@@ -11536,8 +11760,15 @@
     }
 
     .reviewer-consent-explanation {
-        grid-row: 2 / span 2;
-        grid-column: 3;
+        grid-row: auto;
+        grid-column: 1 / -1;
+        width: 100%;
+        text-align: left;
+    }
+
+    .reviewer-consent-explanation textarea {
+        width: 100%;
+        text-align: left;
     }
 
     .reviewer-consent-explanation[hidden] {

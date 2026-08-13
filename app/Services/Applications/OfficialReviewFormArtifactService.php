@@ -187,6 +187,15 @@ class OfficialReviewFormArtifactService
             $response = (array) ($responses[$key] ?? []);
             $answer = $response['answer'] ?? null;
 
+            if ($type === ReviewFormType::InformedConsent
+                && ($payload['consent_required'] ?? null) === false
+                && (int) $item['source_page'] === $sourcePage) {
+                $pdf->SetXY(151.0, (float) $item['answer_y_mm'] - 1.0);
+                $pdf->Cell(35, 4, 'N/A', 0, 0, 'C');
+
+                continue;
+            }
+
             if ((int) $item['source_page'] === $sourcePage && isset($answerX[$answer])) {
                 $pdf->SetXY($answerX[$answer] - 2.5, (float) $item['answer_y_mm'] - 1.0);
                 $pdf->Cell(5, 4, 'X', 0, 0, 'C');

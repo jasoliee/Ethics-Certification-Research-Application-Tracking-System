@@ -163,7 +163,7 @@ class CertificateBackgroundService
                     'source_kind' => $background->source_kind,
                     'mime_type' => $background->mime_type,
                     'sha256' => $background->sha256,
-                    'result' => 'active_for_future_generation',
+                    'result' => 'active_for_all_certificates',
                 ]);
 
                 return $background->refresh();
@@ -203,7 +203,7 @@ class CertificateBackgroundService
                 'asset_version' => $locked->asset_version,
                 'source_kind' => $locked->source_kind,
                 'sha256' => $locked->sha256,
-                'result' => 'active_for_future_generation',
+                'result' => 'active_for_all_certificates',
             ]);
 
             return $locked->refresh();

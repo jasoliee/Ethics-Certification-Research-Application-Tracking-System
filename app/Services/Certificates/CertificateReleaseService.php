@@ -9,6 +9,7 @@ use App\Enums\CertificateVersionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
 use App\Models\Certificate;
+use App\Models\CertificateBackground;
 use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
 use App\Models\User;
@@ -252,6 +253,145 @@ class CertificateReleaseService
         ]);
 
         return $summary;
+    }
+
+    /** @return array{certificate: Certificate, action: string} */
+    public function regenerateForBackground(
+        User $actor,
+        Certificate $certificate,
+        CertificateBackground $background,
+    ): array {
+        $application = $certificate->researchApplication()->firstOrFail();
+        Gate::forUser($actor)->authorize('releaseCertificate', $application);
+        $storedPath = null;
+
+        try {
+            return DB::transaction(function () use (
+                $actor,
+                $application,
+                $certificate,
+                $background,
+                &$storedPath,
+            ): array {
+                $lockedApplication = ResearchApplication::query()
+                    ->whereKey($application->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                Gate::forUser($actor)->authorize('releaseCertificate', $lockedApplication);
+
+                $lockedCertificate = Certificate::query()
+                    ->whereKey($certificate->id)
+                    ->where('research_application_id', $lockedApplication->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $currentVersion = $lockedCertificate->current_certificate_version_id
+                    ? CertificateVersion::query()
+                        ->whereKey($lockedCertificate->current_certificate_version_id)
+                        ->where('certificate_id', $lockedCertificate->id)
+                        ->lockForUpdate()
+                        ->first()
+                    : null;
+
+                if (! $currentVersion
+                    || $currentVersion->status !== CertificateVersionStatus::Ready
+                    || ! in_array($lockedCertificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)) {
+                    throw ValidationException::withMessages([
+                        'background' => 'Only an active released certificate can be regenerated for a background change.',
+                    ])->errorBag('certificateBackground');
+                }
+
+                if ($currentVersion->certificate_background_id === $background->id
+                    && hash_equals($currentVersion->background_sha256, $background->sha256)) {
+                    return ['certificate' => $lockedCertificate->load('currentVersion'), 'action' => 'skipped'];
+                }
+
+                $latestVersion = (int) CertificateVersion::query()
+                    ->where('certificate_id', $lockedCertificate->id)
+                    ->lockForUpdate()
+                    ->max('certificate_version');
+                $versionNumber = $latestVersion + 1;
+                $regeneratedAt = now();
+                $issuedAt = $currentVersion->generated_at
+                    ?? $lockedCertificate->released_at
+                    ?? $currentVersion->released_at;
+                $releasedAt = $lockedCertificate->released_at
+                    ?? $currentVersion->released_at
+                    ?? $issuedAt;
+                $releasedByUserId = $lockedCertificate->released_by_user_id
+                    ?? $currentVersion->released_by_user_id
+                    ?? $actor->id;
+                $fileData = $this->generator->renderAndStore(
+                    $actor,
+                    $lockedApplication,
+                    $lockedCertificate,
+                    $background,
+                    $versionNumber,
+                    $releasedAt,
+                    $issuedAt,
+                    $releasedByUserId,
+                );
+                $storedPath = $fileData['stored_file_path'];
+
+                $version = $lockedCertificate->versions()->create([
+                    ...$fileData,
+                    'certificate_version' => $versionNumber,
+                    'status' => CertificateVersionStatus::Ready->value,
+                    'regenerated_at' => $regeneratedAt,
+                    'regeneration_reason' => 'background_update',
+                    'claimed_by_user_id' => $lockedCertificate->claimed_by_user_id,
+                    'claimed_at' => $lockedCertificate->claimed_at,
+                ]);
+                CertificateVersion::query()
+                    ->where('certificate_id', $lockedCertificate->id)
+                    ->whereKeyNot($version->id)
+                    ->where('status', CertificateVersionStatus::Ready->value)
+                    ->update(['status' => CertificateVersionStatus::Superseded->value]);
+
+                $certificateUpdates = [
+                    'generation_failure_code' => null,
+                    'current_certificate_version_id' => $version->id,
+                ];
+                if ($lockedCertificate->status === CertificateStatus::Claimed) {
+                    $certificateUpdates['claimed_certificate_version_id'] = $version->id;
+                }
+                $lockedCertificate->update($certificateUpdates);
+
+                $this->auditLog->record($actor, 'certificate.background_regenerated', $lockedApplication, [
+                    'certificate_id' => $lockedCertificate->id,
+                    'previous_certificate_version_id' => $currentVersion->id,
+                    'certificate_version_id' => $version->id,
+                    'certificate_version' => $versionNumber,
+                    'background_id' => $background->id,
+                    'background_version' => $background->asset_version,
+                    'original_issued_at' => $issuedAt?->toIso8601String(),
+                    'original_released_at' => $releasedAt?->toIso8601String(),
+                    'regenerated_at' => $regeneratedAt->toIso8601String(),
+                    'claim_status_preserved' => $lockedCertificate->status === CertificateStatus::Claimed,
+                    'file_sha256' => $version->sha256,
+                    'result' => 'regenerated',
+                ]);
+
+                return [
+                    'certificate' => $lockedCertificate->refresh()->load('currentVersion'),
+                    'action' => 'regenerated',
+                ];
+            }, 3);
+        } catch (ValidationException $exception) {
+            if ($storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            if ($storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
+            report($exception);
+
+            throw ValidationException::withMessages([
+                'background' => 'The existing certificate could not be regenerated safely; its last valid version remains active.',
+            ])->errorBag('certificateBackground');
+        }
     }
 
     private function recordGenerationFailure(

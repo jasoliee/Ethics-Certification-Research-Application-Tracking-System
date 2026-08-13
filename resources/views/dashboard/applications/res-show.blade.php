@@ -66,36 +66,6 @@
 
         {{-- The overview mirrors the high-fidelity scan order while showing only fields persisted by ECRATS. --}}
         <div class="res-screening-overview-grid">
-            <section class="res-workflow-panel res-overview-panel">
-                <header class="res-workflow-panel-heading">
-                    <x-dashboard.icon name="file-text" size="21" />
-                    <h2>Application Overview</h2>
-                </header>
-                <dl class="res-compact-details">
-                    <div><dt>Application Code</dt><dd>{{ $application->application_code }}</dd></div>
-                    <div><dt>Applicant Category</dt><dd>{{ Str::headline($application->applicant_type) }}</dd></div>
-                    <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
-                    <div><dt>Institute / Program</dt><dd>{{ $application->institution ?: 'Not specified' }}@if ($application->program)<br><small>{{ $application->program }}</small>@endif</dd></div>
-                    <div><dt>Adviser</dt><dd>{{ $application->adviser?->name ?? 'Archived adviser' }}</dd></div>
-                    <div><dt>Date Endorsed</dt><dd>{{ $application->latestEndorsement?->endorsed_at?->format('M j, Y') ?? 'Not recorded' }}</dd></div>
-                    <div><dt>Current Status</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
-                </dl>
-            </section>
-
-            <section class="res-workflow-panel res-research-panel">
-                <header class="res-workflow-panel-heading">
-                    <x-dashboard.icon name="file-search" size="21" />
-                    <h2>Research Information</h2>
-                </header>
-                <dl class="res-compact-details">
-                    <div><dt>Research Title</dt><dd>{{ $application->research_title }}</dd></div>
-                    <div><dt>Research Category</dt><dd>{{ $application->research_category ?: 'Not specified' }}</dd></div>
-                    <div><dt>Participant Group</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>
-                    <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
-                    <div class="res-detail-wide"><dt>Study Overview</dt><dd>{{ $application->abstract ?: 'Not specified' }}</dd></div>
-                </dl>
-            </section>
-
             <section class="res-workflow-panel res-requirement-panel">
                 <header class="res-workflow-panel-heading res-workflow-panel-heading-split">
                     <div><x-dashboard.icon name="clipboard" size="21" /><h2>Requirement Checklist</h2></div>
@@ -153,7 +123,36 @@
                     </table>
                 </x-dashboard.overflow>
             </section>
-        </div>
+
+            <section class="res-workflow-panel res-overview-panel">
+                <header class="res-workflow-panel-heading">
+                    <x-dashboard.icon name="file-text" size="21" />
+                    <h2>Application Details</h2>
+                </header>
+                <dl class="res-compact-details">
+                    <div><dt>Application Code</dt><dd>{{ $application->application_code }}</dd></div>
+                    <div><dt>Applicant Category</dt><dd>{{ Str::headline($application->applicant_type) }}</dd></div>
+                    <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
+                    <div><dt>Institute / Program</dt><dd>{{ $application->institution ?: 'Not specified' }}@if ($application->program)<br><small>{{ $application->program }}</small>@endif</dd></div>
+                    <div><dt>Adviser</dt><dd>{{ $application->adviser?->name ?? 'Archived adviser' }}</dd></div>
+                    <div><dt>Date Endorsed</dt><dd>{{ $application->latestEndorsement?->endorsed_at?->format('M j, Y') ?? 'Not recorded' }}</dd></div>
+                    <div><dt>Current Status</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
+                </dl>
+            </section>
+
+            <section class="res-workflow-panel res-research-panel">
+                <header class="res-workflow-panel-heading">
+                    <x-dashboard.icon name="file-search" size="21" />
+                    <h2>Research Information</h2>
+                </header>
+                <dl class="res-compact-details">
+                    <div><dt>Research Title</dt><dd>{{ $application->research_title }}</dd></div>
+                    <div><dt>Research Category</dt><dd>{{ $application->research_category ?: 'Not specified' }}</dd></div>
+                    <div><dt>Participant Group</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>
+                    <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
+                    <div class="res-detail-wide"><dt>Study Overview</dt><dd>{{ $application->abstract ?: 'Not specified' }}</dd></div>
+                </dl>
+            </section>
 
         @if ($canClassify || $isEditingScreening)
             {{-- Initial decisions and corrections share fields but use separate authorized service operations. --}}
@@ -247,6 +246,7 @@
                 </section>
             </div>
         @endif
+        </div>
 
         @if ($officialReviewArtifacts->isNotEmpty())
             <section class="res-workflow-panel res-official-review-forms-panel">

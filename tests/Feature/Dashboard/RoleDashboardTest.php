@@ -544,6 +544,83 @@ class RoleDashboardTest extends TestCase
             ->assertSee('REV-001');
     }
 
+    public function test_reviewer_dashboard_uses_current_fresh_assignments_after_status_reassignment_and_revocation_changes(): void
+    {
+        $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+        $replacementReviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+
+        $statusChangedApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-CURRENT-STATUS',
+            'application_status' => ApplicationStatus::UnderExpeditedReview,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $statusChangedApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::InReview,
+            'assigned_at' => now()->subDays(3),
+            'updated_at' => now(),
+        ]);
+
+        $newApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-NEW-ASSIGNMENT',
+            'application_status' => ApplicationStatus::UnderExpeditedReview,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $newApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::Pending,
+            'assigned_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+        ]);
+
+        $reassignedApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-REASSIGNED-AWAY',
+            'application_status' => ApplicationStatus::UnderExpeditedReview,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $reassignedApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::Superseded,
+            'superseded_at' => now(),
+            'updated_at' => now()->addMinute(),
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $reassignedApplication->id,
+            'reviewer_user_id' => $replacementReviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::Pending,
+        ]);
+
+        $revokedApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-REVOKED',
+            'application_status' => ApplicationStatus::UnderExpeditedReview,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $revokedApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::Superseded,
+            'superseded_at' => now(),
+        ]);
+
+        $archivedApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-ARCHIVED',
+            'application_status' => ApplicationStatus::Archived,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $archivedApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+        ]);
+
+        $this->actingAs($reviewer)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Latest Assigned Reviews')
+            ->assertSeeInOrder(['REVIEW-CURRENT-STATUS', 'REVIEW-NEW-ASSIGNMENT'])
+            ->assertSee('In Review')
+            ->assertDontSee('REVIEW-REASSIGNED-AWAY')
+            ->assertDontSee('REVIEW-REVOKED')
+            ->assertDontSee('REVIEW-ARCHIVED');
+    }
+
     public function test_res_dashboard_counts_each_administrative_queue_from_application_statuses(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);

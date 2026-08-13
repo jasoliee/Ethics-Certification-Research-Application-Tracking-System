@@ -12,11 +12,11 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
-use App\Models\ApplicationDocument;
 use App\Models\ApplicationRevision;
 use App\Models\ResearchApplication;
 use App\Models\ReviewComment;
 use App\Models\ReviewerAssignment;
+use App\Models\ReviewSubmission;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
 use App\Services\AuditLogService;
@@ -34,18 +34,12 @@ class ApplicationRevisionWorkflowService
         private readonly AuditLogService $auditLog,
     ) {}
 
-    /**
-     * @param  array<int, int|string>  $commentIds
-     * @param  array<int, int|string>  $revisionDocumentIds
-     */
     public function releaseDecision(
         User $actor,
         ResearchApplication $application,
-        ReviewDecision $decision,
-        array $commentIds,
-        array $revisionDocumentIds = [],
+        ReviewSubmission $sourceSubmission,
     ): ApplicationDecisionRelease {
-        $release = DB::transaction(function () use ($actor, $application, $decision, $commentIds, $revisionDocumentIds): ApplicationDecisionRelease {
+        $release = DB::transaction(function () use ($actor, $application, $sourceSubmission): ApplicationDecisionRelease {
             $locked = ResearchApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
             Gate::forUser($actor)->authorize('releaseDecision', $locked);
 
@@ -57,18 +51,19 @@ class ApplicationRevisionWorkflowService
                 ->first();
 
             if ($existing) {
-                if ($existing->decision === $decision) {
+                if ($existing->source_review_submission_id === $sourceSubmission->id
+                    || ($existing->source_review_submission_id === null && $existing->decision === $sourceSubmission->decision)) {
                     return $existing;
                 }
 
                 throw ValidationException::withMessages([
-                    'decision' => 'A different decision has already been released for this review cycle.',
+                    'review_submission_id' => 'A different Reviewer decision has already been released for this review cycle.',
                 ])->errorBag('decisionRelease');
             }
 
             if ($locked->application_status !== ApplicationStatus::ReviewSubmittedPendingRelease) {
                 throw ValidationException::withMessages([
-                    'decision' => 'This application is not awaiting an authorized result release.',
+                    'review_submission_id' => 'This application is not awaiting an authorized result release.',
                 ])->errorBag('decisionRelease');
             }
 
@@ -87,25 +82,28 @@ class ApplicationRevisionWorkflowService
                     || $assignment->reviewSubmission?->status !== ReviewSubmissionStatus::Submitted,
             )) {
                 throw ValidationException::withMessages([
-                    'decision' => 'Every required Reviewer must submit this review cycle before RES can release a result.',
+                    'review_submission_id' => 'Every required Reviewer must submit this review cycle before RES can release a result.',
                 ])->errorBag('decisionRelease');
             }
 
-            $commentIds = collect($commentIds)->map(fn (mixed $id): int => (int) $id)->unique()->values();
-            $comments = $commentIds->isEmpty()
-                ? collect()
-                : ReviewComment::query()
-                    ->whereIn('reviewer_assignment_id', $assignments->pluck('id'))
-                    ->whereIn('id', $commentIds)
-                    ->with('document:id,research_application_id,document_requirement_id,document_version')
-                    ->lockForUpdate()
-                    ->get();
-
-            if ($comments->count() !== $commentIds->count()) {
+            $source = ReviewSubmission::query()
+                ->whereKey($sourceSubmission->id)
+                ->whereIn('reviewer_assignment_id', $assignments->pluck('id'))
+                ->where('status', ReviewSubmissionStatus::Submitted->value)
+                ->lockForUpdate()
+                ->first();
+            if (! $source?->decision) {
                 throw ValidationException::withMessages([
-                    'comment_ids' => 'One or more selected comments do not belong to this application review cycle.',
+                    'review_submission_id' => 'Select one submitted Reviewer decision from this application review cycle.',
                 ])->errorBag('decisionRelease');
             }
+
+            $decision = $source->decision;
+            $comments = ReviewComment::query()
+                ->where('reviewer_assignment_id', $source->reviewer_assignment_id)
+                ->with('document:id,research_application_id,document_requirement_id,document_version')
+                ->lockForUpdate()
+                ->get();
 
             $selectedRequiredRevisionComments = $comments
                 ->filter(fn (ReviewComment $comment): bool => $comment->category === ReviewCommentCategory::RequiredRevision);
@@ -117,51 +115,10 @@ class ApplicationRevisionWorkflowService
                 ])
                 ->unique('requirement_id')
                 ->values();
-            $selectedRevisionDocuments = collect();
-
             if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
                 if ($reviewCycle >= self::MAX_REVISION_CYCLES) {
                     throw ValidationException::withMessages([
-                        'decision' => 'The maximum of two revision cycles has been reached. A further revision cannot be opened for this application.',
-                    ])->errorBag('decisionRelease');
-                }
-
-                if ($comments->isEmpty()) {
-                    throw ValidationException::withMessages([
-                        'comment_ids' => 'Select at least one Reviewer comment for a revision decision.',
-                    ])->errorBag('decisionRelease');
-                }
-
-                $revisionDocumentIds = collect($revisionDocumentIds)
-                    ->map(fn (mixed $id): int => (int) $id)
-                    ->unique()
-                    ->values();
-                $selectedRevisionDocuments = $revisionDocumentIds->isEmpty()
-                    ? collect()
-                    : ApplicationDocument::query()
-                        ->where('research_application_id', $locked->id)
-                        ->where('is_current', true)
-                        ->whereIn('id', $revisionDocumentIds)
-                        ->lockForUpdate()
-                        ->get();
-
-                if ($selectedRevisionDocuments->count() !== $revisionDocumentIds->count()) {
-                    throw ValidationException::withMessages([
-                        'revision_document_ids' => 'One or more selected revision documents are not current files for this application.',
-                    ])->errorBag('decisionRelease');
-                }
-
-                $requiredDocuments = $requiredDocuments
-                    ->concat($selectedRevisionDocuments->map(fn (ApplicationDocument $document): array => [
-                        'requirement_id' => $document->document_requirement_id,
-                        'source_document_id' => $document->id,
-                    ]))
-                    ->unique('requirement_id')
-                    ->values();
-
-                if ($requiredDocuments->isEmpty()) {
-                    throw ValidationException::withMessages([
-                        'revision_document_ids' => 'The selected comments do not identify a source file. Select at least one current application document that the Applicant must revise.',
+                        'review_submission_id' => 'The maximum of two revision cycles has been reached. A further revision cannot be opened for this application.',
                     ])->errorBag('decisionRelease');
                 }
             }
@@ -171,6 +128,7 @@ class ApplicationRevisionWorkflowService
                 'research_application_id' => $locked->id,
                 'review_cycle' => $reviewCycle,
                 'source_review_type' => $sourceReviewType,
+                'source_review_submission_id' => $source->id,
                 'decision' => $decision->value,
                 'released_by_user_id' => $actor->id,
                 'released_at' => $releasedAt,
@@ -205,7 +163,7 @@ class ApplicationRevisionWorkflowService
 
                 if (! $revisionStatus['configured'] || ! $dueAt || $dueAt->isPast()) {
                     throw ValidationException::withMessages([
-                        'decision' => 'Configure a current Applicant revision deadline before releasing a revision decision.',
+                        'review_submission_id' => 'Configure a current Applicant revision deadline before releasing a revision decision.',
                     ])->errorBag('decisionRelease');
                 }
 
@@ -248,23 +206,26 @@ class ApplicationRevisionWorkflowService
                 'decision_release_id' => $release->id,
                 'review_cycle' => $reviewCycle,
                 'decision' => $decision->value,
+                'source_review_submission_id' => $source->id,
+                'source_reviewer_assignment_id' => $source->reviewer_assignment_id,
                 'released_comment_count' => $comments->count(),
                 'required_document_count' => $requiredDocuments->count(),
-                'manual_revision_document_count' => $selectedRevisionDocuments->count(),
                 'result' => $locked->application_status->value,
             ]);
 
             return $release;
         }, 3);
 
-        $application->applicant?->notify(new DashboardUpdateNotification([
-            'title' => 'Ethics review decision released',
-            'message' => 'An authorized decision and any released comments are now available for your application.',
-            'icon' => 'clipboard',
-            'tone' => 'blue',
-            'route' => 'applicant.revision-certificates.index',
-            'route_parameters' => ['application' => $application->id],
-        ]));
+        if ($release->wasRecentlyCreated) {
+            $application->applicant?->notify(new DashboardUpdateNotification([
+                'title' => 'Ethics review decision released',
+                'message' => 'An authorized decision and its released comments are now available for your application.',
+                'icon' => 'clipboard',
+                'tone' => 'blue',
+                'route' => 'applicant.revision-certificates.index',
+                'route_parameters' => ['application' => $application->id],
+            ]));
+        }
 
         return $release;
     }

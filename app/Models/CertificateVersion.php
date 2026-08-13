@@ -24,6 +24,8 @@ class CertificateVersion extends Model
         'generator_version',
         'generated_by_user_id',
         'generated_at',
+        'regenerated_at',
+        'regeneration_reason',
         'released_by_user_id',
         'released_at',
         'claimed_by_user_id',
@@ -37,6 +39,7 @@ class CertificateVersion extends Model
             'status' => CertificateVersionStatus::class,
             'file_size_bytes' => 'integer',
             'generated_at' => 'datetime',
+            'regenerated_at' => 'datetime',
             'released_at' => 'datetime',
             'claimed_at' => 'datetime',
         ];

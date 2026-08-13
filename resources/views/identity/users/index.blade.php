@@ -12,7 +12,6 @@
             <div class="identity-heading-actions">
                 @if ($isResLead)
                     <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}"><x-dashboard.icon name="settings" size="19" /><span>Dropdown Options</span></a>
-                    <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.audit.index') }}"><x-dashboard.icon name="clipboard" size="19" /><span>Audit Log</span></a>
                 @endif
                 <a class="identity-button identity-button-primary" href="{{ route($routeBase.'.create') }}">
                     <x-dashboard.icon name="plus" size="19" />

@@ -1262,7 +1262,7 @@ class UserManagementTest extends TestCase
         }
 
         $today = now()->toDateString();
-        $this->actingAs($resLead)->get(route('res.users.audit.index', [
+        $this->actingAs($resLead)->get(route('res.reports.audit.index', [
             'search' => 'Filtered',
             'role' => UserRole::Reviewer->value,
             'result' => 'completed',
@@ -1312,7 +1312,7 @@ class UserManagementTest extends TestCase
         ]);
 
         $this->actingAs($resLead)
-            ->get(route('res.users.audit.index', [
+            ->get(route('res.reports.audit.index', [
                 'semester' => '1st Semester',
                 'academic_year' => '2026-2027',
             ]))
@@ -1454,7 +1454,7 @@ class UserManagementTest extends TestCase
 
         // Assert the audit table uses the same wrapper and individual forms expose one reusable section-title class.
         $this->actingAs($resLead)
-            ->get(route('res.users.audit.index'))
+            ->get(route('res.reports.audit.index'))
             ->assertOk()
             ->assertSee('class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Account audit results" tabindex="0"', false);
         $this->actingAs($resLead)

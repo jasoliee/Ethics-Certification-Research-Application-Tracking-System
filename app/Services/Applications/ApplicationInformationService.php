@@ -51,14 +51,22 @@ class ApplicationInformationService
      *
      * @return Collection<int, User>
      */
-    public function advisers(): Collection
+    public function advisers(User $applicant): Collection
     {
+        $isStudent = ($applicant->applicant_type ?? ApplicantType::Student) === ApplicantType::Student;
+
+        if ($isStudent && blank($applicant->department)) {
+            return collect();
+        }
+
         // Exclude archived, inactive, and incomplete-setup accounts from the trusted Adviser selector.
         return User::query()
             ->select(['id', 'name', 'email', 'institution', 'department'])
             ->where('role', UserRole::Adviser->value)
             ->where('account_status', AccountStatus::Active->value)
             ->whereNotNull('password_setup_completed_at')
+            ->whereKeyNot($applicant->id)
+            ->when($isStudent, fn ($query) => $query->where('department', $applicant->department))
             ->orderBy('name')
             ->get();
     }
@@ -78,11 +86,24 @@ class ApplicationInformationService
 
         // Adviser eligibility is rechecked against the authoritative active user row.
         $adviserRule = Rule::exists('users', 'id')->where(
-            fn (Builder $query): Builder => $query
-                ->where('role', UserRole::Adviser->value)
-                ->where('account_status', AccountStatus::Active->value)
-                ->whereNull('deleted_at')
-                ->whereNotNull('password_setup_completed_at'),
+            function (Builder $query) use ($applicant, $isStudent): Builder {
+                $query
+                    ->where('role', UserRole::Adviser->value)
+                    ->where('account_status', AccountStatus::Active->value)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('password_setup_completed_at')
+                    ->where('id', '!=', $applicant->id);
+
+                if ($isStudent) {
+                    if (blank($applicant->department)) {
+                        return $query->whereRaw('1 = 0');
+                    }
+
+                    $query->where('department', $applicant->department);
+                }
+
+                return $query;
+            },
         );
 
         // New writes require dates; persisted legacy records may retain their historical duration text.
@@ -180,7 +201,7 @@ class ApplicationInformationService
             'institution.in' => 'Select an active Institution option.',
             'department.in' => 'Select an active Department option.',
             'program.in' => 'Select an active Program option.',
-            'adviser_user_id.exists' => 'Select an active Research Adviser with completed account setup.',
+            'adviser_user_id.exists' => 'Select an active eligible Research Adviser. Student applicants must select one from their department.',
             'expected_start_date.required' => 'Enter the expected research starting date.',
             'expected_end_date.required' => 'Enter the expected research ending date.',
             'expected_end_date.after_or_equal' => 'The ending date must be on or after the starting date.',

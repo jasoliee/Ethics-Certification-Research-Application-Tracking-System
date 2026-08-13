@@ -60,6 +60,69 @@ Date:
 
 ## Active Plans
 
+## Plan: Reviewer-owned decisions, unified releases, and cross-role workflow corrections
+
+Status: Completed on 2026-08-13.
+
+### Goal
+Apply the August 13 consolidated guideline across RES application/report/certificate surfaces, Applicant navigation and Adviser selection, and Reviewer assignment/comment/worksheet workflows while preserving private files, blind-review boundaries, historical review records, certificate identity, and existing release/claim history.
+
+### Source Documents
+- Primary authority: the August 13 paste-ready continuation guideline supplied in `C:\Users\User\.codex\attachments\24f5ff51-d7af-4d58-94ec-4d7c2b5b2b63\pasted-text.txt` and the eight accompanying defect/reference screenshots.
+- Existing authority reviewed: `README.md`, `PROJECT_GUIDELINES.md`, `PLANS.md`, `context_files/README.md`, relevant `docs/` architecture/requirements guides, and current Reviewer, RES screening, release, certificate, authorization, navigation, audit, and Applicant workflow documentation.
+- The newest guideline supersedes the August 11-12 future-only certificate-background rule and the temporary RES decision/document override recovery. Reviewer submissions are now authoritative; RES releases a specific submitted decision without changing it or selecting revision files.
+- Direct work on `main` is allowed by the newest collaboration prompt for this task. No commit or push is included unless the user separately requests it.
+
+### Scope
+Included:
+- Restrict RES application text search to approved non-applicant fields; make the requirement checklist full width above a responsive three-panel details row; center requested table columns; keep internal bottom scrolling and bounded filenames.
+- Move the RES-only Audit Log under Reports with updated routes, links, breadcrumbs, active navigation, preserved filters/pagination/policy checks, and a compatibility redirect from the retired User Management URL.
+- Remove Applicant Reports navigation and route access; restrict Student Adviser choices and validation to active eligible Advisers in the Applicant account department while preserving Faculty cross-department selection, self-exclusion, validation state, and an empty state.
+- Correct Reviewer dashboard freshness/current-assignment scoping, Supporting Documents alignment, equal file actions, right-rail order, and `Review Assessment` terminology.
+- Replace the comment scope selector with one Document selector containing `Entire Application`; derive overall/document scope on the server, retain historical overall/page records, validate assignment-visible document ownership, display `Unresolved`, and keep applicant anonymity.
+- Correct Protocol item 15 numbering without changing stable response keys; enforce at least 15 non-whitespace recommendation-comment characters in browser and server validation.
+- Add an editable `completed` worksheet state. Worksheet `Submit` validates and saves a complete but editable worksheet; the overall review transaction snapshots and finalizes both worksheets, comments, recommendation, and decision together, generates official artifacts, blocks duplicates, and enforces the lock server-side.
+- Apply the informed-consent gate in UI, normalization, validation, persistence, and generated output: `No` clears dependent answers, expands/left-aligns the explanation, and skips dependent requirements; `Yes` restores them. Remove per-item consent comments while retaining the overall recommendation field.
+- Add an RES-only read-only review workspace for current submitted decisions, Reviewer comments, worksheets/artifacts, and protected supporting documents. Release derives a particular decision from its submitted review record and automatically releases its associated comments; RES cannot alter review content or choose revision documents.
+- Replace bulk certificate-only release with explicit `Certificate`, `Decision`, or `Both Certificate and Decision` options, server-calculated eligible counts, explicit confirmation, independent eligibility rechecks, idempotent skipping, bounded failure reporting, notifications, transactions, batching, and audit summaries.
+- Make certificate-background activation regenerate every active past/present certificate into a new traceable version. Preserve certificate number, recipient/application, original issue/release dates and actor, claim state/time/actor, and prior binaries; store regeneration time/reason separately, swap the current version only after a complete private file exists, and leave the last valid version active on failure.
+
+Excluded:
+- New packages, `.env` changes, public certificate-file access, public QR metadata decisions, changing the two-revision-cycle limit, hard deletion of historical comments/forms/certificates, or exposing Applicant/Reviewer identity across blind boundaries.
+- A continuously running external queue worker. Safe bounded database/file batches will be used because this repository does not guarantee worker availability; every certificate is isolated so one failure cannot invalidate prior renderings or successful records.
+
+### Implementation Approach
+- Backend: keep controllers thin; extend Form Requests/policies and workflow services; derive release decisions from nested submitted review records; use row locks, uniqueness checks, bounded ID batches, and idempotent service results.
+- Frontend: reuse dashboard panels, overflow regions, badges, modals, focus trapping, and private document dialog; stack at compact widths and keep action labels/validation states accessible.
+- Database: add a forward migration for worksheet `completed_at`/state compatibility, decision-release source provenance, and certificate-version regeneration metadata. Convert only unsubmitted legacy finalized worksheets to editable completed state; preserve submitted final snapshots and artifacts.
+- Authorization: keep RES certificate/report routes role-gated, Reviewer writes current-assignment-gated, Applicant routes owner-gated, and Adviser identifiers validated against the role/account/department boundary.
+- Files/storage: keep documents, worksheets, certificates, and backgrounds on the private disk behind authorized routes. New background renders use create-then-commit pointer swaps; failed files are removed and old valid pointers remain.
+- Notifications/audit: preserve neutral pre-release wording and idempotency. Record source review submission, release type, actor/time, affected IDs/counts, regeneration reason/result, and bounded failures without private content or paths.
+
+### Files Expected to Change
+- RES/Applicant/Reviewer controllers, Form Requests, policies/services/models/enums, dashboard navigation/routes, relevant Blade/CSS/JavaScript, a forward migration, and focused factories/tests.
+- `docs/` requirements/architecture material plus `Documentations/FEATURES_AND_FUNCTIONALITY.md`, affected workflow/navigation/security/audit/certificate guides, changelog, testing/manual-validation records, and traceability.
+
+### Tests and Verification
+- Focused tests for every requested search, route, Adviser, current-assignment, comment, worksheet, consent, read-only RES, single/bulk release, background regeneration, preserved issue date/claim, nested authorization, idempotency, and failure behavior.
+- Run focused suites, one complete Laravel suite, changed-file Pint, `composer validate --strict`, platform requirements, route listing, migration status plus isolated migration checks, Blade compilation, Vite production build, and `git diff --check`.
+- Use the in-app browser skill for local responsive/keyboard/modal/private-route verification at approximately 1440, 1280, 1024, 768, and 390 pixels when a controllable browser is available. Record unavailable or data-blocked checks rather than claiming visual acceptance.
+
+### Risks and Rollback
+- Full-board submissions can contain different decisions. Single release requires RES to select one exact submitted review. Bulk decision release is eligible only when the current-cycle submitted decisions agree; conflicting sets remain ineligible for explicit RES review rather than inventing an outcome.
+- Historical `final` worksheets attached to submitted reviews remain immutable. Only `final` worksheets whose overall review is still unsubmitted are migrated to `completed`, retaining responses while removing premature finality.
+- Background regeneration never overwrites a binary. Each successful version supersedes the prior active rendering only after storage and database persistence succeed; failures leave the old current/claimed rendering usable.
+- Forward rollback must refuse to discard issued regeneration provenance or submitted review history without explicit archival handling.
+
+### Approval Notes
+Approved by: August 13 user instruction to read and implement the complete attached guideline precisely.
+Date: 2026-08-13
+
+### Completion Notes
+- Implemented the complete Reviewer-owned decision, read-only RES release, typed bulk release, retrospective certificate-background regeneration, report/navigation, Adviser eligibility, dashboard freshness, comment, worksheet, consent, and responsive layout contract described above.
+- The complete Laravel suite passes with 249 tests and 3,650 assertions. Focused affected suites, changed-file Pint, strict Composer validation, platform requirements, the 133-route listing, isolated migration up/rollback/up checks, Blade compilation, the Vite production build, and `git diff --check` pass.
+- Signed-in browser acceptance passed at 1440, 1280, 1024, 768, and 390 pixels for RES application details, Certificate Processing and Release All, the RES read-only review workspace, the Reviewer dashboard/workspace/conditional consent form, and Applicant navigation/application pages. No tested page has whole-page horizontal overflow or console warnings/errors; intended wide tables retain internal bottom scrolling.
+
 ## Plan: Visible Applicant evaluation validation and claim handoff
 
 Status: Completed on 2026-08-12.

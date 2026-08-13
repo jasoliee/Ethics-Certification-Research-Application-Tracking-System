@@ -46,7 +46,7 @@ class OfficialReviewFormArtifactTest extends TestCase
         ]);
     }
 
-    public function test_form_finalization_creates_immutable_snapshots_without_an_artifact(): void
+    public function test_worksheet_submission_marks_it_completed_and_editable_without_an_artifact(): void
     {
         [$reviewer, $applicant, $adviser, $application, $assignment] = $this->fixture();
         $payload = $this->finalPayload(ReviewFormType::Protocol);
@@ -54,7 +54,7 @@ class OfficialReviewFormArtifactTest extends TestCase
         $first = $this->actingAs($reviewer)
             ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), $payload)
             ->assertOk()
-            ->assertJsonPath('data.status', ReviewFormStatus::Final->value)
+            ->assertJsonPath('data.status', ReviewFormStatus::Completed->value)
             ->assertJsonPath('data.artifact', null);
 
         $form = $assignment->formSubmissions()
@@ -62,17 +62,14 @@ class OfficialReviewFormArtifactTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame($form->id, $first->json('data.id'));
-        $this->assertSame(ReviewFormCatalog::CATALOG_VERSION, $form->catalog_version);
-        $this->assertSame($payload['responses'], $form->finalized_payload_snapshot['responses']);
-        $this->assertSame($application->research_title, $form->finalized_context_snapshot['research_title']);
-        $this->assertSame($application->institution, $form->finalized_context_snapshot['institution']);
-        $this->assertSame('authenticated_electronic_attestation', $form->finalized_context_snapshot['attestation']['method']);
-        $this->assertStringNotContainsString($applicant->name, json_encode($form->finalized_context_snapshot, JSON_THROW_ON_ERROR));
-        $this->assertStringNotContainsString($adviser->name, json_encode($form->finalized_context_snapshot, JSON_THROW_ON_ERROR));
+        $this->assertNull($form->catalog_version);
+        $this->assertNull($form->finalized_payload_snapshot);
+        $this->assertNull($form->finalized_context_snapshot);
+        $this->assertNotNull($form->completed_at);
         $this->assertDatabaseCount('review_form_artifacts', 0);
         $this->assertSame([], Storage::disk('local')->allFiles());
 
-        // A retried finalization is idempotent even though artifact generation is intentionally deferred.
+        // A repeated worksheet submission updates the same editable completed record.
         $this->actingAs($reviewer)
             ->putJson(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol]), $payload)
             ->assertOk()
@@ -474,11 +471,11 @@ class OfficialReviewFormArtifactTest extends TestCase
         $this->assertNull($review->submitted_at);
         $this->assertSame(
             2,
-            $assignment->formSubmissions()->where('status', ReviewFormStatus::Final->value)->count(),
+            $assignment->formSubmissions()->where('status', ReviewFormStatus::Completed->value)->count(),
         );
         $this->assertTrue($assignment->formSubmissions()->get()->every(
-            fn (ReviewFormSubmission $form): bool => filled($form->finalized_payload_snapshot)
-                && filled($form->finalized_context_snapshot),
+            fn (ReviewFormSubmission $form): bool => $form->finalized_payload_snapshot === null
+                && $form->finalized_context_snapshot === null,
         ));
         $this->assertSame(ReviewerAssignmentStatus::InReview, $assignment->fresh()->assignment_status);
         $this->assertSame(ApplicationStatus::UnderExpeditedReview, $application->fresh()->application_status);
@@ -521,7 +518,7 @@ class OfficialReviewFormArtifactTest extends TestCase
             $this->actingAs($reviewer)
                 ->putJson(route('reviewer.assignments.forms.update', [$assignment, $type]), $payload)
                 ->assertOk()
-                ->assertJsonPath('data.status', ReviewFormStatus::Final->value)
+                ->assertJsonPath('data.status', ReviewFormStatus::Completed->value)
                 ->assertJsonPath('data.artifact', null);
         }
 
@@ -549,10 +546,11 @@ class OfficialReviewFormArtifactTest extends TestCase
     private function finalPayload(ReviewFormType $type): array
     {
         return [
-            'intent' => 'final',
+            'intent' => 'submit',
             'responses' => $this->completeResponses($type),
             'consent_required' => $type === ReviewFormType::InformedConsent ? true : null,
             'recommendation' => ReviewDecision::Approved->value,
+            'recommendation_comments' => 'The completed worksheet supports this recommendation.',
         ];
     }
 

@@ -98,8 +98,8 @@ final class ReviewFormCatalog
             self::item('protocol_12', 12, 'Is/are the investigator/s adequately trained and do they have sufficient experience to undertake the study?', 2, 201.0, 2, 215.8),
             self::item('protocol_13', 13, 'Is there a disclosure of conflict of interest?', 2, 222.5, 2, 232.0),
             self::item('protocol_14', 14, 'Are the research facilities adequate?', 2, 238.7, 2, 248.2),
-            // The official source repeats printed number 14 on page 3. Preserve it exactly.
-            self::item('protocol_15', 14, 'Are there any other concerns in the study?', 3, 74.0, 3, 83.5),
+            // Stable response key stays unchanged while the corrected UI and generated record use item 15.
+            self::item('protocol_15', 15, 'Are there any other concerns in the study?', 3, 74.0, 3, 83.5),
         ]);
     }
 

@@ -13,6 +13,7 @@ class ApplicationDecisionRelease extends Model
         'research_application_id',
         'review_cycle',
         'source_review_type',
+        'source_review_submission_id',
         'decision',
         'released_by_user_id',
         'released_at',
@@ -35,6 +36,11 @@ class ApplicationDecisionRelease extends Model
     public function releasedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'released_by_user_id')->withTrashed();
+    }
+
+    public function sourceReviewSubmission(): BelongsTo
+    {
+        return $this->belongsTo(ReviewSubmission::class, 'source_review_submission_id');
     }
 
     public function releasedComments(): HasMany

@@ -12,12 +12,12 @@
     <div class="reviewer-comment-heading">
         <div class="reviewer-comment-reference">
             <x-dashboard.status-badge :label="$comment->category->label()" :tone="$comment->category->tone()" />
+            <x-dashboard.status-badge :label="$comment->status === 'resolved' ? 'Resolved' : 'Unresolved'" :tone="$comment->status === 'resolved' ? 'success' : 'blue'" />
             <span>
-                {{ $comment->scope->label() }}
+                {{ $comment->scope === \App\Enums\ReviewCommentScope::Overall ? 'Entire Application' : $comment->scope->label() }}
                 @if ($comment->document) - {{ $comment->document->original_file_name }}@endif
                 @if ($comment->page_number) - Page {{ $comment->page_number }}@endif
             </span>
-            <x-dashboard.status-badge :label="$comment->status === 'resolved' ? 'Resolved' : 'Open'" :tone="$comment->status === 'resolved' ? 'success' : 'blue'" />
         </div>
 
         @if ($canWrite)

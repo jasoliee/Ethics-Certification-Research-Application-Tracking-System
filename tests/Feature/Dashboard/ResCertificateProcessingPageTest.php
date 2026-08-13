@@ -8,6 +8,7 @@ use App\Enums\ReviewDecision;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\ResearchApplication;
+use App\Models\ReviewerAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -38,7 +39,11 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertSee('Certification Queue')
             ->assertSee('Final Review')
             ->assertSee('Manage Certificate Background')
-            ->assertSee('Release All Eligible')
+            ->assertSee('Release All')
+            ->assertSeeInOrder(['Certificate', 'Decision', 'Both Certificate and Decision'])
+            ->assertSee('name="release_type" value="certificate"', false)
+            ->assertSee('name="release_type" value="decision"', false)
+            ->assertSee('name="release_type" value="both"', false)
             ->assertSee('data-certificate-bulk-dialog', false)
             ->assertSee('data-certificate-background-dialog', false)
             ->assertSee('data-certificate-application-dialog="'.$eligible->id.'"', false)
@@ -47,8 +52,10 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertSee('data-certificate-row-number="2"', false)
             ->assertDontSee('certificate-row-state', false)
             ->assertSee(route('res.certificates.release', $eligible), false)
-            ->assertSee(route('res.certificates.decisions.release', $pending), false)
-            ->assertSee('Documents requiring revision')
+            ->assertSee(route('res.certificates.workspace', $pending), false)
+            ->assertDontSee(route('res.certificates.decisions.release', $pending), false)
+            ->assertDontSee('Documents requiring revision')
+            ->assertDontSee('Official released decision')
             ->assertSee(route('res.certificate-backgrounds.store'), false)
             ->assertSee($eligible->research_title)
             ->assertSee($pending->research_title);
@@ -86,7 +93,7 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertDontSee('data-certificate-row-number="1"', false);
     }
 
-    public function test_decision_service_validation_reopens_the_correct_application_dialog(): void
+    public function test_decision_release_rejects_an_unowned_submission_identifier(): void
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -96,15 +103,16 @@ class ResCertificateProcessingPageTest extends TestCase
             ->from(route('res.certificates.index'))
             ->post(route('res.certificates.decisions.release', $pending), [
                 'application_id' => $pending->id,
+                'review_submission_id' => 999999,
                 'decision' => ReviewDecision::Approved->value,
             ]);
 
-        $response->assertRedirect(route('res.certificates.index'));
-        $this->followRedirects($response)
-            ->assertOk()
-            ->assertSee('data-certificate-application-dialog="'.$pending->id.'"', false)
-            ->assertSee('data-open-on-load', false)
-            ->assertSee('Every required Reviewer must submit this review cycle');
+        $response
+            ->assertRedirect(route('res.certificates.index'))
+            ->assertSessionHasErrorsIn('decisionRelease', ['review_submission_id']);
+        $this->assertDatabaseMissing('application_decision_releases', [
+            'research_application_id' => $pending->id,
+        ]);
     }
 
     public function test_non_res_user_cannot_open_certificate_processing(): void
@@ -114,6 +122,43 @@ class ResCertificateProcessingPageTest extends TestCase
 
         $this->actingAs($applicant)
             ->get(route('res.certificates.index'))
+            ->assertRedirect(route('dashboard'));
+    }
+
+    public function test_res_workspace_is_read_only_and_cross_role_certificate_or_reviewer_actions_are_blocked(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $pending = $this->application('READ-ONLY', ApplicationStatus::ReviewSubmittedPendingRelease, $resLead);
+        $assignment = ReviewerAssignment::factory()->create([
+            'research_application_id' => $pending->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_cycle' => 0,
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.workspace', $pending))
+            ->assertOk()
+            ->assertSee('Read-only Review Workspace')
+            ->assertSee('RES read-only access')
+            ->assertDontSee('Add Comment')
+            ->assertDontSee('Open Review Worksheet')
+            ->assertDontSee('Submit Review');
+
+        $this->actingAs($resLead)
+            ->post(route('reviewer.assignments.comments.store', $assignment), [
+                'category' => 'general',
+                'body' => 'RES must not be allowed to write this Reviewer comment.',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->actingAs($applicant)
+            ->get(route('res.certificates.workspace', $pending))
+            ->assertRedirect(route('dashboard'));
+        $this->actingAs($reviewer)
+            ->post(route('res.certificates.release', $pending))
             ->assertRedirect(route('dashboard'));
     }
 

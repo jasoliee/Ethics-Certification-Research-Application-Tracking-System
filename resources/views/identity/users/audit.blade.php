@@ -7,8 +7,8 @@
     @endphp
     <div class="dashboard-page identity-management-page">
         <header class="dashboard-page-heading-row identity-page-heading">
-            <div class="dashboard-page-heading"><h1>Account Audit Log</h1><p>Review security-relevant account and access events without exposing credentials or tokens.</p></div>
-            <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.index') }}"><x-dashboard.icon name="arrow-left" size="18" /><span>Back</span></a>
+            <div class="dashboard-page-heading"><h1>Audit Log</h1><p>Review authorized workflow, release, certificate, account, and access events without exposing private content or secrets.</p></div>
+            <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.index') }}"><x-dashboard.icon name="arrow-left" size="18" /><span>Back to Reports</span></a>
         </header>
 
         <form class="identity-filter-bar identity-audit-filters" method="GET" action="{{ route($routeBase.'.audit.index') }}">

@@ -4,18 +4,23 @@ namespace Tests\Feature\Dashboard;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
 use App\Enums\ReviewDecision;
+use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\Certificate;
 use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
+use App\Models\ReviewerAssignment;
 use App\Models\User;
+use App\Notifications\DashboardUpdateNotification;
 use App\Services\Certificates\ApplicantCertificateService;
-use App\Services\Certificates\CertificateBackgroundService;
+use App\Services\Certificates\BulkReleaseService;
 use App\Services\Certificates\CertificateReleaseService;
 use App\Services\Certificates\OfficialCertificateGenerationService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -142,28 +147,85 @@ class CertificateReleaseWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_a_new_background_affects_only_future_certificate_versions(): void
+    public function test_background_change_regenerates_claimed_certificate_without_changing_historical_dates_or_claim(): void
     {
         Storage::fake('local');
         Notification::fake();
-        [, $resLead, $application] = $this->approvedApplication();
+        [$applicant, $resLead, $application] = $this->approvedApplication();
+        $this->travelTo('2026-08-01 09:00:00');
         $released = app(CertificateReleaseService::class)->release($resLead, $application);
+        app(ApplicantCertificateService::class)->submitSurvey($applicant, $application, $this->surveyPayload());
+        $claimed = app(ApplicantCertificateService::class)->claim($applicant, $application);
         $firstVersion = $released['certificate']->currentVersion;
         $officialBackgroundId = $firstVersion->certificate_background_id;
+        $originalIssuedAt = $firstVersion->generated_at->toDateTimeString();
+        $originalReleasedAt = $claimed->released_at->toDateTimeString();
+        $originalClaimedAt = $claimed->claimed_at->toDateTimeString();
 
-        $newBackground = app(CertificateBackgroundService::class)->uploadAndActivate(
-            $resLead,
-            UploadedFile::fake()->image('future-background.png', 596, 842),
-        );
-        $regenerated = app(CertificateReleaseService::class)->release($resLead, $application->refresh(), true);
-        $secondVersion = $regenerated['certificate']->currentVersion;
+        $this->travelTo('2026-08-13 14:30:00');
+        $this->actingAs($resLead)
+            ->post(route('res.certificate-backgrounds.store'), [
+                'background' => UploadedFile::fake()->image('active-background.png', 596, 842),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('background_regeneration_summary', fn (array $summary): bool => $summary['regenerated'] === 1
+                && $summary['failed'] === 0);
 
-        $this->assertSame('regenerated', $regenerated['action']);
+        $newBackground = CertificateBackground::query()->where('is_active', true)->firstOrFail();
+        $claimed->refresh()->load('currentVersion');
+        $secondVersion = $claimed->currentVersion;
+
         $this->assertNotSame($officialBackgroundId, $newBackground->id);
         $this->assertSame($officialBackgroundId, $firstVersion->refresh()->certificate_background_id);
         $this->assertSame($newBackground->id, $secondVersion->certificate_background_id);
         $this->assertSame(CertificateVersionStatus::Superseded, $firstVersion->status);
         $this->assertSame(2, $secondVersion->certificate_version);
+        $this->assertSame($originalIssuedAt, $secondVersion->generated_at->toDateTimeString());
+        $this->assertSame($originalReleasedAt, $secondVersion->released_at->toDateTimeString());
+        $this->assertSame('2026-08-13 14:30:00', $secondVersion->regenerated_at->toDateTimeString());
+        $this->assertSame('background_update', $secondVersion->regeneration_reason);
+        $this->assertSame(CertificateStatus::Claimed, $claimed->status);
+        $this->assertSame($originalReleasedAt, $claimed->released_at->toDateTimeString());
+        $this->assertSame($originalClaimedAt, $claimed->claimed_at->toDateTimeString());
+        $this->assertSame($secondVersion->id, $claimed->claimed_certificate_version_id);
+        $this->assertSame($applicant->id, $secondVersion->claimed_by_user_id);
+        Storage::disk('local')->assertExists($firstVersion->stored_file_path);
+        Storage::disk('local')->assertExists($secondVersion->stored_file_path);
+        Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
+    }
+
+    public function test_failed_background_regeneration_retains_the_last_valid_certificate_version(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('BACKGROUND-FAIL');
+        $released = app(CertificateReleaseService::class)->release($resLead, $application);
+        $certificate = $released['certificate'];
+        $originalVersion = $certificate->currentVersion;
+        $originalReleasedAt = $certificate->released_at->toDateTimeString();
+
+        $generator = $this->mock(OfficialCertificateGenerationService::class);
+        $generator->shouldReceive('renderAndStore')->once()->andThrow(
+            new CertificateGenerationException('Background rendering failed.', 'background_render_failed'),
+        );
+
+        $this->actingAs($resLead)
+            ->post(route('res.certificate-backgrounds.store'), [
+                'background' => UploadedFile::fake()->image('failing-background.png', 596, 842),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('background_regeneration_summary', fn (array $summary): bool => $summary['regenerated'] === 0
+                && $summary['failed'] === 1
+                && $summary['failed_certificate_numbers'] === [$certificate->certificate_number]);
+
+        $certificate->refresh();
+        $this->assertSame($originalVersion->id, $certificate->current_certificate_version_id);
+        $this->assertSame(CertificateVersionStatus::Ready, $originalVersion->refresh()->status);
+        $this->assertSame(1, $certificate->versions()->count());
+        $this->assertSame($originalReleasedAt, $certificate->released_at->toDateTimeString());
+        $this->assertSame(ApplicationStatus::CertificateReleased, $application->refresh()->application_status);
+        Storage::disk('local')->assertExists($originalVersion->stored_file_path);
+        Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
     }
 
     public function test_generation_failure_records_a_safe_state_without_releasing_a_file(): void
@@ -207,6 +269,48 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame(0, $summary['failed']);
         $this->assertSame(CertificateStatus::Released, $first->certificate()->firstOrFail()->status);
         $this->assertSame(CertificateStatus::Released, $second->certificate()->firstOrFail()->status);
+    }
+
+    public function test_typed_bulk_release_handles_both_idempotently_and_reports_all_outcomes(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        [$newApplicant, $unanimous] = $this->pendingReviewedApplication('BULK-BOTH', [ReviewDecision::Approved]);
+        [, , $already] = $this->approvedApplication('BULK-ALREADY', $resLead);
+        app(CertificateReleaseService::class)->release($resLead, $already);
+        [, $split] = $this->pendingReviewedApplication('BULK-SPLIT', [
+            ReviewDecision::Approved,
+            ReviewDecision::Disapproved,
+        ]);
+
+        $service = app(BulkReleaseService::class);
+        $this->assertSame([
+            'certificate' => 0,
+            'decision' => 1,
+            'both' => 1,
+        ], $service->eligibleCounts($resLead));
+
+        $summary = $service->release($resLead, BulkReleaseType::Both);
+
+        $this->assertSame(1, $summary['eligible']);
+        $this->assertSame(1, $summary['successfully_released']);
+        $this->assertSame(1, $summary['already_released']);
+        $this->assertSame(1, $summary['ineligible']);
+        $this->assertSame(0, $summary['failed']);
+        $this->assertSame(CertificateStatus::Released, $unanimous->certificate()->firstOrFail()->status);
+        $this->assertSame(ApplicationStatus::ReviewSubmittedPendingRelease, $split->refresh()->application_status);
+
+        $repeat = $service->release($resLead, BulkReleaseType::Both);
+        $this->assertSame(0, $repeat['successfully_released']);
+        $this->assertSame(2, $repeat['already_released']);
+        $this->assertSame(1, $repeat['ineligible']);
+        $this->assertSame(1, $unanimous->certificate()->firstOrFail()->versions()->count());
+        Notification::assertSentToTimes($newApplicant, DashboardUpdateNotification::class, 2);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'release.bulk_completed',
+            'actor_user_id' => $resLead->id,
+        ]);
     }
 
     public function test_unauthorized_release_cannot_initialize_background_or_certificate_state(): void
@@ -253,6 +357,43 @@ class CertificateReleaseWorkflowTest extends TestCase
         ]);
 
         return [$applicant, $resLead, $application];
+    }
+
+    /** @param array<int, ReviewDecision> $decisions
+     * @return array{User, ResearchApplication}
+     */
+    private function pendingReviewedApplication(string $suffix, array $decisions): array
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'application_code' => 'RES-2026-S-ICDI-08132026-'.$suffix,
+            'applicant_user_id' => $applicant->id,
+            'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease,
+            'current_stage' => ApplicationStage::DecisionRelease,
+            'review_type' => count($decisions) > 1 ? 'full_board' : 'expedited',
+            'current_revision_cycle' => 1,
+            'submitted_at' => now()->subWeek(),
+        ]);
+
+        foreach ($decisions as $sequence => $decision) {
+            $assignment = ReviewerAssignment::factory()->create([
+                'research_application_id' => $application->id,
+                'reviewer_user_id' => User::factory()->create(['role' => UserRole::Reviewer])->id,
+                'review_type' => 'initial_review',
+                'review_cycle' => 0,
+                'assignment_sequence' => $sequence + 1,
+                'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+                'submitted_at' => now()->subDay(),
+            ]);
+            $assignment->reviewSubmission()->create([
+                'status' => ReviewSubmissionStatus::Submitted,
+                'decision' => $decision,
+                'decision_comment' => 'Complete submitted Reviewer decision.',
+                'submitted_at' => now()->subDay(),
+            ]);
+        }
+
+        return [$applicant, $application];
     }
 
     /** @return array<string, mixed> */

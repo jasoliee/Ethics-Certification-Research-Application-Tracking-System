@@ -21,15 +21,16 @@ This folder documents the implemented ECRATS system contract and clearly identif
 15. [RES screening and reviewer assignment](RES_SCREENING_AND_REVIEWER_ASSIGNMENT.md)
 16. [Reviewer workflow](REVIEWER_WORKFLOW.md)
 17. [Document and certificate generation](DOCUMENT_AND_CERTIFICATE_GENERATION.md)
-18. [Security implementation](SECURITY_IMPLEMENTATION.md)
-19. [Performance and scalability](PERFORMANCE_AND_SCALABILITY.md)
-20. [Database and data flow](DATABASE_AND_DATA_FLOW.md)
-21. [Deployment security checklist](DEPLOYMENT_SECURITY_CHECKLIST.md)
-22. [Testing guide](TESTING_GUIDE.md)
-23. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
-24. [Known issues and pending verification](KNOWN_ISSUES.md)
-25. [August 10, 2026 implementation status](IMPLEMENTATION_STATUS_2026-08-10.md)
-26. [Changelog](CHANGELOG.md)
+18. [Reviewer-owned decisions, releases, and certificate continuity](REVIEW_RELEASE_CERTIFICATE_GUIDELINE_2026-08-13.md)
+19. [Security implementation](SECURITY_IMPLEMENTATION.md)
+20. [Performance and scalability](PERFORMANCE_AND_SCALABILITY.md)
+21. [Database and data flow](DATABASE_AND_DATA_FLOW.md)
+22. [Deployment security checklist](DEPLOYMENT_SECURITY_CHECKLIST.md)
+23. [Testing guide](TESTING_GUIDE.md)
+24. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
+25. [Known issues and pending verification](KNOWN_ISSUES.md)
+26. [August 10, 2026 implementation status](IMPLEMENTATION_STATUS_2026-08-10.md)
+27. [Changelog](CHANGELOG.md)
 
 ## Interface References
 
@@ -46,6 +47,6 @@ This folder documents the implemented ECRATS system contract and clearly identif
 
 ## Scope
 
-The documented implementation includes authentication, account setup, role onboarding, account administration, guarded Excel-only `.xlsx` generation and preview/confirmation, RES-only archived-account restoration, immutable dropdown identities with historical-label aliases, the canonical `/dashboard`, Applicant drafts and private documents, date-based research duration, configured initial submission, the three-formal-application limit, Adviser return/endorsement decisions, the RES queue, Expedited/Full Board/Exempted classification, non-destructive reviewer assignment/reassignment, current-assignment Reviewer workspaces, the two official Reviewer forms, asynchronous private comment CRUD/resolution with incremental history, initial review decisions, versioned private official-form PDFs, explicit result release, two-cycle Applicant revisions and re-review, official-template private certificate generation/release/versioning, post-release evaluation and claim, deadline/timeline configuration, shared navigation, notifications, functional Reviewer/RES account settings, and audit records. Uploaded-document content redaction, automated side-by-side revision comparison, public QR verification, manual Microsoft Excel acceptance, and final responsive acceptance remain explicitly identified as incomplete or pending.
+The documented implementation includes authentication, account setup, role onboarding, account administration, guarded Excel-only `.xlsx` generation and preview/confirmation, RES-only archived-account restoration, immutable dropdown identities with historical-label aliases, the canonical `/dashboard`, Applicant drafts and private documents, date-based research duration, configured initial submission, the three-formal-application limit, department-restricted Student adviser selection, Adviser return/endorsement decisions, the RES queue, Expedited/Full Board/Exempted classification, non-destructive reviewer assignment/reassignment, current-assignment Reviewer workspaces, editable completed worksheets with atomic final review submission, asynchronous private comment CRUD/resolution with incremental history, reviewer-owned decisions, versioned private official-form PDFs, exact RES result release, three-mode batched Release All, two-cycle Applicant revisions and re-review, official-template private certificate generation/release/versioning, retroactive background regeneration with issue/claim continuity, post-release evaluation and claim, deadline/timeline configuration, RES Reports/Audit Log, shared navigation, notifications, functional Reviewer/RES account settings, and audit records. Uploaded-document content redaction, automated side-by-side revision comparison, public QR verification, and manual Microsoft Excel acceptance remain explicitly identified as incomplete or pending.
 
 Keep these files synchronized whenever dashboard routes, role rules, data queries, or shared components change.

@@ -31,7 +31,7 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_res_releases_only_selected_comments_and_routes_a_versioned_revision_to_the_same_reviewer(): void
+    public function test_res_releases_the_exact_reviewer_submission_and_routes_a_versioned_revision_to_the_same_reviewer(): void
     {
         Storage::fake('local');
         Notification::fake();
@@ -46,18 +46,17 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             'category' => ReviewCommentCategory::RequiredRevision,
             'body' => 'Replace the participant consent procedure.',
         ]);
-        $unreleasedComment = ReviewComment::create([
+        $generalComment = ReviewComment::create([
             'reviewer_assignment_id' => $assignment->id,
             'scope' => ReviewCommentScope::Overall,
             'category' => ReviewCommentCategory::General,
-            'body' => 'Internal note that must remain hidden.',
+            'body' => 'General reviewer guidance released with the submitted decision.',
         ]);
 
         $release = app(ApplicationRevisionWorkflowService::class)->releaseDecision(
             $resLead,
             $application,
-            ReviewDecision::MinorRevision,
-            [$releasedComment->id],
+            $assignment->reviewSubmission,
         );
 
         $application->refresh();
@@ -66,7 +65,8 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
         $this->assertSame(2, $application->current_revision_cycle);
         $this->assertSame($release->id, $releasedComment->refresh()->application_decision_release_id);
         $this->assertNotNull($releasedComment->released_at);
-        $this->assertNull($unreleasedComment->refresh()->released_at);
+        $this->assertSame($release->id, $generalComment->refresh()->application_decision_release_id);
+        $this->assertNotNull($generalComment->released_at);
         $this->assertCount(1, $revision->requirements);
 
         $page = $this->actingAs($applicant)->get(route('applicant.revision-certificates.index', [
@@ -74,7 +74,7 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
         ]));
         $page->assertOk()
             ->assertSee('Replace the participant consent procedure.')
-            ->assertDontSee('Internal note that must remain hidden.')
+            ->assertSee('General reviewer guidance released with the submitted decision.')
             ->assertDontSee($reviewer->name);
 
         $replacement = app(ApplicationDocumentService::class)->uploadRevision(
@@ -119,7 +119,7 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_res_can_map_a_current_document_for_an_already_submitted_general_overall_comment(): void
+    public function test_res_cannot_override_a_submitted_revision_decision_or_map_documents(): void
     {
         Storage::fake('local');
         Notification::fake();
@@ -132,34 +132,21 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             'body' => 'This submitted comment needs a document recovery mapping.',
         ]);
 
-        try {
-            app(ApplicationRevisionWorkflowService::class)->releaseDecision(
-                $resLead,
-                $application,
-                ReviewDecision::MinorRevision,
-                [$legacyOverallComment->id],
-            );
-            $this->fail('An overall General comment must not create an untraceable revision requirement.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('revision_document_ids', $exception->errors());
-        }
-
-        $this->assertSame(0, $application->decisionReleases()->count());
         $this->actingAs($resLead)
             ->from(route('res.certificates.index'))
             ->post(route('res.certificates.decisions.release', $application), [
                 'application_id' => $application->id,
-                'decision' => ReviewDecision::MinorRevision->value,
-                'comment_ids' => [$legacyOverallComment->id],
+                'review_submission_id' => $assignment->reviewSubmission->id,
+                'decision' => ReviewDecision::Approved->value,
                 'revision_document_ids' => [$document->id],
             ])
             ->assertRedirect(route('res.certificates.index'))
             ->assertSessionHasNoErrors();
 
         $release = $application->decisionReleases()->firstOrFail();
-        $requirement = $application->revisions()->firstOrFail()->requirements()->firstOrFail();
-        $this->assertSame($document->id, $requirement->source_application_document_id);
-        $this->assertSame($document->document_requirement_id, $requirement->document_requirement_id);
+        $this->assertSame(ReviewDecision::MinorRevision, $release->decision);
+        $this->assertSame($assignment->reviewSubmission->id, $release->source_review_submission_id);
+        $this->assertSame(0, $application->revisions()->firstOrFail()->requirements()->count());
         $this->assertSame($release->id, $legacyOverallComment->refresh()->application_decision_release_id);
         $this->assertSame(ReviewCommentScope::Overall, $legacyOverallComment->scope);
         $this->assertNull($legacyOverallComment->application_document_id);
@@ -182,8 +169,7 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
         app(ApplicationRevisionWorkflowService::class)->releaseDecision(
             $resLead,
             $application,
-            ReviewDecision::MajorRevision,
-            [$comment->id],
+            $assignment->reviewSubmission,
         );
         $revision = $application->revisions()->with('requirements')->firstOrFail();
         $requirement = $revision->requirements->first();
@@ -249,12 +235,11 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             app(ApplicationRevisionWorkflowService::class)->releaseDecision(
                 $resLead,
                 $application->refresh(),
-                ReviewDecision::MinorRevision,
-                [$comment->id],
+                $thirdCycleAssignment->reviewSubmission,
             );
             $this->fail('The maximum revision cycle boundary must be enforced.');
         } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('decision', $exception->errors());
+            $this->assertArrayHasKey('review_submission_id', $exception->errors());
         }
 
         $this->assertSame(0, $application->decisionReleases()->count());

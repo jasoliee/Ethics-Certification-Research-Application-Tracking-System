@@ -138,6 +138,31 @@ class DashboardNavigationTest extends TestCase
             ->assertSee('<span aria-current="page">Revision and Certificates</span>', false);
     }
 
+    public function test_reports_and_audit_are_res_owned_and_applicant_report_urls_are_unavailable(): void
+    {
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $this->assertNotContains('Reports', array_column(DashboardNavigation::for(UserRole::Applicant), 'label'));
+        $this->assertContains('Reports', array_column(DashboardNavigation::for(UserRole::ResLead), 'label'));
+
+        $this->actingAs($applicant)->get('/applicant/reports')->assertNotFound();
+        $this->actingAs($applicant)->get('/reports')->assertNotFound();
+        $this->actingAs($applicant)
+            ->get(route('res.reports.index'))
+            ->assertRedirect(route('dashboard'));
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index'))
+            ->assertOk()
+            ->assertSee('Audit Log')
+            ->assertSee(route('res.reports.audit.index'), false);
+        $this->actingAs($resLead)
+            ->get(route('res.reports.audit.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Home', 'Reports', 'Audit Log']);
+    }
+
     public function test_shared_shell_has_expected_navigation_footer_and_profile_links(): void
     {
         $faculty = User::factory()->create([

@@ -79,10 +79,10 @@ class ReviewerWorkflowTest extends TestCase
             ->assertSee('data-reviewer-document-frame', false)
             ->assertSee('data-reviewer-comment-form', false)
             ->assertSee('data-reviewer-comment-category', false)
-            ->assertSee('Required Revision comments must identify a specific document.')
-            ->assertSee('Specific document')
+            ->assertSee('Entire Application')
+            ->assertDontSee('data-reviewer-comment-scope', false)
             ->assertSeeInOrder(['reviewer-document-library', 'reviewer-document-pane', 'reviewer-review-rail'], false)
-            ->assertSeeInOrder(['Review Tools', 'Review Comments', 'Review Worksheets'])
+            ->assertSeeInOrder(['Review Comment', 'Review Worksheet', 'Review Assessment'])
             ->assertSee('data-reviewer-worksheet-open', false)
             ->assertSee('data-reviewer-worksheet-dialog', false)
             ->assertSee('data-reviewer-form-open="protocol"', false)
@@ -228,12 +228,15 @@ class ReviewerWorkflowTest extends TestCase
                 'category' => 'required_revision',
                 'body' => $comment,
             ])
-            ->assertSessionHasErrorsIn('reviewComment', ['scope']);
+            ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseMissing('review_comments', [
+        $this->assertDatabaseHas('review_comments', [
             'reviewer_assignment_id' => $assignment->id,
+            'application_document_id' => null,
+            'scope' => 'overall',
             'body' => $comment,
         ]);
+        $assignment->comments()->where('body', $comment)->delete();
 
         $this->actingAs($reviewer)
             ->post(route('reviewer.assignments.comments.store', $assignment), [
@@ -396,8 +399,9 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString('Delete this review comment? This action cannot be undone.', $javascript);
         $this->assertStringContainsString("setCommentsHistoryFeedback('Loading older comments...')", $javascript);
         $this->assertStringContainsString('grid-auto-rows: max-content;', $css);
-        $this->assertStringContainsString("categoryInput?.value === 'required_revision'", $javascript);
-        $this->assertStringContainsString("scope.value = 'document';", $javascript);
+        $this->assertStringContainsString("namedItem('category')", $javascript);
+        $this->assertStringNotContainsString("scope.value = 'document';", $javascript);
+        $this->assertStringNotContainsString('data-reviewer-comment-scope', $javascript);
         $this->assertStringContainsString('Comment reference set to ${choice.dataset.documentRequirement}.', $javascript);
     }
 
@@ -414,11 +418,13 @@ class ReviewerWorkflowTest extends TestCase
         );
         $this->assertStringContainsString('data-reviewer-consent-explanation', $blade);
         $this->assertStringContainsString('class="reviewer-form-recommendation-options"', $blade);
-        $this->assertStringContainsString("\$statusLabel = \$formIsFinal ? 'Completed' : (\$form ? 'In Progress' : 'Not Started');", $blade);
+        $this->assertStringContainsString("\$statusLabel = \$formIsFinal ? 'Final' : (\$formCompleted ? 'Completed' : (\$form ? 'In Progress' : 'Not Started'));", $blade);
         $this->assertStringNotContainsString("\$formIsFinal ? 'Complete' : (\$form ? 'Draft Saved'", $blade);
-        $this->assertStringContainsString("\$openLabel = \$formIsFinal || ! \$canWrite ? 'View' : (\$form ? 'Continue' : 'Start');", $blade);
+        $this->assertStringContainsString("\$openLabel = ! \$canWrite ? 'View' : (\$formCompleted ? 'Edit' : (\$form ? 'Continue' : 'Start'));", $blade);
         $this->assertStringContainsString('aria-label="{{ $openLabel }} {{ $type->label() }}"', $blade);
-        $this->assertStringContainsString('data-reviewer-form-submit-final>Submit Final', $blade);
+        $this->assertStringContainsString('data-reviewer-form-submit-final>Submit', $blade);
+        $this->assertStringContainsString('data-reviewer-consent-dependent', $blade);
+        $this->assertStringContainsString('minlength="15"', $blade);
         $this->assertStringContainsString('aria-labelledby="reviewer-form-{{ $type->value }}-progress-label"', $blade);
         $this->assertStringContainsString('data-reviewer-submit-dialog', $blade);
         $this->assertStringContainsString('data-reviewer-submit-confirmation', $blade);
@@ -530,7 +536,7 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertDatabaseCount('review_comments', 0);
     }
 
-    public function test_official_forms_support_drafts_and_require_complete_server_owned_answers_before_finalization(): void
+    public function test_official_forms_support_editable_completed_worksheets_until_overall_submission(): void
     {
         $this->openReviewWindow();
         [$reviewer, , , , $assignment] = $this->assignmentFixture();
@@ -557,43 +563,60 @@ class ReviewerWorkflowTest extends TestCase
 
         $this->actingAs($reviewer)
             ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
-                'intent' => 'final',
+                'intent' => 'submit',
                 'responses' => [
                     'protocol_01' => ['answer' => 'yes', 'comment' => null],
                 ],
                 'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'Complete recommendation comments.',
             ])
             ->assertSessionHasErrorsIn('reviewerForm', ['responses.protocol_02.answer']);
 
         $this->actingAs($reviewer)
             ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
-                'intent' => 'final',
+                'intent' => 'submit',
                 'responses' => $this->completeResponses(ReviewFormType::Protocol),
                 'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'Complete recommendation comments.',
             ])
             ->assertSessionHasNoErrors();
 
         $this->actingAs($reviewer)
             ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::InformedConsent->value]), [
-                'intent' => 'final',
+                'intent' => 'submit',
                 'consent_required' => '0',
                 'consent_not_required_explanation' => 'The approved protocol uses only fully anonymized secondary records.',
                 'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'Complete recommendation comments.',
             ])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(
             2,
-            $assignment->formSubmissions()->where('status', ReviewFormStatus::Final->value)->count(),
+            $assignment->formSubmissions()->where('status', ReviewFormStatus::Completed->value)->count(),
         );
         $protocol = $assignment->formSubmissions()->where('form_type', ReviewFormType::Protocol->value)->firstOrFail();
-        $this->assertSame(ReviewFormCatalog::CATALOG_VERSION, $protocol->catalog_version);
-        $this->assertCount(15, $protocol->catalog_snapshot['questions']);
-        $this->assertNotNull($protocol->finalized_payload_snapshot);
-        $this->assertNotNull($protocol->finalized_context_snapshot);
+        $this->assertNull($protocol->catalog_version);
+        $this->assertNull($protocol->catalog_snapshot);
+        $this->assertNull($protocol->finalized_payload_snapshot);
+        $this->assertNull($protocol->finalized_context_snapshot);
+        $this->assertNotNull($protocol->completed_at);
         $this->assertNull($protocol->artifact);
         $this->assertDatabaseCount('review_form_artifacts', 0);
         $this->assertCount(15, ReviewFormCatalog::questions(ReviewFormType::InformedConsent));
+
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+                'intent' => 'submit',
+                'responses' => $this->completeResponses(ReviewFormType::Protocol),
+                'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'Updated completed recommendation comments.',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(
+            'Updated completed recommendation comments.',
+            $protocol->refresh()->recommendation_comments,
+        );
     }
 
     public function test_final_decision_requires_both_forms_then_freezes_work_and_moves_the_application_for_res_release(): void
@@ -630,6 +653,11 @@ class ReviewerWorkflowTest extends TestCase
             'decision' => ReviewDecision::Approved->value,
         ]);
         $this->assertSame(2, $assignment->formSubmissions()->withCount('artifacts')->get()->sum('artifacts_count'));
+        $this->assertSame(2, $assignment->formSubmissions()->where('status', ReviewFormStatus::Final->value)->count());
+        $this->assertTrue($assignment->formSubmissions()->get()->every(
+            fn ($form): bool => $form->finalized_payload_snapshot !== null
+                && $form->finalized_context_snapshot !== null,
+        ));
         $this->assertSame(ReviewerAssignmentStatus::DecisionSubmitted, $assignment->fresh()->assignment_status);
         $this->assertSame(ApplicationStatus::ReviewSubmittedPendingRelease, $application->fresh()->application_status);
         $this->assertSame(ApplicationStage::DecisionRelease, $application->fresh()->current_stage);
@@ -650,6 +678,13 @@ class ReviewerWorkflowTest extends TestCase
             ])
             ->assertForbidden();
 
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+                'intent' => 'draft',
+                'responses' => $this->completeResponses(ReviewFormType::Protocol),
+            ])
+            ->assertForbidden();
+
         $this->actingAs($applicant)
             ->get(route('applicant.applications.show', $application))
             ->assertOk()
@@ -658,6 +693,62 @@ class ReviewerWorkflowTest extends TestCase
         $audit = AuditLog::query()->where('action', 'review.decision_submitted')->firstOrFail();
         $this->assertArrayNotHasKey('decision_comment', $audit->metadata);
         $this->assertStringNotContainsString($decisionComment, json_encode($audit->metadata, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_informed_consent_no_clears_dependent_answers_and_yes_requires_them(): void
+    {
+        $this->openReviewWindow();
+        [$reviewer, , , , $assignment] = $this->assignmentFixture();
+
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::InformedConsent->value]), [
+                'intent' => 'submit',
+                'consent_required' => '1',
+                'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'This recommendation is sufficiently detailed.',
+            ])
+            ->assertSessionHasErrorsIn('reviewerForm', ['responses.consent_01.answer']);
+
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::InformedConsent->value]), [
+                'intent' => 'submit',
+                'consent_required' => '0',
+                'consent_not_required_explanation' => 'Only previously anonymized aggregate records are used.',
+                'responses' => $this->completeResponses(ReviewFormType::InformedConsent),
+                'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'This recommendation is sufficiently detailed.',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $form = $assignment->formSubmissions()
+            ->where('form_type', ReviewFormType::InformedConsent->value)
+            ->firstOrFail();
+        $this->assertSame(ReviewFormStatus::Completed, $form->status);
+        $this->assertNull($form->responses);
+        $this->assertSame(
+            'Only previously anonymized aggregate records are used.',
+            $form->consent_not_required_explanation,
+        );
+    }
+
+    public function test_recommendation_comments_require_fifteen_non_whitespace_characters(): void
+    {
+        $this->openReviewWindow();
+        [$reviewer, , , , $assignment] = $this->assignmentFixture();
+        $value = "a b c d e f g h i j k l m n\n";
+
+        $this->actingAs($reviewer)
+            ->from(route('reviewer.assignments.workspace', $assignment))
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+                'intent' => 'submit',
+                'responses' => $this->completeResponses(ReviewFormType::Protocol),
+                'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => $value,
+            ])
+            ->assertSessionHasErrorsIn('reviewerForm', ['recommendation_comments'])
+            ->assertSessionHasInput('recommendation_comments', trim($value));
+
+        $this->assertDatabaseCount('review_form_submissions', 0);
     }
 
     public function test_full_board_application_waits_for_every_assigned_reviewer_before_release_processing(): void
@@ -778,28 +869,16 @@ class ReviewerWorkflowTest extends TestCase
                 'consent_required' => $type === ReviewFormType::InformedConsent ? true : null,
                 'consent_not_required_explanation' => null,
                 'recommendation' => ReviewDecision::Approved->value,
-                'recommendation_comments' => null,
+                'recommendation_comments' => 'Complete recommendation comments.',
             ];
             $assignment->formSubmissions()->create([
                 'form_type' => $type,
-                'status' => ReviewFormStatus::Final,
-                'catalog_version' => ReviewFormCatalog::CATALOG_VERSION,
-                'catalog_snapshot' => ['form_type' => $type->value, 'questions' => ReviewFormCatalog::questions($type)],
-                'finalized_payload_snapshot' => $payload,
-                'finalized_context_snapshot' => [
-                    'application_id' => $assignment->research_application_id,
-                    'application_code' => $assignment->researchApplication->application_code,
-                    'research_title' => $assignment->researchApplication->research_title,
-                    'reviewer_assignment_id' => $assignment->id,
-                    'reviewer_user_id' => $assignment->reviewer_user_id,
-                    'reviewer_name' => $assignment->reviewer->name,
-                    'review_date' => today()->format('m/d/y'),
-                ],
+                'status' => ReviewFormStatus::Completed,
                 'responses' => $payload['responses'],
                 'consent_required' => $type === ReviewFormType::InformedConsent ? true : null,
                 'recommendation' => ReviewDecision::Approved,
-                'review_date' => today(),
-                'finalized_at' => now(),
+                'recommendation_comments' => $payload['recommendation_comments'],
+                'completed_at' => now(),
             ]);
         }
     }

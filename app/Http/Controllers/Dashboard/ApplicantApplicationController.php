@@ -180,7 +180,7 @@ class ApplicantApplicationController extends Controller
             'application' => $application,
             'researchTypes' => ResearchType::cases(),
             'profileOptions' => $information->profileOptions($request->user(), $application),
-            'advisers' => $information->advisers(),
+            'advisers' => $information->advisers($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Application', 'route' => 'applicant.applications.index'],

@@ -51,7 +51,11 @@ class OfficialCertificateGenerationService
         CertificateBackground $background,
         int $version,
         mixed $releasedAt,
+        mixed $generatedAt = null,
+        ?int $releasedByUserId = null,
     ): array {
+        $generatedAt ??= $releasedAt;
+        $releasedByUserId ??= $actor->id;
         $templatePath = base_path('context_files/RES CERTIFIACTE.pdf');
         $signaturePath = base_path('resources/certificates/res-signatory-signature.png');
         $this->assertVerifiedResource($templatePath, self::OFFICIAL_TEMPLATE_SHA256, 'official_template_invalid');
@@ -77,7 +81,7 @@ class OfficialCertificateGenerationService
             $pdf = new Fpdi('P', 'mm', 'A4');
             $pdf->SetAutoPageBreak(false);
             $this->applyBackground($pdf, $background, $backgroundPath);
-            $this->drawCertificate($pdf, $application, $certificate, $signaturePath, $releasedAt);
+            $this->drawCertificate($pdf, $application, $certificate, $signaturePath, $generatedAt);
             $bytes = $pdf->Output('S');
         } catch (CertificateGenerationException $exception) {
             throw $exception;
@@ -126,8 +130,8 @@ class OfficialCertificateGenerationService
             'background_sha256' => $actualBackgroundHash,
             'generator_version' => self::GENERATOR_VERSION,
             'generated_by_user_id' => $actor->id,
-            'generated_at' => $releasedAt,
-            'released_by_user_id' => $actor->id,
+            'generated_at' => $generatedAt,
+            'released_by_user_id' => $releasedByUserId,
             'released_at' => $releasedAt,
         ];
     }
@@ -159,7 +163,7 @@ class OfficialCertificateGenerationService
         ResearchApplication $application,
         Certificate $certificate,
         string $signaturePath,
-        mixed $releasedAt,
+        mixed $issuedAt,
     ): void {
         $application->loadMissing([
             'applicant:id,name,first_name,middle_name,last_name,suffix,applicant_type,institution,department,program',
@@ -178,7 +182,7 @@ class OfficialCertificateGenerationService
         $reviewType = $application->application_status === ApplicationStatus::Exempted
             ? 'Exempted'
             : (filled($application->review_type) ? Str::headline((string) $application->review_type) : 'Not recorded');
-        $approvalDate = $application->decisionReleases->first()?->released_at ?? $releasedAt;
+        $approvalDate = $application->decisionReleases->first()?->released_at ?? $issuedAt;
         $documentNames = $application->documents
             ->map(fn ($document): string => $document->requirement?->name ?: $document->original_file_name)
             ->filter()
@@ -234,7 +238,7 @@ class OfficialCertificateGenerationService
         );
         $this->fitCenteredBlock(
             $pdf,
-            'Issued this '.$releasedAt->format('jS').' of '.$releasedAt->format('F Y').' at Kolehiyo ng Lungsod ng Dasmarinas, Burol I, Dasmarinas, Cavite.',
+            'Issued this '.$issuedAt->format('jS').' of '.$issuedAt->format('F Y').' at Kolehiyo ng Lungsod ng Dasmarinas, Burol I, Dasmarinas, Cavite.',
             221,
             13,
             9,

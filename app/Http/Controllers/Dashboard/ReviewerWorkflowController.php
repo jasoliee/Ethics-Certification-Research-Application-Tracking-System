@@ -30,19 +30,19 @@ class ReviewerWorkflowController extends Controller
         ReviewFormType $reviewFormType,
         ReviewerWorkflowService $workflow,
     ): RedirectResponse|JsonResponse {
-        $final = $request->validated('intent') === 'final';
+        $complete = $request->validated('intent') === 'submit';
         $form = $workflow->saveForm(
             $request->user(),
             $reviewerAssignment,
             $reviewFormType,
             $request->validated(),
-            $final,
+            $complete,
         );
 
         if ($request->expectsJson()) {
             $form->loadMissing('artifact');
             $totalItems = count(ReviewFormCatalog::questions($reviewFormType));
-            $answeredItems = $form->status === ReviewFormStatus::Final
+            $answeredItems = in_array($form->status, [ReviewFormStatus::Completed, ReviewFormStatus::Final], true)
                 ? $totalItems
                 : collect($form->responses ?? [])->filter(
                     fn (array $response): bool => filled($response['answer'] ?? null),
@@ -53,6 +53,7 @@ class ReviewerWorkflowController extends Controller
                 'form_type' => $form->form_type->value,
                 'status' => $form->status->value,
                 'finalized_at' => $form->finalized_at?->toIso8601String(),
+                'completed_at' => $form->completed_at?->toIso8601String(),
                 'answered_items' => $answeredItems,
                 'total_items' => $totalItems,
                 'artifact' => $form->artifact ? [
@@ -74,8 +75,8 @@ class ReviewerWorkflowController extends Controller
             ]]);
         }
 
-        return back()->with('status', $final
-            ? $reviewFormType->label().' finalized. Its official PDF will be generated with the final review submission.'
+        return back()->with('status', $complete
+            ? $reviewFormType->label().' completed. You may edit it until submitting the overall review decision.'
             : $reviewFormType->label().' draft saved.');
     }
 

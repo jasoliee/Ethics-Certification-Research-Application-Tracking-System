@@ -10,7 +10,7 @@ The authoritative sequence is:
 
 1. Every current Reviewer submits the active review cycle.
 2. The application enters `review_submitted_pending_release`; Applicant comments remain hidden.
-3. An RES Lead explicitly releases one final decision and a selected set of comments.
+3. An RES Lead explicitly releases one exact submitted Reviewer decision and all comments owned by that source assignment.
 4. A revision decision creates a deadline-bound revision record and document-specific replacement requirements.
 5. The Applicant uploads immutable replacement versions and submits directly to the same authorized Reviewer set.
 6. An approval decision (or exemption) makes the application eligible for RES certificate generation and release.
@@ -35,7 +35,7 @@ Migration `2026_08_11_000000_create_revision_and_certificate_workflow.php` adds:
 - `application_revisions`: at most two numbered Applicant revision cycles at the service boundary.
 - `application_revision_requirements`: exact source and replacement document links.
 - `applicant_survey_responses`: one completed response per application; answers are not copied into audit metadata.
-- `certificate_backgrounds`: versioned, validated background assets with one future-generation active pointer.
+- `certificate_backgrounds`: versioned, validated background assets with one active pointer used by future generation and retroactive active-certificate regeneration.
 - `certificates`: one lifecycle aggregate per application, with released and claimed version pointers.
 - `certificate_versions`: immutable generated artifacts, template/background hashes, generation actor/time, release actor/time, and claim metadata.
 - `review_comments.application_decision_release_id` and `released_by_user_id`.

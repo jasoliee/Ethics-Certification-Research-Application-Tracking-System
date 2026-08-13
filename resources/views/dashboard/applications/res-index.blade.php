@@ -16,7 +16,7 @@
             <div class="application-field application-search-field res-filter-search">
                 <label for="res-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
-                <input id="res-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Code, title, applicant, adviser, institute, or program">
+                <input id="res-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Code, title, category, adviser, institute, department, or program">
             </div>
 
             <div class="application-field res-filter-status">

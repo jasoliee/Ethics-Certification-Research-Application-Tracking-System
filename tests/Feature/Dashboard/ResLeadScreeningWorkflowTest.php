@@ -76,7 +76,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.applications.show', $application))
             ->assertOk()
-            ->assertSee('Application Overview')
+            ->assertSeeInOrder(['Requirement Checklist', 'Application Details', 'Research Information'])
             ->assertSee('Research Information')
             ->assertSee('Requirement Checklist')
             ->assertDontSee('Administrative Screening Panel')

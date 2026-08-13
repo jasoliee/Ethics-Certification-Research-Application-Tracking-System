@@ -199,6 +199,69 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertSame(ApplicantType::Faculty->value, $facultyApplication->applicant_type);
     }
 
+    public function test_student_advisers_are_department_scoped_while_faculty_advisers_are_not(): void
+    {
+        $student = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
+            'department' => 'Computer Studies',
+        ]);
+        $faculty = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Faculty,
+            'department' => 'Computer Studies',
+        ]);
+        $sameDepartment = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'name' => 'Eligible Computing Adviser',
+            'department' => 'Computer Studies',
+        ]);
+        $otherDepartment = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'name' => 'Eligible Nursing Adviser',
+            'department' => 'Nursing',
+        ]);
+        $inactiveSameDepartment = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'name' => 'Inactive Computing Adviser',
+            'department' => 'Computer Studies',
+            'account_status' => 'inactive',
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('applicant.applications.create'))
+            ->assertOk()
+            ->assertSee('Eligible Computing Adviser')
+            ->assertDontSee('Eligible Nursing Adviser')
+            ->assertDontSee('Inactive Computing Adviser');
+
+        $this->actingAs($student)
+            ->from(route('applicant.applications.create'))
+            ->post(route('applicant.applications.store'), $this->applicationPayload($otherDepartment))
+            ->assertRedirect(route('applicant.applications.create'))
+            ->assertSessionHasErrors('adviser_user_id');
+
+        $this->actingAs($faculty)
+            ->get(route('applicant.applications.create'))
+            ->assertOk()
+            ->assertSee('Eligible Computing Adviser')
+            ->assertSee('Eligible Nursing Adviser')
+            ->assertDontSee('Inactive Computing Adviser');
+
+        $this->actingAs($faculty)
+            ->post(route('applicant.applications.store'), [
+                ...$this->applicationPayload($otherDepartment),
+                'program' => null,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('research_applications', [
+            'applicant_user_id' => $faculty->id,
+            'adviser_user_id' => $otherDepartment->id,
+        ]);
+        $this->assertNotNull($sameDepartment->id);
+    }
+
     public function test_expected_duration_requires_an_ordered_date_pair_and_displays_the_saved_range(): void
     {
         $applicant = User::factory()->create([

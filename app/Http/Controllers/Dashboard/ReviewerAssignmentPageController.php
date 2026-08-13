@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ResearchType;
 use App\Enums\ReviewCommentCategory;
-use App\Enums\ReviewCommentScope;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewFormType;
@@ -258,11 +257,6 @@ class ReviewerAssignmentPageController extends Controller
             'forms' => $forms,
             'formCatalog' => $formCatalog,
             'decisions' => ReviewDecision::cases(),
-            // Historical page-scoped comments remain readable, while new comments use the
-            // streamlined overall/document choices required by the current workspace.
-            'commentScopes' => collect(ReviewCommentScope::cases())
-                ->reject(fn (ReviewCommentScope $scope): bool => $scope === ReviewCommentScope::Page)
-                ->values(),
             'commentCategories' => ReviewCommentCategory::cases(),
             'historicalDocuments' => $historicalDocuments,
             'historicalReviews' => $historicalReviews,

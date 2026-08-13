@@ -27,6 +27,7 @@ class ReviewFormSubmission extends Model
         'recommendation',
         'recommendation_comments',
         'review_date',
+        'completed_at',
         'finalized_at',
     ];
 
@@ -42,6 +43,7 @@ class ReviewFormSubmission extends Model
             'consent_required' => 'boolean',
             'recommendation' => ReviewDecision::class,
             'review_date' => 'date',
+            'completed_at' => 'datetime',
             'finalized_at' => 'datetime',
         ];
     }

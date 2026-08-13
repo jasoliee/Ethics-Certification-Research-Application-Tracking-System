@@ -45,7 +45,7 @@ class ResLeadApplicationController extends Controller
 
         $applicationsQuery = $this->visibleApplicationsQuery($visibleStatuses->pluck('value')->all());
 
-        // Search only approved queue fields and related display identities through parameterized Eloquent clauses.
+        // Applicant identity is deliberately excluded from this RES queue search boundary.
         $applicationsQuery
             ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
                 $search = trim((string) $filters['q']);
@@ -54,10 +54,10 @@ class ResLeadApplicationController extends Controller
                     $matching
                         ->where('application_code', 'like', "%{$search}%")
                         ->orWhere('research_title', 'like', "%{$search}%")
+                        ->orWhere('research_category', 'like', "%{$search}%")
                         ->orWhere('institution', 'like', "%{$search}%")
+                        ->orWhere('department', 'like', "%{$search}%")
                         ->orWhere('program', 'like', "%{$search}%")
-                        ->orWhereHas('applicant', fn (Builder $applicants) => $applicants
-                            ->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('adviser', fn (Builder $advisers) => $advisers
                             ->where('name', 'like', "%{$search}%"));
                 });
@@ -82,7 +82,6 @@ class ResLeadApplicationController extends Controller
 
         $applications = $applicationsQuery
             ->with([
-                'applicant:id,name',
                 'adviser:id,name',
                 // latestOfMany adds an internal join, so avoid an ambiguous unqualified relation projection.
                 'latestEndorsement',
@@ -290,6 +289,7 @@ class ResLeadApplicationController extends Controller
                 'applicant_type',
                 'research_title',
                 'research_type',
+                'research_category',
                 'institution',
                 'department',
                 'program',

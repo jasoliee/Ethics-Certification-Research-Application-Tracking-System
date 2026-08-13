@@ -11,7 +11,7 @@
         <header class="dashboard-page-heading certificate-page-heading">
             <div>
                 <h1>Certificate Processing</h1>
-                <p>Release Applicant-visible decisions, generate official certificates, and manage future certificate backgrounds.</p>
+                <p>Release Applicant-visible decisions, generate official certificates, and manage active certificate backgrounds.</p>
             </div>
             <div class="certificate-page-actions">
                 <button class="dashboard-outline-action" type="button" data-certificate-background-open>
@@ -20,7 +20,7 @@
                 </button>
                 <button class="dashboard-primary-action" type="button" data-certificate-bulk-open>
                     <x-dashboard.icon name="award" size="17" />
-                    <span>Release All Eligible</span>
+                    <span>Release All</span>
                 </button>
             </div>
         </header>
@@ -29,24 +29,42 @@
             <div class="application-success-banner" role="status"><x-dashboard.icon name="check" size="19" /><span>{{ session('status') }}</span></div>
         @endif
 
-        @if ($summary = session('bulk_certificate_summary'))
-            <section class="application-panel certificate-bulk-summary" aria-labelledby="bulk-summary-title">
+        @if ($backgroundSummary = session('background_regeneration_summary'))
+            <section class="application-panel certificate-bulk-summary" aria-labelledby="background-summary-title">
                 <header class="application-panel-heading">
-                    <div><h2 id="bulk-summary-title">Bulk Release Result</h2><p>Each eligible application was processed independently.</p></div>
+                    <div><h2 id="background-summary-title">Background Regeneration Result</h2><p>Previous certificate binaries remain available internally. The latest valid rendering stays active when an item fails.</p></div>
                 </header>
-                <dl>
-                    <div><dt>Eligible</dt><dd>{{ $summary['eligible'] }}</dd></div>
-                    <div><dt>Released</dt><dd>{{ $summary['released'] }}</dd></div>
-                    <div><dt>Skipped</dt><dd>{{ $summary['skipped'] }}</dd></div>
-                    <div><dt>Failed</dt><dd>{{ $summary['failed'] }}</dd></div>
+                <dl class="certificate-background-summary-grid">
+                    <div><dt>Active certificates</dt><dd>{{ $backgroundSummary['total'] }}</dd></div>
+                    <div><dt>Regenerated</dt><dd>{{ $backgroundSummary['regenerated'] }}</dd></div>
+                    <div><dt>Already current</dt><dd>{{ $backgroundSummary['already_current'] }}</dd></div>
+                    <div><dt>Failed</dt><dd>{{ $backgroundSummary['failed'] }}</dd></div>
                 </dl>
-                @if ($summary['failures'])
-                    <p role="alert">Failed application codes: {{ implode(', ', $summary['failures']) }}</p>
+                @if ($backgroundSummary['failed_certificate_numbers'])
+                    <p role="alert">Certificates retaining their last valid rendering: {{ implode(', ', $backgroundSummary['failed_certificate_numbers']) }}</p>
                 @endif
             </section>
         @endif
 
-        @foreach (['decisionRelease', 'certificateRelease', 'certificateBackground'] as $bag)
+        @if ($summary = session('bulk_certificate_summary'))
+            <section class="application-panel certificate-bulk-summary" aria-labelledby="bulk-summary-title">
+                <header class="application-panel-heading">
+                    <div><h2 id="bulk-summary-title">Bulk Release Result</h2><p>{{ \App\Enums\BulkReleaseType::from($summary['release_type'])->label() }} records were revalidated and processed independently.</p></div>
+                </header>
+                <dl>
+                    <div><dt>Eligible</dt><dd>{{ $summary['eligible'] }}</dd></div>
+                    <div><dt>Successfully released</dt><dd>{{ $summary['successfully_released'] }}</dd></div>
+                    <div><dt>Already released</dt><dd>{{ $summary['already_released'] }}</dd></div>
+                    <div><dt>Ineligible</dt><dd>{{ $summary['ineligible'] }}</dd></div>
+                    <div><dt>Failed</dt><dd>{{ $summary['failed'] }}</dd></div>
+                </dl>
+                @if ($summary['failed_application_codes'])
+                    <p role="alert">Failed application codes: {{ implode(', ', $summary['failed_application_codes']) }}</p>
+                @endif
+            </section>
+        @endif
+
+        @foreach (['decisionRelease', 'certificateRelease', 'certificateBackground', 'bulkRelease'] as $bag)
             @if ($errors->{$bag}->any())
                 <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>The request was not completed.</strong><span>{{ $errors->{$bag}->first() }}</span></div></div>
             @endif
@@ -177,7 +195,7 @@
         </section>
 
         <section class="application-panel certificate-background-callout">
-            <div><x-dashboard.icon name="circle-help" size="19" /><span>Certificate backgrounds are managed separately and affect only future generations.</span></div>
+            <div><x-dashboard.icon name="circle-help" size="19" /><span>Changing the active background safely regenerates past and present certificates while preserving issue, release, and claim history.</span></div>
             <button class="dashboard-outline-action" type="button" data-certificate-background-open><x-dashboard.icon name="image" size="17" /><span>Manage Background</span></button>
         </section>
 
@@ -193,8 +211,6 @@
                 $isClaimed = $certificate?->claimed_at !== null;
                 $reopenApplicationDialog = $dialogApplicationId === $application->id
                     && ($errors->decisionRelease->any() || $errors->certificateRelease->any());
-                $oldCommentIds = $dialogApplicationId === $application->id ? old('comment_ids', []) : [];
-                $oldRevisionDocumentIds = $dialogApplicationId === $application->id ? old('revision_document_ids', []) : [];
             @endphp
             <section
                 class="application-modal-backdrop"
@@ -227,59 +243,9 @@
                     @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
                         <section class="certificate-modal-section certificate-decision-workspace" aria-labelledby="certificate-decision-{{ $application->id }}">
                             <div class="certificate-modal-section-heading">
-                                <div><h3 id="certificate-decision-{{ $application->id }}">Review and Release Decision</h3><p>Select only the comments that Applicants are authorized to see.</p></div>
+                                <div><h3 id="certificate-decision-{{ $application->id }}">Submitted Reviewer Decisions</h3><p>Open the read-only workspace to inspect supporting files, comments, both worksheets, and release one exact submitted Reviewer decision.</p></div>
                             </div>
-                            <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
-                                @csrf
-                                <input type="hidden" name="application_id" value="{{ $application->id }}">
-                                <div class="certificate-reviewer-decisions">
-                                    @foreach ($cycleAssignments as $assignment)
-                                        <section>
-                                            <header><strong>Reviewer {{ $loop->iteration }}</strong><x-dashboard.status-badge :label="$assignment->reviewSubmission?->decision?->label() ?? 'Pending'" :tone="$assignment->reviewSubmission?->decision?->tone() ?? 'neutral'" /></header>
-                                            @forelse ($assignment->comments as $comment)
-                                                <label>
-                                                    <input type="checkbox" name="comment_ids[]" value="{{ $comment->id }}" @checked(in_array($comment->id, $oldCommentIds))>
-                                                    <span>
-                                                        <strong>{{ $comment->category->label() }} &middot; {{ $comment->scope->label() }}</strong>
-                                                        <small>{{ $comment->document?->requirement?->name ?? 'Overall application' }}</small>
-                                                        <span>{{ $comment->body }}</span>
-                                                    </span>
-                                                </label>
-                                            @empty
-                                                <p>No comments were submitted by this Reviewer.</p>
-                                            @endforelse
-                                        </section>
-                                    @endforeach
-                                </div>
-                                <fieldset class="certificate-revision-document-picker">
-                                    <legend>Documents requiring revision</legend>
-                                    <p>For a minor or major revision, confirm the exact current files the Applicant must replace. Document-linked Required Revision comments are already matched; use this list to recover older submitted comments recorded as General or Overall.</p>
-                                    @forelse ($application->documents as $document)
-                                        <label>
-                                            <input type="checkbox" name="revision_document_ids[]" value="{{ $document->id }}" @checked(in_array($document->id, $oldRevisionDocumentIds))>
-                                            <span>
-                                                <strong>{{ $document->requirement?->name ?? 'Supporting Document' }}</strong>
-                                                <small>{{ $document->original_file_name }}</small>
-                                            </span>
-                                        </label>
-                                    @empty
-                                        <p>No current application documents are available for revision mapping.</p>
-                                    @endforelse
-                                </fieldset>
-                                <div class="certificate-decision-controls">
-                                    <label>
-                                        <span>Official released decision</span>
-                                        <select name="decision" required>
-                                            <option value="">Select decision</option>
-                                            @foreach ($decisions as $decision)
-                                                <option value="{{ $decision->value }}" @selected($dialogApplicationId === $application->id && old('decision') === $decision->value)>{{ $decision->label() }}</option>
-                                            @endforeach
-                                        </select>
-                                    </label>
-                                    <button class="dashboard-primary-action" type="submit">Release Decision and Selected Comments</button>
-                                </div>
-                                <p class="certificate-release-note">A revision decision requires at least one selected Reviewer comment and one exact source document, supplied by a document-linked Required Revision comment or the recovery mapping above.</p>
-                            </form>
+                            <a class="dashboard-primary-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="file-search" size="17" /><span>Open Read-only Review Workspace</span></a>
                         </section>
                     @endif
 
@@ -325,13 +291,14 @@
                             <div class="certificate-modal-section-heading"><div><h3 id="certificate-versions-{{ $application->id }}">Version History</h3><p>Issued files are immutable and retain their exact background provenance.</p></div></div>
                             <x-dashboard.overflow class="certificate-version-scroll" label="Certificate version history" wide>
                                 <table class="dashboard-table certificate-version-table">
-                                    <thead><tr><th>Version</th><th>Status</th><th>Generated</th><th>Background</th><th>File Hash</th><th>Action</th></tr></thead>
+                                    <thead><tr><th>Version</th><th>Status</th><th>Issued</th><th>Regenerated</th><th>Background</th><th>File Hash</th><th>Action</th></tr></thead>
                                     <tbody>
                                         @foreach ($certificate->versions as $version)
                                             <tr>
                                                 <td><strong>Version {{ $version->certificate_version }}</strong></td>
                                                 <td><x-dashboard.status-badge :label="Str::headline($version->status->value)" :tone="$version->id === $certificate->current_certificate_version_id ? 'success' : 'neutral'" /></td>
                                                 <td>{{ $version->generated_at?->format('M j, Y g:i A') }}</td>
+                                                <td>{{ $version->regenerated_at?->format('M j, Y g:i A') ?? 'Original issue' }}</td>
                                                 <td>Version {{ $version->background?->asset_version ?? 'n/a' }}</td>
                                                 <td><code title="{{ $version->sha256 }}">{{ Str::limit($version->sha256, 18) }}</code></td>
                                                 <td><a href="{{ route('res.certificates.versions.preview', [$certificate, $version]) }}" target="_blank" rel="noopener">Preview</a></td>
@@ -353,7 +320,7 @@
                 <button class="application-modal-close" type="button" aria-label="Close certificate background manager" data-certificate-background-close><x-dashboard.icon name="x" size="20" /></button>
                 <header class="application-modal-heading">
                     <span class="application-modal-icon"><x-dashboard.icon name="image" size="23" /></span>
-                    <div><h2 id="certificate-background-title">Manage Certificate Background</h2><p>Changes apply only to future generations; issued certificate versions are never rewritten.</p></div>
+                    <div><h2 id="certificate-background-title">Manage Certificate Background</h2><p>Changes create traceable new renderings for active certificates; prior issued binaries are retained.</p></div>
                 </header>
 
                 <section class="certificate-background-current">
@@ -419,12 +386,27 @@
                 <button class="application-modal-close" type="button" aria-label="Cancel bulk certificate release" data-certificate-bulk-close><x-dashboard.icon name="x" size="20" /></button>
                 <header class="application-modal-heading">
                     <span class="application-modal-icon"><x-dashboard.icon name="award" size="23" /></span>
-                    <div><h2 id="certificate-bulk-title">Release All Eligible Certificates?</h2><p>Every application is revalidated and processed independently. Existing releases are skipped.</p></div>
+                    <div><h2 id="certificate-bulk-title">Release All</h2><p>Choose one release type. Only records that pass the corresponding backend checks will be processed.</p></div>
                 </header>
-                <div class="certificate-bulk-confirmation-copy"><x-dashboard.icon name="circle-help" size="19" /><p>This may generate multiple private PDFs. A safe failure on one application does not roll back successful releases.</p></div>
                 <form method="POST" action="{{ route('res.certificates.release-eligible') }}" data-disable-on-submit>
                     @csrf
                     <input type="hidden" name="confirmation" value="release_all_eligible">
+                    <fieldset class="certificate-bulk-options">
+                        <legend>Release type</legend>
+                        <label>
+                            <input type="radio" name="release_type" value="certificate" required>
+                            <span><strong>Certificate</strong><small>{{ $bulkEligibleCounts['certificate'] }} eligible {{ Str::plural('record', $bulkEligibleCounts['certificate']) }}</small></span>
+                        </label>
+                        <label>
+                            <input type="radio" name="release_type" value="decision" required>
+                            <span><strong>Decision</strong><small>{{ $bulkEligibleCounts['decision'] }} eligible {{ Str::plural('record', $bulkEligibleCounts['decision']) }}</small></span>
+                        </label>
+                        <label>
+                            <input type="radio" name="release_type" value="both" required>
+                            <span><strong>Both Certificate and Decision</strong><small>{{ $bulkEligibleCounts['both'] }} eligible {{ Str::plural('record', $bulkEligibleCounts['both']) }}</small></span>
+                        </label>
+                    </fieldset>
+                    <div class="certificate-bulk-confirmation-copy"><x-dashboard.icon name="circle-help" size="19" /><p>Eligibility is checked again at confirmation. Existing releases are skipped, duplicates and duplicate notifications are prevented, and one failed record does not undo successful records.</p></div>
                     <div class="application-modal-actions">
                         <button class="dashboard-outline-action" type="button" data-certificate-bulk-close>Cancel</button>
                         <button class="dashboard-primary-action" type="submit">Confirm Bulk Release</button>

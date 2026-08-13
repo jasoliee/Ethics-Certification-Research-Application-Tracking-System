@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-13
+
+### Changed
+
+- Restricted RES application search to approved application metadata, reorganized RES detail into a full-width requirements-first layout, and moved the RES-only Audit Log under Reports while removing Applicant Reports access.
+- Restricted Student Adviser selection and backend validation to active eligible same-department Advisers while retaining Faculty cross-department selection.
+- Made Reviewer dashboard results current-assignment driven, reordered the workspace rail to Review Comment, Review Worksheet, and Review Assessment, simplified overall/document comments, corrected Protocol item 15, and enforced 15 non-whitespace recommendation characters.
+- Added editable Completed worksheets and moved immutable form snapshots/artifacts into the atomic overall review submission boundary. Informed Consent `No` now clears/disables dependent answers and renders them as not applicable.
+- Replaced RES decision overrides/document recovery mapping with a read-only review workspace and exact Reviewer-submission release. Revision decisions no longer require a document-linked comment.
+- Added typed Certificate/Decision/Both Release All processing with eligible counts, explicit confirmation, idempotent per-record outcomes, bounded batches, notifications, and detailed audit provenance.
+- Made certificate-background activation regenerate all active historical/current certificate renderings while preserving issue/release/claim history, retaining superseded binaries, and leaving the previous valid version active on failure.
+
+### Verification
+
+- Added and updated focused tests for name-search exclusion, report ownership, department-scoped Adviser eligibility, assignment freshness, overall/document comments, editable worksheets, consent conditional behavior, RES read-only boundaries, typed bulk release, historical certificate dates/claims, and failed regeneration retention.
+- The complete Laravel suite passes with 249 tests and 3,650 assertions. Focused affected suites, changed-file Pint, strict Composer validation, platform requirements, the 133-route listing, isolated migration up/rollback/up checks, Blade compilation, the Vite production build, and `git diff --check` pass.
+- Signed-in browser acceptance passed at 1440, 1280, 1024, 768, and 390 pixels across the RES details/certification/review-release surfaces, Reviewer dashboard/workspace/conditional consent form, and Applicant navigation/application pages. The tested pages have no whole-page horizontal overflow or browser-console warnings/errors; intended wide tables retain internal bottom scrolling.
+- See `REVIEW_RELEASE_CERTIFICATE_GUIDELINE_2026-08-13.md` for the authoritative implementation and authorization contract.
+
 ## 2026-08-12
 
 ### Changed

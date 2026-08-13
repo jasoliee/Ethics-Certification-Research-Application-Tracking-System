@@ -365,6 +365,7 @@ function initializeApplicationTools(shell) {
         const consentGate = form.querySelector('[data-reviewer-consent-gate]');
         const consentExplanation = form.querySelector('[data-reviewer-consent-explanation]');
         const consentExplanationInput = form.querySelector('[data-reviewer-consent-explanation-input]');
+        const consentDependent = form.querySelector('[data-reviewer-consent-dependent]');
         let draftSaveInFlight = false;
         let worksheetControlsLocked = false;
         const worksheetControlStates = new Map();
@@ -381,9 +382,12 @@ function initializeApplicationTools(shell) {
 
         const formProgress = () => {
             const questions = [...form.querySelectorAll('[data-reviewer-form-question]')];
+            const consentQuestionsNotApplicable = consentDependent?.hidden === true;
 
             return {
-                answered: questions.filter((question) => question.querySelector('input[type="radio"]:checked')).length,
+                answered: consentQuestionsNotApplicable
+                    ? questions.length
+                    : questions.filter((question) => question.querySelector('input[type="radio"]:checked')).length,
                 total: questions.length,
             };
         };
@@ -452,6 +456,16 @@ function initializeApplicationTools(shell) {
             const canWrite = consentGate.dataset.reviewerConsentWritable === 'true';
             consentExplanation.hidden = ! consentIsNotRequired;
             consentExplanationInput.disabled = ! consentIsNotRequired || ! canWrite || form.getAttribute('aria-busy') === 'true';
+            consentExplanationInput.required = consentIsNotRequired && canWrite;
+            if (consentDependent) {
+                consentDependent.hidden = consentIsNotRequired;
+                consentDependent.querySelectorAll('input').forEach((input) => {
+                    if (consentIsNotRequired && input.type === 'radio') {
+                        input.checked = false;
+                    }
+                    input.disabled = consentIsNotRequired || ! canWrite || form.getAttribute('aria-busy') === 'true';
+                });
+            }
         };
 
         form.addEventListener('change', (event) => {
@@ -478,10 +492,6 @@ function initializeApplicationTools(shell) {
             }
 
             event.preventDefault();
-            if (! form.reportValidity()) {
-                return;
-            }
-
             const formData = new FormData(form);
             formData.set('intent', 'draft');
             draftSaveInFlight = true;
@@ -635,8 +645,6 @@ function initializeApplicationTools(shell) {
 
     if (reviewerCommentForm) {
         const reviewerStudio = reviewerCommentForm.closest('[data-reviewer-review-studio]');
-        const scope = reviewerCommentForm.querySelector('[data-reviewer-comment-scope]');
-        const documentField = reviewerCommentForm.querySelector('[data-reviewer-comment-document-field]');
         const documentInput = reviewerCommentForm.querySelector('[data-reviewer-comment-document]');
         const categoryInput = reviewerCommentForm.elements.namedItem('category');
         const bodyInput = reviewerCommentForm.elements.namedItem('body');
@@ -657,29 +665,6 @@ function initializeApplicationTools(shell) {
         let commentRequestInFlight = false;
         let olderCommentsRequestInFlight = false;
         const commentActionsInFlight = new Set();
-
-        // Required revisions always identify an exact source file; the current viewer selection
-        // supplies that reference while the server remains authoritative.
-        const syncReviewerCommentScope = () => {
-            const requiresDocument = categoryInput?.value === 'required_revision';
-
-            if (scope && requiresDocument && ! scope.disabled) {
-                scope.value = 'document';
-            }
-
-            const referencesDocument = scope?.value === 'document';
-
-            if (documentField && documentInput) {
-                documentField.hidden = ! referencesDocument;
-                documentInput.disabled = ! referencesDocument || scope.disabled;
-                documentInput.required = referencesDocument;
-
-                if (referencesDocument && ! documentInput.value) {
-                    const activeDocument = reviewerStudio?.querySelector('[data-reviewer-document-choice].is-active');
-                    documentInput.value = activeDocument?.dataset.documentId ?? '';
-                }
-            }
-        };
 
         const closeCommentMenu = (restoreFocus = false) => {
             if (! openCommentMenu) {
@@ -783,7 +768,6 @@ function initializeApplicationTools(shell) {
             if (cancelButton) {
                 cancelButton.hidden = true;
             }
-            syncReviewerCommentScope();
         };
 
         // Server-rendered fragments keep asynchronous comments escaped and identical to the no-JS fallback.
@@ -840,8 +824,6 @@ function initializeApplicationTools(shell) {
             }
         };
 
-        categoryInput?.addEventListener('change', syncReviewerCommentScope);
-        scope?.addEventListener('change', syncReviewerCommentScope);
         reviewerCommentForm.addEventListener('submit', (event) => {
             event.preventDefault();
             submitCommentRequest();
@@ -888,11 +870,6 @@ function initializeApplicationTools(shell) {
             if (categoryInput) {
                 categoryInput.value = comment.dataset.commentCategory;
             }
-            if (scope) {
-                scope.value = comment.dataset.commentScope === 'page'
-                    ? 'document'
-                    : comment.dataset.commentScope;
-            }
             if (documentInput) {
                 documentInput.value = comment.dataset.commentDocumentId ?? '';
             }
@@ -906,7 +883,6 @@ function initializeApplicationTools(shell) {
                 cancelButton.hidden = false;
             }
             closeCommentMenu();
-            syncReviewerCommentScope();
             setCommentFeedback('Editing comment.');
             bodyInput?.focus();
         });
@@ -1155,10 +1131,8 @@ function initializeApplicationTools(shell) {
                     documentPreviewRequestId,
                 );
             }
-            if (documentInput && scope && ! scope.disabled) {
-                scope.value = 'document';
+            if (documentInput && ! documentInput.disabled) {
                 documentInput.value = choice.dataset.documentId;
-                syncReviewerCommentScope();
                 setCommentFeedback(`Comment reference set to ${choice.dataset.documentRequirement}.`);
             }
         };
@@ -1167,7 +1141,6 @@ function initializeApplicationTools(shell) {
             choice.addEventListener('click', () => selectReviewDocument(choice));
         });
 
-        syncReviewerCommentScope();
         syncCommentCount();
 
         commentList?.addEventListener('keydown', (event) => {

@@ -75,6 +75,11 @@
                                 <option value="{{ $adviser->id }}" @selected((string) $fieldValue('adviser_user_id') === (string) $adviser->id)>{{ $adviser->name }} ({{ $adviser->email }})</option>
                             @endforeach
                         </select>
+                        @if ($advisers->isEmpty())
+                            <small class="application-field-help">{{ (auth()->user()->applicant_type ?? \App\Enums\ApplicantType::Student) === \App\Enums\ApplicantType::Student
+                                ? 'No active eligible Research Adviser is currently available in your department.'
+                                : 'No active eligible Research Adviser is currently available.' }}</small>
+                        @endif
                         @error('adviser_user_id')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
                     </div>
