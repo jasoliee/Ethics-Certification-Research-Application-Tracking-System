@@ -12,7 +12,9 @@ class AccountCreationAuthorizationService
         $targetRole = $targetRole instanceof UserRole ? $targetRole : UserRole::tryFrom($targetRole);
 
         return match ($actor->role) {
-            UserRole::ResLead => in_array($targetRole, [UserRole::Applicant, UserRole::Adviser, UserRole::Reviewer], true),
+            // Reviewer access is now supplementary Adviser capability and must never
+            // create a second, independently authenticated identity.
+            UserRole::ResLead => in_array($targetRole, [UserRole::Applicant, UserRole::Adviser], true),
             UserRole::Adviser => $targetRole === UserRole::Applicant,
             default => false,
         };
@@ -22,7 +24,7 @@ class AccountCreationAuthorizationService
     public function allowedRoles(User $actor): array
     {
         return match ($actor->role) {
-            UserRole::ResLead => [UserRole::Applicant, UserRole::Adviser, UserRole::Reviewer],
+            UserRole::ResLead => [UserRole::Applicant, UserRole::Adviser],
             UserRole::Adviser => [UserRole::Applicant],
             default => [],
         };

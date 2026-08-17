@@ -5,7 +5,7 @@ namespace App\Services\Applications;
 use App\Enums\AccountStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
-use App\Enums\UserRole;
+use App\Models\ReviewerConflict;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -38,7 +38,9 @@ class ReviewerEligibilityService
                 'department',
                 'program',
                 'reviewer_classification',
+                'reviewer_classifications',
                 'reviewer_capacity',
+                'reviewer_enabled',
             ])
             ->withCount(['reviewerAssignments as active_assignment_count' => fn (Builder $assignments) => $assignments
                 ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())]);
@@ -93,19 +95,26 @@ class ReviewerEligibilityService
         ResearchApplication $application,
         ReviewType $reviewType,
     ): void {
-        $classification = mb_strtolower(trim((string) $reviewer->reviewer_classification));
         $expectedClassification = mb_strtolower((string) $reviewType->reviewerClassification());
-        $knownConflict = in_array($reviewer->id, [
+        $knownIdentityConflict = in_array($reviewer->id, [
             $application->applicant_user_id,
             $application->adviser_user_id,
         ], true);
+        $endorsedThisApplication = $reviewer->endorsements()
+            ->where('research_application_id', $application->id)
+            ->exists();
+        $declaredConflict = ReviewerConflict::query()
+            ->where('research_application_id', $application->id)
+            ->where('reviewer_user_id', $reviewer->id)
+            ->whereNull('cleared_at')
+            ->exists();
 
-        if ($reviewer->role !== UserRole::Reviewer
-            || $reviewer->account_status !== AccountStatus::Active->value
-            || $reviewer->trashed()
+        if (! $reviewer->hasReviewerAccess()
             || $reviewer->password_setup_completed_at === null
-            || $classification !== $expectedClassification
-            || $knownConflict) {
+            || ! $reviewer->hasReviewerClassification($expectedClassification)
+            || $knownIdentityConflict
+            || $endorsedThisApplication
+            || $declaredConflict) {
             throw ValidationException::withMessages([
                 'reviewer_ids' => 'One or more selected reviewers are no longer eligible for this application.',
             ])->errorBag('reviewerAssignment');
@@ -131,16 +140,27 @@ class ReviewerEligibilityService
         ReviewType $reviewType,
     ): Builder {
         return User::query()
-            ->where('role', UserRole::Reviewer->value)
+            ->reviewerEnabled()
             ->where('account_status', AccountStatus::Active->value)
             ->whereNotNull('password_setup_completed_at')
             ->whereNotIn('id', array_filter([
                 $application->applicant_user_id,
                 $application->adviser_user_id,
             ]))
-            ->whereRaw('LOWER(reviewer_classification) = ?', [
-                mb_strtolower((string) $reviewType->reviewerClassification()),
-            ]);
+            ->whereDoesntHave('endorsements', fn (Builder $endorsements) => $endorsements
+                ->where('research_application_id', $application->id))
+            ->whereDoesntHave('reviewerConflicts', fn (Builder $conflicts) => $conflicts
+                ->where('research_application_id', $application->id)
+                ->whereNull('cleared_at'))
+            ->where(function (Builder $classifications) use ($reviewType): void {
+                $expected = (string) $reviewType->reviewerClassification();
+
+                $classifications
+                    ->whereJsonContains('reviewer_classifications', $expected)
+                    // The fallback keeps an Adviser eligible during a rolling deployment before
+                    // the additive migration has normalized every legacy classification value.
+                    ->orWhereRaw('LOWER(reviewer_classification) = ?', [mb_strtolower($expected)]);
+            });
     }
 
     /**

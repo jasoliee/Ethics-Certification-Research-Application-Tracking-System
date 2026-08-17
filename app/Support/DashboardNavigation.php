@@ -3,32 +3,40 @@
 namespace App\Support;
 
 use App\Enums\UserRole;
+use App\Models\User;
 
 class DashboardNavigation
 {
-    /** @return array<int, array{label: string, route: string, icon: string, active: string}> */
-    public static function for(UserRole $role): array
+    /**
+     * @return array<int, array{label: string, route?: string, icon: string, active: string, children?: array<int, array{label: string, route: string, icon: string, active: string}>}>
+     */
+    public static function for(UserRole|User $subject): array
     {
+        $user = $subject instanceof User ? $subject : null;
+        $role = $user?->role ?? $subject;
+
         return match ($role) {
             UserRole::Applicant => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Application', 'applicant.applications.index', 'file-text', 'applicant.applications.*'),
                 self::item('Revision and Certificates', 'applicant.revision-certificates.index', 'award', 'applicant.revision-certificates.*'),
             ],
-            UserRole::Adviser => [
+            UserRole::Adviser => array_values(array_filter([
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Application', 'adviser.applications.index', 'file-text', 'adviser.applications.*'),
                 self::item('Applicants', 'adviser.applicants.index', 'user-check', 'adviser.applicants.*'),
-            ],
-            UserRole::Reviewer => [
-                self::item('Home', 'dashboard', 'home', 'dashboard'),
-                self::item('Assignments', 'reviewer.assignments.index', 'clipboard', 'reviewer.assignments.*'),
-            ],
+                $user?->hasReviewerAccess() ? self::group('Reviewer', 'clipboard', 'reviewer.*', [
+                    self::item('Reviewer Dashboard', 'reviewer.dashboard', 'home', 'reviewer.dashboard'),
+                    self::item('Assignments', 'reviewer.assignments.index', 'clipboard', 'reviewer.assignments.*|reviewer.reviews.*'),
+                ]) : null,
+            ])),
+            // The legacy value remains readable for historical rows and audit metadata only.
+            UserRole::Reviewer => [],
             UserRole::ResLead => [
                 self::item('Home', 'dashboard', 'home', 'dashboard'),
                 self::item('Applications', 'res.applications.index', 'file-text', 'res.applications.*'),
                 self::item('Review Monitoring', 'res.review-monitoring.index', 'users', 'res.review-monitoring.*'),
-                self::item('Certificates', 'res.certificates.index', 'award', 'res.certificates.*'),
+                self::item('Decision & Certificates', 'res.certificates.index', 'award', 'res.certificates.*'),
                 self::item('Reports', 'res.reports.index', 'chart', 'res.reports.*'),
                 self::item('User Management', 'res.users.index', 'user', 'res.users.*'),
             ],
@@ -79,5 +87,14 @@ class DashboardNavigation
     private static function item(string $label, string $route, string $icon, string $active): array
     {
         return compact('label', 'route', 'icon', 'active');
+    }
+
+    /**
+     * @param  array<int, array{label: string, route: string, icon: string, active: string}>  $children
+     * @return array{label: string, icon: string, active: string, children: array<int, array{label: string, route: string, icon: string, active: string}>}
+     */
+    private static function group(string $label, string $icon, string $active, array $children): array
+    {
+        return compact('label', 'icon', 'active', 'children');
     }
 }

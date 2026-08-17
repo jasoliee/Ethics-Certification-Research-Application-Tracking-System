@@ -8,7 +8,6 @@ use App\Http\Controllers\Dashboard\ApplicantApplicationController;
 use App\Http\Controllers\Dashboard\ApplicantRevisionCertificateController;
 use App\Http\Controllers\Dashboard\ApplicationDocumentController;
 use App\Http\Controllers\Dashboard\DashboardController;
-use App\Http\Controllers\Dashboard\ModulePageController;
 use App\Http\Controllers\Dashboard\NotificationPageController;
 use App\Http\Controllers\Dashboard\OnboardingController;
 use App\Http\Controllers\Dashboard\ProfilePageController;
@@ -16,10 +15,13 @@ use App\Http\Controllers\Dashboard\ResCertificationController;
 use App\Http\Controllers\Dashboard\ResearchApplicationPageController;
 use App\Http\Controllers\Dashboard\ResLeadApplicationController;
 use App\Http\Controllers\Dashboard\ResReportController;
+use App\Http\Controllers\Dashboard\ResReviewMonitoringController;
 use App\Http\Controllers\Dashboard\ReviewerAssignmentPageController;
 use App\Http\Controllers\Dashboard\ReviewerWorkflowController;
 use App\Http\Controllers\Dashboard\ReviewFormArtifactController;
+use App\Http\Controllers\Identity\ReviewerIdentityReconciliationController;
 use App\Http\Controllers\Identity\UserManagementController;
+use App\Http\Controllers\Settings\AccountSettingsController;
 use App\Http\Controllers\Settings\ResLeadSettingsController;
 use App\Http\Controllers\Settings\ReviewerSettingsController;
 use App\Support\RoleHome;
@@ -123,11 +125,13 @@ Route::middleware('no-store')->group(function (): void {
                 Route::redirect('/certificates', '/student-faculty-researcher/revision-certificates')->name('certificates.index');
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
-                Route::get('/settings', ModulePageController::class)
-                    ->defaults('pageTitle', 'Settings')
-                    ->defaults('moduleMessage', 'Account settings will be managed here.')
-                    ->defaults('moduleIcon', 'settings')
-                    ->name('settings.index');
+                Route::controller(AccountSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::put('/profile', 'updateProfile')->middleware('throttle:account-write')->name('profile.update');
+                    Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
+                    Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');
+                    Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
+                });
             });
 
         Route::prefix('adviser')
@@ -167,18 +171,23 @@ Route::middleware('no-store')->group(function (): void {
                 });
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
-                Route::get('/settings', ModulePageController::class)
-                    ->defaults('pageTitle', 'Settings')
-                    ->defaults('moduleMessage', 'Account settings will be managed here.')
-                    ->defaults('moduleIcon', 'settings')
-                    ->name('settings.index');
+                Route::controller(AccountSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::put('/profile', 'updateProfile')->middleware('throttle:account-write')->name('profile.update');
+                    Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
+                    Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');
+                    Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
+                });
             });
 
-        Route::prefix('reviewer')
+        // Reviewer work is an Adviser capability. Canonical URLs remain under the Adviser area,
+        // while stable reviewer.* route names keep notifications and historical links resolvable.
+        Route::prefix('adviser/reviewer')
             ->name('reviewer.')
-            ->middleware('role:reviewer')
+            ->middleware(['reviewer.enabled', 'role:adviser'])
             ->group(function (): void {
-                Route::redirect('/landing', '/dashboard')->name('landing');
+                Route::get('/', [DashboardController::class, 'reviewer'])->name('dashboard');
+                Route::redirect('/landing', '/adviser/reviewer')->name('landing');
                 Route::get('/assignments', [ReviewerAssignmentPageController::class, 'index'])
                     ->name('assignments.index');
                 Route::get('/assignments/{reviewerAssignment}', [ReviewerAssignmentPageController::class, 'show'])
@@ -220,10 +229,25 @@ Route::middleware('no-store')->group(function (): void {
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
                 Route::controller(ReviewerSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
-                    Route::patch('/username', 'updateUsername')->middleware('throttle:account-write')->name('username.update');
-                    Route::patch('/password', 'updatePassword')->middleware('throttle:account-write')->name('password.update');
+                    Route::put('/profile', 'updateProfile')->middleware('throttle:account-write')->name('profile.update');
+                    Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
+                    Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');
+                    Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
                 });
             });
+
+        // Old Reviewer bookmarks may only cross into the equivalent capability-gated Adviser URL.
+        // Unsupported or mutating legacy paths remain unavailable, and the destination performs
+        // the normal nested-record authorization checks before returning any private content.
+        Route::get('/reviewer/{legacyPath?}', function (?string $legacyPath = null) {
+            $destination = url('/adviser/reviewer'.($legacyPath ? '/'.ltrim($legacyPath, '/') : ''));
+            $query = request()->getQueryString();
+
+            return redirect()->to($destination.($query ? '?'.$query : ''));
+        })
+            ->where('legacyPath', '.*')
+            ->middleware(['reviewer.enabled', 'role:adviser'])
+            ->name('reviewer.legacy');
 
         Route::prefix('res-lead')
             ->name('res.')
@@ -255,10 +279,7 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.review-form-artifacts.preview');
                 Route::get('/applications/{researchApplication}/reviewer-assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/download', [ReviewFormArtifactController::class, 'resDownload'])
                     ->name('applications.review-form-artifacts.download');
-                Route::get('/review-monitoring', ModulePageController::class)
-                    ->defaults('pageTitle', 'Review Monitoring')
-                    ->defaults('moduleMessage', 'Reviewer assignments, capacity, and progress will be monitored here.')
-                    ->defaults('moduleIcon', 'users')
+                Route::get('/review-monitoring', ResReviewMonitoringController::class)
                     ->name('review-monitoring.index');
                 Route::get('/certificates', [ResCertificationController::class, 'index'])
                     ->name('certificates.index');
@@ -276,17 +297,6 @@ Route::middleware('no-store')->group(function (): void {
                 Route::post('/certificates/applications/{researchApplication}/regenerate', [ResCertificationController::class, 'regenerate'])
                     ->middleware('throttle:certificate-workflow')
                     ->name('certificates.regenerate');
-                Route::post('/certificate-backgrounds', [ResCertificationController::class, 'uploadBackground'])
-                    ->middleware('throttle:certificate-background')
-                    ->name('certificate-backgrounds.store');
-                Route::patch('/certificate-backgrounds/{certificateBackground}/activate', [ResCertificationController::class, 'activateBackground'])
-                    ->middleware('throttle:certificate-background')
-                    ->name('certificate-backgrounds.activate');
-                Route::post('/certificate-backgrounds/reset', [ResCertificationController::class, 'resetBackground'])
-                    ->middleware('throttle:certificate-background')
-                    ->name('certificate-backgrounds.reset');
-                Route::get('/certificate-backgrounds/{certificateBackground}/preview', [ResCertificationController::class, 'previewBackground'])
-                    ->name('certificate-backgrounds.preview');
                 Route::get('/certificates/{certificate}/versions/{certificateVersion}/preview', [ResCertificationController::class, 'previewCertificate'])
                     ->name('certificates.versions.preview');
                 Route::get('/certificates/{certificate}/versions/{certificateVersion}/download', [ResCertificationController::class, 'downloadCertificate'])
@@ -308,9 +318,15 @@ Route::middleware('no-store')->group(function (): void {
                     // Rate-limit verified workbook generation while retaining the RES Lead role and catalog checks.
                     Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');
                     Route::post('/mass-action', 'massAction')->middleware('throttle:account-mass-action')->name('mass-action');
+                    Route::post('/reviewer-reconciliations/{reviewerIdentityReconciliation}/keep-separate', [ReviewerIdentityReconciliationController::class, 'keepSeparate'])
+                        ->middleware('throttle:account-write')
+                        ->name('reviewer-reconciliations.keep-separate');
+                    Route::post('/reviewer-reconciliations/{reviewerIdentityReconciliation}/merge', [ReviewerIdentityReconciliationController::class, 'merge'])
+                        ->middleware('throttle:account-write')
+                        ->name('reviewer-reconciliations.merge');
                     // Preserve old bookmarks while keeping the Audit Log owned by Reports.
                     Route::redirect('/audit-log', '/res-lead/reports/audit-log')->name('audit.index');
-                    Route::get('/profile-options', 'profileOptionsIndex')->name('profile-options.index');
+                    Route::redirect('/profile-options', '/res-lead/settings?tab=options')->name('profile-options.index');
                     Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-option')->name('profile-options.store');
                     Route::put('/profile-options/{profileOption}', 'updateProfileOption')->middleware('throttle:account-option')->name('profile-options.update');
                     Route::patch('/profile-options/{profileOption}/status', 'changeProfileOptionStatus')->middleware('throttle:account-option')->name('profile-options.status');
@@ -327,8 +343,19 @@ Route::middleware('no-store')->group(function (): void {
                 Route::controller(ResLeadSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::put('/deadlines', 'updateDeadlines')->middleware('throttle:account-write')->name('deadlines.update');
-                    Route::patch('/username', 'updateUsername')->middleware('throttle:account-write')->name('username.update');
-                    Route::patch('/password', 'updatePassword')->middleware('throttle:account-write')->name('password.update');
+                    Route::put('/profile', 'updateProfile')->middleware('throttle:account-write')->name('profile.update');
+                    Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
+                    Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');
+                    Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
+                    Route::put('/signatory', 'updateSignatory')->middleware('throttle:security-change')->name('signatory.update');
+                    Route::get('/signatory/preview', 'previewSignatory')->name('signatory.preview');
+                    Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-option')->name('profile-options.store');
+                    Route::put('/profile-options/{profileOption}', 'updateProfileOption')->middleware('throttle:account-option')->name('profile-options.update');
+                    Route::patch('/profile-options/{profileOption}/status', 'changeProfileOptionStatus')->middleware('throttle:account-option')->name('profile-options.status');
+                    Route::post('/backgrounds', 'uploadBackground')->middleware('throttle:certificate-background')->name('backgrounds.store');
+                    Route::patch('/backgrounds/{certificateBackground}/activate', 'activateBackground')->middleware('throttle:certificate-background')->name('backgrounds.activate');
+                    Route::post('/backgrounds/reset', 'resetBackground')->middleware('throttle:certificate-background')->name('backgrounds.reset');
+                    Route::get('/backgrounds/{certificateBackground}/preview', 'previewBackground')->name('backgrounds.preview');
                 });
             });
     });

@@ -81,7 +81,6 @@ class WorkbookTemplateTest extends TestCase
             'Student Researcher' => ['student_researcher'],
             'Faculty Researcher' => ['faculty_researcher'],
             'Research Adviser' => ['adviser'],
-            'Ethics Reviewer' => ['reviewer'],
         ];
     }
 

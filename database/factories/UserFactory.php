@@ -20,6 +20,32 @@ class UserFactory extends Factory
     protected static ?string $password;
 
     /**
+     * Keep legacy test fixtures compatible without ever persisting a standalone
+     * Reviewer role. An explicit Reviewer override now represents an entitled Adviser.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (User $user): void {
+            if ($user->role !== UserRole::Reviewer) {
+                return;
+            }
+
+            $classification = filled($user->reviewer_classification)
+                ? trim((string) $user->reviewer_classification)
+                : 'Expedited';
+
+            $user->forceFill([
+                'role' => UserRole::Adviser,
+                'applicant_type' => null,
+                'reviewer_enabled' => true,
+                'reviewer_classification' => $classification,
+                'reviewer_classifications' => $user->reviewer_classifications ?: [$classification],
+                'reviewer_capacity' => $user->reviewer_capacity ?: 6,
+            ]);
+        });
+    }
+
+    /**
      * Define the model's default state.
      *
      * @return array<string, mixed>
@@ -46,7 +72,9 @@ class UserFactory extends Factory
             'year_level' => null,
             'position_title' => null,
             'reviewer_classification' => null,
+            'reviewer_classifications' => null,
             'reviewer_capacity' => null,
+            'reviewer_enabled' => false,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::Applicant,
@@ -69,6 +97,20 @@ class UserFactory extends Factory
             'password_setup_completed_at' => null,
             'onboarding_completed_at' => null,
             'setup_email_status' => 'not_sent',
+        ]);
+    }
+
+    /** Create an Adviser account with supplementary Reviewer capability. */
+    public function reviewer(array $classifications = ['Expedited']): static
+    {
+        return $this->state(fn (): array => [
+            'role' => UserRole::Adviser,
+            'applicant_type' => null,
+            'position_title' => 'Ethics Reviewer',
+            'reviewer_classification' => $classifications[0] ?? null,
+            'reviewer_classifications' => array_values($classifications),
+            'reviewer_capacity' => 6,
+            'reviewer_enabled' => true,
         ]);
     }
 

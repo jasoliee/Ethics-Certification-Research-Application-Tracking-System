@@ -36,6 +36,22 @@ class CertificateReleaseService
         ResearchApplication $application,
         bool $regenerate = false,
     ): array {
+        return $this->process($actor, $application, $regenerate, false);
+    }
+
+    /** @return array{certificate: Certificate, action: string} */
+    public function generatePending(User $actor, ResearchApplication $application): array
+    {
+        return $this->process($actor, $application, false, true);
+    }
+
+    /** @return array{certificate: Certificate, action: string} */
+    private function process(
+        User $actor,
+        ResearchApplication $application,
+        bool $regenerate,
+        bool $pendingOnly,
+    ): array {
         // Authorize before resolving a background because initialization can write a
         // verified private asset and its provenance record.
         Gate::forUser($actor)->authorize('releaseCertificate', $application);
@@ -49,6 +65,7 @@ class CertificateReleaseService
                 $application,
                 $background,
                 $regenerate,
+                $pendingOnly,
                 &$storedPath,
                 &$hadIssuedVersion,
             ): array {
@@ -82,10 +99,44 @@ class CertificateReleaseService
                     return ['certificate' => $certificate->load('currentVersion'), 'action' => 'skipped'];
                 }
 
+                if ($pendingOnly && $hadIssuedVersion) {
+                    return ['certificate' => $certificate->load('currentVersion'), 'action' => 'skipped'];
+                }
+
                 if (! $regenerate && ! $this->eligibility->isEligible($lockedApplication)) {
                     throw ValidationException::withMessages([
                         'certificate' => 'The application is not currently eligible for certificate release.',
                     ])->errorBag('certificateRelease');
+                }
+
+                if (! $pendingOnly && ! $regenerate && $hadIssuedVersion
+                    && $certificate->status === CertificateStatus::PendingRelease) {
+                    $releasedAt = now();
+                    $currentVersion->update([
+                        'released_by_user_id' => $actor->id,
+                        'released_at' => $releasedAt,
+                    ]);
+                    $certificate->update([
+                        'status' => CertificateStatus::Released->value,
+                        'generation_failure_code' => null,
+                        'released_by_user_id' => $actor->id,
+                        'released_at' => $releasedAt,
+                    ]);
+                    $lockedApplication->update([
+                        'application_status' => ApplicationStatus::CertificateReleased->value,
+                        'current_stage' => ApplicationStage::Completed->value,
+                        'status_updated_at' => $releasedAt,
+                    ]);
+                    $this->auditLog->record($actor, 'certificate.released', $lockedApplication, [
+                        'certificate_id' => $certificate->id,
+                        'certificate_version_id' => $currentVersion->id,
+                        'certificate_version' => $currentVersion->certificate_version,
+                        'certificate_number' => $certificate->certificate_number,
+                        'file_sha256' => $currentVersion->sha256,
+                        'result' => CertificateStatus::Released->value,
+                    ]);
+
+                    return ['certificate' => $certificate->refresh()->load('currentVersion'), 'action' => 'released'];
                 }
 
                 if (! $certificate) {
@@ -104,6 +155,8 @@ class CertificateReleaseService
                     ->max('certificate_version');
                 $versionNumber = $latestVersion + 1;
                 $releasedAt = now();
+                $issuedDate = \Carbon\CarbonImmutable::parse($releasedAt)->startOfDay();
+                $validUntil = $issuedDate->addYearNoOverflow();
                 $fileData = $this->generator->renderAndStore(
                     $actor,
                     $lockedApplication,
@@ -118,6 +171,8 @@ class CertificateReleaseService
                     ...$fileData,
                     'certificate_version' => $versionNumber,
                     'status' => CertificateVersionStatus::Ready->value,
+                    'issued_date' => $issuedDate->toDateString(),
+                    'valid_until' => $validUntil->toDateString(),
                 ]);
                 CertificateVersion::query()
                     ->where('certificate_id', $certificate->id)
@@ -126,25 +181,33 @@ class CertificateReleaseService
                     ->update(['status' => CertificateVersionStatus::Superseded->value]);
 
                 $certificate->update([
-                    'status' => CertificateStatus::Released->value,
+                    'status' => $pendingOnly ? CertificateStatus::PendingRelease->value : CertificateStatus::Released->value,
                     'generation_failure_code' => null,
                     'current_certificate_version_id' => $version->id,
-                    'released_by_user_id' => $actor->id,
-                    'released_at' => $releasedAt,
+                    'released_by_user_id' => $pendingOnly ? null : $actor->id,
+                    'released_at' => $pendingOnly ? null : $releasedAt,
+                    'issued_date' => $issuedDate->toDateString(),
+                    'valid_until' => $validUntil->toDateString(),
                     // A regenerated version must be explicitly claimed; the prior version keeps its claim metadata.
                     'claimed_by_user_id' => null,
                     'claimed_certificate_version_id' => null,
                     'claimed_at' => null,
                 ]);
                 $lockedApplication->update([
-                    'application_status' => ApplicationStatus::CertificateReleased->value,
-                    'current_stage' => ApplicationStage::Completed->value,
+                    'application_status' => $pendingOnly
+                        ? ApplicationStatus::ForCertificateRelease->value
+                        : ApplicationStatus::CertificateReleased->value,
+                    'current_stage' => $pendingOnly
+                        ? ApplicationStage::DecisionRelease->value
+                        : ApplicationStage::Completed->value,
                     'status_updated_at' => $releasedAt,
                 ]);
 
                 $this->auditLog->record(
                     $actor,
-                    $regenerate ? 'certificate.regenerated' : 'certificate.released',
+                    $regenerate
+                        ? 'certificate.regenerated'
+                        : ($pendingOnly ? 'certificate.generated_for_release' : 'certificate.released'),
                     $lockedApplication,
                     [
                         'certificate_id' => $certificate->id,
@@ -154,13 +217,15 @@ class CertificateReleaseService
                         'background_id' => $background->id,
                         'background_version' => $background->asset_version,
                         'file_sha256' => $version->sha256,
-                        'result' => CertificateStatus::Released->value,
+                        'issued_date' => $issuedDate->toDateString(),
+                        'valid_until' => $validUntil->toDateString(),
+                        'result' => $pendingOnly ? CertificateStatus::PendingRelease->value : CertificateStatus::Released->value,
                     ],
                 );
 
                 return [
                     'certificate' => $certificate->refresh()->load('currentVersion'),
-                    'action' => $regenerate ? 'regenerated' : 'released',
+                    'action' => $regenerate ? 'regenerated' : ($pendingOnly ? 'generated' : 'released'),
                 ];
             }, 1);
         } catch (CertificateGenerationException $exception) {
@@ -193,7 +258,7 @@ class CertificateReleaseService
             ])->errorBag('certificateRelease');
         }
 
-        if ($result['action'] !== 'skipped') {
+        if (! $pendingOnly && $result['action'] !== 'skipped') {
             $application->applicant?->notify(new DashboardUpdateNotification([
                 'title' => 'Certificate released',
                 'message' => 'Your generated ethics certificate is ready after you complete the required evaluation and claim it.',
@@ -215,6 +280,7 @@ class CertificateReleaseService
         $ids = ResearchApplication::query()
             ->whereIn('application_status', [
                 ApplicationStatus::ResultReleasedAccepted->value,
+                ApplicationStatus::ForCertificateRelease->value,
                 ApplicationStatus::Exempted->value,
             ])
             ->orderBy('id')
@@ -336,6 +402,8 @@ class CertificateReleaseService
                     ...$fileData,
                     'certificate_version' => $versionNumber,
                     'status' => CertificateVersionStatus::Ready->value,
+                    'issued_date' => $currentVersion->issued_date,
+                    'valid_until' => $currentVersion->valid_until,
                     'regenerated_at' => $regeneratedAt,
                     'regeneration_reason' => 'background_update',
                     'claimed_by_user_id' => $lockedCertificate->claimed_by_user_id,

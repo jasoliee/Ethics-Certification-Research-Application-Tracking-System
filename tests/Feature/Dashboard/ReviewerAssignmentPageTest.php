@@ -2,10 +2,15 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\ApplicationRevisionStatus;
+use App\Enums\ApplicationStatus;
 use App\Enums\RequirementStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
+use App\Models\ApplicationDecisionRelease;
 use App\Models\ApplicationDocument;
+use App\Models\ApplicationRevision;
 use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
@@ -103,6 +108,143 @@ class ReviewerAssignmentPageTest extends TestCase
             ->assertSee('RES-PAGE-016');
     }
 
+    public function test_review_task_tabs_separate_revisions_and_only_complete_the_latest_final_approval(): void
+    {
+        $reviewer = User::factory()->reviewer()->create();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $revisionApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-TAB-ACTIVE-REVISION',
+            'application_status' => ApplicationStatus::UnderReReview,
+            'current_revision_cycle' => 2,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $revisionApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_cycle' => 0,
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now()->subDays(2),
+        ]);
+        $revisionRelease = ApplicationDecisionRelease::create([
+            'research_application_id' => $revisionApplication->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::MinorRevision,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subDay(),
+        ]);
+        ApplicationRevision::create([
+            'research_application_id' => $revisionApplication->id,
+            'application_decision_release_id' => $revisionRelease->id,
+            'revision_number' => 1,
+            'status' => ApplicationRevisionStatus::UnderReview,
+            'due_at' => now()->addDays(5),
+            'submitted_at' => now()->subHour(),
+        ]);
+        $revisionAssignment = ReviewerAssignment::factory()->create([
+            'research_application_id' => $revisionApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_cycle' => 1,
+            'review_type' => 'revision_review',
+            'assignment_status' => ReviewerAssignmentStatus::RevisionReview,
+            'assigned_at' => now(),
+        ]);
+
+        $completedApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-TAB-FINAL-APPROVAL',
+            'application_status' => ApplicationStatus::ForCertificateRelease,
+        ]);
+        $completedAssignment = ReviewerAssignment::factory()->create([
+            'research_application_id' => $completedApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_cycle' => 0,
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now()->subHour(),
+        ]);
+        ApplicationDecisionRelease::create([
+            'research_application_id' => $completedApplication->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::Approved,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now(),
+        ]);
+
+        $openRevisionApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-TAB-OPEN-REVISION',
+            'application_status' => ApplicationStatus::RevisionWindowOpen,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $openRevisionApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now(),
+        ]);
+        $openRevisionRelease = ApplicationDecisionRelease::create([
+            'research_application_id' => $openRevisionApplication->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::Approved,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now(),
+        ]);
+        ApplicationRevision::create([
+            'research_application_id' => $openRevisionApplication->id,
+            'application_decision_release_id' => $openRevisionRelease->id,
+            'revision_number' => 1,
+            'status' => ApplicationRevisionStatus::PendingUploads,
+            'due_at' => now()->addDays(7),
+        ]);
+
+        $unreleasedApplication = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-TAB-NOT-RELEASED',
+            'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $unreleasedApplication->id,
+            'reviewer_user_id' => $reviewer->id,
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.assignments.index'))
+            ->assertOk()
+            ->assertViewHas('assignments', function ($assignments) use ($revisionApplication, $revisionAssignment): bool {
+                $lineage = $assignments->getCollection()
+                    ->where('research_application_id', $revisionApplication->id);
+
+                return $lineage->count() === 1 && $lineage->first()->is($revisionAssignment);
+            });
+
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.reviews.index'))
+            ->assertOk()
+            ->assertViewHas('assignments', fn ($assignments): bool => $assignments->isEmpty());
+
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.reviews.index', ['tab' => 'revision']))
+            ->assertOk()
+            ->assertSee('reviewer-task-tabs', false)
+            ->assertSee('Revision Reviews')
+            ->assertSee($revisionApplication->application_code)
+            ->assertDontSee($completedApplication->application_code)
+            ->assertViewHas('assignments', fn ($assignments): bool => $assignments->count() === 1
+                && $assignments->first()->is($revisionAssignment));
+
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.reviews.index', ['tab' => 'completed']))
+            ->assertOk()
+            ->assertSee('Completed Reviews')
+            ->assertSeeInOrder(['tone-success', 'Completed'], false)
+            ->assertSee($completedApplication->application_code)
+            ->assertDontSee($revisionApplication->application_code)
+            ->assertDontSee($openRevisionApplication->application_code)
+            ->assertDontSee($unreleasedApplication->application_code)
+            ->assertViewHas('assignments', fn ($assignments): bool => $assignments->count() === 1
+                && $assignments->first()->is($completedAssignment));
+    }
+
     public function test_assignment_detail_and_documents_require_the_exact_reviewer_assignment(): void
     {
         Storage::fake('local');
@@ -156,6 +298,8 @@ class ReviewerAssignmentPageTest extends TestCase
             ->assertSee($document->original_file_name)
             ->assertSee(route('reviewer.applications.documents.preview', [$application, $document]), false)
             ->assertSee(route('reviewer.applications.documents.download', [$application, $document]), false)
+            ->assertSee('reviewer-study-overview', false)
+            ->assertSee('reviewer-document-primary-column', false)
             ->assertDontSee($applicant->name)
             ->assertDontSee($adviser->name);
 
@@ -171,5 +315,32 @@ class ReviewerAssignmentPageTest extends TestCase
         $this->actingAs($otherReviewer)
             ->get(route('reviewer.applications.documents.download', [$application, $document]))
             ->assertForbidden();
+    }
+
+    public function test_assignment_surfaces_define_bounded_table_and_filter_breakpoints(): void
+    {
+        $css = file_get_contents(resource_path('css/dashboard.css'));
+
+        $this->assertIsString($css);
+        $this->assertMatchesRegularExpression(
+            '/\.reviewer-assignment-page,\s*\.reviewer-assignment-detail-page\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@container reviewer-assignment-workspace \(max-width:\s*1120px\).*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@container reviewer-assignment-workspace \(max-width:\s*560px\).*?\.reviewer-assignment-filter-bar,\s*\.reviewer-assignment-details\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.res-reviewer-filter-bar\s*>\s*\*[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.reviewer-document-table \.reviewer-document-primary-column\s*\{[^}]*text-align:\s*left;/s',
+            $css,
+        );
     }
 }

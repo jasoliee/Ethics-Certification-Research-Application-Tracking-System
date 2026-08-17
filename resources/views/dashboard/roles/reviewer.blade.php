@@ -3,15 +3,15 @@
 @section('content')
     <div class="dashboard-page">
         <header class="dashboard-page-heading">
-            <h1>Welcome back, Reviewer!</h1>
+            <h1>Reviewer Dashboard</h1>
             <p>Manage assigned ethics reviews, monitor deadlines, and continue pending review tasks.</p>
         </header>
 
         {{-- Reviewer summary cards keep assignment counts distinct while sharing the centered card layout. --}}
         <div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Assigned review summary">
-            <x-dashboard.summary-card label="Pending Reviews" :count="$counts['pending']" icon="file-search" tone="orange" :href="route('reviewer.assignments.index')" />
-            <x-dashboard.summary-card label="Revision Reviews" :count="$counts['revision']" icon="refresh" tone="blue" :href="route('reviewer.reviews.index')" />
-            <x-dashboard.summary-card label="Completed Reviews" :count="$counts['completed']" icon="clipboard" tone="green" :href="route('reviewer.reviews.index')" />
+            <x-dashboard.summary-card label="Pending Reviews" :count="$counts['pending']" icon="file-search" tone="orange" :href="route('reviewer.reviews.index', ['tab' => 'assigned'])" />
+            <x-dashboard.summary-card label="Revision Reviews" :count="$counts['revision']" icon="refresh" tone="blue" :href="route('reviewer.reviews.index', ['tab' => 'revision'])" />
+            <x-dashboard.summary-card label="Completed Reviews" :count="$counts['completed']" icon="clipboard" tone="green" :href="route('reviewer.reviews.index', ['tab' => 'completed'])" />
         </div>
 
         <x-dashboard.section title="Latest Assigned Reviews" view-all-route="reviewer.assignments.index">

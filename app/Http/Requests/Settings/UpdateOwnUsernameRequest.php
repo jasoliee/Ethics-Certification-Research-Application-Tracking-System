@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Settings;
 
-use App\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,7 +12,9 @@ class UpdateOwnUsernameRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role, [UserRole::ResLead, UserRole::Reviewer], true);
+        $user = $this->user();
+
+        return $user?->can('updateOwnSecurity', $user) ?? false;
     }
 
     protected function prepareForValidation(): void

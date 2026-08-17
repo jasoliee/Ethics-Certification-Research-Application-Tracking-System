@@ -7,6 +7,7 @@ use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewFormType;
+use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ApplicationDocument;
@@ -36,10 +37,18 @@ class ReviewerAssignmentPageController extends Controller
             'deadline' => ['nullable', Rule::in(['due_soon', 'overdue', 'no_deadline'])],
             'tab' => ['nullable', Rule::in(['assigned', 'revision', 'completed'])],
         ]);
+        $reviewTasksPage = $request->routeIs('reviewer.reviews.index');
+        $activeTab = $reviewTasksPage ? ($filters['tab'] ?? 'assigned') : null;
+
+        if ($reviewTasksPage) {
+            $filters['tab'] = $activeTab;
+        }
 
         $assignments = ReviewerAssignment::query()
             ->current()
+            ->latestCycleForReviewer()
             ->where('reviewer_user_id', $request->user()->id)
+            ->where('assignment_status', '!=', ReviewerAssignmentStatus::Superseded->value)
             ->with(['researchApplication:id,application_code,research_title,research_type,review_type'])
             ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
                 $search = trim((string) $filters['q']);
@@ -53,12 +62,12 @@ class ReviewerAssignmentPageController extends Controller
                 ->where('review_type', $filters['review_cycle']))
             ->when(filled($filters['status'] ?? null), fn (Builder $query) => $query
                 ->where('assignment_status', $filters['status']))
-            ->when(($filters['tab'] ?? null) === 'assigned', fn (Builder $query) => $query
+            ->when($activeTab === 'assigned', fn (Builder $query) => $query
                 ->whereIn('assignment_status', [ReviewerAssignmentStatus::Pending->value, ReviewerAssignmentStatus::InReview->value]))
-            ->when(($filters['tab'] ?? null) === 'revision', fn (Builder $query) => $query
+            ->when($activeTab === 'revision', fn (Builder $query) => $query
                 ->where('assignment_status', ReviewerAssignmentStatus::RevisionReview->value))
-            ->when(($filters['tab'] ?? null) === 'completed', fn (Builder $query) => $query
-                ->where('assignment_status', ReviewerAssignmentStatus::DecisionSubmitted->value))
+            ->when($activeTab === 'completed', fn (Builder $query) => $query
+                ->completedFinalApproval())
             ->when(filled($filters['research_type'] ?? null), fn (Builder $query) => $query
                 ->whereHas('researchApplication', fn (Builder $applications) => $applications
                     ->where('research_type', $filters['research_type'])))
@@ -77,8 +86,8 @@ class ReviewerAssignmentPageController extends Controller
             ->withQueryString();
 
         return view('dashboard.assignments.index', [
-            'pageTitle' => $request->routeIs('reviewer.reviews.index') ? 'Review Tasks' : 'Assigned Applications',
-            'reviewTasksPage' => $request->routeIs('reviewer.reviews.index'),
+            'pageTitle' => $reviewTasksPage ? 'Review Tasks' : 'Assigned Applications',
+            'reviewTasksPage' => $reviewTasksPage,
             'assignments' => $assignments,
             'filters' => $filters,
             'statuses' => ReviewerAssignmentStatus::cases(),
@@ -113,7 +122,8 @@ class ReviewerAssignmentPageController extends Controller
                 'review_type',
                 'submitted_at',
             ]),
-            'reviewSubmission',
+            'reviewSubmission.currentVersion',
+            'reviewSubmission.versions.artifacts.formSubmission',
             'formSubmissions.artifact',
         ]);
 
@@ -188,7 +198,8 @@ class ReviewerAssignmentPageController extends Controller
                 ->orderBy('document_requirement_id')
                 ->orderByDesc('document_version')
                 ->orderByDesc('id'),
-            'reviewSubmission',
+            'reviewSubmission.currentVersion',
+            'reviewSubmission.versions.artifacts.formSubmission',
             'formSubmissions.artifact',
         ]);
 
@@ -197,7 +208,8 @@ class ReviewerAssignmentPageController extends Controller
             UserRole::Reviewer,
             $this->deadlineLabel($reviewerAssignment),
         );
-        $canWrite = Gate::allows('work', $reviewerAssignment) && $reviewWindow['open'];
+        $canWrite = Gate::allows('work', $reviewerAssignment)
+            && ($reviewWindow['open'] || $reviewerAssignment->reviewSubmission?->status === ReviewSubmissionStatus::Submitted);
         $commentTotal = $reviewerAssignment->comments()->count();
         $commentBatch = $reviewerAssignment->comments()
             ->with('document:id,original_file_name')
@@ -234,8 +246,10 @@ class ReviewerAssignmentPageController extends Controller
                 ->where('reviewer_user_id', $reviewerAssignment->reviewer_user_id)
                 ->where('review_cycle', '<', $reviewerAssignment->review_cycle)
                 ->with([
-                    'reviewSubmission:id,reviewer_assignment_id,status,decision,submitted_at',
+                    'reviewSubmission:id,reviewer_assignment_id,current_version_id,status,decision,submitted_at',
+                    'reviewSubmission.versions.artifacts.formSubmission',
                     'comments' => fn ($comments) => $comments
+                        ->withTrashed()
                         ->with('document.requirement:id,name')
                         ->orderBy('created_at')
                         ->orderBy('id'),

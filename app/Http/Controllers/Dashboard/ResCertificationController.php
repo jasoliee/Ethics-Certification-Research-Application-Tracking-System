@@ -5,19 +5,17 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\ApplicationStatus;
 use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
+use App\Enums\ReviewConsensusStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\ReleaseApplicationDecisionRequest;
-use App\Http\Requests\ResLead\UploadCertificateBackgroundRequest;
 use App\Models\Certificate;
-use App\Models\CertificateBackground;
 use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
 use App\Models\ReviewSubmission;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
+use App\Services\Applications\ReviewConsensusService;
 use App\Services\Certificates\BulkReleaseService;
-use App\Services\Certificates\CertificateBackgroundRegenerationService;
-use App\Services\Certificates\CertificateBackgroundService;
 use App\Services\Certificates\CertificateReleaseService;
 use App\Services\Certificates\CertificationEligibilityService;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,39 +31,47 @@ class ResCertificationController extends Controller
     public function index(
         Request $request,
         CertificationEligibilityService $eligibility,
-        CertificateBackgroundService $backgroundService,
         BulkReleaseService $bulkReleases,
+        ReviewConsensusService $consensus,
     ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
-            'state' => ['nullable', Rule::in(['decision', 'eligible', 'released', 'failed', 'claimed'])],
+            'state' => ['nullable', Rule::in(['decision', 'certificate', 'released', 'failed', 'claimed'])],
         ]);
         $relevantApplications = ResearchApplication::query()
             ->where(function (Builder $query): void {
                 $query->whereIn('application_status', [
                     ApplicationStatus::ReviewSubmittedPendingRelease->value,
                     ApplicationStatus::ResultReleasedAccepted->value,
+                    ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
                     ApplicationStatus::CertificateReleased->value,
                 ])->orWhereHas('certificate');
             });
+        (clone $relevantApplications)
+            ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value)
+            ->select('id')
+            ->eachById(fn (ResearchApplication $application) => $consensus->evaluate($application), 100);
         $queueMetrics = [
-            'relevant' => (clone $relevantApplications)->count(),
-            'released' => (clone $relevantApplications)
+            'pending_decision_release' => (clone $relevantApplications)
+                ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value)
+                ->count(),
+            'pending_certificate_release' => (clone $relevantApplications)
+                ->whereIn('application_status', [
+                    ApplicationStatus::ResultReleasedAccepted->value,
+                    ApplicationStatus::ForCertificateRelease->value,
+                    ApplicationStatus::Exempted->value,
+                ])
+                ->whereDoesntHave('certificate', fn (Builder $certificates) => $certificates
+                    ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value]))
+                ->count(),
+            'certificates_released' => (clone $relevantApplications)
                 ->whereHas('certificate', fn (Builder $certificates) => $certificates
                     ->whereIn('status', [
                         CertificateStatus::Released->value,
                         CertificateStatus::Claimed->value,
                     ]))
-                ->count(),
-            'pending_final_approval' => (clone $relevantApplications)
-                ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value)
-                ->count(),
-            'survey_required' => (clone $relevantApplications)
-                ->whereHas('certificate', fn (Builder $certificates) => $certificates
-                    ->where('status', CertificateStatus::Released->value))
-                ->whereDoesntHave('surveyResponse')
                 ->count(),
         ];
         $applications = (clone $relevantApplications)
@@ -73,14 +79,14 @@ class ResCertificationController extends Controller
                 $search = trim((string) $filters['q']);
                 $query->where(fn (Builder $matching) => $matching
                     ->where('application_code', 'like', "%{$search}%")
-                    ->orWhere('research_title', 'like', "%{$search}%")
-                    ->orWhereHas('applicant', fn (Builder $applicants) => $applicants->where('name', 'like', "%{$search}%")));
+                    ->orWhere('research_title', 'like', "%{$search}%"));
             })
             ->when(($filters['state'] ?? null) === 'decision', fn (Builder $query) => $query
                 ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value))
-            ->when(($filters['state'] ?? null) === 'eligible', fn (Builder $query) => $query
+            ->when(($filters['state'] ?? null) === 'certificate', fn (Builder $query) => $query
                 ->whereIn('application_status', [
                     ApplicationStatus::ResultReleasedAccepted->value,
+                    ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
                 ]))
             ->when(($filters['state'] ?? null) === 'released', fn (Builder $query) => $query
@@ -90,9 +96,7 @@ class ResCertificationController extends Controller
             ->when(($filters['state'] ?? null) === 'claimed', fn (Builder $query) => $query
                 ->whereHas('certificate', fn (Builder $certificates) => $certificates->where('status', 'claimed')))
             ->with([
-                'applicant:id,name',
-                'surveyResponse:id,research_application_id,completed_at',
-                'certificate.currentVersion:id,certificate_id,certificate_version,status,generated_at,certificate_background_id',
+                'certificate.currentVersion:id,certificate_id,certificate_version,status,generated_at,issued_date,valid_until,certificate_background_id',
                 'certificate.versions' => fn ($versions) => $versions
                     ->with('background:id,asset_version,source_kind')
                     ->orderByDesc('certificate_version'),
@@ -105,15 +109,12 @@ class ResCertificationController extends Controller
                 'reviewerAssignments' => fn ($assignments) => $assignments
                     ->current()
                     ->with([
-                        'reviewSubmission:id,reviewer_assignment_id,status,decision,submitted_at',
-                        'comments' => fn ($comments) => $comments
-                            ->with('document.requirement:id,name')
-                            ->orderBy('created_at')
-                            ->orderBy('id'),
+                        'reviewSubmission.currentVersion',
                     ])
                     ->orderBy('review_cycle')
                     ->orderBy('id'),
             ])
+            ->orderByRaw("CASE WHEN review_consensus_status = ? THEN 0 ELSE 1 END", [ReviewConsensusStatus::Conflicted->value])
             ->latest('status_updated_at')
             ->latest('id')
             ->paginate(15)
@@ -122,24 +123,16 @@ class ResCertificationController extends Controller
         $states = $applications->getCollection()->mapWithKeys(
             fn (ResearchApplication $application): array => [$application->id => $eligibility->state($application)],
         );
-        $activeBackground = $backgroundService->active();
-        $backgrounds = CertificateBackground::query()
-            ->latest('asset_version')
-            ->paginate(10, ['*'], 'background_page')
-            ->withQueryString();
-
         return view('dashboard.certificates.res-index', [
-            'pageTitle' => 'Certificate Processing',
+            'pageTitle' => 'Decision & Certificates',
             'applications' => $applications,
             'queueMetrics' => $queueMetrics,
             'certificationStates' => $states,
-            'backgrounds' => $backgrounds,
-            'activeBackground' => $activeBackground,
             'filters' => $filters,
             'bulkEligibleCounts' => $bulkReleases->eligibleCounts($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
-                ['label' => 'Certificate Processing'],
+                ['label' => 'Decision & Certificates'],
             ],
         ]);
     }
@@ -158,12 +151,16 @@ class ResCertificationController extends Controller
         return back()->with('status', 'The selected Reviewer decision and its comments were released to the Applicant.');
     }
 
-    public function workspace(Request $request, ResearchApplication $researchApplication): View
+    public function workspace(
+        Request $request,
+        ResearchApplication $researchApplication,
+        ReviewConsensusService $consensus,
+    ): View
     {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $researchApplication = $consensus->evaluate($researchApplication);
         $cycle = max(0, ((int) $researchApplication->current_revision_cycle) - 1);
         $researchApplication->load([
-            'applicant:id,name',
             'documents' => fn ($documents) => $documents
                 ->where('is_current', true)
                 ->with('requirement:id,name')
@@ -174,12 +171,7 @@ class ResCertificationController extends Controller
                 ->where('review_cycle', $cycle)
                 ->with([
                     'reviewer:id,name',
-                    'reviewSubmission',
-                    'comments' => fn ($comments) => $comments
-                        ->with('document.requirement:id,name')
-                        ->orderBy('created_at')
-                        ->orderBy('id'),
-                    'formSubmissions.artifact',
+                    'reviewSubmission.currentVersion.artifacts.formSubmission',
                 ])
                 ->orderBy('assignment_sequence')
                 ->orderBy('id'),
@@ -190,7 +182,7 @@ class ResCertificationController extends Controller
             'application' => $researchApplication,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
-                ['label' => 'Certificate Processing', 'route' => 'res.certificates.index'],
+                ['label' => 'Decision & Certificates', 'route' => 'res.certificates.index'],
                 ['label' => $researchApplication->application_code],
             ],
         ]);
@@ -231,60 +223,6 @@ class ResCertificationController extends Controller
         $certificates->release($request->user(), $researchApplication, true);
 
         return back()->with('status', 'A new certificate version was generated. Prior issued versions remain unchanged.');
-    }
-
-    public function uploadBackground(
-        UploadCertificateBackgroundRequest $request,
-        CertificateBackgroundService $backgrounds,
-        CertificateBackgroundRegenerationService $regeneration,
-    ): RedirectResponse {
-        $background = $backgrounds->uploadAndActivate($request->user(), $request->file('background'));
-        $summary = $regeneration->regenerateActive($request->user(), $background);
-
-        return back()
-            ->with('status', 'Background validated and applied to active certificates.')
-            ->with('background_regeneration_summary', $summary);
-    }
-
-    public function activateBackground(
-        Request $request,
-        CertificateBackground $certificateBackground,
-        CertificateBackgroundService $backgrounds,
-        CertificateBackgroundRegenerationService $regeneration,
-    ): RedirectResponse {
-        $background = $backgrounds->activate($request->user(), $certificateBackground);
-        $summary = $regeneration->regenerateActive($request->user(), $background);
-
-        return back()
-            ->with('status', 'Selected background applied to active certificates.')
-            ->with('background_regeneration_summary', $summary);
-    }
-
-    public function resetBackground(
-        Request $request,
-        CertificateBackgroundService $backgrounds,
-        CertificateBackgroundRegenerationService $regeneration,
-    ): RedirectResponse {
-        $background = $backgrounds->resetToOfficial($request->user());
-        $summary = $regeneration->regenerateActive($request->user(), $background);
-
-        return back()
-            ->with('status', 'Official default background restored for active certificates.')
-            ->with('background_regeneration_summary', $summary);
-    }
-
-    public function previewBackground(Request $request, CertificateBackground $certificateBackground): StreamedResponse
-    {
-        abort_unless($request->user()->role === UserRole::ResLead, 403);
-        $disk = Storage::disk('local');
-        abort_unless($disk->exists($certificateBackground->stored_file_path), 404);
-
-        return $disk->response(
-            $certificateBackground->stored_file_path,
-            $certificateBackground->original_file_name,
-            $this->privateHeaders($certificateBackground->mime_type),
-            'inline',
-        );
     }
 
     public function previewCertificate(

@@ -8,7 +8,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CertificateBackground extends Model
 {
+    public const TYPE_CERTIFICATE = 'certificate';
+
+    public const TYPE_REVIEW_WORKSHEET = 'review_worksheet';
+
     protected $fillable = [
+        'background_type',
         'asset_version',
         'source_kind',
         'original_file_name',
@@ -47,5 +52,12 @@ class CertificateBackground extends Model
     public function certificateVersions(): HasMany
     {
         return $this->hasMany(CertificateVersion::class);
+    }
+
+    public function typeLabel(): string
+    {
+        return $this->background_type === self::TYPE_REVIEW_WORKSHEET
+            ? 'Review Worksheet Background'
+            : 'Certificate Background';
     }
 }

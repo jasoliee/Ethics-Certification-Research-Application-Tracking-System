@@ -14,7 +14,10 @@ class ApplicationDecisionRelease extends Model
         'review_cycle',
         'source_review_type',
         'source_review_submission_id',
+        'source_review_submission_version_id',
         'decision',
+        'review_consensus_signature',
+        'released_feedback_snapshot',
         'released_by_user_id',
         'released_at',
     ];
@@ -24,6 +27,7 @@ class ApplicationDecisionRelease extends Model
         return [
             'decision' => ReviewDecision::class,
             'review_cycle' => 'integer',
+            'released_feedback_snapshot' => 'array',
             'released_at' => 'datetime',
         ];
     }
@@ -41,6 +45,11 @@ class ApplicationDecisionRelease extends Model
     public function sourceReviewSubmission(): BelongsTo
     {
         return $this->belongsTo(ReviewSubmission::class, 'source_review_submission_id');
+    }
+
+    public function sourceReviewSubmissionVersion(): BelongsTo
+    {
+        return $this->belongsTo(ReviewSubmissionVersion::class, 'source_review_submission_version_id');
     }
 
     public function releasedComments(): HasMany

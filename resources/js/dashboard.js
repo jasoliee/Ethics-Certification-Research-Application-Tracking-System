@@ -199,17 +199,96 @@ function initializeApplicationTools(shell) {
         });
     };
 
-    // Each official Reviewer form owns a separate accessible dialog while sharing focus restoration.
-    shell.querySelectorAll('[data-reviewer-form-dialog]').forEach((dialog) => {
-        const type = dialog.dataset.reviewerFormDialog;
+    // Keep worksheet selection and form content inside the collapsed worksheet workflow panel.
+    const reviewerInlineFormHost = shell.querySelector('[data-reviewer-inline-forms]');
+    const reviewerWorksheetAccordion = shell.querySelector('[data-reviewer-worksheet-accordion]');
+    const reviewerInlineForms = [...shell.querySelectorAll('[data-reviewer-form-dialog]')];
+    const reviewerInlineOrigins = new Map();
+    const reviewerInlinePristineState = new Map();
 
-        modalConfigurations.push({
-            dialog,
-            openSelector: `[data-reviewer-form-open="${type}"]`,
-            closeSelector: '[data-reviewer-form-close]',
-            reviewerWorksheet: true,
+    const reviewerInlineFormState = (panel) => {
+        const form = panel?.querySelector('[data-reviewer-worksheet-form]');
+
+        return form ? new URLSearchParams(new FormData(form)).toString() : '';
+    };
+
+    const hideReviewerInlineForm = (panel, { restoreFocus = true } = {}) => {
+        const form = panel?.querySelector('[data-reviewer-worksheet-form]');
+        const feedback = form?.querySelector('[data-reviewer-form-feedback]');
+        const pristine = reviewerInlinePristineState.get(panel) ?? reviewerInlineFormState(panel);
+        const hasChanges = reviewerInlineFormState(panel) !== pristine;
+
+        if (form?.getAttribute('aria-busy') === 'true') {
+            if (feedback) {
+                feedback.textContent = 'Wait for the worksheet draft to finish saving before returning to the worksheet list.';
+            }
+            form?.focus();
+
+            return false;
+        }
+
+        if (hasChanges && ! window.confirm('Discard unsaved worksheet changes?')) {
+            form?.focus();
+
+            return false;
+        }
+
+        if (hasChanges) {
+            form.reset();
+            form.dispatchEvent(new CustomEvent('reviewer:form-reset'));
+            reviewerInlinePristineState.set(panel, reviewerInlineFormState(panel));
+        }
+
+        panel.hidden = true;
+        if (restoreFocus) {
+            reviewerInlineOrigins.get(panel)?.focus();
+        }
+
+        return true;
+    };
+
+    if (reviewerInlineFormHost && reviewerInlineForms.length > 0) {
+        reviewerInlineForms.forEach((panel) => {
+            reviewerInlineFormHost.append(panel);
+            const form = panel.querySelector('[data-reviewer-worksheet-form]');
+            form?.addEventListener('reviewer:form-saved', () => {
+                reviewerInlinePristineState.set(panel, reviewerInlineFormState(panel));
+            });
+            panel.querySelectorAll('[data-reviewer-form-close]').forEach((button) => {
+                button.addEventListener('click', () => hideReviewerInlineForm(panel));
+            });
         });
-    });
+
+        shell.querySelectorAll('[data-reviewer-form-open]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const panel = reviewerInlineForms.find(
+                    (candidate) => candidate.dataset.reviewerFormDialog === button.dataset.reviewerFormOpen,
+                );
+                if (! panel) {
+                    return;
+                }
+
+                for (const candidate of reviewerInlineForms) {
+                    if (candidate !== panel && ! candidate.hidden && ! hideReviewerInlineForm(candidate, { restoreFocus: false })) {
+                        return;
+                    }
+                }
+                reviewerWorksheetAccordion.open = true;
+                reviewerInlineOrigins.set(panel, button);
+                reviewerInlinePristineState.set(panel, reviewerInlineFormState(panel));
+                panel.hidden = false;
+                panel.querySelector('.reviewer-inline-form')?.focus();
+            });
+        });
+
+        const openOnLoad = reviewerInlineForms.find((panel) => panel.hasAttribute('data-open-on-load'));
+        if (openOnLoad) {
+            reviewerWorksheetAccordion.open = true;
+            reviewerInlinePristineState.set(openOnLoad, reviewerInlineFormState(openOnLoad));
+            openOnLoad.hidden = false;
+            requestAnimationFrame(() => openOnLoad.querySelector('.reviewer-inline-form')?.focus());
+        }
+    }
 
     // Certification queue rows keep their forms server-rendered while opening one focused record at a time.
     shell.querySelectorAll('[data-certificate-application-dialog]').forEach((dialog) => {
@@ -358,6 +437,7 @@ function initializeApplicationTools(shell) {
     shell.querySelectorAll('[data-reviewer-worksheet-form]').forEach((form) => {
         const formType = form.dataset.reviewerFormType;
         const draftButton = form.querySelector('[data-reviewer-form-save-draft]');
+        const completeButton = form.querySelector('[data-reviewer-form-submit-final]');
         const feedback = form.querySelector('[data-reviewer-form-feedback]');
         const progressBar = form.querySelector('[data-reviewer-form-progress-bar]');
         const formDialog = form.closest('[data-reviewer-form-dialog]');
@@ -487,18 +567,21 @@ function initializeApplicationTools(shell) {
                 return;
             }
 
-            if (event.submitter !== draftButton) {
+            const intent = event.submitter === draftButton
+                ? 'draft'
+                : (event.submitter === completeButton ? 'submit' : null);
+            if (! intent) {
                 return;
             }
 
             event.preventDefault();
             const formData = new FormData(form);
-            formData.set('intent', 'draft');
+            formData.set('intent', intent);
             draftSaveInFlight = true;
             form.setAttribute('aria-busy', 'true');
             setWorksheetControlsLocked(true);
             worksheetControlsLocked = true;
-            setFormFeedback('Saving draft...');
+            setFormFeedback(intent === 'submit' ? 'Completing worksheet...' : 'Saving draft...');
 
             try {
                 const response = await fetch(form.action, {
@@ -520,24 +603,45 @@ function initializeApplicationTools(shell) {
                     answered: Number(payload.data?.answered_items ?? formProgress().answered),
                     total: Number(payload.data?.total_items ?? formProgress().total),
                 };
+                const completed = ['completed', 'final'].includes(payload.data?.status);
                 shell.querySelectorAll(`[data-reviewer-form-status="${formType}"]`).forEach((status) => {
                     [...status.classList]
                         .filter((className) => className.startsWith('tone-'))
                         .forEach((className) => status.classList.remove(className));
-                    status.classList.add('tone-blue');
-                    status.textContent = 'In Progress';
+                    status.classList.add(completed ? 'tone-success' : 'tone-blue');
+                    status.textContent = completed ? 'Completed' : 'In Progress';
                 });
                 shell.querySelectorAll(`[data-reviewer-form-open-label="${formType}"]`).forEach((label) => {
-                    label.textContent = 'Continue';
+                    label.textContent = completed ? 'Edit' : 'Continue';
                 });
                 renderFormProgress(savedProgress, true);
+                const completedTypes = new Set(
+                    [...shell.querySelectorAll('[data-reviewer-form-status]')]
+                        .filter((status) => ['Completed', 'Final', 'Submitted'].includes(status.textContent.trim()))
+                        .map((status) => status.dataset.reviewerFormStatus),
+                );
+                const completedCount = completedTypes.size;
+                shell.querySelectorAll('[data-reviewer-forms-summary]').forEach((summary) => {
+                    summary.textContent = `${completedCount} / 2 completed`;
+                    [...summary.classList]
+                        .filter((className) => className.startsWith('tone-'))
+                        .forEach((className) => summary.classList.remove(className));
+                    summary.classList.add(completedCount === 2 ? 'tone-success' : 'tone-orange');
+                });
+                shell.querySelectorAll('[data-reviewer-submit-form-summary]').forEach((summary) => {
+                    summary.textContent = `${completedCount} of 2 completed`;
+                });
+                const decisionForm = shell.querySelector('[data-reviewer-decision-form]');
+                if (decisionForm) {
+                    decisionForm.dataset.completedReviewerForms = String(completedCount);
+                }
                 preserveSavedFormDefaults();
                 form.removeAttribute('aria-busy');
                 setWorksheetControlsLocked(false);
                 worksheetControlsLocked = false;
                 syncConsentExplanation();
                 form.dispatchEvent(new CustomEvent('reviewer:form-saved'));
-                setFormFeedback('Progress saved.', 'success');
+                setFormFeedback(completed ? 'Worksheet completed without leaving this page.' : 'Progress saved.', 'success');
             } catch (error) {
                 setFormFeedback(error.message || 'The worksheet draft could not be saved. Check your connection and try again.', 'error');
             } finally {
@@ -550,6 +654,20 @@ function initializeApplicationTools(shell) {
                 syncConsentExplanation();
             }
         });
+    });
+
+    // A requirement keeps all prior files and the current reviewer's comments together by selected version.
+    shell.querySelectorAll('[data-reviewer-history-group]').forEach((group) => {
+        const selector = group.querySelector('[data-reviewer-history-version-select]');
+        const panels = [...group.querySelectorAll('[data-reviewer-history-version-panel]')];
+        const syncVersion = () => {
+            panels.forEach((panel) => {
+                panel.hidden = panel.dataset.reviewerHistoryVersionPanel !== selector?.value;
+            });
+        };
+
+        selector?.addEventListener('change', syncVersion);
+        syncVersion();
     });
 
     const reviewerAssignmentForm = shell.querySelector('[data-reviewer-assignment-form]');
@@ -1524,7 +1642,7 @@ function initializeApplicationTools(shell) {
         const resultTime = submitDialog?.querySelector('[data-reviewer-submit-result-time]');
         const resultMessage = submitDialog?.querySelector('[data-reviewer-submit-result-message]');
         const resultLink = submitDialog?.querySelector('[data-reviewer-submit-result-link]');
-        const completedForms = Number.parseInt(reviewerDecisionForm.dataset.completedReviewerForms ?? '0', 10);
+        const completedForms = () => Number.parseInt(reviewerDecisionForm.dataset.completedReviewerForms ?? '0', 10);
         const requiredForms = Number.parseInt(reviewerDecisionForm.dataset.requiredReviewerForms ?? '2', 10);
         let returnFocus = null;
         let finalSubmissionInFlight = false;
@@ -1551,9 +1669,13 @@ function initializeApplicationTools(shell) {
             commentField?.removeAttribute('aria-invalid');
             setDecisionFeedback();
 
-            if (completedForms < requiredForms) {
-                setDecisionFeedback(`Complete both required worksheets before submitting the final review (${completedForms} of ${requiredForms} completed).`);
-                shell.querySelector('[data-reviewer-worksheet-open]')?.focus();
+            const completedFormCount = completedForms();
+            if (completedFormCount < requiredForms) {
+                setDecisionFeedback(`Complete both required worksheets before submitting the final review (${completedFormCount} of ${requiredForms} completed).`);
+                if (reviewerWorksheetAccordion) {
+                    reviewerWorksheetAccordion.open = true;
+                }
+                shell.querySelector('[data-reviewer-form-open]')?.focus();
 
                 return false;
             }
@@ -2032,6 +2154,23 @@ function initializeSettingsTools(shell) {
         });
     });
     activateTab(activeTab);
+
+    settings.querySelectorAll('[data-managed-background-file]').forEach((choice) => {
+        const input = choice.querySelector('input[type="file"]');
+        const label = choice.querySelector('[data-managed-background-file-label]');
+        const syncFileName = () => {
+            const fileName = input?.files?.[0]?.name ?? '';
+
+            if (label) {
+                label.textContent = fileName || 'Choose File';
+                label.title = fileName;
+            }
+            choice.classList.toggle('is-selected', fileName !== '');
+        };
+
+        input?.addEventListener('change', syncFileName);
+        syncFileName();
+    });
 
     settings.querySelectorAll('[data-deadline-process]').forEach((process) => {
         const start = process.querySelector('[data-deadline-start]');
@@ -2598,6 +2737,7 @@ function initializeManagedAccountTools(shell) {
     const userCheckboxes = [...(massForm?.querySelectorAll('[data-select-user]') ?? [])];
     const actionSelect = massForm?.querySelector('[data-mass-action-select]');
     const actionValue = massForm?.querySelector('[data-mass-action-value]');
+    const reviewerAssignmentConfirmation = massForm?.querySelector('[data-reviewer-assignment-confirmation]');
 
     selectAll?.addEventListener('change', () => {
         userCheckboxes.forEach((checkbox) => {
@@ -2626,6 +2766,10 @@ function initializeManagedAccountTools(shell) {
 
             const message = selectedAction === 'archive'
                 ? `Remove ${selectedCount} selected accounts from active records?`
+                : selectedAction === 'hide_reviewer'
+                    ? `Hide Reviewer access for the eligible selected Advisers? Any active assignments and review history will be preserved.`
+                    : selectedAction === 'show_reviewer'
+                        ? `Show Reviewer access for the eligible active Advisers?`
                 : selectedAction === 'resend_all_pending'
                     ? 'Send a new setup link to every pending account in the current management scope?'
                     : `Apply this action to ${selectedCount} selected accounts?`;
@@ -2636,6 +2780,9 @@ function initializeManagedAccountTools(shell) {
             }
 
             actionValue.value = selectedAction;
+            if (reviewerAssignmentConfirmation) {
+                reviewerAssignmentConfirmation.value = selectedAction === 'hide_reviewer' ? '1' : '0';
+            }
             actionSelect.required = false;
         });
     });

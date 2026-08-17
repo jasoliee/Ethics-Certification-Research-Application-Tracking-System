@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureReviewerEntitlement;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\PreventBrowserHistory;
 use App\Http\Middleware\RedirectAuthenticatedUser;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'guest.role' => RedirectAuthenticatedUser::class,
             'no-store' => PreventBrowserHistory::class,
             'role' => EnsureUserHasRole::class,
+            'reviewer.enabled' => EnsureReviewerEntitlement::class,
             'dashboard.context' => ShareDashboardContext::class,
         ]);
     })

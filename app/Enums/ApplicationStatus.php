@@ -16,6 +16,7 @@ enum ApplicationStatus: string
     case Exempted = 'exempted';
     case ReviewSubmittedPendingRelease = 'review_submitted_pending_release';
     case ResultReleasedAccepted = 'result_released_accepted';
+    case ForCertificateRelease = 'for_certificate_release';
     case ResultReleasedMinorRevision = 'result_released_minor_revision';
     case ResultReleasedMajorRevision = 'result_released_major_revision';
     case ResultReleasedDisapproved = 'result_released_disapproved';
@@ -39,8 +40,9 @@ enum ApplicationStatus: string
             self::UnderExpeditedReview => 'Under Expedited Review',
             self::UnderFullBoardReview => 'Under Full Board Review',
             self::Exempted => 'Exempted',
-            self::ReviewSubmittedPendingRelease => 'For Result Release',
+            self::ReviewSubmittedPendingRelease => 'Pending Decision Release',
             self::ResultReleasedAccepted => 'Accepted',
+            self::ForCertificateRelease => 'For Certificate Release',
             self::ResultReleasedMinorRevision => 'Minor Revision',
             self::ResultReleasedMajorRevision => 'Major Revision',
             self::ResultReleasedDisapproved => 'Disapproved',
@@ -63,7 +65,7 @@ enum ApplicationStatus: string
             self::UnderFullBoardReview, self::RevisionWindowOpen => 'violet',
             self::Exempted, self::ReviewSubmittedPendingRelease => 'cyan',
             self::ReturnedByAdviser, self::ResultReleasedDisapproved => 'red',
-            self::ResultReleasedAccepted, self::CertificateReleased => 'success',
+            self::ResultReleasedAccepted, self::ForCertificateRelease, self::CertificateReleased => 'success',
             self::ResultReleasedMinorRevision => 'amber',
             self::ResultReleasedMajorRevision => 'purple',
         };
@@ -86,6 +88,7 @@ enum ApplicationStatus: string
             self::Exempted,
             self::ReviewSubmittedPendingRelease,
             self::ResultReleasedAccepted,
+            self::ForCertificateRelease,
             self::ResultReleasedMinorRevision,
             self::ResultReleasedMajorRevision,
             self::ResultReleasedDisapproved,

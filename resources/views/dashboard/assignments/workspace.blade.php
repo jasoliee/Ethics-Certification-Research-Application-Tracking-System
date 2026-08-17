@@ -140,13 +140,15 @@
             </section>
 
             <aside class="reviewer-review-rail">
-                <section class="application-panel reviewer-comments-panel">
-                <header class="application-panel-heading">
+                <details class="application-panel reviewer-workflow-accordion reviewer-comments-panel">
+                <summary class="application-panel-heading reviewer-workflow-accordion-summary">
                     <div><h2>Review Comment</h2><p>Comments stay confidential and are not visible to the Applicant before official release.</p></div>
                     <span data-reviewer-comment-count>
                         <x-dashboard.status-badge :label="$commentTotal.' recorded'" tone="neutral" data-reviewer-comment-total="{{ $commentTotal }}" />
                     </span>
-                </header>
+                    <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
+                </summary>
+                <div class="reviewer-workflow-accordion-body">
 
                 @if ($errors->reviewComment->any())
                     <div class="res-form-error-summary reviewer-workspace-error" role="alert">
@@ -220,21 +222,99 @@
                         <noscript><p class="reviewer-comments-noscript">The newest 20 comments are shown. Enable JavaScript to load older comments.</p></noscript>
                     @endif
                 </div>
-                </section>
+                </div>
+                </details>
 
-                <section class="application-panel reviewer-form-panel reviewer-worksheet-launch-panel">
-                    <header class="application-panel-heading">
+                <details class="application-panel reviewer-workflow-accordion reviewer-form-panel reviewer-worksheet-launch-panel" data-reviewer-worksheet-accordion>
+                    <summary class="application-panel-heading reviewer-workflow-accordion-summary">
                         <div><h2>Review Worksheet</h2><p>Complete both official worksheets before submitting the decision.</p></div>
-                        <x-dashboard.status-badge :label="$completedForms.' / 2 completed'" :tone="$completedForms === 2 ? 'success' : 'orange'" />
-                    </header>
-                    <button class="dashboard-outline-action reviewer-worksheet-launch" type="button" data-reviewer-worksheet-open>
-                        <x-dashboard.icon name="clipboard" size="18" />
-                        <span>Open Review Worksheet</span>
-                    </button>
-                </section>
+                        <x-dashboard.status-badge :label="$completedForms.' / 2 completed'" :tone="$completedForms === 2 ? 'success' : 'orange'" data-reviewer-forms-summary />
+                        <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
+                    </summary>
+                    <div class="reviewer-workflow-accordion-body">
+                        <div class="reviewer-worksheet-list" aria-label="Official review worksheets">
+                            @foreach ($formCatalog as $catalog)
+                                @php
+                                    $type = $catalog['type'];
+                                    $form = $forms->get($type->value);
+                                    $formIsFinal = $form?->status === \App\Enums\ReviewFormStatus::Final;
+                                    $formCompleted = $formIsComplete($form);
+                                    $progress = $formProgress($form, $catalog);
+                                    $statusLabel = $formIsFinal ? 'Submitted' : ($formCompleted ? 'Completed' : ($form ? 'In Progress' : 'Not Started'));
+                                    $openLabel = ! $canWrite ? 'View' : ($formCompleted ? 'Edit' : ($form ? 'Continue' : 'Start'));
+                                    $worksheetVersions = $review?->versions?->sortByDesc('version_number')->map(
+                                        function ($version) use ($type): array {
+                                            $artifact = $version->artifacts->first(
+                                                fn ($candidate): bool => $candidate->formSubmission?->form_type === $type,
+                                            );
 
-                <section class="application-panel reviewer-decision-panel">
-                    <header class="application-panel-heading"><div><h2>Review Assessment</h2><p>Save a draft or submit after both required worksheets are complete.</p></div></header>
+                                            return ['submission' => $version, 'artifact' => $artifact];
+                                        },
+                                    )->filter(fn (array $version): bool => $version['artifact'] !== null) ?? collect();
+                                @endphp
+                                <article class="reviewer-worksheet-option">
+                                    <span class="reviewer-worksheet-option-icon"><x-dashboard.icon name="clipboard" size="23" /></span>
+                                    <div>
+                                        <strong>{{ $type->code() }}: {{ $type->label() }}</strong>
+                                        <span>{{ $type === \App\Enums\ReviewFormType::Protocol ? 'Reviewer assessment form for protocol evaluation.' : 'Reviewer checklist for informed-consent evaluation.' }}</span>
+                                        <div class="reviewer-worksheet-option-status">
+                                            <x-dashboard.status-badge
+                                                :label="$statusLabel"
+                                                :tone="$formCompleted ? 'success' : ($form ? 'blue' : 'neutral')"
+                                                data-reviewer-form-status="{{ $type->value }}"
+                                            />
+                                            <span data-reviewer-form-progress="{{ $type->value }}">{{ $progress['answered'] }} of {{ $progress['total'] }} items completed</span>
+                                            @if ($reviewSubmitted && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready)
+                                                <span class="reviewer-worksheet-artifact-actions">
+                                                    <a href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">Preview submitted PDF</a>
+                                                    <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $form->artifact]) }}">Download</a>
+                                                </span>
+                                            @elseif ($formCompleted)
+                                                <span>{{ $canWrite ? 'Editable until RES releases the decision.' : 'Read-only.' }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($worksheetVersions->isNotEmpty())
+                                            <details class="reviewer-worksheet-version-history">
+                                                <summary>{{ $worksheetVersions->count() }} submitted {{ Str::plural('version', $worksheetVersions->count()) }}</summary>
+                                                <div>
+                                                    @foreach ($worksheetVersions as $worksheetVersion)
+                                                        @php
+                                                            $artifact = $worksheetVersion['artifact'];
+                                                        @endphp
+                                                        <span>
+                                                            <strong>Version {{ $worksheetVersion['submission']->version_number }}</strong>
+                                                            <time datetime="{{ $worksheetVersion['submission']->submitted_at?->toIso8601String() }}">{{ $worksheetVersion['submission']->submitted_at?->format('M j, Y g:i A') }}</time>
+                                                            <a href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $artifact->formSubmission, $artifact]) }}" target="_blank" rel="noopener">Preview</a>
+                                                            <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $artifact->formSubmission, $artifact]) }}">Download</a>
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            </details>
+                                        @endif
+                                    </div>
+                                    <button
+                                        class="dashboard-outline-action"
+                                        type="button"
+                                        aria-label="{{ $openLabel }} {{ $type->label() }}"
+                                        aria-controls="reviewer-inline-form-{{ $type->value }}"
+                                        data-reviewer-form-open="{{ $type->value }}"
+                                    >
+                                        <span data-reviewer-form-open-label="{{ $type->value }}">{{ $openLabel }}</span>
+                                        <x-dashboard.icon name="arrow-right" size="16" />
+                                    </button>
+                                </article>
+                            @endforeach
+                        </div>
+                        <div class="reviewer-inline-form-host" data-reviewer-inline-forms></div>
+                    </div>
+                </details>
+
+                <details class="application-panel reviewer-workflow-accordion reviewer-decision-panel">
+                    <summary class="application-panel-heading reviewer-workflow-accordion-summary">
+                        <div><h2>Review Assessment</h2><p>Save a draft or submit after both required worksheets are complete.</p></div>
+                        <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
+                    </summary>
+                    <div class="reviewer-workflow-accordion-body">
 
                     @if ($errors->reviewDecision->any())
                         <div class="res-form-error-summary reviewer-workspace-error" role="alert">
@@ -253,32 +333,35 @@
                         data-reviewer-result-url="{{ route('reviewer.assignments.show', $assignment) }}"
                     >
                         @csrf
+                        <input type="hidden" name="submission_token" value="{{ (string) Str::uuid() }}">
                         <div class="application-field">
                             <label for="review-decision">Decision</label>
                             <select id="review-decision" name="decision" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>
                                 <option value="">Select a decision</option>
                                 @foreach ($decisions as $decision)
-                                    <option value="{{ $decision->value }}" @selected(old('decision', $review?->decision?->value) === $decision->value)>{{ $decision->label() }}</option>
+                                    <option value="{{ $decision->value }}" @selected(old('decision', $review?->draft_decision?->value ?? $review?->decision?->value) === $decision->value)>{{ $decision->label() }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="application-field">
                             <label for="review-decision-comment">Decision Comment</label>
-                            <textarea id="review-decision-comment" name="decision_comment" rows="4" minlength="10" maxlength="2000" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>{{ old('decision_comment', $review?->decision_comment) }}</textarea>
+                            <textarea id="review-decision-comment" name="decision_comment" rows="4" minlength="10" maxlength="2000" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>{{ old('decision_comment', $review?->draft_decision_comment ?? $review?->decision_comment) }}</textarea>
                         </div>
                         <p class="reviewer-decision-feedback" id="review-decision-feedback" role="alert" aria-live="assertive" tabindex="-1" data-reviewer-decision-feedback></p>
                         @if ($reviewSubmitted)
-                            <div class="reviewer-submitted-notice"><x-dashboard.icon name="check" size="18" /><span>Submitted {{ $review->submitted_at?->format('M j, Y g:i A') }}</span></div>
-                        @else
+                            <div class="reviewer-submitted-notice"><x-dashboard.icon name="check" size="18" /><span>Submitted {{ $review->submitted_at?->format('M j, Y g:i A') }} · Version {{ $review->currentVersion?->version_number ?? 1 }}{{ $review->has_unsubmitted_changes ? ' · Unsaved release changes' : '' }}</span></div>
+                        @endif
+                        @if ($canWrite)
                             <div class="reviewer-decision-actions">
                                 <button class="dashboard-outline-action" type="submit" name="intent" value="draft" @disabled(! $canWrite)>Save Draft</button>
                                 <button class="dashboard-primary-action" type="submit" name="intent" value="submit" @disabled(! $canWrite)>
-                                    <x-dashboard.icon name="check" size="17" /><span>Submit Review</span>
+                                    <x-dashboard.icon name="check" size="17" /><span>{{ $reviewSubmitted ? 'Re-submit Review' : 'Submit Review' }}</span>
                                 </button>
                             </div>
                         @endif
                     </form>
-                </section>
+                    </div>
+                </details>
 
             </aside>
         </div>
@@ -293,18 +376,42 @@
                     <x-dashboard.status-badge :label="'Revision '.$assignment->review_cycle" tone="violet" />
                 </header>
 
-                <div class="reviewer-revision-history-grid">
-                    <div>
-                        <h3>Previous document versions</h3>
-                        @forelse ($historicalDocuments->groupBy('document_requirement_id') as $versions)
-                            <details class="reviewer-history-disclosure">
-                                <summary>
-                                    <span>{{ $versions->first()?->requirement?->name ?? 'Supporting Document' }}</span>
-                                    <small>{{ $versions->count() }} stored {{ Str::plural('version', $versions->count()) }}</small>
-                                </summary>
-                                <div class="reviewer-history-list">
-                                    @foreach ($versions as $document)
-                                        <article>
+                @php
+                    $myHistoricalComments = $historicalReviews->flatMap(
+                        fn ($historicalReview) => $historicalReview->comments,
+                    );
+                    $overallHistoricalComments = $myHistoricalComments->whereNull('application_document_id');
+                @endphp
+                <div class="reviewer-requirement-history-list">
+                    @forelse ($historicalDocuments->groupBy('document_requirement_id') as $requirementId => $versions)
+                        @php
+                            $orderedVersions = $versions->sortByDesc('document_version')->values();
+                        @endphp
+                        <details class="reviewer-history-disclosure reviewer-requirement-history">
+                            <summary>
+                                <span>{{ $orderedVersions->first()?->requirement?->name ?? 'Supporting Document' }}</span>
+                                <small>{{ $orderedVersions->count() }} stored {{ Str::plural('version', $orderedVersions->count()) }}</small>
+                            </summary>
+                            <div class="reviewer-requirement-history-body" data-reviewer-history-group>
+                                <label class="application-field reviewer-history-version-selector">
+                                    <span>Document version</span>
+                                    <select data-reviewer-history-version-select>
+                                        @foreach ($orderedVersions as $document)
+                                            <option value="{{ $document->id }}">Version {{ $document->document_version }} · {{ $document->original_file_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+
+                                @foreach ($orderedVersions as $document)
+                                    @php
+                                        $versionComments = $myHistoricalComments->where('application_document_id', $document->id);
+                                    @endphp
+                                    <section
+                                        class="reviewer-history-version-panel"
+                                        data-reviewer-history-version-panel="{{ $document->id }}"
+                                        @if (! $loop->first) hidden @endif
+                                    >
+                                        <header>
                                             <div>
                                                 <strong>Version {{ $document->document_version }}</strong>
                                                 <span>{{ $document->original_file_name }}</span>
@@ -314,52 +421,88 @@
                                                 <a href="{{ route('reviewer.applications.documents.preview', [$application, $document]) }}" target="_blank" rel="noopener">Preview</a>
                                                 <a href="{{ route('reviewer.applications.documents.download', [$application, $document]) }}">Download</a>
                                             </div>
+                                        </header>
+                                        <div class="reviewer-history-comments">
+                                            @forelse ($versionComments as $historicalComment)
+                                                <article>
+                                                    <header>
+                                                        <x-dashboard.status-badge :label="$historicalComment->category->label()" :tone="$historicalComment->category->tone()" />
+                                                        <span>My private comment</span>
+                                                        <time datetime="{{ $historicalComment->created_at?->toIso8601String() }}">{{ $historicalComment->created_at?->format('M j, Y g:i A') }}</time>
+                                                    </header>
+                                                    <p>{{ $historicalComment->body }}</p>
+                                                </article>
+                                            @empty
+                                                <p class="reviewer-empty-copy">You did not record a comment for this document version.</p>
+                                            @endforelse
+                                        </div>
+                                    </section>
+                                @endforeach
+                            </div>
+                        </details>
+                    @empty
+                        <p class="reviewer-empty-copy">No earlier document versions are available for this revision cycle.</p>
+                    @endforelse
+
+                    @if ($overallHistoricalComments->isNotEmpty())
+                        <details class="reviewer-history-disclosure reviewer-requirement-history">
+                            <summary>
+                                <span>Entire Application</span>
+                                <small>{{ $overallHistoricalComments->count() }} of my previous {{ Str::plural('comment', $overallHistoricalComments->count()) }}</small>
+                            </summary>
+                            <div class="reviewer-history-comments reviewer-overall-history-comments">
+                                @foreach ($overallHistoricalComments as $historicalComment)
+                                    <article>
+                                        <header>
+                                            <x-dashboard.status-badge :label="$historicalComment->category->label()" :tone="$historicalComment->category->tone()" />
+                                            <span>My private comment</span>
+                                            <time datetime="{{ $historicalComment->created_at?->toIso8601String() }}">{{ $historicalComment->created_at?->format('M j, Y g:i A') }}</time>
+                                        </header>
+                                        <p>{{ $historicalComment->body }}</p>
+                                    </article>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+
+                    @foreach ($historicalReviews as $historicalReview)
+                        @php
+                            $submissionVersions = $historicalReview->reviewSubmission?->versions?->sortByDesc('version_number') ?? collect();
+                        @endphp
+                        @if ($submissionVersions->isNotEmpty())
+                            <details class="reviewer-history-disclosure reviewer-requirement-history">
+                                <summary>
+                                    <span>{{ $historicalReview->review_cycle === 0 ? 'Initial review worksheets' : 'Revision '.$historicalReview->review_cycle.' worksheets' }}</span>
+                                    <small>{{ $submissionVersions->count() }} immutable submission {{ Str::plural('version', $submissionVersions->count()) }}</small>
+                                </summary>
+                                <div class="reviewer-submission-version-list">
+                                    @foreach ($submissionVersions as $submissionVersion)
+                                        <article>
+                                            <div>
+                                                <strong>Submission version {{ $submissionVersion->version_number }} · {{ $submissionVersion->decision->label() }}</strong>
+                                                <time datetime="{{ $submissionVersion->submitted_at?->toIso8601String() }}">{{ $submissionVersion->submitted_at?->format('M j, Y g:i A') }}</time>
+                                            </div>
+                                            <div>
+                                                @foreach ($submissionVersion->artifacts as $artifact)
+                                                    @if ($artifact->formSubmission)
+                                                        <span>
+                                                            {{ $artifact->formSubmission->form_type->label() }}:
+                                                            <a href="{{ route('reviewer.assignments.forms.artifacts.preview', [$historicalReview, $artifact->formSubmission, $artifact]) }}" target="_blank" rel="noopener">Preview</a>
+                                                            <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$historicalReview, $artifact->formSubmission, $artifact]) }}">Download</a>
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
                                         </article>
                                     @endforeach
                                 </div>
                             </details>
-                        @empty
-                            <p class="reviewer-empty-copy">No earlier document versions are available for this revision cycle.</p>
-                        @endforelse
-                        @if ($historicalDocuments->count() >= 100)
-                            <p class="reviewer-history-limit">The newest 100 authorized historical files are shown.</p>
                         @endif
-                    </div>
+                    @endforeach
 
-                    <div>
-                        <h3>My previous review comments</h3>
-                        @forelse ($historicalReviews as $historicalReview)
-                            <details class="reviewer-history-disclosure">
-                                <summary>
-                                    <span>{{ $historicalReview->review_cycle === 0 ? 'Initial review' : 'Revision '.$historicalReview->review_cycle }}</span>
-                                    <small>{{ $historicalReview->reviewSubmission?->decision?->label() ?? 'Decision not recorded' }} · {{ $historicalReview->comments->count() }} {{ Str::plural('comment', $historicalReview->comments->count()) }}</small>
-                                </summary>
-                                <div class="reviewer-history-comments">
-                                    @forelse ($historicalReview->comments as $historicalComment)
-                                        <article>
-                                            <header>
-                                                <x-dashboard.status-badge :label="$historicalComment->category->label()" :tone="$historicalComment->category->tone()" />
-                                                <span>{{ $historicalComment->scope->label() }}</span>
-                                                <time datetime="{{ $historicalComment->created_at?->toIso8601String() }}">{{ $historicalComment->created_at?->format('M j, Y g:i A') }}</time>
-                                            </header>
-                                            <p>{{ $historicalComment->body }}</p>
-                                            <small>
-                                                {{ $historicalComment->document?->requirement?->name ?? 'Overall review' }}
-                                                @if ($historicalComment->document)
-                                                    · document version {{ $historicalComment->document->document_version }}
-                                                @endif
-                                                · {{ Str::headline($historicalComment->status) }}
-                                            </small>
-                                        </article>
-                                    @empty
-                                        <p class="reviewer-empty-copy">No comments were recorded in this cycle.</p>
-                                    @endforelse
-                                </div>
-                            </details>
-                        @empty
-                            <p class="reviewer-empty-copy">No prior authorized review comments are available.</p>
-                        @endforelse
-                    </div>
+                    @if ($historicalDocuments->count() >= 100)
+                        <p class="reviewer-history-limit">The newest 100 authorized historical files are shown.</p>
+                    @endif
                 </div>
             </section>
         @endif
@@ -392,13 +535,13 @@
                         </div>
                         <div>
                             <dt>Required Worksheets</dt>
-                            <dd>{{ $completedForms }} of 2 completed</dd>
+                            <dd data-reviewer-submit-form-summary>{{ $completedForms }} of 2 completed</dd>
                         </div>
                     </dl>
 
                     <div class="reviewer-submit-warning" id="reviewer-submit-warning" role="note">
                         <x-dashboard.icon name="alert-triangle" size="20" />
-                        <p><strong>This action is irreversible.</strong> Your worksheets, comments, and final decision cannot be changed after submission.</p>
+                        <p><strong>A permanent submission version will be created.</strong> You may continue editing and submit a newer version until RES releases the decision.</p>
                     </div>
                     <p class="reviewer-submit-feedback" role="alert" aria-live="assertive" data-reviewer-submit-feedback></p>
 
@@ -439,74 +582,13 @@
             </div>
         </section>
 
-        <section class="application-modal-backdrop" data-reviewer-worksheet-dialog hidden>
-            <div class="application-modal reviewer-worksheet-modal" role="dialog" aria-modal="true" aria-labelledby="reviewer-worksheet-title" tabindex="-1">
-                <button class="application-modal-close" type="button" aria-label="Close worksheet selection" data-reviewer-worksheet-close><x-dashboard.icon name="x" size="20" /></button>
-                <header class="application-modal-heading">
-                    <span class="application-modal-icon"><x-dashboard.icon name="clipboard" size="24" /></span>
-                    <div>
-                        <h2 id="reviewer-worksheet-title">Open Review Worksheet</h2>
-                        <p>Select a worksheet to answer, continue, or review.</p>
-                    </div>
-                </header>
-                <div class="reviewer-worksheet-list">
-                    @foreach ($formCatalog as $catalog)
-                        @php
-                            $type = $catalog['type'];
-                            $form = $forms->get($type->value);
-                            $formIsFinal = $form?->status === \App\Enums\ReviewFormStatus::Final;
-                            $formCompleted = $formIsComplete($form);
-                            $progress = $formProgress($form, $catalog);
-                            $statusLabel = $formIsFinal ? 'Final' : ($formCompleted ? 'Completed' : ($form ? 'In Progress' : 'Not Started'));
-                            $openLabel = ! $canWrite ? 'View' : ($formCompleted ? 'Edit' : ($form ? 'Continue' : 'Start'));
-                        @endphp
-                        <article class="reviewer-worksheet-option">
-                            <span class="reviewer-worksheet-option-icon"><x-dashboard.icon name="clipboard" size="23" /></span>
-                            <div>
-                                <strong>{{ $type->code() }}: {{ $type->label() }}</strong>
-                                <span>{{ $type === \App\Enums\ReviewFormType::Protocol ? 'Reviewer assessment form for protocol evaluation.' : 'Reviewer checklist for informed-consent evaluation.' }}</span>
-                                <div class="reviewer-worksheet-option-status">
-                                    <x-dashboard.status-badge
-                                        :label="$statusLabel"
-                                        :tone="$formCompleted ? 'success' : ($form ? 'blue' : 'neutral')"
-                                        data-reviewer-form-status="{{ $type->value }}"
-                                    />
-                                    <span data-reviewer-form-progress="{{ $type->value }}">{{ $progress['answered'] }} of {{ $progress['total'] }} items completed</span>
-                                    @if ($reviewSubmitted && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready)
-                                        <span class="reviewer-worksheet-artifact-actions">
-                                            <a href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">Preview official PDF</a>
-                                            <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $form->artifact]) }}">Download</a>
-                                        </span>
-                                    @elseif ($formCompleted && ! $reviewSubmitted)
-                                        <span>Editable until the overall review decision is submitted.</span>
-                                    @endif
-                                </div>
-                            </div>
-                            <button
-                                class="dashboard-outline-action"
-                                type="button"
-                                aria-label="{{ $openLabel }} {{ $type->label() }}"
-                                data-reviewer-form-open="{{ $type->value }}"
-                            >
-                                <span data-reviewer-form-open-label="{{ $type->value }}">{{ $openLabel }}</span>
-                                <x-dashboard.icon name="arrow-right" size="16" />
-                            </button>
-                        </article>
-                    @endforeach
-                </div>
-                <div class="application-modal-actions reviewer-worksheet-actions">
-                    <button class="dashboard-outline-action" type="button" data-reviewer-worksheet-close>Close</button>
-                </div>
-            </div>
-        </section>
-
         @foreach ($formCatalog as $catalog)
             @php
                 $type = $catalog['type'];
                 $form = $forms->get($type->value);
                 $formIsFinal = $form?->status === \App\Enums\ReviewFormStatus::Final;
                 $formCompleted = $formIsComplete($form);
-                $formCanWrite = $canWrite && ! $formIsFinal;
+                $formCanWrite = $canWrite;
                 $progress = $formProgress($form, $catalog);
                 $statusLabel = $formIsFinal ? 'Final' : ($formCompleted ? 'Completed' : ($form ? 'In Progress' : 'Not Started'));
                 $consentValue = old('form_type') === $type->value
@@ -517,13 +599,13 @@
                     : $form?->recommendation?->value;
             @endphp
             <section
-                class="application-modal-backdrop"
+                class="reviewer-inline-form-shell"
+                id="reviewer-inline-form-{{ $type->value }}"
                 data-reviewer-form-dialog="{{ $type->value }}"
                 @if ($errors->reviewerForm->any() && old('form_type') === $type->value) data-open-on-load @else hidden @endif
             >
-                <div class="application-modal reviewer-form-modal" role="dialog" aria-modal="true" aria-labelledby="reviewer-form-{{ $type->value }}-title" tabindex="-1">
-                    <button class="application-modal-close" type="button" aria-label="Close reviewer form" data-reviewer-form-close><x-dashboard.icon name="x" size="20" /></button>
-                    <header class="application-modal-heading">
+                <div class="reviewer-inline-form" aria-labelledby="reviewer-form-{{ $type->value }}-title" tabindex="-1">
+                    <header class="application-modal-heading reviewer-inline-form-heading">
                         <span class="application-modal-icon"><x-dashboard.icon name="clipboard" size="24" /></span>
                         <div>
                             <h2 id="reviewer-form-{{ $type->value }}-title">{{ $type->label() }}</h2>
@@ -638,7 +720,10 @@
                         <p class="reviewer-form-feedback" role="status" aria-live="polite" data-reviewer-form-feedback></p>
 
                         <div class="application-modal-actions reviewer-form-actions">
-                            <button class="dashboard-outline-action" type="button" data-reviewer-form-close>Back to Worksheets</button>
+                            <button class="dashboard-outline-action" type="button" data-reviewer-form-close>
+                                <x-dashboard.icon name="arrow-left" size="16" />
+                                <span>Back to Worksheet List</span>
+                            </button>
                             @if ($reviewSubmitted && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready)
                                 <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">
                                     <x-dashboard.icon name="eye" size="16" />

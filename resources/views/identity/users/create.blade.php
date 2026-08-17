@@ -37,12 +37,14 @@
                     <p>Choose how account information will be entered.</p>
                     <div class="identity-mode-options">
                         <a href="#" data-account-individual-link><x-dashboard.icon name="user" size="24" /><span><strong>Individual Account</strong><small>Enter one account in a secure form.</small></span></a>
-                        <a href="#" data-account-bulk-link><x-dashboard.icon name="file-spreadsheet" size="24" /><span><strong>Excel Bulk Import</strong><small>Validate the official role-specific Excel template before creating accounts.</small></span></a>
+                        <a href="#" data-account-bulk-link><x-dashboard.icon name="file-spreadsheet" size="24" /><span><strong>Excel Bulk Import</strong><small>Validate a role-compatible .xlsx workbook before creating accounts.</small></span></a>
                     </div>
                 </div>
             </section>
         @else
-            @php($identifierLabel = $selectedType['applicant_type'] === \App\Enums\ApplicantType::Student->value ? 'Student Number' : 'Employee ID')
+            @php
+                $identifierLabel = $selectedType['applicant_type'] === \App\Enums\ApplicantType::Student->value ? 'Student Number' : 'Employee ID';
+            @endphp
             <header class="dashboard-page-heading identity-page-heading identity-individual-heading">
                 <h1>{{ $selectedType['label'] }}</h1>
                 <p>Enter the required identity and institutional information.</p>
@@ -56,9 +58,6 @@
                 <div class="identity-form-heading">
                     <div><h2 class="identity-role-title">{{ $selectedType['label'] }}</h2><p>Required fields are marked with an asterisk.</p></div>
                     <div class="identity-form-heading-actions">
-                        @if ($canManageProfileOptions)
-                            <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}">Dropdown Options</a>
-                        @endif
                         <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.create') }}">Change Account Type</a>
                     </div>
                 </div>

@@ -6,6 +6,7 @@ use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStatus;
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
+use App\Enums\CertificationState;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Applicant\StoreApplicantSurveyRequest;
 use App\Http\Requests\Applicant\SubmitApplicantRevisionRequest;
@@ -40,6 +41,7 @@ class ApplicantRevisionCertificateController extends Controller
                 $query->whereIn('application_status', [
                     ApplicationStatus::ReviewSubmittedPendingRelease->value,
                     ApplicationStatus::ResultReleasedAccepted->value,
+                    ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::ResultReleasedMinorRevision->value,
                     ApplicationStatus::ResultReleasedMajorRevision->value,
                     ApplicationStatus::ResultReleasedDisapproved->value,
@@ -70,6 +72,7 @@ class ApplicantRevisionCertificateController extends Controller
             'activeRevision' => null,
             'releasedReviewerGroups' => collect(),
             'documentVersions' => collect(),
+            'requirementFeedbackGroups' => collect(),
             'certificationState' => null,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
@@ -86,6 +89,7 @@ class ApplicantRevisionCertificateController extends Controller
             'decisionReleases' => fn ($releases) => $releases
                 ->with([
                     'releasedComments' => fn ($comments) => $comments
+                        ->withTrashed()
                         ->with([
                             'assignment:id,review_cycle',
                             'document:id,document_requirement_id,document_version,uploaded_at',
@@ -112,32 +116,68 @@ class ApplicantRevisionCertificateController extends Controller
         ]);
 
         $latestRelease = $selected->decisionReleases->first();
-        $reviewerLabels = [];
-        $releasedReviewerGroups = $latestRelease?->releasedComments
+        $releasedComments = $latestRelease?->releasedComments ?? collect();
+        $reviewerLabels = $releasedComments
+            ->pluck('reviewer_assignment_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->mapWithKeys(fn (int $assignmentId, int $index): array => [
+                $assignmentId => 'Reviewer '.($index + 1),
+            ]);
+        $reviewerGroups = fn ($comments) => $comments
             ->groupBy('reviewer_assignment_id')
-            ->map(function ($comments, $assignmentId) use (&$reviewerLabels): array {
-                $reviewerLabels[$assignmentId] ??= count($reviewerLabels) + 1;
+            ->map(fn ($reviewerComments, $assignmentId): array => [
+                'label' => $reviewerLabels->get($assignmentId, 'Reviewer'),
+                'comments' => $reviewerComments,
+            ])
+            ->values();
+        $releasedReviewerGroups = $reviewerGroups($releasedComments);
+        $documentVersions = $selected->documents->groupBy('document_requirement_id');
+        $requirementFeedbackGroups = $documentVersions
+            ->map(function ($versions, $requirementId) use ($releasedComments, $reviewerGroups): array {
+                $comments = $releasedComments->filter(
+                    fn ($comment): bool => (int) $comment->document?->document_requirement_id === (int) $requirementId,
+                );
 
                 return [
-                    'label' => 'Reviewer '.$reviewerLabels[$assignmentId],
-                    'comments' => $comments,
+                    'key' => 'requirement-'.$requirementId,
+                    'name' => $versions->first()?->requirement?->name ?? 'Supporting Document',
+                    'versions' => $versions->values(),
+                    'reviewer_groups' => $reviewerGroups($comments),
+                    'comment_count' => $comments->count(),
                 ];
             })
-            ->values() ?? collect();
+            ->sortBy('name')
+            ->values();
+        $overallComments = $releasedComments->filter(fn ($comment): bool => $comment->document === null);
+        if ($overallComments->isNotEmpty()) {
+            $requirementFeedbackGroups->prepend([
+                'key' => 'overall-application',
+                'name' => 'Overall Application',
+                'versions' => collect(),
+                'reviewer_groups' => $reviewerGroups($overallComments),
+                'comment_count' => $overallComments->count(),
+            ]);
+        }
+        $activeRevision = $selected->revisions->first(
+            fn (ApplicationRevision $revision): bool => in_array($revision->status, [
+                ApplicationRevisionStatus::PendingUploads,
+                ApplicationRevisionStatus::UnderReview,
+            ], true),
+        );
 
         return view('dashboard.applications.revision-certificates', [
             ...$viewData,
             'selectedApplication' => $selected,
             'latestRelease' => $latestRelease,
-            'activeRevision' => $selected->revisions->first(
-                fn (ApplicationRevision $revision): bool => in_array($revision->status, [
-                    ApplicationRevisionStatus::PendingUploads,
-                    ApplicationRevisionStatus::UnderReview,
-                ], true),
-            ),
+            'activeRevision' => $activeRevision,
             'releasedReviewerGroups' => $releasedReviewerGroups,
-            'documentVersions' => $selected->documents->groupBy('document_requirement_id'),
-            'certificationState' => $eligibility->state($selected),
+            'documentVersions' => $documentVersions,
+            'requirementFeedbackGroups' => $requirementFeedbackGroups,
+            'certificationState' => $selected->application_status === ApplicationStatus::ForCertificateRelease
+                ? CertificationState::PendingResRelease
+                : $eligibility->state($selected),
         ]);
     }
 

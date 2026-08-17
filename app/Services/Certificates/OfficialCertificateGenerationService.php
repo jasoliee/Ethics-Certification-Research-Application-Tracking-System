@@ -9,6 +9,7 @@ use App\Models\Certificate;
 use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use setasign\Fpdi\Fpdi;
@@ -16,7 +17,7 @@ use Throwable;
 
 class OfficialCertificateGenerationService
 {
-    public const GENERATOR_VERSION = 'official-res-certificate-v1';
+    public const GENERATOR_VERSION = 'official-res-certificate-v2';
 
     public const TEMPLATE_VERSION = 'RES-CERTIFICATE-2026-03';
 
@@ -57,9 +58,8 @@ class OfficialCertificateGenerationService
         $generatedAt ??= $releasedAt;
         $releasedByUserId ??= $actor->id;
         $templatePath = base_path('context_files/RES CERTIFIACTE.pdf');
-        $signaturePath = base_path('resources/certificates/res-signatory-signature.png');
         $this->assertVerifiedResource($templatePath, self::OFFICIAL_TEMPLATE_SHA256, 'official_template_invalid');
-        $this->assertVerifiedResource($signaturePath, self::OFFICIAL_SIGNATURE_SHA256, 'official_signature_invalid');
+        [$signaturePath, $signatoryName] = $this->signatory($actor);
 
         $disk = Storage::disk('local');
         if (! $disk->exists($background->stored_file_path)) {
@@ -81,7 +81,7 @@ class OfficialCertificateGenerationService
             $pdf = new Fpdi('P', 'mm', 'A4');
             $pdf->SetAutoPageBreak(false);
             $this->applyBackground($pdf, $background, $backgroundPath);
-            $this->drawCertificate($pdf, $application, $certificate, $signaturePath, $generatedAt);
+            $this->drawCertificate($pdf, $application, $certificate, $signaturePath, $signatoryName, $generatedAt);
             $bytes = $pdf->Output('S');
         } catch (CertificateGenerationException $exception) {
             throw $exception;
@@ -163,6 +163,7 @@ class OfficialCertificateGenerationService
         ResearchApplication $application,
         Certificate $certificate,
         string $signaturePath,
+        string $signatoryName,
         mixed $issuedAt,
     ): void {
         $application->loadMissing([
@@ -196,9 +197,9 @@ class OfficialCertificateGenerationService
         $reviewedDocuments = $documentNames !== ''
             ? $documentNames.($documentDates ? ' ('.$documentDates->format('F j, Y').')' : '')
             : 'No document list was recorded';
-        $validity = $application->expected_start_date && $application->expected_end_date
-            ? 'From '.$application->expected_start_date->format('F j, Y').', to '.$application->expected_end_date->format('F j, Y').'.'
-            : ($application->expected_duration ?: 'Not recorded');
+        $issuedDate = CarbonImmutable::parse($issuedAt);
+        $validity = 'From '.$issuedDate->format('F j, Y')
+            .' through '.$issuedDate->addYearNoOverflow()->format('F j, Y').'.';
 
         $pdf->SetTextColor(0, 0, 0);
         $this->centeredText($pdf, 'Research Ethics Section', 43.8, 7.3, 10, 'I');
@@ -246,7 +247,7 @@ class OfficialCertificateGenerationService
         );
 
         $pdf->Image($signaturePath, 89, 240, 30, 0, 'PNG');
-        $this->centeredText($pdf, 'SARIAH R. VILLANUEVA', 254.5, 6, 10, 'B');
+        $this->centeredText($pdf, Str::upper($signatoryName), 254.5, 6, 10, 'B');
         $this->centeredText($pdf, 'Coordinator, Research Ethics Section', 261, 6, 9, 'I');
     }
 
@@ -330,5 +331,41 @@ class OfficialCertificateGenerationService
                 $failureCode,
             );
         }
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function signatory(User $actor): array
+    {
+        $name = Str::squish((string) ($actor->certificate_signatory_name ?: 'SARIAH R. VILLANUEVA'));
+
+        if (filled($actor->certificate_signature_path)) {
+            $disk = Storage::disk('local');
+            if (! $disk->exists($actor->certificate_signature_path)) {
+                throw new CertificateGenerationException(
+                    'The configured RES signatory signature is unavailable.',
+                    'configured_signature_missing',
+                );
+            }
+
+            $path = $disk->path($actor->certificate_signature_path);
+            $hash = hash_file('sha256', $path);
+            $dimensions = @getimagesize($path);
+            if (! is_string($hash)
+                || ! hash_equals((string) $actor->certificate_signature_sha256, $hash)
+                || ! is_array($dimensions)
+                || ($dimensions['mime'] ?? null) !== 'image/png') {
+                throw new CertificateGenerationException(
+                    'The configured RES signatory signature failed integrity verification.',
+                    'configured_signature_invalid',
+                );
+            }
+
+            return [$path, $name];
+        }
+
+        $path = base_path('resources/certificates/res-signatory-signature.png');
+        $this->assertVerifiedResource($path, self::OFFICIAL_SIGNATURE_SHA256, 'official_signature_invalid');
+
+        return [$path, $name];
     }
 }

@@ -1,0 +1,2028 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Tests\Feature\Dashboard\RoleDashboardTest" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" tests="20" assertions="169" errors="0" failures="6" skipped="0" time="2.723797">
+    <testcase name="test_each_role_dashboard_displays_its_database_driven_empty_state" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="32" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="10" time="1.051564">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\Dashboard\RoleDashboardTest::test_each_role_dashboard_displays_its_database_driven_empty_state&#13;
+Failed asserting that '&lt;!DOCTYPE html&gt;\n
+&lt;html lang="en"&gt;\n
+&lt;head&gt;\n
+    &lt;meta charset="utf-8"&gt;\n
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;\n
+    &lt;meta name="csrf-token" content="ty2pJE1uTlgJ1fSB3tF6DjxzbsKOElEfDvQZbH9D"&gt;\n
+\n
+    &lt;title&gt;Dashboard | ECRATS&lt;/title&gt;\n
+    &lt;link rel="icon" type="image/png" href="http://[::1]:5173/assets/logo-256.png"&gt;\n
+\n
+    &lt;script type="module" src="http://[::1]:5173/@vite/client"&gt;&lt;/script&gt;&lt;link rel="stylesheet" href="http://[::1]:5173/resources/css/app.css" /&gt;&lt;script type="module" src="http://[::1]:5173/resources/js/app.js"&gt;&lt;/script&gt;&lt;/head&gt;\n
+&lt;body class="ecrats-dashboard-body"&gt;\n
+    &lt;div class="dashboard-shell" data-dashboard-shell&gt;\n
+        &lt;aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="Role navigation" data-dashboard-sidebar&gt;\n
+    &lt;div class="dashboard-sidebar-brand"&gt;\n
+        &lt;button class="dashboard-sidebar-close" type="button" aria-label="Close navigation" data-sidebar-close&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+        &lt;a\n
+            class="dashboard-sidebar-logo-link"\n
+            href="https://kld.edu.ph/profile.php"\n
+            target="_blank"\n
+            rel="noopener noreferrer"\n
+            aria-label="Open the KLD profile website"\n
+        &gt;\n
+            &lt;img src="http://[::1]:5173/assets/logo-256.png" alt="Kolehiyo ng Lungsod ng Dasmarinas seal"&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;nav class="dashboard-sidebar-nav" aria-label="Primary navigation"&gt;\n
+                                                &lt;a\n
+                    class="dashboard-nav-link is-active"\n
+                    href="http://127.0.0.1:8000/dashboard"\n
+                     aria-current="page"                 &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Home&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applications"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Application&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applicants"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/&gt;&lt;circle cx="8.5" cy="7" r="4"/&gt;&lt;path d="m17 11 2 2 4-4"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Applicants&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;details class="dashboard-nav-group" &gt;\n
+                    &lt;summary class="dashboard-nav-link "&gt;\n
+                        &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Reviewer&lt;/span&gt;\n
+                        &lt;svg class="dashboard-icon dashboard-nav-group-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;/summary&gt;\n
+                    &lt;div class="dashboard-nav-submenu" aria-label="Reviewer navigation"&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Reviewer Dashboard&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer/assignments"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Assignments&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                            &lt;/div&gt;\n
+                &lt;/details&gt;\n
+                        &lt;/nav&gt;\n
+\n
+    &lt;a\n
+        class="dashboard-sidebar-profile "\n
+        href="http://127.0.0.1:8000/adviser/profile"\n
+            &gt;\n
+        &lt;span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true"&gt;CS&lt;/span&gt;\n
+        &lt;span class="dashboard-sidebar-person"&gt;\n
+            &lt;strong&gt;Cassandra Schaden&lt;/strong&gt;\n
+            &lt;span&gt;Adviser&lt;/span&gt;\n
+        &lt;/span&gt;\n
+    &lt;/a&gt;\n
+&lt;/aside&gt;\n
+\n
+        &lt;div class="dashboard-sidebar-backdrop" data-sidebar-backdrop hidden&gt;&lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-workspace"&gt;\n
+            &lt;header class="dashboard-topbar"&gt;\n
+    &lt;div class="dashboard-topbar-heading"&gt;\n
+        &lt;button class="dashboard-menu-button" type="button" aria-label="Open navigation" aria-controls="dashboard-sidebar" aria-expanded="false" data-sidebar-open&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M4 6h16M4 12h16M4 18h16"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+                    &lt;span class="dashboard-topbar-title"&gt;Dashboard&lt;/span&gt;\n
+            &lt;/div&gt;\n
+\n
+    &lt;div class="dashboard-topbar-actions"&gt;\n
+                    &lt;button class="dashboard-guide-button" type="button" data-guide-open &gt;\n
+                &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Guide&lt;/span&gt;\n
+            &lt;/button&gt;\n
+                &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-icon-button"\n
+                type="button"\n
+                aria-label="Open notifications"\n
+                aria-controls="dashboard-notification-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="notifications"\n
+            &gt;\n
+                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/&gt;\n
+            &lt;/svg&gt;\n
+                            &lt;/button&gt;\n
+\n
+            &lt;section class="dashboard-dropdown dashboard-notification-menu" id="dashboard-notification-menu" data-menu="notifications" hidden&gt;\n
+                &lt;div class="dashboard-dropdown-header"&gt;\n
+                    &lt;strong&gt;Notifications&lt;/strong&gt;\n
+                                    &lt;/div&gt;\n
+\n
+                                    &lt;div class="dashboard-dropdown-empty"&gt;\n
+                        &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-notifications.png" alt="Empty notification bell"&gt;\n
+                        &lt;strong&gt;No notifications yet&lt;/strong&gt;\n
+                        &lt;span&gt;You will see application and review updates here.&lt;/span&gt;\n
+                    &lt;/div&gt;\n
+                \n
+                &lt;a class="dashboard-dropdown-footer" href="http://127.0.0.1:8000/adviser/notifications"&gt;View all notifications&lt;/a&gt;\n
+            &lt;/section&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-profile-button"\n
+                type="button"\n
+                aria-label="Open profile menu"\n
+                aria-controls="dashboard-profile-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="profile"\n
+            &gt;\n
+                &lt;span class="dashboard-avatar" aria-hidden="true"&gt;CS&lt;/span&gt;\n
+                &lt;span class="dashboard-profile-name"&gt;Cassandra Schaden&lt;/span&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;/button&gt;\n
+\n
+            &lt;div class="dashboard-dropdown dashboard-profile-menu" id="dashboard-profile-menu" data-menu="profile" hidden&gt;\n
+                &lt;a href="http://127.0.0.1:8000/adviser/settings"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="3"/&gt;&lt;path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Settings&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                &lt;form method="POST" action="http://127.0.0.1:8000/logout"&gt;\n
+                    &lt;input type="hidden" name="_token" value="ty2pJE1uTlgJ1fSB3tF6DjxzbsKOElEfDvQZbH9D" autocomplete="off"&gt;                    &lt;button type="submit"&gt;\n
+                        &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Logout&lt;/span&gt;\n
+                    &lt;/button&gt;\n
+                &lt;/form&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/header&gt;\n
+\n
+            &lt;main class="dashboard-content" id="main-content" tabindex="-1"&gt;\n
+                \n
+                    &lt;div class="dashboard-page"&gt;\n
+        &lt;header class="dashboard-page-heading"&gt;\n
+            &lt;h1&gt;Welcome back, Adviser!&lt;/h1&gt;\n
+            &lt;p&gt;Manage research ethics applications.&lt;/p&gt;\n
+        &lt;/header&gt;\n
+\n
+        \n
+        &lt;div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Advised application summary"&gt;\n
+            &lt;a class="dashboard-summary-card tone-orange" href="http://127.0.0.1:8000/adviser/applications" aria-label="Pending: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Pending&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-green" href="http://127.0.0.1:8000/adviser/applications" aria-label="Endorsed: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m5 12 4 4L19 6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Endorsed&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-red" href="http://127.0.0.1:8000/adviser/applications" aria-label="Returned: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Returned&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Submitted Application&lt;/h2&gt;\n
+                    &lt;a class="dashboard-view-all" href="http://127.0.0.1:8000/adviser/applications"&gt;View All&lt;/a&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-applications.png" alt="No submitted application documents"&gt;\n
+    &lt;strong&gt;No submitted applications yet&lt;/strong&gt;\n
+    &lt;p&gt;Research ethics applications will appear here once your applicants submit them for endorsement.&lt;/p&gt;\n
+            &lt;a class="dashboard-primary-action" href="http://127.0.0.1:8000/dashboard"&gt;\n
+            &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;span&gt;Refresh&lt;/span&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+\n
+        &lt;div class="dashboard-lower-grid"&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Deadline Alerts&lt;/h2&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-deadlines.png" alt="Calendar with no pending deadline"&gt;\n
+    &lt;strong&gt;No urgent deadlines&lt;/strong&gt;\n
+    &lt;p&gt;You are currently up to date.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Application Timeline&lt;/h2&gt;\n
+                    &lt;span class="dashboard-panel-header-meta"&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="16" rx="2"/&gt;&lt;path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Semester and Academic Year&lt;/span&gt;\n
+            &lt;/span&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-timeline.png" alt="Milestone flag with no available timeline"&gt;\n
+    &lt;strong&gt;Timeline not available&lt;/strong&gt;\n
+    &lt;p&gt;Review milestones will appear when an active cycle is configured.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+                &lt;section\n
+    class="dashboard-onboarding"\n
+    data-onboarding-guide\n
+    data-requires-completion="false"\n
+    data-complete-url="http://127.0.0.1:8000/onboarding/complete"\n
+    hidden\n
+&gt;\n
+    &lt;div class="dashboard-onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" tabindex="-1"&gt;\n
+        &lt;header&gt;\n
+            &lt;span class="dashboard-onboarding-icon"&gt;&lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+            &lt;div&gt;\n
+                &lt;span&gt;Getting Started&lt;/span&gt;\n
+                &lt;h2 id="onboarding-title"&gt;Research Adviser Guide&lt;/h2&gt;\n
+            &lt;/div&gt;\n
+            &lt;button type="button" aria-label="Close guide" data-guide-close&gt;&lt;svg class="dashboard-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/button&gt;\n
+        &lt;/header&gt;\n
+\n
+        &lt;p&gt;Use ECRATS to manage applicant accounts and review complete submissions assigned to you.&lt;/p&gt;\n
+        &lt;ol&gt;\n
+                            &lt;li&gt;&lt;span&gt;1&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Manage applicants&lt;/strong&gt;&lt;p&gt;Create student or faculty accounts and resend setup links when needed.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;2&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Review submissions&lt;/strong&gt;&lt;p&gt;Check required documents and research details before endorsement.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;3&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Return or endorse&lt;/strong&gt;&lt;p&gt;Return incomplete work with clear guidance or endorse a complete initial submission to RES.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;4&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Watch deadlines&lt;/strong&gt;&lt;p&gt;Use dashboard alerts and notifications to keep assigned applications moving.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                    &lt;/ol&gt;\n
+        &lt;p class="dashboard-onboarding-support"&gt;For account or workflow help, contact the KLD Research Ethics Section through the institutional contact channels in the footer.&lt;/p&gt;\n
+        &lt;footer&gt;&lt;button class="dashboard-primary-action" type="button" data-guide-finish&gt;Finish Guide&lt;/button&gt;&lt;/footer&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;/main&gt;\n
+\n
+            &lt;footer class="dashboard-footer"&gt;\n
+    &lt;div class="dashboard-footer-grid"&gt;\n
+        &lt;section&gt;\n
+            &lt;h2&gt;About ECRATS&lt;/h2&gt;\n
+            &lt;p&gt;The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Section.&lt;/p&gt;\n
+            &lt;div class="dashboard-footer-social" aria-label="KLD social media"&gt;\n
+                &lt;a href="https://www.facebook.com/KLDOfficialFBPage" target="_blank" rel="noopener noreferrer" aria-label="KLD on Facebook"&gt;\n
+                    &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+                &lt;a href="https://www.youtube.com/watch?v=WBcFvRVb2zE" target="_blank" rel="noopener noreferrer" aria-label="KLD on YouTube"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M21 8.2a2.8 2.8 0 0 0-2-2C17.3 5.7 12 5.7 12 5.7s-5.3 0-7 .5a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2.5 12 29 29 0 0 0 3 15.8a2.8 2.8 0 0 0 2 2c1.7.5 7 .5 7 .5s5.3 0 7-.5a2.8 2.8 0 0 0 2-2 29 29 0 0 0 .5-3.8 29 29 0 0 0-.5-3.8Z"/&gt;&lt;path d="m10 15 5-3-5-3Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+            &lt;/div&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Contact&lt;/h2&gt;\n
+            &lt;ul class="dashboard-footer-contact"&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="14" rx="2"/&gt;&lt;path d="m3 7 9 6 9-6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="mailto:information@kld.edu.ph"&gt;information@kld.edu.ph&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/&gt;&lt;circle cx="12" cy="10" r="2.5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="https://www.google.com/maps/search/?api=1&amp;query=Kolehiyo+ng+Lungsod+ng+Dasmarinas" target="_blank" rel="noopener noreferrer"&gt;Brgy. Burol Main, City of Dasmari&amp;ntilde;as, Cavite&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M12 7v5l3 2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;span&gt;Mon to Fri / 8am to 5pm&lt;/span&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Quick Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/index.php" target="_blank" rel="noopener noreferrer"&gt;Home&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/about.php" target="_blank" rel="noopener noreferrer"&gt;About&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/" target="_blank" rel="noopener noreferrer"&gt;News and Updates&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/data_privacy.php" target="_blank" rel="noopener noreferrer"&gt;Data Privacy&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Helpful Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/offices.php" target="_blank" rel="noopener noreferrer"&gt;KLD Offices&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/office_of_the_registrar.php" target="_blank" rel="noopener noreferrer"&gt;The Registrar&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/admissions.php" target="_blank" rel="noopener noreferrer"&gt;Admission Guide&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/reach_us.php" target="_blank" rel="noopener noreferrer"&gt;Reach Us&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;p class="dashboard-footer-copyright"&gt;&amp;copy; 2026 ECRATS, KLD Research Ethics Section. All rights reserved.&lt;/p&gt;\n
+&lt;/footer&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/body&gt;\n
+&lt;/html&gt;\n
+' [ASCII](length: 23816) contains "No assigned applications yet" [ASCII](length: 28).
+&#13;
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponseAssert.php:45
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:713
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php:47</failure>
+    </testcase>
+    <testcase name="test_shared_summary_cards_render_left_icon_and_right_copy_order_for_zero_counts" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="56" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="11" time="0.158634">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\Dashboard\RoleDashboardTest::test_shared_summary_cards_render_left_icon_and_right_copy_order_for_zero_counts&#13;
+Failed asserting that false is of type int.
+&#13;
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php:72</failure>
+    </testcase>
+    <testcase name="test_applicant_dashboard_displays_active_application_requirements_and_milestone" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="89" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="10" time="0.089254"/>
+    <testcase name="test_applicant_dashboard_selects_the_newest_record_by_creation_not_a_later_edit" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="159" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="5" time="0.057971"/>
+    <testcase name="test_applicant_timeline_uses_canonical_keys_and_the_applications_term" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="193" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="5" time="0.065863"/>
+    <testcase name="test_applicant_deadline_alert_uses_active_term_dates_and_manual_availability" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="265" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="9" time="0.117262"/>
+    <testcase name="test_adviser_dashboard_counts_and_table_are_scoped_to_the_logged_in_adviser" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="320" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="7" time="0.069082"/>
+    <testcase name="test_adviser_and_res_dashboards_keep_relevant_applications_visible_across_term_links" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="341" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="6" time="0.097855"/>
+    <testcase name="test_role_dashboards_select_their_configured_process_deadlines" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="379" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="7" time="0.133299">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\Dashboard\RoleDashboardTest::test_role_dashboards_select_their_configured_process_deadlines&#13;
+Failed asserting that '&lt;!DOCTYPE html&gt;\n
+&lt;html lang="en"&gt;\n
+&lt;head&gt;\n
+    &lt;meta charset="utf-8"&gt;\n
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;\n
+    &lt;meta name="csrf-token" content="plS1cEgzDZt2EyP8yi2SpTzm5btCHrcp11jqkpLX"&gt;\n
+\n
+    &lt;title&gt;Dashboard | ECRATS&lt;/title&gt;\n
+    &lt;link rel="icon" type="image/png" href="http://[::1]:5173/assets/logo-256.png"&gt;\n
+\n
+    &lt;script type="module" src="http://[::1]:5173/@vite/client"&gt;&lt;/script&gt;&lt;link rel="stylesheet" href="http://[::1]:5173/resources/css/app.css" /&gt;&lt;script type="module" src="http://[::1]:5173/resources/js/app.js"&gt;&lt;/script&gt;&lt;/head&gt;\n
+&lt;body class="ecrats-dashboard-body"&gt;\n
+    &lt;div class="dashboard-shell" data-dashboard-shell&gt;\n
+        &lt;aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="Role navigation" data-dashboard-sidebar&gt;\n
+    &lt;div class="dashboard-sidebar-brand"&gt;\n
+        &lt;button class="dashboard-sidebar-close" type="button" aria-label="Close navigation" data-sidebar-close&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+        &lt;a\n
+            class="dashboard-sidebar-logo-link"\n
+            href="https://kld.edu.ph/profile.php"\n
+            target="_blank"\n
+            rel="noopener noreferrer"\n
+            aria-label="Open the KLD profile website"\n
+        &gt;\n
+            &lt;img src="http://[::1]:5173/assets/logo-256.png" alt="Kolehiyo ng Lungsod ng Dasmarinas seal"&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;nav class="dashboard-sidebar-nav" aria-label="Primary navigation"&gt;\n
+                                                &lt;a\n
+                    class="dashboard-nav-link is-active"\n
+                    href="http://127.0.0.1:8000/dashboard"\n
+                     aria-current="page"                 &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Home&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applications"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Application&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applicants"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/&gt;&lt;circle cx="8.5" cy="7" r="4"/&gt;&lt;path d="m17 11 2 2 4-4"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Applicants&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;details class="dashboard-nav-group" &gt;\n
+                    &lt;summary class="dashboard-nav-link "&gt;\n
+                        &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Reviewer&lt;/span&gt;\n
+                        &lt;svg class="dashboard-icon dashboard-nav-group-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;/summary&gt;\n
+                    &lt;div class="dashboard-nav-submenu" aria-label="Reviewer navigation"&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Reviewer Dashboard&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer/assignments"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Assignments&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                            &lt;/div&gt;\n
+                &lt;/details&gt;\n
+                        &lt;/nav&gt;\n
+\n
+    &lt;a\n
+        class="dashboard-sidebar-profile "\n
+        href="http://127.0.0.1:8000/adviser/profile"\n
+            &gt;\n
+        &lt;span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true"&gt;GS&lt;/span&gt;\n
+        &lt;span class="dashboard-sidebar-person"&gt;\n
+            &lt;strong&gt;Gordon Sanford&lt;/strong&gt;\n
+            &lt;span&gt;Adviser&lt;/span&gt;\n
+        &lt;/span&gt;\n
+    &lt;/a&gt;\n
+&lt;/aside&gt;\n
+\n
+        &lt;div class="dashboard-sidebar-backdrop" data-sidebar-backdrop hidden&gt;&lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-workspace"&gt;\n
+            &lt;header class="dashboard-topbar"&gt;\n
+    &lt;div class="dashboard-topbar-heading"&gt;\n
+        &lt;button class="dashboard-menu-button" type="button" aria-label="Open navigation" aria-controls="dashboard-sidebar" aria-expanded="false" data-sidebar-open&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M4 6h16M4 12h16M4 18h16"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+                    &lt;span class="dashboard-topbar-title"&gt;Dashboard&lt;/span&gt;\n
+            &lt;/div&gt;\n
+\n
+    &lt;div class="dashboard-topbar-actions"&gt;\n
+                    &lt;button class="dashboard-guide-button" type="button" data-guide-open &gt;\n
+                &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Guide&lt;/span&gt;\n
+            &lt;/button&gt;\n
+                &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-icon-button"\n
+                type="button"\n
+                aria-label="Open notifications"\n
+                aria-controls="dashboard-notification-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="notifications"\n
+            &gt;\n
+                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/&gt;\n
+            &lt;/svg&gt;\n
+                            &lt;/button&gt;\n
+\n
+            &lt;section class="dashboard-dropdown dashboard-notification-menu" id="dashboard-notification-menu" data-menu="notifications" hidden&gt;\n
+                &lt;div class="dashboard-dropdown-header"&gt;\n
+                    &lt;strong&gt;Notifications&lt;/strong&gt;\n
+                                    &lt;/div&gt;\n
+\n
+                                    &lt;div class="dashboard-dropdown-empty"&gt;\n
+                        &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-notifications.png" alt="Empty notification bell"&gt;\n
+                        &lt;strong&gt;No notifications yet&lt;/strong&gt;\n
+                        &lt;span&gt;You will see application and review updates here.&lt;/span&gt;\n
+                    &lt;/div&gt;\n
+                \n
+                &lt;a class="dashboard-dropdown-footer" href="http://127.0.0.1:8000/adviser/notifications"&gt;View all notifications&lt;/a&gt;\n
+            &lt;/section&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-profile-button"\n
+                type="button"\n
+                aria-label="Open profile menu"\n
+                aria-controls="dashboard-profile-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="profile"\n
+            &gt;\n
+                &lt;span class="dashboard-avatar" aria-hidden="true"&gt;GS&lt;/span&gt;\n
+                &lt;span class="dashboard-profile-name"&gt;Gordon Sanford&lt;/span&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;/button&gt;\n
+\n
+            &lt;div class="dashboard-dropdown dashboard-profile-menu" id="dashboard-profile-menu" data-menu="profile" hidden&gt;\n
+                &lt;a href="http://127.0.0.1:8000/adviser/settings"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="3"/&gt;&lt;path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Settings&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                &lt;form method="POST" action="http://127.0.0.1:8000/logout"&gt;\n
+                    &lt;input type="hidden" name="_token" value="plS1cEgzDZt2EyP8yi2SpTzm5btCHrcp11jqkpLX" autocomplete="off"&gt;                    &lt;button type="submit"&gt;\n
+                        &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Logout&lt;/span&gt;\n
+                    &lt;/button&gt;\n
+                &lt;/form&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/header&gt;\n
+\n
+            &lt;main class="dashboard-content" id="main-content" tabindex="-1"&gt;\n
+                \n
+                    &lt;div class="dashboard-page"&gt;\n
+        &lt;header class="dashboard-page-heading"&gt;\n
+            &lt;h1&gt;Welcome back, Adviser!&lt;/h1&gt;\n
+            &lt;p&gt;Manage research ethics applications.&lt;/p&gt;\n
+        &lt;/header&gt;\n
+\n
+        \n
+        &lt;div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Advised application summary"&gt;\n
+            &lt;a class="dashboard-summary-card tone-orange" href="http://127.0.0.1:8000/adviser/applications" aria-label="Pending: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Pending&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-green" href="http://127.0.0.1:8000/adviser/applications" aria-label="Endorsed: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m5 12 4 4L19 6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Endorsed&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-red" href="http://127.0.0.1:8000/adviser/applications" aria-label="Returned: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Returned&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Submitted Application&lt;/h2&gt;\n
+                    &lt;a class="dashboard-view-all" href="http://127.0.0.1:8000/adviser/applications"&gt;View All&lt;/a&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-applications.png" alt="No submitted application documents"&gt;\n
+    &lt;strong&gt;No submitted applications yet&lt;/strong&gt;\n
+    &lt;p&gt;Research ethics applications will appear here once your applicants submit them for endorsement.&lt;/p&gt;\n
+            &lt;a class="dashboard-primary-action" href="http://127.0.0.1:8000/dashboard"&gt;\n
+            &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;span&gt;Refresh&lt;/span&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+\n
+        &lt;div class="dashboard-lower-grid"&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Deadline Alerts&lt;/h2&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-deadline-active"&gt;\n
+        &lt;span class="dashboard-deadline-icon"&gt;&lt;svg class="dashboard-icon" width="43" height="43" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="16" rx="2"/&gt;&lt;path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+        &lt;div&gt;\n
+            &lt;span&gt;Mapped Endorsement Period&lt;/span&gt;\n
+            &lt;strong&gt;\n
+                                    2 days remaining\n
+                            &lt;/strong&gt;\n
+            &lt;small&gt;Deadline: Aug 19, 2026 at 6:15 PM.&lt;/small&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Application Timeline&lt;/h2&gt;\n
+                    &lt;span class="dashboard-panel-header-meta"&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="16" rx="2"/&gt;&lt;path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Semester and Academic Year&lt;/span&gt;\n
+            &lt;/span&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-timeline.png" alt="Milestone flag with no available timeline"&gt;\n
+    &lt;strong&gt;Timeline not available&lt;/strong&gt;\n
+    &lt;p&gt;Review milestones will appear when an active cycle is configured.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+                &lt;section\n
+    class="dashboard-onboarding"\n
+    data-onboarding-guide\n
+    data-requires-completion="false"\n
+    data-complete-url="http://127.0.0.1:8000/onboarding/complete"\n
+    hidden\n
+&gt;\n
+    &lt;div class="dashboard-onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" tabindex="-1"&gt;\n
+        &lt;header&gt;\n
+            &lt;span class="dashboard-onboarding-icon"&gt;&lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+            &lt;div&gt;\n
+                &lt;span&gt;Getting Started&lt;/span&gt;\n
+                &lt;h2 id="onboarding-title"&gt;Research Adviser Guide&lt;/h2&gt;\n
+            &lt;/div&gt;\n
+            &lt;button type="button" aria-label="Close guide" data-guide-close&gt;&lt;svg class="dashboard-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/button&gt;\n
+        &lt;/header&gt;\n
+\n
+        &lt;p&gt;Use ECRATS to manage applicant accounts and review complete submissions assigned to you.&lt;/p&gt;\n
+        &lt;ol&gt;\n
+                            &lt;li&gt;&lt;span&gt;1&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Manage applicants&lt;/strong&gt;&lt;p&gt;Create student or faculty accounts and resend setup links when needed.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;2&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Review submissions&lt;/strong&gt;&lt;p&gt;Check required documents and research details before endorsement.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;3&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Return or endorse&lt;/strong&gt;&lt;p&gt;Return incomplete work with clear guidance or endorse a complete initial submission to RES.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;4&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Watch deadlines&lt;/strong&gt;&lt;p&gt;Use dashboard alerts and notifications to keep assigned applications moving.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                    &lt;/ol&gt;\n
+        &lt;p class="dashboard-onboarding-support"&gt;For account or workflow help, contact the KLD Research Ethics Section through the institutional contact channels in the footer.&lt;/p&gt;\n
+        &lt;footer&gt;&lt;button class="dashboard-primary-action" type="button" data-guide-finish&gt;Finish Guide&lt;/button&gt;&lt;/footer&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;/main&gt;\n
+\n
+            &lt;footer class="dashboard-footer"&gt;\n
+    &lt;div class="dashboard-footer-grid"&gt;\n
+        &lt;section&gt;\n
+            &lt;h2&gt;About ECRATS&lt;/h2&gt;\n
+            &lt;p&gt;The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Section.&lt;/p&gt;\n
+            &lt;div class="dashboard-footer-social" aria-label="KLD social media"&gt;\n
+                &lt;a href="https://www.facebook.com/KLDOfficialFBPage" target="_blank" rel="noopener noreferrer" aria-label="KLD on Facebook"&gt;\n
+                    &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+                &lt;a href="https://www.youtube.com/watch?v=WBcFvRVb2zE" target="_blank" rel="noopener noreferrer" aria-label="KLD on YouTube"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M21 8.2a2.8 2.8 0 0 0-2-2C17.3 5.7 12 5.7 12 5.7s-5.3 0-7 .5a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2.5 12 29 29 0 0 0 3 15.8a2.8 2.8 0 0 0 2 2c1.7.5 7 .5 7 .5s5.3 0 7-.5a2.8 2.8 0 0 0 2-2 29 29 0 0 0 .5-3.8 29 29 0 0 0-.5-3.8Z"/&gt;&lt;path d="m10 15 5-3-5-3Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+            &lt;/div&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Contact&lt;/h2&gt;\n
+            &lt;ul class="dashboard-footer-contact"&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="14" rx="2"/&gt;&lt;path d="m3 7 9 6 9-6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="mailto:information@kld.edu.ph"&gt;information@kld.edu.ph&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/&gt;&lt;circle cx="12" cy="10" r="2.5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="https://www.google.com/maps/search/?api=1&amp;query=Kolehiyo+ng+Lungsod+ng+Dasmarinas" target="_blank" rel="noopener noreferrer"&gt;Brgy. Burol Main, City of Dasmari&amp;ntilde;as, Cavite&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M12 7v5l3 2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;span&gt;Mon to Fri / 8am to 5pm&lt;/span&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Quick Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/index.php" target="_blank" rel="noopener noreferrer"&gt;Home&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/about.php" target="_blank" rel="noopener noreferrer"&gt;About&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/" target="_blank" rel="noopener noreferrer"&gt;News and Updates&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/data_privacy.php" target="_blank" rel="noopener noreferrer"&gt;Data Privacy&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Helpful Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/offices.php" target="_blank" rel="noopener noreferrer"&gt;KLD Offices&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/office_of_the_registrar.php" target="_blank" rel="noopener noreferrer"&gt;The Registrar&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/admissions.php" target="_blank" rel="noopener noreferrer"&gt;Admission Guide&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/reach_us.php" target="_blank" rel="noopener noreferrer"&gt;Reach Us&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;p class="dashboard-footer-copyright"&gt;&amp;copy; 2026 ECRATS, KLD Research Ethics Section. All rights reserved.&lt;/p&gt;\n
+&lt;/footer&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/body&gt;\n
+&lt;/html&gt;\n
+' [ASCII](length: 24239) contains "Mapped Reviewing of Revision Period" [ASCII](length: 35).
+&#13;
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponseAssert.php:45
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:713
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php:453</failure>
+    </testcase>
+    <testcase name="test_adviser_dashboard_keeps_archived_applicant_identity_for_historical_applications" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="482" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="3" time="0.074296"/>
+    <testcase name="test_reviewer_dashboard_counts_assignments_and_near_deadline_from_real_records" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="505" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="2" time="0.075394">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\Dashboard\RoleDashboardTest::test_reviewer_dashboard_counts_assignments_and_near_deadline_from_real_records&#13;
+Failed asserting that '&lt;!DOCTYPE html&gt;\n
+&lt;html lang="en"&gt;\n
+&lt;head&gt;\n
+    &lt;meta charset="utf-8"&gt;\n
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;\n
+    &lt;meta name="csrf-token" content="Wy2G7BY4YIJujg9ESf3s9Z7HImU2o916uIQSDsK1"&gt;\n
+\n
+    &lt;title&gt;Dashboard | ECRATS&lt;/title&gt;\n
+    &lt;link rel="icon" type="image/png" href="http://[::1]:5173/assets/logo-256.png"&gt;\n
+\n
+    &lt;script type="module" src="http://[::1]:5173/@vite/client"&gt;&lt;/script&gt;&lt;link rel="stylesheet" href="http://[::1]:5173/resources/css/app.css" /&gt;&lt;script type="module" src="http://[::1]:5173/resources/js/app.js"&gt;&lt;/script&gt;&lt;/head&gt;\n
+&lt;body class="ecrats-dashboard-body"&gt;\n
+    &lt;div class="dashboard-shell" data-dashboard-shell&gt;\n
+        &lt;aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="Role navigation" data-dashboard-sidebar&gt;\n
+    &lt;div class="dashboard-sidebar-brand"&gt;\n
+        &lt;button class="dashboard-sidebar-close" type="button" aria-label="Close navigation" data-sidebar-close&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+        &lt;a\n
+            class="dashboard-sidebar-logo-link"\n
+            href="https://kld.edu.ph/profile.php"\n
+            target="_blank"\n
+            rel="noopener noreferrer"\n
+            aria-label="Open the KLD profile website"\n
+        &gt;\n
+            &lt;img src="http://[::1]:5173/assets/logo-256.png" alt="Kolehiyo ng Lungsod ng Dasmarinas seal"&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;nav class="dashboard-sidebar-nav" aria-label="Primary navigation"&gt;\n
+                                                &lt;a\n
+                    class="dashboard-nav-link is-active"\n
+                    href="http://127.0.0.1:8000/dashboard"\n
+                     aria-current="page"                 &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Home&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applications"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Application&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applicants"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/&gt;&lt;circle cx="8.5" cy="7" r="4"/&gt;&lt;path d="m17 11 2 2 4-4"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Applicants&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;details class="dashboard-nav-group" &gt;\n
+                    &lt;summary class="dashboard-nav-link "&gt;\n
+                        &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Reviewer&lt;/span&gt;\n
+                        &lt;svg class="dashboard-icon dashboard-nav-group-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;/summary&gt;\n
+                    &lt;div class="dashboard-nav-submenu" aria-label="Reviewer navigation"&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Reviewer Dashboard&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer/assignments"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Assignments&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                            &lt;/div&gt;\n
+                &lt;/details&gt;\n
+                        &lt;/nav&gt;\n
+\n
+    &lt;a\n
+        class="dashboard-sidebar-profile "\n
+        href="http://127.0.0.1:8000/adviser/profile"\n
+            &gt;\n
+        &lt;span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true"&gt;CT&lt;/span&gt;\n
+        &lt;span class="dashboard-sidebar-person"&gt;\n
+            &lt;strong&gt;Camille Terry&lt;/strong&gt;\n
+            &lt;span&gt;Adviser&lt;/span&gt;\n
+        &lt;/span&gt;\n
+    &lt;/a&gt;\n
+&lt;/aside&gt;\n
+\n
+        &lt;div class="dashboard-sidebar-backdrop" data-sidebar-backdrop hidden&gt;&lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-workspace"&gt;\n
+            &lt;header class="dashboard-topbar"&gt;\n
+    &lt;div class="dashboard-topbar-heading"&gt;\n
+        &lt;button class="dashboard-menu-button" type="button" aria-label="Open navigation" aria-controls="dashboard-sidebar" aria-expanded="false" data-sidebar-open&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M4 6h16M4 12h16M4 18h16"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+                    &lt;span class="dashboard-topbar-title"&gt;Dashboard&lt;/span&gt;\n
+            &lt;/div&gt;\n
+\n
+    &lt;div class="dashboard-topbar-actions"&gt;\n
+                    &lt;button class="dashboard-guide-button" type="button" data-guide-open &gt;\n
+                &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Guide&lt;/span&gt;\n
+            &lt;/button&gt;\n
+                &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-icon-button"\n
+                type="button"\n
+                aria-label="Open notifications"\n
+                aria-controls="dashboard-notification-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="notifications"\n
+            &gt;\n
+                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/&gt;\n
+            &lt;/svg&gt;\n
+                            &lt;/button&gt;\n
+\n
+            &lt;section class="dashboard-dropdown dashboard-notification-menu" id="dashboard-notification-menu" data-menu="notifications" hidden&gt;\n
+                &lt;div class="dashboard-dropdown-header"&gt;\n
+                    &lt;strong&gt;Notifications&lt;/strong&gt;\n
+                                    &lt;/div&gt;\n
+\n
+                                    &lt;div class="dashboard-dropdown-empty"&gt;\n
+                        &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-notifications.png" alt="Empty notification bell"&gt;\n
+                        &lt;strong&gt;No notifications yet&lt;/strong&gt;\n
+                        &lt;span&gt;You will see application and review updates here.&lt;/span&gt;\n
+                    &lt;/div&gt;\n
+                \n
+                &lt;a class="dashboard-dropdown-footer" href="http://127.0.0.1:8000/adviser/notifications"&gt;View all notifications&lt;/a&gt;\n
+            &lt;/section&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-profile-button"\n
+                type="button"\n
+                aria-label="Open profile menu"\n
+                aria-controls="dashboard-profile-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="profile"\n
+            &gt;\n
+                &lt;span class="dashboard-avatar" aria-hidden="true"&gt;CT&lt;/span&gt;\n
+                &lt;span class="dashboard-profile-name"&gt;Camille Terry&lt;/span&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;/button&gt;\n
+\n
+            &lt;div class="dashboard-dropdown dashboard-profile-menu" id="dashboard-profile-menu" data-menu="profile" hidden&gt;\n
+                &lt;a href="http://127.0.0.1:8000/adviser/settings"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="3"/&gt;&lt;path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Settings&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                &lt;form method="POST" action="http://127.0.0.1:8000/logout"&gt;\n
+                    &lt;input type="hidden" name="_token" value="Wy2G7BY4YIJujg9ESf3s9Z7HImU2o916uIQSDsK1" autocomplete="off"&gt;                    &lt;button type="submit"&gt;\n
+                        &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Logout&lt;/span&gt;\n
+                    &lt;/button&gt;\n
+                &lt;/form&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/header&gt;\n
+\n
+            &lt;main class="dashboard-content" id="main-content" tabindex="-1"&gt;\n
+                \n
+                    &lt;div class="dashboard-page"&gt;\n
+        &lt;header class="dashboard-page-heading"&gt;\n
+            &lt;h1&gt;Welcome back, Adviser!&lt;/h1&gt;\n
+            &lt;p&gt;Manage research ethics applications.&lt;/p&gt;\n
+        &lt;/header&gt;\n
+\n
+        \n
+        &lt;div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Advised application summary"&gt;\n
+            &lt;a class="dashboard-summary-card tone-orange" href="http://127.0.0.1:8000/adviser/applications" aria-label="Pending: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Pending&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-green" href="http://127.0.0.1:8000/adviser/applications" aria-label="Endorsed: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m5 12 4 4L19 6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Endorsed&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-red" href="http://127.0.0.1:8000/adviser/applications" aria-label="Returned: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Returned&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Submitted Application&lt;/h2&gt;\n
+                    &lt;a class="dashboard-view-all" href="http://127.0.0.1:8000/adviser/applications"&gt;View All&lt;/a&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-applications.png" alt="No submitted application documents"&gt;\n
+    &lt;strong&gt;No submitted applications yet&lt;/strong&gt;\n
+    &lt;p&gt;Research ethics applications will appear here once your applicants submit them for endorsement.&lt;/p&gt;\n
+            &lt;a class="dashboard-primary-action" href="http://127.0.0.1:8000/dashboard"&gt;\n
+            &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;span&gt;Refresh&lt;/span&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+\n
+        &lt;div class="dashboard-lower-grid"&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Deadline Alerts&lt;/h2&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-deadlines.png" alt="Calendar with no pending deadline"&gt;\n
+    &lt;strong&gt;No urgent deadlines&lt;/strong&gt;\n
+    &lt;p&gt;You are currently up to date.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Application Timeline&lt;/h2&gt;\n
+                    &lt;span class="dashboard-panel-header-meta"&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="16" rx="2"/&gt;&lt;path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Semester and Academic Year&lt;/span&gt;\n
+            &lt;/span&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-timeline.png" alt="Milestone flag with no available timeline"&gt;\n
+    &lt;strong&gt;Timeline not available&lt;/strong&gt;\n
+    &lt;p&gt;Review milestones will appear when an active cycle is configured.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+                &lt;section\n
+    class="dashboard-onboarding"\n
+    data-onboarding-guide\n
+    data-requires-completion="false"\n
+    data-complete-url="http://127.0.0.1:8000/onboarding/complete"\n
+    hidden\n
+&gt;\n
+    &lt;div class="dashboard-onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" tabindex="-1"&gt;\n
+        &lt;header&gt;\n
+            &lt;span class="dashboard-onboarding-icon"&gt;&lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+            &lt;div&gt;\n
+                &lt;span&gt;Getting Started&lt;/span&gt;\n
+                &lt;h2 id="onboarding-title"&gt;Research Adviser Guide&lt;/h2&gt;\n
+            &lt;/div&gt;\n
+            &lt;button type="button" aria-label="Close guide" data-guide-close&gt;&lt;svg class="dashboard-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/button&gt;\n
+        &lt;/header&gt;\n
+\n
+        &lt;p&gt;Use ECRATS to manage applicant accounts and review complete submissions assigned to you.&lt;/p&gt;\n
+        &lt;ol&gt;\n
+                            &lt;li&gt;&lt;span&gt;1&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Manage applicants&lt;/strong&gt;&lt;p&gt;Create student or faculty accounts and resend setup links when needed.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;2&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Review submissions&lt;/strong&gt;&lt;p&gt;Check required documents and research details before endorsement.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;3&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Return or endorse&lt;/strong&gt;&lt;p&gt;Return incomplete work with clear guidance or endorse a complete initial submission to RES.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;4&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Watch deadlines&lt;/strong&gt;&lt;p&gt;Use dashboard alerts and notifications to keep assigned applications moving.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                    &lt;/ol&gt;\n
+        &lt;p class="dashboard-onboarding-support"&gt;For account or workflow help, contact the KLD Research Ethics Section through the institutional contact channels in the footer.&lt;/p&gt;\n
+        &lt;footer&gt;&lt;button class="dashboard-primary-action" type="button" data-guide-finish&gt;Finish Guide&lt;/button&gt;&lt;/footer&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;/main&gt;\n
+\n
+            &lt;footer class="dashboard-footer"&gt;\n
+    &lt;div class="dashboard-footer-grid"&gt;\n
+        &lt;section&gt;\n
+            &lt;h2&gt;About ECRATS&lt;/h2&gt;\n
+            &lt;p&gt;The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Section.&lt;/p&gt;\n
+            &lt;div class="dashboard-footer-social" aria-label="KLD social media"&gt;\n
+                &lt;a href="https://www.facebook.com/KLDOfficialFBPage" target="_blank" rel="noopener noreferrer" aria-label="KLD on Facebook"&gt;\n
+                    &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+                &lt;a href="https://www.youtube.com/watch?v=WBcFvRVb2zE" target="_blank" rel="noopener noreferrer" aria-label="KLD on YouTube"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M21 8.2a2.8 2.8 0 0 0-2-2C17.3 5.7 12 5.7 12 5.7s-5.3 0-7 .5a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2.5 12 29 29 0 0 0 3 15.8a2.8 2.8 0 0 0 2 2c1.7.5 7 .5 7 .5s5.3 0 7-.5a2.8 2.8 0 0 0 2-2 29 29 0 0 0 .5-3.8 29 29 0 0 0-.5-3.8Z"/&gt;&lt;path d="m10 15 5-3-5-3Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+            &lt;/div&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Contact&lt;/h2&gt;\n
+            &lt;ul class="dashboard-footer-contact"&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="14" rx="2"/&gt;&lt;path d="m3 7 9 6 9-6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="mailto:information@kld.edu.ph"&gt;information@kld.edu.ph&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/&gt;&lt;circle cx="12" cy="10" r="2.5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="https://www.google.com/maps/search/?api=1&amp;query=Kolehiyo+ng+Lungsod+ng+Dasmarinas" target="_blank" rel="noopener noreferrer"&gt;Brgy. Burol Main, City of Dasmari&amp;ntilde;as, Cavite&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M12 7v5l3 2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;span&gt;Mon to Fri / 8am to 5pm&lt;/span&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Quick Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/index.php" target="_blank" rel="noopener noreferrer"&gt;Home&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/about.php" target="_blank" rel="noopener noreferrer"&gt;About&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/" target="_blank" rel="noopener noreferrer"&gt;News and Updates&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/data_privacy.php" target="_blank" rel="noopener noreferrer"&gt;Data Privacy&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Helpful Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/offices.php" target="_blank" rel="noopener noreferrer"&gt;KLD Offices&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/office_of_the_registrar.php" target="_blank" rel="noopener noreferrer"&gt;The Registrar&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/admissions.php" target="_blank" rel="noopener noreferrer"&gt;Admission Guide&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/reach_us.php" target="_blank" rel="noopener noreferrer"&gt;Reach Us&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;p class="dashboard-footer-copyright"&gt;&amp;copy; 2026 ECRATS, KLD Research Ethics Section. All rights reserved.&lt;/p&gt;\n
+&lt;/footer&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/body&gt;\n
+&lt;/html&gt;\n
+' [ASCII](length: 23808) contains "aria-label="Pending Reviews: 1"" [ASCII](length: 31).
+&#13;
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponseAssert.php:45
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:713
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php:541</failure>
+    </testcase>
+    <testcase name="test_reviewer_dashboard_uses_current_fresh_assignments_after_status_reassignment_and_revocation_changes" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="547" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="2" time="0.079228">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\Dashboard\RoleDashboardTest::test_reviewer_dashboard_uses_current_fresh_assignments_after_status_reassignment_and_revocation_changes&#13;
+Failed asserting that '&lt;!DOCTYPE html&gt;\n
+&lt;html lang="en"&gt;\n
+&lt;head&gt;\n
+    &lt;meta charset="utf-8"&gt;\n
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;\n
+    &lt;meta name="csrf-token" content="NNDC8sOASYd6TrJQZj0q1aIkDYsEmuU9ZhfIPSuB"&gt;\n
+\n
+    &lt;title&gt;Dashboard | ECRATS&lt;/title&gt;\n
+    &lt;link rel="icon" type="image/png" href="http://[::1]:5173/assets/logo-256.png"&gt;\n
+\n
+    &lt;script type="module" src="http://[::1]:5173/@vite/client"&gt;&lt;/script&gt;&lt;link rel="stylesheet" href="http://[::1]:5173/resources/css/app.css" /&gt;&lt;script type="module" src="http://[::1]:5173/resources/js/app.js"&gt;&lt;/script&gt;&lt;/head&gt;\n
+&lt;body class="ecrats-dashboard-body"&gt;\n
+    &lt;div class="dashboard-shell" data-dashboard-shell&gt;\n
+        &lt;aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="Role navigation" data-dashboard-sidebar&gt;\n
+    &lt;div class="dashboard-sidebar-brand"&gt;\n
+        &lt;button class="dashboard-sidebar-close" type="button" aria-label="Close navigation" data-sidebar-close&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+        &lt;a\n
+            class="dashboard-sidebar-logo-link"\n
+            href="https://kld.edu.ph/profile.php"\n
+            target="_blank"\n
+            rel="noopener noreferrer"\n
+            aria-label="Open the KLD profile website"\n
+        &gt;\n
+            &lt;img src="http://[::1]:5173/assets/logo-256.png" alt="Kolehiyo ng Lungsod ng Dasmarinas seal"&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;nav class="dashboard-sidebar-nav" aria-label="Primary navigation"&gt;\n
+                                                &lt;a\n
+                    class="dashboard-nav-link is-active"\n
+                    href="http://127.0.0.1:8000/dashboard"\n
+                     aria-current="page"                 &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Home&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applications"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Application&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;a\n
+                    class="dashboard-nav-link "\n
+                    href="http://127.0.0.1:8000/adviser/applicants"\n
+                                    &gt;\n
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/&gt;&lt;circle cx="8.5" cy="7" r="4"/&gt;&lt;path d="m17 11 2 2 4-4"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Applicants&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                                                            &lt;details class="dashboard-nav-group" &gt;\n
+                    &lt;summary class="dashboard-nav-link "&gt;\n
+                        &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Reviewer&lt;/span&gt;\n
+                        &lt;svg class="dashboard-icon dashboard-nav-group-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;/summary&gt;\n
+                    &lt;div class="dashboard-nav-submenu" aria-label="Reviewer navigation"&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Reviewer Dashboard&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                                                                &lt;a\n
+                                class="dashboard-nav-link dashboard-nav-sublink "\n
+                                href="http://127.0.0.1:8000/adviser/reviewer/assignments"\n
+                                                            &gt;\n
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+                                &lt;span&gt;Assignments&lt;/span&gt;\n
+                            &lt;/a&gt;\n
+                                            &lt;/div&gt;\n
+                &lt;/details&gt;\n
+                        &lt;/nav&gt;\n
+\n
+    &lt;a\n
+        class="dashboard-sidebar-profile "\n
+        href="http://127.0.0.1:8000/adviser/profile"\n
+            &gt;\n
+        &lt;span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true"&gt;RH&lt;/span&gt;\n
+        &lt;span class="dashboard-sidebar-person"&gt;\n
+            &lt;strong&gt;Rocio Harris&lt;/strong&gt;\n
+            &lt;span&gt;Adviser&lt;/span&gt;\n
+        &lt;/span&gt;\n
+    &lt;/a&gt;\n
+&lt;/aside&gt;\n
+\n
+        &lt;div class="dashboard-sidebar-backdrop" data-sidebar-backdrop hidden&gt;&lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-workspace"&gt;\n
+            &lt;header class="dashboard-topbar"&gt;\n
+    &lt;div class="dashboard-topbar-heading"&gt;\n
+        &lt;button class="dashboard-menu-button" type="button" aria-label="Open navigation" aria-controls="dashboard-sidebar" aria-expanded="false" data-sidebar-open&gt;\n
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M4 6h16M4 12h16M4 18h16"/&gt;\n
+            &lt;/svg&gt;\n
+        &lt;/button&gt;\n
+                    &lt;span class="dashboard-topbar-title"&gt;Dashboard&lt;/span&gt;\n
+            &lt;/div&gt;\n
+\n
+    &lt;div class="dashboard-topbar-actions"&gt;\n
+                    &lt;button class="dashboard-guide-button" type="button" data-guide-open &gt;\n
+                &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Guide&lt;/span&gt;\n
+            &lt;/button&gt;\n
+                &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-icon-button"\n
+                type="button"\n
+                aria-label="Open notifications"\n
+                aria-controls="dashboard-notification-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="notifications"\n
+            &gt;\n
+                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/&gt;\n
+            &lt;/svg&gt;\n
+                            &lt;/button&gt;\n
+\n
+            &lt;section class="dashboard-dropdown dashboard-notification-menu" id="dashboard-notification-menu" data-menu="notifications" hidden&gt;\n
+                &lt;div class="dashboard-dropdown-header"&gt;\n
+                    &lt;strong&gt;Notifications&lt;/strong&gt;\n
+                                    &lt;/div&gt;\n
+\n
+                                    &lt;div class="dashboard-dropdown-empty"&gt;\n
+                        &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-notifications.png" alt="Empty notification bell"&gt;\n
+                        &lt;strong&gt;No notifications yet&lt;/strong&gt;\n
+                        &lt;span&gt;You will see application and review updates here.&lt;/span&gt;\n
+                    &lt;/div&gt;\n
+                \n
+                &lt;a class="dashboard-dropdown-footer" href="http://127.0.0.1:8000/adviser/notifications"&gt;View all notifications&lt;/a&gt;\n
+            &lt;/section&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;div class="dashboard-menu-wrap"&gt;\n
+            &lt;button\n
+                class="dashboard-profile-button"\n
+                type="button"\n
+                aria-label="Open profile menu"\n
+                aria-controls="dashboard-profile-menu"\n
+                aria-expanded="false"\n
+                data-menu-toggle="profile"\n
+            &gt;\n
+                &lt;span class="dashboard-avatar" aria-hidden="true"&gt;RH&lt;/span&gt;\n
+                &lt;span class="dashboard-profile-name"&gt;Rocio Harris&lt;/span&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m6 9 6 6 6-6"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;/button&gt;\n
+\n
+            &lt;div class="dashboard-dropdown dashboard-profile-menu" id="dashboard-profile-menu" data-menu="profile" hidden&gt;\n
+                &lt;a href="http://127.0.0.1:8000/adviser/settings"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="3"/&gt;&lt;path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/&gt;\n
+            &lt;/svg&gt;\n
+                    &lt;span&gt;Settings&lt;/span&gt;\n
+                &lt;/a&gt;\n
+                &lt;form method="POST" action="http://127.0.0.1:8000/logout"&gt;\n
+                    &lt;input type="hidden" name="_token" value="NNDC8sOASYd6TrJQZj0q1aIkDYsEmuU9ZhfIPSuB" autocomplete="off"&gt;                    &lt;button type="submit"&gt;\n
+                        &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/&gt;\n
+            &lt;/svg&gt;\n
+                        &lt;span&gt;Logout&lt;/span&gt;\n
+                    &lt;/button&gt;\n
+                &lt;/form&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/header&gt;\n
+\n
+            &lt;main class="dashboard-content" id="main-content" tabindex="-1"&gt;\n
+                \n
+                    &lt;div class="dashboard-page"&gt;\n
+        &lt;header class="dashboard-page-heading"&gt;\n
+            &lt;h1&gt;Welcome back, Adviser!&lt;/h1&gt;\n
+            &lt;p&gt;Manage research ethics applications.&lt;/p&gt;\n
+        &lt;/header&gt;\n
+\n
+        \n
+        &lt;div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Advised application summary"&gt;\n
+            &lt;a class="dashboard-summary-card tone-orange" href="http://127.0.0.1:8000/adviser/applications" aria-label="Pending: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Pending&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-green" href="http://127.0.0.1:8000/adviser/applications" aria-label="Endorsed: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="m5 12 4 4L19 6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Endorsed&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+            &lt;a class="dashboard-summary-card tone-red" href="http://127.0.0.1:8000/adviser/applications" aria-label="Returned: 0"&gt;\n
+    \n
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+    \n
+    &lt;span class="dashboard-summary-copy"&gt;\n
+        &lt;strong&gt;0&lt;/strong&gt;\n
+        &lt;span&gt;Returned&lt;/span&gt;\n
+    &lt;/span&gt;\n
+&lt;/a&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Submitted Application&lt;/h2&gt;\n
+                    &lt;a class="dashboard-view-all" href="http://127.0.0.1:8000/adviser/applications"&gt;View All&lt;/a&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-applications.png" alt="No submitted application documents"&gt;\n
+    &lt;strong&gt;No submitted applications yet&lt;/strong&gt;\n
+    &lt;p&gt;Research ethics applications will appear here once your applicants submit them for endorsement.&lt;/p&gt;\n
+            &lt;a class="dashboard-primary-action" href="http://127.0.0.1:8000/dashboard"&gt;\n
+            &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;\n
+            &lt;/svg&gt;\n
+            &lt;span&gt;Refresh&lt;/span&gt;\n
+        &lt;/a&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+\n
+        &lt;div class="dashboard-lower-grid"&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Deadline Alerts&lt;/h2&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-deadlines.png" alt="Calendar with no pending deadline"&gt;\n
+    &lt;strong&gt;No urgent deadlines&lt;/strong&gt;\n
+    &lt;p&gt;You are currently up to date.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;section class="dashboard-panel"&gt;\n
+    &lt;header class="dashboard-panel-header"&gt;\n
+        &lt;h2&gt;Application Timeline&lt;/h2&gt;\n
+                    &lt;span class="dashboard-panel-header-meta"&gt;\n
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="16" rx="2"/&gt;&lt;path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;span&gt;Semester and Academic Year&lt;/span&gt;\n
+            &lt;/span&gt;\n
+            &lt;/header&gt;\n
+    &lt;div class="dashboard-panel-body"&gt;\n
+        &lt;div class="dashboard-empty-state is-compact"&gt;\n
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-timeline.png" alt="Milestone flag with no available timeline"&gt;\n
+    &lt;strong&gt;Timeline not available&lt;/strong&gt;\n
+    &lt;p&gt;Review milestones will appear when an active cycle is configured.&lt;/p&gt;\n
+    &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+                &lt;section\n
+    class="dashboard-onboarding"\n
+    data-onboarding-guide\n
+    data-requires-completion="false"\n
+    data-complete-url="http://127.0.0.1:8000/onboarding/complete"\n
+    hidden\n
+&gt;\n
+    &lt;div class="dashboard-onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" tabindex="-1"&gt;\n
+        &lt;header&gt;\n
+            &lt;span class="dashboard-onboarding-icon"&gt;&lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/span&gt;\n
+            &lt;div&gt;\n
+                &lt;span&gt;Getting Started&lt;/span&gt;\n
+                &lt;h2 id="onboarding-title"&gt;Research Adviser Guide&lt;/h2&gt;\n
+            &lt;/div&gt;\n
+            &lt;button type="button" aria-label="Close guide" data-guide-close&gt;&lt;svg class="dashboard-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;/button&gt;\n
+        &lt;/header&gt;\n
+\n
+        &lt;p&gt;Use ECRATS to manage applicant accounts and review complete submissions assigned to you.&lt;/p&gt;\n
+        &lt;ol&gt;\n
+                            &lt;li&gt;&lt;span&gt;1&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Manage applicants&lt;/strong&gt;&lt;p&gt;Create student or faculty accounts and resend setup links when needed.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;2&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Review submissions&lt;/strong&gt;&lt;p&gt;Check required documents and research details before endorsement.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;3&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Return or endorse&lt;/strong&gt;&lt;p&gt;Return incomplete work with clear guidance or endorse a complete initial submission to RES.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                            &lt;li&gt;&lt;span&gt;4&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Watch deadlines&lt;/strong&gt;&lt;p&gt;Use dashboard alerts and notifications to keep assigned applications moving.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;\n
+                    &lt;/ol&gt;\n
+        &lt;p class="dashboard-onboarding-support"&gt;For account or workflow help, contact the KLD Research Ethics Section through the institutional contact channels in the footer.&lt;/p&gt;\n
+        &lt;footer&gt;&lt;button class="dashboard-primary-action" type="button" data-guide-finish&gt;Finish Guide&lt;/button&gt;&lt;/footer&gt;\n
+    &lt;/div&gt;\n
+&lt;/section&gt;\n
+            &lt;/main&gt;\n
+\n
+            &lt;footer class="dashboard-footer"&gt;\n
+    &lt;div class="dashboard-footer-grid"&gt;\n
+        &lt;section&gt;\n
+            &lt;h2&gt;About ECRATS&lt;/h2&gt;\n
+            &lt;p&gt;The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Section.&lt;/p&gt;\n
+            &lt;div class="dashboard-footer-social" aria-label="KLD social media"&gt;\n
+                &lt;a href="https://www.facebook.com/KLDOfficialFBPage" target="_blank" rel="noopener noreferrer" aria-label="KLD on Facebook"&gt;\n
+                    &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+                &lt;a href="https://www.youtube.com/watch?v=WBcFvRVb2zE" target="_blank" rel="noopener noreferrer" aria-label="KLD on YouTube"&gt;\n
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M21 8.2a2.8 2.8 0 0 0-2-2C17.3 5.7 12 5.7 12 5.7s-5.3 0-7 .5a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2.5 12 29 29 0 0 0 3 15.8a2.8 2.8 0 0 0 2 2c1.7.5 7 .5 7 .5s5.3 0 7-.5a2.8 2.8 0 0 0 2-2 29 29 0 0 0 .5-3.8 29 29 0 0 0-.5-3.8Z"/&gt;&lt;path d="m10 15 5-3-5-3Z"/&gt;\n
+            &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+            &lt;/div&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Contact&lt;/h2&gt;\n
+            &lt;ul class="dashboard-footer-contact"&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;rect x="3" y="5" width="18" height="14" rx="2"/&gt;&lt;path d="m3 7 9 6 9-6"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="mailto:information@kld.edu.ph"&gt;information@kld.edu.ph&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/&gt;&lt;circle cx="12" cy="10" r="2.5"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;a href="https://www.google.com/maps/search/?api=1&amp;query=Kolehiyo+ng+Lungsod+ng+Dasmarinas" target="_blank" rel="noopener noreferrer"&gt;Brgy. Burol Main, City of Dasmari&amp;ntilde;as, Cavite&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;\n
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M12 7v5l3 2"/&gt;\n
+            &lt;/svg&gt;\n
+&lt;span&gt;Mon to Fri / 8am to 5pm&lt;/span&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Quick Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/index.php" target="_blank" rel="noopener noreferrer"&gt;Home&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/about.php" target="_blank" rel="noopener noreferrer"&gt;About&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/" target="_blank" rel="noopener noreferrer"&gt;News and Updates&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/data_privacy.php" target="_blank" rel="noopener noreferrer"&gt;Data Privacy&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+\n
+        &lt;section&gt;\n
+            &lt;h2&gt;Helpful Links&lt;/h2&gt;\n
+            &lt;ul&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/offices.php" target="_blank" rel="noopener noreferrer"&gt;KLD Offices&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/office_of_the_registrar.php" target="_blank" rel="noopener noreferrer"&gt;The Registrar&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/admissions.php" target="_blank" rel="noopener noreferrer"&gt;Admission Guide&lt;/a&gt;&lt;/li&gt;\n
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/reach_us.php" target="_blank" rel="noopener noreferrer"&gt;Reach Us&lt;/a&gt;&lt;/li&gt;\n
+            &lt;/ul&gt;\n
+        &lt;/section&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;p class="dashboard-footer-copyright"&gt;&amp;copy; 2026 ECRATS, KLD Research Ethics Section. All rights reserved.&lt;/p&gt;\n
+&lt;/footer&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/body&gt;\n
+&lt;/html&gt;\n
+' [ASCII](length: 23806) contains "Latest Assigned Reviews" [ASCII](length: 23).
+&#13;
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponseAssert.php:45
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:713
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php:616</failure>
+    </testcase>
+    <testcase name="test_res_dashboard_counts_each_administrative_queue_from_application_statuses" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="624" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="8" time="0.075618"/>
+    <testcase name="test_res_dashboard_displays_eager_loaded_advisers_and_an_exact_unassigned_fallback" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="655" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="6" time="0.072144"/>
+    <testcase name="test_shared_summary_cards_render_icon_count_and_label_order_for_zero_counts" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="693" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="7" time="0.092712">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\Dashboard\RoleDashboardTest::test_shared_summary_cards_render_icon_count_and_label_order_for_zero_counts&#13;
+Failed asserting that '&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+    &lt;meta name="csrf-token" content="lvMvu4QSz7wHBjajZjKg8VRaUOZRHVmd2Y2aK5yw"&gt;
+
+    &lt;title&gt;Dashboard | ECRATS&lt;/title&gt;
+    &lt;link rel="icon" type="image/png" href="http://[::1]:5173/assets/logo-256.png"&gt;
+
+    &lt;script type="module" src="http://[::1]:5173/@vite/client"&gt;&lt;/script&gt;&lt;link rel="stylesheet" href="http://[::1]:5173/resources/css/app.css" /&gt;&lt;script type="module" src="http://[::1]:5173/resources/js/app.js"&gt;&lt;/script&gt;&lt;/head&gt;
+&lt;body class="ecrats-dashboard-body"&gt;
+    &lt;div class="dashboard-shell" data-dashboard-shell&gt;
+        &lt;aside class="dashboard-sidebar" id="dashboard-sidebar" aria-label="Role navigation" data-dashboard-sidebar&gt;
+    &lt;div class="dashboard-sidebar-brand"&gt;
+        &lt;button class="dashboard-sidebar-close" type="button" aria-label="Close navigation" data-sidebar-close&gt;
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;
+            &lt;/svg&gt;
+        &lt;/button&gt;
+        &lt;a
+            class="dashboard-sidebar-logo-link"
+            href="https://kld.edu.ph/profile.php"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open the KLD profile website"
+        &gt;
+            &lt;img src="http://[::1]:5173/assets/logo-256.png" alt="Kolehiyo ng Lungsod ng Dasmarinas seal"&gt;
+        &lt;/a&gt;
+    &lt;/div&gt;
+
+    &lt;nav class="dashboard-sidebar-nav" aria-label="Primary navigation"&gt;
+                                                &lt;a
+                    class="dashboard-nav-link is-active"
+                    href="http://127.0.0.1:8000/dashboard"
+                     aria-current="page"                 &gt;
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;
+            &lt;/svg&gt;
+                    &lt;span&gt;Home&lt;/span&gt;
+                &lt;/a&gt;
+                                                            &lt;a
+                    class="dashboard-nav-link "
+                    href="http://127.0.0.1:8000/adviser/applications"
+                                    &gt;
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;
+            &lt;/svg&gt;
+                    &lt;span&gt;Application&lt;/span&gt;
+                &lt;/a&gt;
+                                                            &lt;a
+                    class="dashboard-nav-link "
+                    href="http://127.0.0.1:8000/adviser/applicants"
+                                    &gt;
+                    &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/&gt;&lt;circle cx="8.5" cy="7" r="4"/&gt;&lt;path d="m17 11 2 2 4-4"/&gt;
+            &lt;/svg&gt;
+                    &lt;span&gt;Applicants&lt;/span&gt;
+                &lt;/a&gt;
+                                                            &lt;details class="dashboard-nav-group" &gt;
+                    &lt;summary class="dashboard-nav-link "&gt;
+                        &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;
+            &lt;/svg&gt;
+                        &lt;span&gt;Reviewer&lt;/span&gt;
+                        &lt;svg class="dashboard-icon dashboard-nav-group-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="m6 9 6 6 6-6"/&gt;
+            &lt;/svg&gt;
+                    &lt;/summary&gt;
+                    &lt;div class="dashboard-nav-submenu" aria-label="Reviewer navigation"&gt;
+                                                                                &lt;a
+                                class="dashboard-nav-link dashboard-nav-sublink "
+                                href="http://127.0.0.1:8000/adviser/reviewer"
+                                                            &gt;
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="m3 11 9-8 9 8"/&gt;&lt;path d="M5 10v10h14V10"/&gt;&lt;path d="M9 20v-6h6v6"/&gt;
+            &lt;/svg&gt;
+                                &lt;span&gt;Reviewer Dashboard&lt;/span&gt;
+                            &lt;/a&gt;
+                                                                                &lt;a
+                                class="dashboard-nav-link dashboard-nav-sublink "
+                                href="http://127.0.0.1:8000/adviser/reviewer/assignments"
+                                                            &gt;
+                                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;
+            &lt;/svg&gt;
+                                &lt;span&gt;Assignments&lt;/span&gt;
+                            &lt;/a&gt;
+                                            &lt;/div&gt;
+                &lt;/details&gt;
+                        &lt;/nav&gt;
+
+    &lt;a
+        class="dashboard-sidebar-profile "
+        href="http://127.0.0.1:8000/adviser/profile"
+            &gt;
+        &lt;span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true"&gt;CZ&lt;/span&gt;
+        &lt;span class="dashboard-sidebar-person"&gt;
+            &lt;strong&gt;Cecile Zboncak&lt;/strong&gt;
+            &lt;span&gt;Adviser&lt;/span&gt;
+        &lt;/span&gt;
+    &lt;/a&gt;
+&lt;/aside&gt;
+
+        &lt;div class="dashboard-sidebar-backdrop" data-sidebar-backdrop hidden&gt;&lt;/div&gt;
+
+        &lt;div class="dashboard-workspace"&gt;
+            &lt;header class="dashboard-topbar"&gt;
+    &lt;div class="dashboard-topbar-heading"&gt;
+        &lt;button class="dashboard-menu-button" type="button" aria-label="Open navigation" aria-controls="dashboard-sidebar" aria-expanded="false" data-sidebar-open&gt;
+            &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M4 6h16M4 12h16M4 18h16"/&gt;
+            &lt;/svg&gt;
+        &lt;/button&gt;
+                    &lt;span class="dashboard-topbar-title"&gt;Dashboard&lt;/span&gt;
+            &lt;/div&gt;
+
+    &lt;div class="dashboard-topbar-actions"&gt;
+                    &lt;button class="dashboard-guide-button" type="button" data-guide-open &gt;
+                &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M9.8 9a2.4 2.4 0 1 1 3.8 2c-1 .7-1.6 1.2-1.6 2.5M12 17h.01"/&gt;
+            &lt;/svg&gt;
+                &lt;span&gt;Guide&lt;/span&gt;
+            &lt;/button&gt;
+                &lt;div class="dashboard-menu-wrap"&gt;
+            &lt;button
+                class="dashboard-icon-button"
+                type="button"
+                aria-label="Open notifications"
+                aria-controls="dashboard-notification-menu"
+                aria-expanded="false"
+                data-menu-toggle="notifications"
+            &gt;
+                &lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/&gt;
+            &lt;/svg&gt;
+                            &lt;/button&gt;
+
+            &lt;section class="dashboard-dropdown dashboard-notification-menu" id="dashboard-notification-menu" data-menu="notifications" hidden&gt;
+                &lt;div class="dashboard-dropdown-header"&gt;
+                    &lt;strong&gt;Notifications&lt;/strong&gt;
+                                    &lt;/div&gt;
+
+                                    &lt;div class="dashboard-dropdown-empty"&gt;
+                        &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-notifications.png" alt="Empty notification bell"&gt;
+                        &lt;strong&gt;No notifications yet&lt;/strong&gt;
+                        &lt;span&gt;You will see application and review updates here.&lt;/span&gt;
+                    &lt;/div&gt;
+                
+                &lt;a class="dashboard-dropdown-footer" href="http://127.0.0.1:8000/adviser/notifications"&gt;View all notifications&lt;/a&gt;
+            &lt;/section&gt;
+        &lt;/div&gt;
+
+        &lt;div class="dashboard-menu-wrap"&gt;
+            &lt;button
+                class="dashboard-profile-button"
+                type="button"
+                aria-label="Open profile menu"
+                aria-controls="dashboard-profile-menu"
+                aria-expanded="false"
+                data-menu-toggle="profile"
+            &gt;
+                &lt;span class="dashboard-avatar" aria-hidden="true"&gt;CZ&lt;/span&gt;
+                &lt;span class="dashboard-profile-name"&gt;Cecile Zboncak&lt;/span&gt;
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="m6 9 6 6 6-6"/&gt;
+            &lt;/svg&gt;
+            &lt;/button&gt;
+
+            &lt;div class="dashboard-dropdown dashboard-profile-menu" id="dashboard-profile-menu" data-menu="profile" hidden&gt;
+                &lt;a href="http://127.0.0.1:8000/adviser/settings"&gt;
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;circle cx="12" cy="12" r="3"/&gt;&lt;path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/&gt;
+            &lt;/svg&gt;
+                    &lt;span&gt;Settings&lt;/span&gt;
+                &lt;/a&gt;
+                &lt;form method="POST" action="http://127.0.0.1:8000/logout"&gt;
+                    &lt;input type="hidden" name="_token" value="lvMvu4QSz7wHBjajZjKg8VRaUOZRHVmd2Y2aK5yw" autocomplete="off"&gt;                    &lt;button type="submit"&gt;
+                        &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/&gt;
+            &lt;/svg&gt;
+                        &lt;span&gt;Logout&lt;/span&gt;
+                    &lt;/button&gt;
+                &lt;/form&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/header&gt;
+
+            &lt;main class="dashboard-content" id="main-content" tabindex="-1"&gt;
+                
+                    &lt;div class="dashboard-page"&gt;
+        &lt;header class="dashboard-page-heading"&gt;
+            &lt;h1&gt;Welcome back, Adviser!&lt;/h1&gt;
+            &lt;p&gt;Manage research ethics applications.&lt;/p&gt;
+        &lt;/header&gt;
+
+        
+        &lt;div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Advised application summary"&gt;
+            &lt;a class="dashboard-summary-card tone-orange" href="http://127.0.0.1:8000/adviser/applications" aria-label="Pending: 0"&gt;
+    
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/&gt;&lt;path d="M14 2v6h6"/&gt;&lt;path d="M8 13h8M8 17h8M8 9h2"/&gt;
+            &lt;/svg&gt;
+&lt;/span&gt;
+    
+    &lt;span class="dashboard-summary-copy"&gt;
+        &lt;strong&gt;0&lt;/strong&gt;
+        &lt;span&gt;Pending&lt;/span&gt;
+    &lt;/span&gt;
+&lt;/a&gt;
+            &lt;a class="dashboard-summary-card tone-green" href="http://127.0.0.1:8000/adviser/applications" aria-label="Endorsed: 0"&gt;
+    
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="m5 12 4 4L19 6"/&gt;
+            &lt;/svg&gt;
+&lt;/span&gt;
+    
+    &lt;span class="dashboard-summary-copy"&gt;
+        &lt;strong&gt;0&lt;/strong&gt;
+        &lt;span&gt;Endorsed&lt;/span&gt;
+    &lt;/span&gt;
+&lt;/a&gt;
+            &lt;a class="dashboard-summary-card tone-red" href="http://127.0.0.1:8000/adviser/applications" aria-label="Returned: 0"&gt;
+    
+    &lt;span class="dashboard-summary-icon"&gt;&lt;svg class="dashboard-icon" width="31" height="31" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;
+            &lt;/svg&gt;
+&lt;/span&gt;
+    
+    &lt;span class="dashboard-summary-copy"&gt;
+        &lt;strong&gt;0&lt;/strong&gt;
+        &lt;span&gt;Returned&lt;/span&gt;
+    &lt;/span&gt;
+&lt;/a&gt;
+        &lt;/div&gt;
+
+        &lt;section class="dashboard-panel"&gt;
+    &lt;header class="dashboard-panel-header"&gt;
+        &lt;h2&gt;Submitted Application&lt;/h2&gt;
+                    &lt;a class="dashboard-view-all" href="http://127.0.0.1:8000/adviser/applications"&gt;View All&lt;/a&gt;
+            &lt;/header&gt;
+    &lt;div class="dashboard-panel-body"&gt;
+        &lt;div class="dashboard-empty-state"&gt;
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-applications.png" alt="No submitted application documents"&gt;
+    &lt;strong&gt;No submitted applications yet&lt;/strong&gt;
+    &lt;p&gt;Research ethics applications will appear here once your applicants submit them for endorsement.&lt;/p&gt;
+            &lt;a class="dashboard-primary-action" href="http://127.0.0.1:8000/dashboard"&gt;
+            &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/&gt;
+            &lt;/svg&gt;
+            &lt;span&gt;Refresh&lt;/span&gt;
+        &lt;/a&gt;
+    &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/section&gt;
+
+        &lt;div class="dashboard-lower-grid"&gt;
+            &lt;section class="dashboard-panel"&gt;
+    &lt;header class="dashboard-panel-header"&gt;
+        &lt;h2&gt;Deadline Alerts&lt;/h2&gt;
+            &lt;/header&gt;
+    &lt;div class="dashboard-panel-body"&gt;
+        &lt;div class="dashboard-empty-state is-compact"&gt;
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-deadlines.png" alt="Calendar with no pending deadline"&gt;
+    &lt;strong&gt;No urgent deadlines&lt;/strong&gt;
+    &lt;p&gt;You are currently up to date.&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/section&gt;
+            &lt;section class="dashboard-panel"&gt;
+    &lt;header class="dashboard-panel-header"&gt;
+        &lt;h2&gt;Application Timeline&lt;/h2&gt;
+                    &lt;span class="dashboard-panel-header-meta"&gt;
+                &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;rect x="3" y="5" width="18" height="16" rx="2"/&gt;&lt;path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01"/&gt;
+            &lt;/svg&gt;
+                &lt;span&gt;Semester and Academic Year&lt;/span&gt;
+            &lt;/span&gt;
+            &lt;/header&gt;
+    &lt;div class="dashboard-panel-body"&gt;
+        &lt;div class="dashboard-empty-state is-compact"&gt;
+    &lt;img class="dashboard-empty-asset" src="http://127.0.0.1:8000/assets/empty-states/no-timeline.png" alt="Milestone flag with no available timeline"&gt;
+    &lt;strong&gt;Timeline not available&lt;/strong&gt;
+    &lt;p&gt;Review milestones will appear when an active cycle is configured.&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/section&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+
+                &lt;section
+    class="dashboard-onboarding"
+    data-onboarding-guide
+    data-requires-completion="false"
+    data-complete-url="http://127.0.0.1:8000/onboarding/complete"
+    hidden
+&gt;
+    &lt;div class="dashboard-onboarding-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" tabindex="-1"&gt;
+        &lt;header&gt;
+            &lt;span class="dashboard-onboarding-icon"&gt;&lt;svg class="dashboard-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;rect x="5" y="4" width="14" height="18" rx="2"/&gt;&lt;path d="M9 4V2h6v2M9 12h6M9 16h6M9 8h2"/&gt;
+            &lt;/svg&gt;
+&lt;/span&gt;
+            &lt;div&gt;
+                &lt;span&gt;Getting Started&lt;/span&gt;
+                &lt;h2 id="onboarding-title"&gt;Research Adviser Guide&lt;/h2&gt;
+            &lt;/div&gt;
+            &lt;button type="button" aria-label="Close guide" data-guide-close&gt;&lt;svg class="dashboard-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M18 6 6 18M6 6l12 12"/&gt;
+            &lt;/svg&gt;
+&lt;/button&gt;
+        &lt;/header&gt;
+
+        &lt;p&gt;Use ECRATS to manage applicant accounts and review complete submissions assigned to you.&lt;/p&gt;
+        &lt;ol&gt;
+                            &lt;li&gt;&lt;span&gt;1&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Manage applicants&lt;/strong&gt;&lt;p&gt;Create student or faculty accounts and resend setup links when needed.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;span&gt;2&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Review submissions&lt;/strong&gt;&lt;p&gt;Check required documents and research details before endorsement.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;span&gt;3&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Return or endorse&lt;/strong&gt;&lt;p&gt;Return incomplete work with clear guidance or endorse a complete initial submission to RES.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;
+                            &lt;li&gt;&lt;span&gt;4&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Watch deadlines&lt;/strong&gt;&lt;p&gt;Use dashboard alerts and notifications to keep assigned applications moving.&lt;/p&gt;&lt;/div&gt;&lt;/li&gt;
+                    &lt;/ol&gt;
+        &lt;p class="dashboard-onboarding-support"&gt;For account or workflow help, contact the KLD Research Ethics Section through the institutional contact channels in the footer.&lt;/p&gt;
+        &lt;footer&gt;&lt;button class="dashboard-primary-action" type="button" data-guide-finish&gt;Finish Guide&lt;/button&gt;&lt;/footer&gt;
+    &lt;/div&gt;
+&lt;/section&gt;
+            &lt;/main&gt;
+
+            &lt;footer class="dashboard-footer"&gt;
+    &lt;div class="dashboard-footer-grid"&gt;
+        &lt;section&gt;
+            &lt;h2&gt;About ECRATS&lt;/h2&gt;
+            &lt;p&gt;The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Section.&lt;/p&gt;
+            &lt;div class="dashboard-footer-social" aria-label="KLD social media"&gt;
+                &lt;a href="https://www.facebook.com/KLDOfficialFBPage" target="_blank" rel="noopener noreferrer" aria-label="KLD on Facebook"&gt;
+                    &lt;svg class="dashboard-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9c0-.7.3-1 1-1Z"/&gt;
+            &lt;/svg&gt;
+                &lt;/a&gt;
+                &lt;a href="https://www.youtube.com/watch?v=WBcFvRVb2zE" target="_blank" rel="noopener noreferrer" aria-label="KLD on YouTube"&gt;
+                    &lt;svg class="dashboard-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M21 8.2a2.8 2.8 0 0 0-2-2C17.3 5.7 12 5.7 12 5.7s-5.3 0-7 .5a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2.5 12 29 29 0 0 0 3 15.8a2.8 2.8 0 0 0 2 2c1.7.5 7 .5 7 .5s5.3 0 7-.5a2.8 2.8 0 0 0 2-2 29 29 0 0 0 .5-3.8 29 29 0 0 0-.5-3.8Z"/&gt;&lt;path d="m10 15 5-3-5-3Z"/&gt;
+            &lt;/svg&gt;
+                &lt;/a&gt;
+            &lt;/div&gt;
+        &lt;/section&gt;
+
+        &lt;section&gt;
+            &lt;h2&gt;Contact&lt;/h2&gt;
+            &lt;ul class="dashboard-footer-contact"&gt;
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;rect x="3" y="5" width="18" height="14" rx="2"/&gt;&lt;path d="m3 7 9 6 9-6"/&gt;
+            &lt;/svg&gt;
+&lt;a href="mailto:information@kld.edu.ph"&gt;information@kld.edu.ph&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/&gt;&lt;circle cx="12" cy="10" r="2.5"/&gt;
+            &lt;/svg&gt;
+&lt;a href="https://www.google.com/maps/search/?api=1&amp;query=Kolehiyo+ng+Lungsod+ng+Dasmarinas" target="_blank" rel="noopener noreferrer"&gt;Brgy. Burol Main, City of Dasmari&amp;ntilde;as, Cavite&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;svg class="dashboard-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"&gt;
+                &lt;circle cx="12" cy="12" r="9"/&gt;&lt;path d="M12 7v5l3 2"/&gt;
+            &lt;/svg&gt;
+&lt;span&gt;Mon to Fri / 8am to 5pm&lt;/span&gt;&lt;/li&gt;
+            &lt;/ul&gt;
+        &lt;/section&gt;
+
+        &lt;section&gt;
+            &lt;h2&gt;Quick Links&lt;/h2&gt;
+            &lt;ul&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/index.php" target="_blank" rel="noopener noreferrer"&gt;Home&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/about.php" target="_blank" rel="noopener noreferrer"&gt;About&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/" target="_blank" rel="noopener noreferrer"&gt;News and Updates&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/data_privacy.php" target="_blank" rel="noopener noreferrer"&gt;Data Privacy&lt;/a&gt;&lt;/li&gt;
+            &lt;/ul&gt;
+        &lt;/section&gt;
+
+        &lt;section&gt;
+            &lt;h2&gt;Helpful Links&lt;/h2&gt;
+            &lt;ul&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/offices.php" target="_blank" rel="noopener noreferrer"&gt;KLD Offices&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/office_of_the_registrar.php" target="_blank" rel="noopener noreferrer"&gt;The Registrar&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/admissions.php" target="_blank" rel="noopener noreferrer"&gt;Admission Guide&lt;/a&gt;&lt;/li&gt;
+                &lt;li&gt;&lt;a href="https://kld.edu.ph/reach_us.php" target="_blank" rel="noopener noreferrer"&gt;Reach Us&lt;/a&gt;&lt;/li&gt;
+            &lt;/ul&gt;
+        &lt;/section&gt;
+    &lt;/div&gt;
+
+    &lt;p class="dashboard-footer-copyright"&gt;&amp;copy; 2026 ECRATS, KLD Research Ethics Section. All rights reserved.&lt;/p&gt;
+&lt;/footer&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+' contains "&lt;span&gt;Pending Reviews&lt;/span&gt;" in specified order..
+&#13;
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponseAssert.php:45
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:741
+C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php:709</failure>
+    </testcase>
+    <testcase name="test_shared_layout_css_keeps_cards_overflow_and_form_spacing_within_approved_structure" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="722" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="9" time="0.026369"/>
+    <testcase name="test_every_blade_table_uses_the_shared_horizontal_overflow_boundary" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="759" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="36" time="0.063150"/>
+    <testcase name="test_shared_browser_identity_and_profile_menu_are_kept_minimal" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="787" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="6" time="0.026867"/>
+    <testcase name="test_role_dashboards_keep_database_query_counts_bounded" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="801" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="12" time="0.137998"/>
+    <testcase name="test_dashboard_demo_seeder_is_local_only_data_and_is_idempotent" file="C:\Users\Ace Arthur\OneDrive\Documents\GitHub\Ethics-Certification-Research-Application-Tracking-System\tests\Feature\Dashboard\RoleDashboardTest.php" line="822" class="Tests\Feature\Dashboard\RoleDashboardTest" classname="Tests.Feature.Dashboard.RoleDashboardTest" assertions="8" time="0.159237"/>
+  </testsuite>
+</testsuites>

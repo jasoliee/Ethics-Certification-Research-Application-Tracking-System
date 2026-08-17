@@ -1,5 +1,7 @@
 # August 10, 2026 Implementation Status
 
+> Historical handoff: this file records the August 10/11 baseline. The Adviser/Reviewer account model, spreadsheet contract, Reviewer resubmission/consensus rule, Applicant upload/evaluation contract, background behavior, certificate queue/generation rule, settings, and monitoring were superseded on August 17. Use [2026 Finale Implementation Record](THE_FINALE_IMPLEMENTATION_2026-08-17.md) for current behavior and pending acceptance.
+
 This is the current handoff for the requirements in the attached ECRATS Laravel implementation brief. It distinguishes implemented work from verification and follow-up work that has not been completed. No deployment, public tunnel, external upload, or transmission of project data was performed.
 
 ## Completed

@@ -13,6 +13,7 @@ use App\Models\ApplicationRevisionRequirement;
 use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\User;
+use App\Rules\SafeApplicationDocumentUpload;
 use App\Services\AuditLogService;
 use App\Services\Settings\DeadlineProcessAvailability;
 use Illuminate\Http\UploadedFile;
@@ -29,24 +30,9 @@ use Throwable;
 class ApplicationDocumentService
 {
     /**
-     * Maps server-detected MIME types to safe, non-executable storage extensions.
-     *
-     * @var array<string, string>
-     */
-    public const ALLOWED_MIME_EXTENSIONS = [
-        'application/pdf' => 'pdf',
-        'application/msword' => 'doc',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-        'application/vnd.ms-excel' => 'xls',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-    ];
-
-    /**
      * Limit each requirement upload to one hundred megabytes.
      */
-    public const MAX_FILE_KILOBYTES = 102400;
+    public const MAX_FILE_KILOBYTES = SafeApplicationDocumentUpload::MAX_FILE_KILOBYTES;
 
     public function __construct(
         private readonly AuditLogService $auditLog,
@@ -71,15 +57,15 @@ class ApplicationDocumentService
             ]);
         }
 
-        // Use the server-inspected MIME type, not the browser-provided filename extension.
-        $mimeType = (string) $file->getMimeType();
-        $extension = self::ALLOWED_MIME_EXTENSIONS[$mimeType] ?? null;
-
-        if ($extension === null) {
+        // Require the client extension, server MIME inspection, and magic bytes to agree.
+        $inspection = SafeApplicationDocumentUpload::inspect($file);
+        if (isset($inspection['error'])) {
             throw ValidationException::withMessages([
-                'document' => 'Upload a PDF, Word document, Excel workbook, JPEG image, or PNG image.',
+                'document' => $inspection['error'],
             ]);
         }
+        $mimeType = $inspection['mime_type'];
+        $extension = $inspection['storage_extension'];
 
         $fileHash = hash_file('sha256', (string) $file->getRealPath());
 
@@ -191,13 +177,14 @@ class ApplicationDocumentService
         abort_unless($revision->research_application_id === $application->id, 404);
         abort_unless($revisionRequirement->application_revision_id === $revision->id, 404);
 
-        $mimeType = (string) $file->getMimeType();
-        $extension = self::ALLOWED_MIME_EXTENSIONS[$mimeType] ?? null;
-        if ($extension === null) {
+        $inspection = SafeApplicationDocumentUpload::inspect($file);
+        if (isset($inspection['error'])) {
             throw ValidationException::withMessages([
-                'document' => 'Upload a PDF, Word document, Excel workbook, JPEG image, or PNG image.',
+                'document' => $inspection['error'],
             ])->errorBag('revisionUpload');
         }
+        $mimeType = $inspection['mime_type'];
+        $extension = $inspection['storage_extension'];
 
         $fileHash = hash_file('sha256', (string) $file->getRealPath());
         if (! is_string($fileHash)) {

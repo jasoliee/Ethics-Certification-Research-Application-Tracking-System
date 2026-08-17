@@ -83,8 +83,9 @@ class ReviewerWorkflowTest extends TestCase
             ->assertDontSee('data-reviewer-comment-scope', false)
             ->assertSeeInOrder(['reviewer-document-library', 'reviewer-document-pane', 'reviewer-review-rail'], false)
             ->assertSeeInOrder(['Review Comment', 'Review Worksheet', 'Review Assessment'])
-            ->assertSee('data-reviewer-worksheet-open', false)
-            ->assertSee('data-reviewer-worksheet-dialog', false)
+            ->assertSee('data-reviewer-worksheet-accordion', false)
+            ->assertSee('data-reviewer-inline-forms', false)
+            ->assertDontSee('data-reviewer-worksheet-dialog', false)
             ->assertSee('data-reviewer-form-open="protocol"', false)
             ->assertSee('data-reviewer-form-open="informed_consent"', false)
             ->assertSee('data-reviewer-form-status="protocol"', false)
@@ -429,7 +430,8 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString('data-reviewer-submit-dialog', $blade);
         $this->assertStringContainsString('data-reviewer-submit-confirmation', $blade);
         $this->assertStringContainsString('data-reviewer-submit-result', $blade);
-        $this->assertStringContainsString('This action is irreversible.', $blade);
+        $this->assertStringContainsString('A permanent submission version will be created.', $blade);
+        $this->assertStringContainsString('You may continue editing and submit a newer version until RES releases the decision.', $blade);
 
         $this->assertStringContainsString('draftSaveInFlight', $javascript);
         $this->assertStringContainsString('setWorksheetControlsLocked', $javascript);
@@ -438,7 +440,7 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString('modalFocusSelector', $javascript);
         $this->assertStringContainsString('documentPreviewRequestId', $javascript);
         $this->assertStringContainsString("documentLoading.textContent = 'Loading secure preview...'", $javascript);
-        $this->assertStringContainsString("status.textContent = 'In Progress';", $javascript);
+        $this->assertStringContainsString("status.textContent = completed ? 'Completed' : 'In Progress';", $javascript);
         $this->assertStringContainsString('finalSubmissionInFlight', $javascript);
         $this->assertStringContainsString('validateFinalReview', $javascript);
         $this->assertStringNotContainsString('Submit this final review? Submitted forms, comments, and the decision can no longer be changed.', $javascript);
@@ -619,7 +621,7 @@ class ReviewerWorkflowTest extends TestCase
         );
     }
 
-    public function test_final_decision_requires_both_forms_then_freezes_work_and_moves_the_application_for_res_release(): void
+    public function test_final_decision_versions_resubmissions_and_remains_editable_until_res_release(): void
     {
         $this->openReviewWindow();
         [$reviewer, $applicant, , $application, $assignment] = $this->assignmentFixture();
@@ -661,6 +663,8 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertSame(ReviewerAssignmentStatus::DecisionSubmitted, $assignment->fresh()->assignment_status);
         $this->assertSame(ApplicationStatus::ReviewSubmittedPendingRelease, $application->fresh()->application_status);
         $this->assertSame(ApplicationStage::DecisionRelease, $application->fresh()->current_stage);
+        $firstVersion = $assignment->reviewSubmission()->firstOrFail()->currentVersion()->firstOrFail();
+        $this->assertSame(1, $firstVersion->version_number);
 
         $this->actingAs($reviewer)
             ->postJson(route('reviewer.assignments.review.store', $assignment), [
@@ -668,22 +672,25 @@ class ReviewerWorkflowTest extends TestCase
                 'decision' => ReviewDecision::Approved->value,
                 'decision_comment' => $decisionComment,
             ])
-            ->assertForbidden();
+            ->assertOk();
+        $this->assertSame(2, $assignment->reviewSubmission()->firstOrFail()->versions()->count());
+        $this->assertSame(1, $firstVersion->refresh()->version_number);
 
         $this->actingAs($reviewer)
             ->post(route('reviewer.assignments.comments.store', $assignment), [
                 'scope' => 'overall',
                 'category' => 'general',
-                'body' => 'This should not be accepted after submission.',
+                'body' => 'This amendment remains private until it is re-submitted.',
             ])
-            ->assertForbidden();
+            ->assertSessionHasNoErrors();
+        $this->assertTrue($assignment->reviewSubmission()->firstOrFail()->has_unsubmitted_changes);
 
         $this->actingAs($reviewer)
             ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
                 'intent' => 'draft',
                 'responses' => $this->completeResponses(ReviewFormType::Protocol),
             ])
-            ->assertForbidden();
+            ->assertSessionHasNoErrors();
 
         $this->actingAs($applicant)
             ->get(route('applicant.applications.show', $application))

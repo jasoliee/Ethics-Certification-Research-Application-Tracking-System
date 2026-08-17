@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ApplicationRevisionStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use Database\Factories\ReviewerAssignmentFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,6 +62,11 @@ class ReviewerAssignment extends Model
         return $this->hasOne(ReviewSubmission::class);
     }
 
+    public function reviewSubmissionVersions(): HasMany
+    {
+        return $this->hasMany(ReviewSubmissionVersion::class);
+    }
+
     public function formSubmissions(): HasMany
     {
         return $this->hasMany(ReviewFormSubmission::class);
@@ -73,6 +80,56 @@ class ReviewerAssignment extends Model
     public function scopeCurrent(Builder $query): Builder
     {
         return $query->whereNull('superseded_at');
+    }
+
+    /**
+     * Keep only the newest non-superseded review cycle for each application/reviewer pair.
+     *
+     * Submitted work from an earlier cycle remains available as history, but it must not
+     * appear beside the active revision assignment on Reviewer dashboard/list surfaces.
+     */
+    public function scopeLatestCycleForReviewer(Builder $query): Builder
+    {
+        return $query->whereNotExists(function ($newer): void {
+            $newer->selectRaw('1')
+                ->from('reviewer_assignments as newer_reviewer_assignments')
+                ->whereColumn(
+                    'newer_reviewer_assignments.research_application_id',
+                    'reviewer_assignments.research_application_id',
+                )
+                ->whereColumn(
+                    'newer_reviewer_assignments.reviewer_user_id',
+                    'reviewer_assignments.reviewer_user_id',
+                )
+                ->whereColumn(
+                    'newer_reviewer_assignments.review_cycle',
+                    '>',
+                    'reviewer_assignments.review_cycle',
+                )
+                ->whereNull('newer_reviewer_assignments.superseded_at')
+                ->where(
+                    'newer_reviewer_assignments.assignment_status',
+                    '!=',
+                    ReviewerAssignmentStatus::Superseded->value,
+                );
+        });
+    }
+
+    /**
+     * Limit Reviewer "Completed" surfaces to an actually released final approval.
+     */
+    public function scopeCompletedFinalApproval(Builder $query): Builder
+    {
+        return $query
+            ->where('reviewer_assignments.assignment_status', ReviewerAssignmentStatus::DecisionSubmitted->value)
+            ->whereHas('researchApplication.decisionReleases', fn (Builder $releases) => $releases
+                ->where('application_decision_releases.decision', ReviewDecision::Approved->value)
+                ->whereColumn(
+                    'application_decision_releases.review_cycle',
+                    'reviewer_assignments.review_cycle',
+                ))
+            ->whereDoesntHave('researchApplication.revisions', fn (Builder $revisions) => $revisions
+                ->where('application_revisions.status', '!=', ApplicationRevisionStatus::Completed->value));
     }
 
     public function isCurrent(): bool

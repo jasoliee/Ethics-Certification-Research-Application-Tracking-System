@@ -8,6 +8,8 @@
             \App\Enums\UserRole::ResLead => 'res.applications.documents',
             default => 'applicant.applications.documents',
         };
+        $isReturnedApplicant = $role === \App\Enums\UserRole::Applicant
+            && $application->application_status === \App\Enums\ApplicationStatus::ReturnedByAdviser;
     @endphp
 
     <div class="dashboard-page application-workspace">
@@ -22,7 +24,7 @@
             </div>
             <div class="application-record-actions">
                 <a class="dashboard-outline-action" href="{{ route($indexRoute) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to List</span></a>
-                @if ($canEdit)
+                @if ($canEdit && ! $isReturnedApplicant)
                     <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
                 @endif
                 @if ($canUpload)
@@ -58,35 +60,50 @@
             </section>
         @endif
 
-        {{-- Research information is arranged for rapid applicant and Adviser review. --}}
-        <section class="application-panel">
-            <div class="application-panel-heading"><div><h2>Application Information</h2><p>Submitted research and institutional details.</p></div></div>
-            <dl class="application-detail-grid">
-                <div><dt>Applicant Type</dt><dd>{{ \App\Enums\ApplicantType::tryFrom($application->applicant_type)?->label() ?? Str::headline($application->applicant_type) }}</dd></div>
-                <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
-                <div><dt>Research Category</dt><dd>{{ $application->research_category ?: 'Not specified' }}</dd></div>
-                <div><dt>Assigned Adviser</dt><dd>{{ $application->adviser?->name ?? 'Not assigned' }}</dd></div>
-                <div><dt>Institution or College</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
-                <div><dt>Department</dt><dd>{{ $application->department ?: 'Not specified' }}</dd></div>
-                <div><dt>Program</dt><dd>{{ $application->program ?: 'Not applicable' }}</dd></div>
-                <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
-                <div class="application-detail-full"><dt>Target Participants</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>
-                <div class="application-detail-full"><dt>Brief Description or Abstract</dt><dd class="application-long-copy">{{ $application->abstract ?: 'Not specified' }}</dd></div>
-            </dl>
-        </section>
+        {{-- Research and authorized applicant identity stay inside one responsive information panel. --}}
+        <section class="application-panel application-combined-information" data-application-combined-information>
+            <header class="application-panel-heading">
+                <div>
+                    <h2>{{ $role === \App\Enums\UserRole::Applicant ? 'Application Information' : 'Application and Applicant Information' }}</h2>
+                    <p>Research, institutional, and authorized submission details.</p>
+                </div>
+                @if ($isReturnedApplicant && $canEdit)
+                    <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
+                @endif
+            </header>
+            <div @class(['application-combined-information-grid', 'is-single' => $role === \App\Enums\UserRole::Applicant])>
+                <section class="application-information-group" data-application-information-group>
+                    @if ($role !== \App\Enums\UserRole::Applicant)
+                        <h3>Application Information</h3>
+                    @endif
+                    <dl class="application-detail-grid">
+                        <div><dt>Applicant Type</dt><dd>{{ \App\Enums\ApplicantType::tryFrom($application->applicant_type)?->label() ?? Str::headline($application->applicant_type) }}</dd></div>
+                        <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
+                        <div><dt>Research Category</dt><dd>{{ $application->research_category ?: 'Not specified' }}</dd></div>
+                        <div><dt>Assigned Adviser</dt><dd>{{ $application->adviser?->name ?? 'Not assigned' }}</dd></div>
+                        <div><dt>Institution or College</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
+                        <div><dt>Department</dt><dd>{{ $application->department ?: 'Not specified' }}</dd></div>
+                        <div><dt>Program</dt><dd>{{ $application->program ?: 'Not applicable' }}</dd></div>
+                        <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
+                        <div class="application-detail-full"><dt>Target Participants</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>
+                        <div class="application-detail-full"><dt>Brief Description or Abstract</dt><dd class="application-long-copy">{{ $application->abstract ?: 'Not specified' }}</dd></div>
+                    </dl>
+                </section>
 
-        @if ($role !== \App\Enums\UserRole::Applicant)
-            {{-- Authorized staff receive only the applicant identity needed for the assigned application. --}}
-            <section class="application-panel">
-                <div class="application-panel-heading"><div><h2>Applicant Information</h2><p>Identity details associated with this submission.</p></div></div>
-                <dl class="application-detail-grid">
-                    <div><dt>Name</dt><dd>{{ $application->applicant->name }}</dd></div>
-                    <div><dt>{{ $application->applicant->institutionalIdentifierLabel() }}</dt><dd>{{ $application->applicant->institutional_identifier }}</dd></div>
-                    <div><dt>Email</dt><dd>{{ $application->applicant->email }}</dd></div>
-                    <div><dt>Program</dt><dd>{{ $application->applicant->program ?: 'Not specified' }}</dd></div>
-                </dl>
-            </section>
-        @endif
+                @if ($role !== \App\Enums\UserRole::Applicant)
+                    {{-- Authorized staff receive only the applicant identity needed for the assigned application. --}}
+                    <section class="application-information-group applicant-identity-group" data-application-information-group>
+                        <h3>Applicant Information</h3>
+                        <dl class="application-detail-grid">
+                            <div><dt>Name</dt><dd>{{ $application->applicant->name }}</dd></div>
+                            <div><dt>{{ $application->applicant->institutionalIdentifierLabel() }}</dt><dd>{{ $application->applicant->institutional_identifier }}</dd></div>
+                            <div><dt>Email</dt><dd>{{ $application->applicant->email }}</dd></div>
+                            <div><dt>Program</dt><dd>{{ $application->applicant->program ?: 'Not specified' }}</dd></div>
+                        </dl>
+                    </section>
+                @endif
+            </div>
+        </section>
 
         {{-- Requirement totals and status rows use the same server summary that gates final submission. --}}
         <section class="application-panel">
@@ -119,28 +136,12 @@
                                                 data-document-preview-kind="{{ $document->previewKind() }}"
                                                 data-document-preview-url="{{ route($documentRouteBase.'.preview', [$application, $document]) }}"
                                                 data-document-download-url="{{ route($documentRouteBase.'.download', [$application, $document]) }}"
-                                                data-document-replace-input="{{ $role === \App\Enums\UserRole::Applicant && $canEdit ? 'detail_replace_document_'.$item['requirement']->id : '' }}"
+                                                data-document-replace-input=""
                                             >
                                                 <x-dashboard.icon :name="$item['icon']" size="18" />
                                                 <span data-table-tooltip="{{ $document->original_file_name }}">{{ $document->original_file_name }}</span>
                                             </button>
-                                            @if ($role === \App\Enums\UserRole::Applicant && $canEdit)
-                                                <form method="POST" action="{{ route('applicant.applications.documents.destroy', [$application, $document]) }}" data-confirm-document-remove>
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button class="application-document-remove" type="submit" aria-label="Remove {{ $document->original_file_name }}" title="Remove uploaded document">
-                                                        <x-dashboard.icon name="x" size="17" />
-                                                    </button>
-                                                </form>
-                                            @endif
                                         </div>
-
-                                        @if ($role === \App\Enums\UserRole::Applicant && $canEdit)
-                                            <form class="application-document-replace-form" method="POST" action="{{ route('applicant.applications.documents.store', [$application, $item['requirement']]) }}" enctype="multipart/form-data" data-application-submit-once>
-                                                @csrf
-                                                <input id="detail_replace_document_{{ $item['requirement']->id }}" name="document" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" required data-document-replace-file>
-                                            </form>
-                                        @endif
                                     @else
                                         <span>No file uploaded</span>
                                     @endif
@@ -157,7 +158,7 @@
             @if ($role === \App\Enums\UserRole::Applicant && $canEdit)
                 {{-- Applicants return to the upload workspace while the record remains editable. --}}
                 <div class="application-panel-actions">
-                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}">Continue Document Submission</a>
+                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}">{{ $isReturnedApplicant ? 'Re-upload Documents' : 'Continue Document Submission' }}</a>
                     @if ($canDiscard)
                         <form method="POST" action="{{ route('applicant.applications.destroy', $application) }}" data-confirm-draft-discard>
                             @csrf

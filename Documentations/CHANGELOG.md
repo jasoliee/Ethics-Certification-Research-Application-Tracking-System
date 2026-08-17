@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-08-17
+
+### Added
+
+- Added Adviser-owned Reviewer capability with a live `reviewer_enabled` gate, multi-classification/capacity profile, accessible Adviser submenu, legacy URL containment, RES Show/Hide Reviewer mass actions, and conservative legacy identity reconciliation.
+- Added immutable Reviewer submission versions, soft-retained comments, exact release-source/frozen-feedback provenance, persisted Full Board consensus/conflict state, conflict notifications/priority, and one release gate shared by individual and bulk actions.
+- Added current-cycle Reviewer replacement after work starts, including immediate revocation/notification, retained superseded evidence, locked eligibility revalidation, and replacement-only consensus.
+- Added persisted certificate issue/valid-through dates, automatic Pending Certificate Release generation after a final Approved result, Review Worksheet Background provenance, typed future-only background histories, and private RES signatory settings.
+- Added versioned ten-question Applicant evaluation data and anonymous aggregate RES reporting.
+- Added role-owned Profile and Security & Privacy settings, Adviser endorsement targets/live statistics, strict Adviser Applicant scope, and RES Review Monitoring for Adviser and Reviewer workloads.
+
+### Changed
+
+- Reviewer is no longer a separately interactive or creatable account. Adviser is the primary identity and Reviewer is a supplementary, deny-by-default entitlement. Canonical pages are under `/adviser/reviewer`.
+- `.xlsx` import now recognizes required headers structurally across reordered/renamed/hidden sheets instead of requiring template origin/fingerprint. Inert external-link metadata is accepted but never resolved; formulas and active content remain blocked.
+- Phone validation now requires exactly 11 numeric digits on create, edit, and import. Dropdown Option management moved from User Management into RES Settings.
+- New Applicant documents are limited to PDF and safe JPG/JPEG, PNG, GIF, and WebP content. Historical Office files remain available through private authorized fallback routes.
+- Applicant revisions now use requirement/version accordions; returned detail controls, Adviser combined information, secure preview fallbacks, Reviewer assignment layout, inline worksheet selection/asynchronous saves, and current-cycle dashboard status were aligned with the Finale brief.
+- Decision & Certificates now uses three metrics and a privacy-limited queue. Applicant identity is excluded before a certificate exists; split Full Board decisions cannot be released.
+- Certificate/background changes are future-only. The August 13 retroactive regeneration contract is superseded; issued certificate binaries and their issue/release/claim provenance are retained unchanged.
+
+### Security and migration notes
+
+- Seven additive migrations dated `2026_08_17` preserve legacy IDs and backfill submitted reviews/validity where applicable. Identity, review-version/release, certificate-validity, worksheet-background, and role-settings migrations contain explicit unsafe-rollback guards.
+- Reviewer capability, assignment ownership, conflict/capacity/self-endorsement eligibility, consensus, private-file nesting, and self-service account allowlists are all enforced server-side. Applicant and Reviewer identities remain excluded from their opposing blind contexts.
+- As of this documentation pass, `php artisan migrate:status` reports all seven new migrations as Pending. Apply them only through the rollout sequence in `THE_FINALE_IMPLEMENTATION_2026-08-17.md` with a verified database/private-storage backup.
+
+### Verification status
+
+- Focused automated slices for role/settings, Adviser scope/profile, reassignment, and their related regressions passed during integration. Route discovery succeeds with 157 routes; Blade caching and the Vite production build passed at intermediate checkpoints.
+- Final acceptance remains open for the settled-tree full Laravel suite, repository-wide Pint, strict Composer/platform checks, final route/migration/Blade/Vite/diff checks, non-destructive migration execution, and authenticated local UI checks at 1440, 1280, 1024, 768, and 390 pixels.
+- The authoritative implementation, intentional supersessions, rollout/rollback rules, evidence list, pending checks, and remaining limitations are in `THE_FINALE_IMPLEMENTATION_2026-08-17.md`.
+
 ## 2026-08-13
 
 ### Changed

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 class TestingUserSeeder extends Seeder
 {
     /**
-     * @var array<int, array{name: string, first_name: string, last_name: string, institutional_identifier: string, username: string, email: string, password: string, role: UserRole, applicant_type?: ApplicantType}>
+     * @var array<int, array{name: string, first_name: string, last_name: string, institutional_identifier: string, username: string, email: string, password: string, role: UserRole, applicant_type?: ApplicantType, reviewer_enabled?: bool}>
      */
     private array $users = [
         [
@@ -43,13 +43,16 @@ class TestingUserSeeder extends Seeder
             'username' => 'reviewertest',
             'email' => 'reviewertest@ecrats.test',
             'password' => '12345678',
-            'role' => UserRole::Reviewer,
+            'role' => UserRole::Adviser,
+            'reviewer_enabled' => true,
         ],
     ];
 
     public function run(): void
     {
         foreach ($this->users as $user) {
+            $reviewerEnabled = $user['reviewer_enabled'] ?? false;
+
             User::updateOrCreate(
                 ['username' => $user['username']],
                 [
@@ -61,11 +64,13 @@ class TestingUserSeeder extends Seeder
                     'email' => $user['email'],
                     'institutional_identifier' => $user['institutional_identifier'],
                     'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
-                    // Keep the local Reviewer account eligible for the maintained expedited demo workflow.
-                    'department' => $user['role'] === UserRole::Reviewer ? 'Computer Studies' : null,
-                    'position_title' => $user['role'] === UserRole::Reviewer ? 'Ethics Reviewer' : null,
-                    'reviewer_classification' => $user['role'] === UserRole::Reviewer ? 'Expedited' : null,
-                    'reviewer_capacity' => $user['role'] === UserRole::Reviewer ? 6 : null,
+                    // The compatibility review account is now an Adviser with supplementary access.
+                    'department' => $reviewerEnabled ? 'Computer Studies' : null,
+                    'position_title' => $reviewerEnabled ? 'Ethics Reviewer' : null,
+                    'reviewer_classification' => $reviewerEnabled ? 'Expedited' : null,
+                    'reviewer_classifications' => $reviewerEnabled ? ['Expedited'] : null,
+                    'reviewer_capacity' => $reviewerEnabled ? 6 : null,
+                    'reviewer_enabled' => $reviewerEnabled,
                     'password' => Hash::make($user['password']),
                     'password_changed_at' => now(),
                     'password_setup_completed_at' => now(),

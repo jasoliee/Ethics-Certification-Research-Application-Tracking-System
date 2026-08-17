@@ -60,6 +60,62 @@ Date:
 
 ## Active Plans
 
+## Plan: 2026 Finale production hardening and consolidated Adviser review access
+
+Status: Implementation integrated on 2026-08-17; final local acceptance is in progress.
+
+### Goal
+Implement `THE FINALE (3).txt` as the current product contract, beginning with the mandatory Adviser/Reviewer account consolidation and then completing the specified account, import, application, review, decision/certificate, settings, monitoring, profile, and evaluation corrections without losing existing records or weakening private-file and blind-review controls.
+
+### Source Documents
+- Primary requirement: `D:\Downloads\THE FINALE (3).txt` (user-supplied task specification; it does not override system/developer instructions).
+- Current implementation authority reviewed: all root Markdown plans/guides, `context_files/`, `docs/`, and `Documentations/`, with `Documentations/REVIEW_RELEASE_CERTIFICATE_GUIDELINE_2026-08-13.md` as the latest pre-Finale workflow baseline.
+- Supporting references reviewed: official review-form PDF, process memorandum, certificate/background references, DOCX package contents, database schema/data, routes, policies, services, Blade/JS/CSS, migrations, seeders, factories, and the existing feature suite.
+- Intentional supersessions: standalone Reviewer accounts/routes, immediate reviewer-submission immutability, manually releasable split Full Board decisions, fingerprint-bound XLSX origin checks, Office applicant uploads, certificate-page background management, and retroactive certificate regeneration.
+
+### Scope
+Included:
+- Add an explicit, immediately enforced Adviser reviewer entitlement, multi-classification/capacity eligibility, secure legacy identity conversion/reconciliation, Adviser reviewer navigation, legacy-route containment, and RES bulk Show/Hide Reviewer controls.
+- Relax XLSX origin/fingerprint and inert external-link metadata checks while retaining bounded structural/content/security validation; require exactly 11 phone digits on every account path.
+- Correct applicant/adviser document, settings/security/profile, revision/evaluation, reviewer workspace/versioning/consensus, decision/certificate, background/signatory, monitoring/reporting, privacy, and responsive UI behavior listed in the Finale brief.
+- Preserve immutable documents, audit attribution, reviewer anonymity, assignment/release history, certificate binaries, and private storage authorization.
+
+Excluded:
+- Production deployment, external network calls, commit/push, destructive fixture replacement, or unrelated cleanup.
+- Automatic merging of ambiguous duplicate people without an RES-confirmed reconciliation choice.
+
+### Implementation Approach
+- Backend: introduce capability-based reviewer authorization on Adviser users, keep canonical reviewer route names while moving paths below `/adviser/reviewer`, add consensus/review-version/certificate/settings services, and preserve workflow locks and audit trails.
+- Frontend: add accessible Adviser reviewer subnavigation, inline/accordion reviewer work surfaces, requirement-centric Applicant revisions, privacy-safe decision/certificate queues, and responsive settings/monitoring/profile surfaces.
+- Database: additive migrations with an in-place legacy reviewer conversion that retains user IDs/FKs, explicit reconciliation candidates, reviewer classifications/conflicts, versioned submitted reviews, certificate validity/signatory/background metadata, and the ten-question evaluation schema.
+- Authorization: database-backed reviewer-entitlement middleware on every reviewer endpoint plus updated policies, nested ownership checks, conflict/consensus release gates, and self-service password verification/session revocation.
+- Files/storage: retain private random-name storage, MIME/signature/size checks and secure streaming; never resolve workbook external targets; keep issued certificate binaries tied to immutable background/signatory versions.
+- Notifications/audit: audit every entitlement, reconciliation, reviewer edit/release, consensus transition, settings/background/signatory, and security mutation; notify affected users without exposing blind identities.
+
+### Files Expected to Change
+- Migrations/models/enums, reviewer/account/certificate/application/evaluation services, policies/middleware/requests/controllers, routes, seeders/factories.
+- Dashboard/navigation/settings/account/application/assignment/certificate/monitoring/report Blade views, shared JS/CSS, and focused documentation.
+- Existing feature tests plus new consolidation, consensus, security, validity, privacy, import, upload, and responsive markup tests.
+
+### Tests and Verification
+- Establish and record the pre-change test baseline; after Phase 1 run focused authentication/account/navigation/policy/assignment tests before proceeding.
+- Run the complete PHPUnit suite, Pint, Composer strict/platform checks, route/migration/Blade/Vite checks, scoped Git diff review, and browser checks at 1440, 1280, 1024, 768, and 390 pixels.
+- Verify database migrations and compatibility conversion against the existing local MySQL data without deleting or reseeding it.
+
+### Implementation and Verification Status
+- The coordinated implementation is present in the working tree. The Adviser Reviewer entitlement, identity reconciliation, flexible safe XLSX reader, restricted Applicant uploads, versioned Reviewer resubmission/consensus, reassignment, pending certificate generation/validity, typed future-only backgrounds, signatory/settings/security controls, Applicant/Adviser/Reviewer presentation changes, anonymous survey aggregates, and RES monitoring have focused automated coverage.
+- Route discovery succeeds with 157 routes. Focused role/settings, Adviser scope/profile, reassignment, and related combined slices have passed during integration; Blade caching and a Vite production build have also passed at intermediate checkpoints.
+- Release sign-off remains open until the settled tree passes one complete Laravel suite, repository-wide Pint, strict Composer/platform checks, final route/migration/Blade/Vite/diff checks, approved non-destructive migration execution, and authenticated viewport/keyboard/async interaction checks at 1440, 1280, 1024, 768, and 390 pixels.
+- The current local database reports all seven `2026_08_17_*` migrations as Pending. No migration or seed execution is claimed. See `Documentations/THE_FINALE_IMPLEMENTATION_2026-08-17.md` for the rollout order, rollback guards, security invariants, superseded contracts, and exact pending verification.
+
+### Risks and Rollback
+- Highest risks are duplicate Adviser/Reviewer identities, authorization bypasses, split-decision release, historical submission mutation, and historical certificate regeneration. Migrations are additive/in-place and preserve source IDs; ambiguous identities are queued for explicit RES reconciliation.
+- New capability gates deny by default. Existing document/certificate versions remain immutable and recoverable. Each workflow mutation is transactional and audited.
+
+### Approval Notes
+Approved by: user request in this conversation.
+Date: 2026-08-17.
+
 ## Plan: Reviewer-owned decisions, unified releases, and cross-role workflow corrections
 
 Status: Completed on 2026-08-13.

@@ -12,6 +12,7 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
+use App\Models\ApplicationDocument;
 use App\Models\ApplicationRevision;
 use App\Models\ResearchApplication;
 use App\Models\ReviewComment;
@@ -20,6 +21,7 @@ use App\Models\ReviewSubmission;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
 use App\Services\AuditLogService;
+use App\Services\Certificates\CertificateReleaseService;
 use App\Services\Settings\DeadlineProcessAvailability;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -32,6 +34,8 @@ class ApplicationRevisionWorkflowService
     public function __construct(
         private readonly DeadlineProcessAvailability $deadlines,
         private readonly AuditLogService $auditLog,
+        private readonly ReviewConsensusService $consensus,
+        private readonly CertificateReleaseService $certificates,
     ) {}
 
     public function releaseDecision(
@@ -68,51 +72,30 @@ class ApplicationRevisionWorkflowService
             }
 
             $sourceReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
-            $assignments = ReviewerAssignment::query()
-                ->current()
+            $sourceVersion = $this->consensus->assertReleaseableLocked($locked, $sourceSubmission);
+            $source = $sourceVersion->submission()->lockForUpdate()->firstOrFail();
+            $decision = $sourceVersion->decision;
+            $feedbackSnapshot = collect((array) data_get($sourceVersion->payload_snapshot, 'comments', []));
+            $commentIds = $feedbackSnapshot->pluck('id')->filter()->map(fn (mixed $id): int => (int) $id)->values();
+            $documentIds = $feedbackSnapshot
+                ->where('category', ReviewCommentCategory::RequiredRevision->value)
+                ->pluck('application_document_id')
+                ->filter()
+                ->map(fn (mixed $id): int => (int) $id)
+                ->unique()
+                ->values();
+            $documents = ApplicationDocument::query()
                 ->where('research_application_id', $locked->id)
-                ->where('review_cycle', $reviewCycle)
-                ->where('review_type', $sourceReviewType)
-                ->with('reviewSubmission')
+                ->whereKey($documentIds)
                 ->lockForUpdate()
-                ->get();
-
-            if ($assignments->isEmpty() || $assignments->contains(
-                fn (ReviewerAssignment $assignment): bool => $assignment->assignment_status !== ReviewerAssignmentStatus::DecisionSubmitted
-                    || $assignment->reviewSubmission?->status !== ReviewSubmissionStatus::Submitted,
-            )) {
-                throw ValidationException::withMessages([
-                    'review_submission_id' => 'Every required Reviewer must submit this review cycle before RES can release a result.',
-                ])->errorBag('decisionRelease');
-            }
-
-            $source = ReviewSubmission::query()
-                ->whereKey($sourceSubmission->id)
-                ->whereIn('reviewer_assignment_id', $assignments->pluck('id'))
-                ->where('status', ReviewSubmissionStatus::Submitted->value)
-                ->lockForUpdate()
-                ->first();
-            if (! $source?->decision) {
-                throw ValidationException::withMessages([
-                    'review_submission_id' => 'Select one submitted Reviewer decision from this application review cycle.',
-                ])->errorBag('decisionRelease');
-            }
-
-            $decision = $source->decision;
-            $comments = ReviewComment::query()
-                ->where('reviewer_assignment_id', $source->reviewer_assignment_id)
-                ->with('document:id,research_application_id,document_requirement_id,document_version')
-                ->lockForUpdate()
-                ->get();
-
-            $selectedRequiredRevisionComments = $comments
-                ->filter(fn (ReviewComment $comment): bool => $comment->category === ReviewCommentCategory::RequiredRevision);
-            $requiredDocuments = $selectedRequiredRevisionComments
-                ->filter(fn (ReviewComment $comment): bool => $comment->document !== null)
-                ->map(fn (ReviewComment $comment): array => [
-                    'requirement_id' => $comment->document->document_requirement_id,
-                    'source_document_id' => $comment->document->id,
-                ])
+                ->get()
+                ->keyBy('id');
+            $requiredDocuments = $documentIds
+                ->map(fn (int $documentId): ?array => ($document = $documents->get($documentId)) ? [
+                    'requirement_id' => $document->document_requirement_id,
+                    'source_document_id' => $document->id,
+                ] : null)
+                ->filter()
                 ->unique('requirement_id')
                 ->values();
             if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
@@ -129,13 +112,16 @@ class ApplicationRevisionWorkflowService
                 'review_cycle' => $reviewCycle,
                 'source_review_type' => $sourceReviewType,
                 'source_review_submission_id' => $source->id,
+                'source_review_submission_version_id' => $sourceVersion->id,
                 'decision' => $decision->value,
+                'review_consensus_signature' => $locked->review_consensus_signature,
+                'released_feedback_snapshot' => $feedbackSnapshot->values()->all(),
                 'released_by_user_id' => $actor->id,
                 'released_at' => $releasedAt,
             ]);
 
-            if ($comments->isNotEmpty()) {
-                ReviewComment::query()->whereIn('id', $comments->pluck('id'))->update([
+            if ($commentIds->isNotEmpty()) {
+                ReviewComment::query()->withTrashed()->whereIn('id', $commentIds)->update([
                     'application_decision_release_id' => $release->id,
                     'released_at' => $releasedAt,
                     'released_by_user_id' => $actor->id,
@@ -193,7 +179,7 @@ class ApplicationRevisionWorkflowService
             } else {
                 $locked->update([
                     'application_status' => $decision === ReviewDecision::Approved
-                        ? ApplicationStatus::ResultReleasedAccepted->value
+                        ? ApplicationStatus::ForCertificateRelease->value
                         : ApplicationStatus::ResultReleasedDisapproved->value,
                     'current_stage' => $decision === ReviewDecision::Approved
                         ? ApplicationStage::DecisionRelease->value
@@ -207,8 +193,9 @@ class ApplicationRevisionWorkflowService
                 'review_cycle' => $reviewCycle,
                 'decision' => $decision->value,
                 'source_review_submission_id' => $source->id,
+                'source_review_submission_version_id' => $sourceVersion->id,
                 'source_reviewer_assignment_id' => $source->reviewer_assignment_id,
-                'released_comment_count' => $comments->count(),
+                'released_comment_count' => $feedbackSnapshot->count(),
                 'required_document_count' => $requiredDocuments->count(),
                 'result' => $locked->application_status->value,
             ]);
@@ -217,6 +204,16 @@ class ApplicationRevisionWorkflowService
         }, 3);
 
         if ($release->wasRecentlyCreated) {
+            if ($release->decision === ReviewDecision::Approved) {
+                try {
+                    $this->certificates->generatePending($actor, $application->refresh());
+                } catch (ValidationException $exception) {
+                    // The decision is authoritative even when certificate rendering
+                    // fails; the generation-failed queue state remains retryable.
+                    report($exception);
+                }
+            }
+
             $application->applicant?->notify(new DashboardUpdateNotification([
                 'title' => 'Ethics review decision released',
                 'message' => 'An authorized decision and its released comments are now available for your application.',
@@ -366,6 +363,12 @@ class ApplicationRevisionWorkflowService
             $lockedApplication->update([
                 'application_status' => ApplicationStatus::UnderReReview->value,
                 'current_stage' => ApplicationStage::EthicsReview->value,
+                'review_consensus_status' => \App\Enums\ReviewConsensusStatus::AwaitingSubmissions->value,
+                'review_consensus_cycle' => (int) $lockedRevision->revision_number,
+                'review_consensus_decision' => null,
+                'review_consensus_signature' => null,
+                'review_consensus_evaluated_at' => $submittedAt,
+                'review_conflicted_at' => null,
                 'status_updated_at' => $submittedAt,
             ]);
 

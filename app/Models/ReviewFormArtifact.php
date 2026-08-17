@@ -10,6 +10,9 @@ class ReviewFormArtifact extends Model
 {
     protected $fillable = [
         'review_form_submission_id',
+        'review_submission_version_id',
+        'certificate_background_id',
+        'background_sha256',
         'artifact_version',
         'status',
         'stored_file_path',
@@ -37,5 +40,15 @@ class ReviewFormArtifact extends Model
     public function formSubmission(): BelongsTo
     {
         return $this->belongsTo(ReviewFormSubmission::class, 'review_form_submission_id');
+    }
+
+    public function submissionVersion(): BelongsTo
+    {
+        return $this->belongsTo(ReviewSubmissionVersion::class, 'review_submission_version_id');
+    }
+
+    public function background(): BelongsTo
+    {
+        return $this->belongsTo(CertificateBackground::class, 'certificate_background_id');
     }
 }

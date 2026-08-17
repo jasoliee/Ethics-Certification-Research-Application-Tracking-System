@@ -42,6 +42,8 @@ class ReviewerWorkflowService
         private readonly DeadlineProcessAvailability $deadlines,
         private readonly AuditLogService $auditLog,
         private readonly OfficialReviewFormArtifactService $officialForms,
+        private readonly ReviewSubmissionVersionService $submissionVersions,
+        private readonly ReviewConsensusService $consensus,
     ) {}
 
     /** @param array<string, mixed> $payload */
@@ -61,12 +63,6 @@ class ReviewerWorkflowService
                 ->where('form_type', $type->value)
                 ->lockForUpdate()
                 ->first();
-
-            if ($existing?->status === ReviewFormStatus::Final) {
-                throw ValidationException::withMessages([
-                    'form' => 'This worksheet is locked with the submitted overall review.',
-                ])->errorBag('reviewerForm');
-            }
 
             if ($complete) {
                 $this->validateFinalForm($type, $normalized);
@@ -89,11 +85,13 @@ class ReviewerWorkflowService
             );
 
             $this->markInReview($locked);
+            $this->markSubmittedWorkDirty($locked);
             $this->auditLog->record($actor, $complete ? 'review.form_completed' : 'review.form_draft_saved', $locked->researchApplication, [
                 'assignment_id' => $locked->id,
                 'form_type' => $type->value,
                 'form_status' => $form->status->value,
             ]);
+            $this->consensus->evaluateLocked($locked->researchApplication);
 
             return $form->refresh()->load('artifact');
         }, 3);
@@ -123,11 +121,13 @@ class ReviewerWorkflowService
             ]);
 
             $this->markInReview($locked);
+            $this->markSubmittedWorkDirty($locked);
             $this->auditLog->record($actor, 'review.comment_added', $locked->researchApplication, [
                 'assignment_id' => $locked->id,
                 'comment_id' => $comment->id,
                 'scope' => $scope->value,
             ]);
+            $this->consensus->evaluateLocked($locked->researchApplication);
 
             return $comment;
         }, 3);
@@ -151,11 +151,13 @@ class ReviewerWorkflowService
             $commentId = $lockedComment->id;
             $scope = $lockedComment->scope->value;
             $lockedComment->delete();
+            $this->markSubmittedWorkDirty($locked);
             $this->auditLog->record($actor, 'review.comment_removed', $locked->researchApplication, [
                 'assignment_id' => $locked->id,
                 'comment_id' => $commentId,
                 'scope' => $scope,
             ]);
+            $this->consensus->evaluateLocked($locked->researchApplication);
         }, 3);
     }
 
@@ -187,11 +189,13 @@ class ReviewerWorkflowService
                 'page_number' => null,
                 'body' => trim($payload['body']),
             ]);
+            $this->markSubmittedWorkDirty($locked);
             $this->auditLog->record($actor, 'review.comment_updated', $locked->researchApplication, [
                 'assignment_id' => $locked->id,
                 'comment_id' => $lockedComment->id,
                 'scope' => $scope->value,
             ]);
+            $this->consensus->evaluateLocked($locked->researchApplication);
 
             return $lockedComment->refresh();
         }, 3);
@@ -234,12 +238,14 @@ class ReviewerWorkflowService
                 'created_at' => $changedAt,
                 'updated_at' => $changedAt,
             ]);
+            $this->markSubmittedWorkDirty($locked);
             $this->auditLog->record($actor, 'review.comment_status_changed', $locked->researchApplication, [
                 'assignment_id' => $locked->id,
                 'comment_id' => $lockedComment->id,
                 'from_status' => $previous,
                 'to_status' => $status,
             ]);
+            $this->consensus->evaluateLocked($locked->researchApplication);
 
             return $lockedComment->refresh();
         }, 3);
@@ -251,6 +257,7 @@ class ReviewerWorkflowService
         ?ReviewDecision $decision,
         ?string $decisionComment,
         bool $submit,
+        ?string $submissionToken = null,
     ): ReviewSubmission {
         $storedPaths = [];
 
@@ -263,11 +270,34 @@ class ReviewerWorkflowService
                 $decision,
                 $decisionComment,
                 $submit,
+                $submissionToken,
                 &$storedPaths,
             ): ReviewSubmission {
                 $locked = $this->lockedAssignment($assignment);
                 $this->authorizeWritable($actor, $locked);
                 $this->assertReviewWindowOpen($locked);
+                $existingSubmission = $locked->reviewSubmission()->lockForUpdate()->first();
+
+                if ($submit && $existingSubmission && filled($submissionToken)) {
+                    $idempotent = $existingSubmission->versions()
+                        ->where('submission_token', $submissionToken)
+                        ->lockForUpdate()
+                        ->first();
+                    if ($idempotent) {
+                        $requestHash = $this->submissionVersions->workingRequestHash(
+                            $locked,
+                            $decision?->value,
+                            $decisionComment,
+                        );
+                        if (! hash_equals($idempotent->request_sha256, $requestHash)) {
+                            throw ValidationException::withMessages([
+                                'submission_token' => 'This submission token was already used for different review content. Refresh and try again.',
+                            ])->errorBag('reviewDecision');
+                        }
+
+                        return $existingSubmission->refresh();
+                    }
+                }
                 $finalForms = collect();
 
                 if ($submit) {
@@ -275,15 +305,29 @@ class ReviewerWorkflowService
                 }
 
                 $submittedAt = $submit ? now() : null;
-                $submission = $locked->reviewSubmission()->updateOrCreate([], [
-                    'status' => $submit ? ReviewSubmissionStatus::Submitted->value : ReviewSubmissionStatus::Draft->value,
-                    'decision' => $decision?->value,
-                    'decision_comment' => filled($decisionComment) ? trim((string) $decisionComment) : null,
-                    'submitted_at' => $submittedAt,
-                ]);
+                $normalizedComment = filled($decisionComment) ? trim((string) $decisionComment) : null;
+                if (! $submit && $existingSubmission?->status === ReviewSubmissionStatus::Submitted) {
+                    $existingSubmission->update([
+                        'draft_decision' => $decision?->value,
+                        'draft_decision_comment' => $normalizedComment,
+                        'has_unsubmitted_changes' => true,
+                    ]);
+                    $submission = $existingSubmission;
+                } else {
+                    $submission = $locked->reviewSubmission()->updateOrCreate([], [
+                        'status' => $submit ? ReviewSubmissionStatus::Submitted->value : ReviewSubmissionStatus::Draft->value,
+                        'decision' => $decision?->value,
+                        'decision_comment' => $normalizedComment,
+                        'draft_decision' => $decision?->value,
+                        'draft_decision_comment' => $normalizedComment,
+                        'has_unsubmitted_changes' => false,
+                        'submitted_at' => $submittedAt,
+                    ]);
+                }
 
                 if (! $submit) {
                     $this->markInReview($locked);
+                    $this->consensus->evaluateLocked($locked->researchApplication);
                     $this->auditLog->record($actor, 'review.decision_draft_saved', $locked->researchApplication, [
                         'assignment_id' => $locked->id,
                         'decision' => $decision?->value,
@@ -329,6 +373,17 @@ class ReviewerWorkflowService
                     ]));
                 }
 
+                $submissionVersion = $this->submissionVersions->create(
+                    $actor,
+                    $locked,
+                    $submission,
+                    $finalForms,
+                    $comments,
+                    $generatedArtifacts,
+                    $submittedAt,
+                    $submissionToken,
+                );
+
                 foreach ($finalForms as $form) {
                     $currentArtifactId = $generatedArtifacts
                         ->firstWhere('review_form_submission_id', $form->id)?->id;
@@ -347,23 +402,13 @@ class ReviewerWorkflowService
                     ->whereKey($locked->research_application_id)
                     ->lockForUpdate()
                     ->firstOrFail();
-                $allSubmitted = $application->reviewerAssignments()
-                    ->current()
-                    ->where('review_type', $locked->review_type)
-                    ->where('review_cycle', $locked->review_cycle)
-                    ->lockForUpdate()
-                    ->get()
-                    ->every(fn (ReviewerAssignment $item): bool => $item->assignment_status === ReviewerAssignmentStatus::DecisionSubmitted);
+                $application = $this->consensus->evaluateLocked($application);
+                $allSubmitted = $application->review_consensus_status !== \App\Enums\ReviewConsensusStatus::AwaitingSubmissions;
 
-                if ($allSubmitted) {
-                    $application->update([
-                        'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease->value,
-                        'current_stage' => ApplicationStage::DecisionRelease->value,
-                        'status_updated_at' => now(),
-                    ]);
+                if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus) {
                     $this->notifyResLeads(
-                        'Reviewer decisions ready for release processing',
-                        'All required reviewer decisions for an application have been submitted.',
+                        'Reviewer consensus ready for decision release',
+                        'All required current Reviewer submissions agree and are ready for RES release.',
                         $application,
                     );
                 }
@@ -373,7 +418,10 @@ class ReviewerWorkflowService
                     'decision' => $decision?->value,
                     'artifact_ids' => $generatedArtifacts->pluck('id')->all(),
                     'artifact_versions' => $generatedArtifacts->pluck('artifact_version')->all(),
+                    'review_submission_version_id' => $submissionVersion->id,
+                    'review_submission_version' => $submissionVersion->version_number,
                     'all_reviewers_submitted' => $allSubmitted,
+                    'consensus_status' => $application->review_consensus_status?->value,
                     'result' => $application->application_status->value,
                 ]);
 
@@ -422,6 +470,10 @@ class ReviewerWorkflowService
 
     private function assertReviewWindowOpen(ReviewerAssignment $assignment): void
     {
+        if ($assignment->reviewSubmission?->status === ReviewSubmissionStatus::Submitted) {
+            return;
+        }
+
         $revisionReview = $assignment->review_type === 'revision_review'
             || (int) $assignment->review_cycle > 0;
 
@@ -440,6 +492,14 @@ class ReviewerWorkflowService
     {
         if ($assignment->assignment_status === ReviewerAssignmentStatus::Pending) {
             $assignment->update(['assignment_status' => ReviewerAssignmentStatus::InReview->value]);
+        }
+    }
+
+    private function markSubmittedWorkDirty(ReviewerAssignment $assignment): void
+    {
+        $submission = $assignment->reviewSubmission()->lockForUpdate()->first();
+        if ($submission?->status === ReviewSubmissionStatus::Submitted) {
+            $submission->update(['has_unsubmitted_changes' => true]);
         }
     }
 
@@ -673,7 +733,7 @@ class ReviewerWorkflowService
             $form = $finalForms->get($type->value);
 
             if (! $form
-                || $form->status !== ReviewFormStatus::Completed) {
+                || ! in_array($form->status, [ReviewFormStatus::Completed, ReviewFormStatus::Final], true)) {
                 $errors['forms'] = 'Complete both required reviewer worksheets before submitting the decision.';
             }
         }

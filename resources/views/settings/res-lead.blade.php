@@ -11,11 +11,21 @@
             fn (string $key): bool => str_starts_with($key, 'processes.')
                 || in_array($key, ['semester', 'academic_year', 'term_starts_on', 'term_ends_on'], true)
         );
-        $securityHasErrors = $errors->has('username') || collect($passwordFields)->contains(
+        $profileHasErrors = $errors->getBag('signatory')->any() || collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'position_title', 'certificate_signatory_name', 'signature'])
+            ->contains(fn (string $field): bool => $errors->has($field));
+        $securityHasErrors = $errors->has('username') || $errors->has('email') || collect($passwordFields)->contains(
             fn (array $field): bool => $errors->has($field[0])
         );
+        $optionsHaveErrors = $errors->has('option_field') || $errors->has('option_value');
+        $backgroundsHaveErrors = $errors->getBag('certificateBackground')->any() || $errors->has('background') || $errors->has('background_type');
+        $requestedTab = request('tab');
         $initialTab = old('settings_tab')
-            ?: ($securityHasErrors ? 'security' : ($deadlineHasErrors ? 'deadlines' : 'profile'));
+            ?: ($securityHasErrors ? 'security'
+                : ($deadlineHasErrors ? 'deadlines'
+                    : ($optionsHaveErrors ? 'options'
+                        : ($backgroundsHaveErrors ? 'backgrounds'
+                            : ($profileHasErrors ? 'profile'
+                                : (in_array($requestedTab, ['profile', 'deadlines', 'options', 'backgrounds', 'security'], true) ? $requestedTab : 'profile'))))));
         $processIcons = [
             'application-submission' => 'file-text',
             'adviser-endorsement' => 'user-check',
@@ -49,6 +59,14 @@
                 <x-dashboard.icon name="calendar" size="18" />
                 <span>Deadline Configuration</span>
             </button>
+            <button id="settings-tab-options" type="button" role="tab" aria-controls="settings-panel-options" aria-selected="{{ $initialTab === 'options' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'options' ? '0' : '-1' }}" data-settings-tab="options">
+                <x-dashboard.icon name="settings" size="18" />
+                <span>Dropdown Options</span>
+            </button>
+            <button id="settings-tab-backgrounds" type="button" role="tab" aria-controls="settings-panel-backgrounds" aria-selected="{{ $initialTab === 'backgrounds' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'backgrounds' ? '0' : '-1' }}" data-settings-tab="backgrounds">
+                <x-dashboard.icon name="image" size="18" />
+                <span>Background Management</span>
+            </button>
             <button id="settings-tab-security" type="button" role="tab" aria-controls="settings-panel-security" aria-selected="{{ $initialTab === 'security' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'security' ? '0' : '-1' }}" data-settings-tab="security">
                 <x-dashboard.icon name="lock" size="18" />
                 <span>Security and Privacy</span>
@@ -78,6 +96,200 @@
                     <div><dt>Role</dt><dd>{{ $settingsUser->displayRoleLabel() }}</dd></div>
                     <div><dt>Active Term</dt><dd>{{ $activeTermLabel }}</dd></div>
                 </dl>
+
+                @include('settings.partials.profile-form')
+
+                <form class="settings-account-form settings-signatory-form" method="POST" action="{{ route('res.settings.signatory.update') }}" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="settings_tab" value="profile">
+                    <div>
+                        <h3>Certificate Signatory</h3>
+                        <p>The current authorized printed name and transparent signature are used only for certificates generated after this change.</p>
+                    </div>
+                    <div class="settings-signatory-grid">
+                        <div class="settings-field">
+                            <label for="certificate_signatory_name">Printed Signatory Name</label>
+                            <input id="certificate_signatory_name" name="certificate_signatory_name" type="text" value="{{ old('certificate_signatory_name', $settingsUser->certificate_signatory_name ?: $settingsUser->name) }}" maxlength="120" required>
+                            @error('certificate_signatory_name')<span class="settings-field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="settings-field">
+                            <label for="settings_signature">Transparent PNG Signature</label>
+                            <input id="settings_signature" name="signature" type="file" accept="image/png,.png">
+                            <small>PNG only, up to 2 MB, 64×32 through 2400×1200 pixels, with transparency.</small>
+                            @error('signature')<span class="settings-field-error">{{ $message }}</span>@enderror
+                            @error('signature', 'signatory')<span class="settings-field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="settings-signature-preview">
+                            <span>Current signature</span>
+                            <img src="{{ route('res.settings.signatory.preview') }}" alt="Current authorized RES certificate signature">
+                        </div>
+                    </div>
+                    <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>Save Signatory</span></button>
+                </form>
+            </section>
+        </section>
+
+        <section
+            class="settings-tab-panel"
+            id="settings-panel-options"
+            role="tabpanel"
+            aria-labelledby="settings-tab-options"
+            data-settings-panel="options"
+            @if ($initialTab !== 'options') hidden @endif
+        >
+            <section class="settings-section" aria-labelledby="dropdown-options-title">
+                <div class="settings-section-heading">
+                    <span><x-dashboard.icon name="settings" size="23" /></span>
+                    <div><h2 id="dropdown-options-title">Dropdown Options</h2><p>Manage controlled account-form and workbook values without changing historical account labels.</p></div>
+                </div>
+
+                <form class="identity-option-create" method="POST" action="{{ route('res.settings.profile-options.store') }}">
+                    @csrf
+                    <input type="hidden" name="settings_tab" value="options">
+                    <div class="identity-field">
+                        <label for="settings_option_field">Option Group</label>
+                        <select id="settings_option_field" name="option_field" required>
+                            @foreach (\App\Enums\ProfileOptionField::cases() as $field)
+                                <option value="{{ $field->value }}" @selected(old('option_field') === $field->value)>{{ $field->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="identity-field identity-option-value-field">
+                        <label for="settings_option_value">Option Value</label>
+                        <input id="settings_option_value" name="option_value" type="text" value="{{ old('option_value') }}" maxlength="150" required>
+                        @error('option_value')<span class="identity-field-error">{{ $message }}</span>@enderror
+                    </div>
+                    <button class="identity-button identity-button-primary" type="submit"><x-dashboard.icon name="plus" size="18" /><span>Add Option</span></button>
+                </form>
+
+                <div class="identity-table-summary">
+                    <strong>{{ $profileOptionRecords->count() }} configured options</strong>
+                    <span>{{ $profileOptionCounts['active'] }} active · {{ $profileOptionCounts['inactive'] }} inactive</span>
+                </div>
+                <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Dropdown options" tabindex="0">
+                    <table class="identity-user-table identity-option-table">
+                        <thead><tr><th>Option Group</th><th>Option Value</th><th class="identity-col-usage">In Use</th><th class="identity-col-status">Status</th><th class="identity-col-action">Action</th></tr></thead>
+                        <tbody>
+                            @forelse ($profileOptionRecords as $option)
+                                <tr>
+                                    <td><strong>{{ $option->field->label() }}</strong></td>
+                                    <td>
+                                        <form class="identity-option-edit-form" method="POST" action="{{ route('res.settings.profile-options.update', $option) }}">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="settings_tab" value="options">
+                                            <label class="sr-only" for="settings-option-{{ $option->id }}">Edit {{ $option->field->label() }} option</label>
+                                            <input id="settings-option-{{ $option->id }}" name="option_value" type="text" value="{{ $option->value }}" maxlength="150" required>
+                                            <button class="identity-button identity-button-secondary" type="submit"><x-dashboard.icon name="edit" size="17" /><span>Save</span></button>
+                                        </form>
+                                    </td>
+                                    <td class="identity-col-usage"><strong>{{ $profileOptionUsageCounts[$option->id] ?? 0 }}</strong></td>
+                                    <td class="identity-col-status"><x-dashboard.status-badge :label="$option->is_active ? 'Active' : 'Inactive'" :tone="$option->is_active ? 'green' : 'neutral'" /></td>
+                                    <td class="identity-col-action">
+                                        <form method="POST" action="{{ route('res.settings.profile-options.status', $option) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="settings_tab" value="options">
+                                            <input type="hidden" name="is_active" value="{{ $option->is_active ? 0 : 1 }}">
+                                            <button class="identity-view-link" type="submit">{{ $option->is_active ? 'Deactivate' : 'Restore' }}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5">No dropdown options are configured.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+
+        <section
+            class="settings-tab-panel"
+            id="settings-panel-backgrounds"
+            role="tabpanel"
+            aria-labelledby="settings-tab-backgrounds"
+            data-settings-panel="backgrounds"
+            @if ($initialTab !== 'backgrounds') hidden @endif
+        >
+            <section class="settings-section" aria-labelledby="background-management-title">
+                <div class="settings-section-heading">
+                    <span><x-dashboard.icon name="image" size="23" /></span>
+                    <div><h2 id="background-management-title">Background Management</h2><p>Certificate and Review Worksheet assets are versioned independently. Activating one changes future output only.</p></div>
+                </div>
+
+                @if ($errors->getBag('certificateBackground')->any() || $errors->has('background') || $errors->has('background_type'))
+                    <div class="identity-validation-summary settings-validation-summary" role="alert">
+                        <strong>The background was not activated.</strong>
+                        @foreach ($errors->getBag('certificateBackground')->all() as $message)<span>{{ $message }}</span>@endforeach
+                        @error('background')<span>{{ $message }}</span>@enderror
+                        @error('background_type')<span>{{ $message }}</span>@enderror
+                    </div>
+                @endif
+
+                <div class="settings-background-grid">
+                    @foreach ([
+                        \App\Models\CertificateBackground::TYPE_CERTIFICATE => 'Certificate Background',
+                        \App\Models\CertificateBackground::TYPE_REVIEW_WORKSHEET => 'Review Worksheet Background',
+                    ] as $backgroundType => $backgroundLabel)
+                        @php
+                            $history = $managedBackgrounds->get($backgroundType, collect());
+                            $activeBackground = $history->firstWhere('is_active', true);
+                        @endphp
+                        <section class="settings-background-card" aria-labelledby="{{ $backgroundType }}-background-title">
+                            <header>
+                                <div><h3 id="{{ $backgroundType }}-background-title">{{ $backgroundLabel }}</h3><p>{{ $activeBackground?->original_file_name ?: 'No active asset' }}</p></div>
+                                @if ($activeBackground)<a class="dashboard-outline-action" href="{{ route('res.settings.backgrounds.preview', $activeBackground) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview</span></a>@endif
+                            </header>
+
+                            <form class="settings-background-upload" method="POST" action="{{ route('res.settings.backgrounds.store') }}" enctype="multipart/form-data">
+                                @csrf
+                                <input type="hidden" name="settings_tab" value="backgrounds">
+                                <input type="hidden" name="background_type" value="{{ $backgroundType }}">
+                                <label class="settings-background-file" data-managed-background-file>
+                                    <input name="background" type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" required>
+                                    <span data-managed-background-file-label>Choose File</span>
+                                </label>
+                                <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="upload" size="17" /><span>Validate and Activate</span></button>
+                            </form>
+
+                            <form method="POST" action="{{ route('res.settings.backgrounds.reset') }}">
+                                @csrf
+                                <input type="hidden" name="settings_tab" value="backgrounds">
+                                <input type="hidden" name="background_type" value="{{ $backgroundType }}">
+                                <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="refresh" size="17" /><span>Reset to Official Default</span></button>
+                            </form>
+
+                            <div class="dashboard-overflow-region settings-background-history" role="region" aria-label="{{ $backgroundLabel }} history" tabindex="0">
+                                <table class="dashboard-table">
+                                    <thead><tr><th>Version</th><th>File</th><th>Activated</th><th>Status</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                        @foreach ($history as $background)
+                                            <tr>
+                                                <td>v{{ $background->asset_version }}</td>
+                                                <td>{{ $background->original_file_name }}</td>
+                                                <td>{{ $background->activated_at?->format('M j, Y g:i A') ?: 'Never' }}</td>
+                                                <td><x-dashboard.status-badge :label="$background->is_active ? 'Active' : 'Available'" :tone="$background->is_active ? 'green' : 'neutral'" /></td>
+                                                <td>
+                                                    <a class="identity-view-link" href="{{ route('res.settings.backgrounds.preview', $background) }}" target="_blank" rel="noopener">Preview</a>
+                                                    @unless ($background->is_active)
+                                                        <form method="POST" action="{{ route('res.settings.backgrounds.activate', $background) }}">
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <input type="hidden" name="settings_tab" value="backgrounds">
+                                                            <button class="identity-view-link" type="submit">Activate</button>
+                                                        </form>
+                                                    @endunless
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    @endforeach
+                </div>
             </section>
         </section>
 
@@ -296,6 +508,32 @@
                             <x-dashboard.icon name="edit" size="17" />
                             <span>Update Username</span>
                         </button>
+                    </form>
+
+                    <form
+                        class="settings-account-form settings-email-form"
+                        method="POST"
+                        action="{{ route('res.settings.email.update') }}"
+                        data-settings-confirm
+                        data-confirm-title="Confirm Email Change"
+                        data-confirm-message="Change your email address and revoke other signed-in sessions?"
+                        data-confirm-action="Update Email"
+                    >
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="settings_tab" value="security">
+                        <div><h3>Change Email Address</h3><p>Your current email is <strong>{{ $settingsUser->email }}</strong>.</p></div>
+                        <div class="settings-field">
+                            <label for="settings_email">New Email Address</label>
+                            <input id="settings_email" name="email" type="email" value="{{ old('email', $settingsUser->email) }}" maxlength="255" autocomplete="email" required>
+                            @error('email')<span class="settings-field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="settings-field">
+                            <label for="settings_email_current_password">Current Password</label>
+                            <input id="settings_email_current_password" name="current_password" type="password" maxlength="128" autocomplete="current-password" required>
+                            @error('current_password')<span class="settings-field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="mail" size="17" /><span>Update Email</span></button>
                     </form>
 
                     <form

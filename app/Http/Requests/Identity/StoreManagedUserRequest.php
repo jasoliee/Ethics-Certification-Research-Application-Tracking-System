@@ -29,7 +29,6 @@ class StoreManagedUserRequest extends FormRequest
     {
         $isApplicant = $this->input('role') === UserRole::Applicant->value;
         $isStudent = $isApplicant && $this->input('applicant_type') === ApplicantType::Student->value;
-        $isReviewer = $this->input('role') === UserRole::Reviewer->value;
         $options = app(ProfileOptionCatalog::class);
 
         return [
@@ -39,20 +38,15 @@ class StoreManagedUserRequest extends FormRequest
             'suffix' => ['nullable', 'string', 'max:30'],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')],
             'institutional_identifier' => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i', Rule::unique('users', 'institutional_identifier')],
-            'phone_number' => ['nullable', 'string', 'max:11', 'regex:/^[0-9]{1,11}$/'],
+            'phone_number' => ['required', 'digits:11'],
             'institution' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Institution))],
             'department' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Department))],
             'program' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Program))],
             'year_level' => [Rule::requiredIf($isStudent), 'nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::YearLevel))],
             'position_title' => ['nullable', 'string', 'max:150'],
-            'reviewer_classification' => [
-                Rule::requiredIf($isReviewer),
-                'nullable',
-                'string',
-                'max:150',
-                Rule::in($options->values(ProfileOptionField::ReviewerClassification)),
-            ],
-            'reviewer_capacity' => [Rule::requiredIf($isReviewer), 'nullable', 'integer', 'between:1,30'],
+            'reviewer_classifications' => ['nullable', 'array', 'min:1', 'max:2'],
+            'reviewer_classifications.*' => ['string', 'distinct', Rule::in(['Expedited', 'Full Board'])],
+            'reviewer_capacity' => ['nullable', 'integer', 'between:1,30'],
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [Rule::requiredIf($isApplicant), 'nullable', Rule::enum(ApplicantType::class)],
         ];
@@ -66,13 +60,13 @@ class StoreManagedUserRequest extends FormRequest
         return [
             'email.email' => 'Email must be a valid address such as name@example.com.',
             'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
-            'phone_number.max' => 'Phone Number may contain at most 11 digits.',
-            'phone_number.regex' => 'Phone Number must contain digits only, with at most 11 digits.',
+            'phone_number.digits' => 'Phone Number must contain exactly 11 digits.',
+            'phone_number.required' => 'Phone Number is required and must contain exactly 11 digits.',
             'institution.in' => $options->validationMessage(ProfileOptionField::Institution),
             'department.in' => $options->validationMessage(ProfileOptionField::Department),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classification.in' => $options->validationMessage(ProfileOptionField::ReviewerClassification),
+            'reviewer_classifications.*.in' => 'Reviewer Classification must be Expedited or Full Board.',
         ];
     }
 }

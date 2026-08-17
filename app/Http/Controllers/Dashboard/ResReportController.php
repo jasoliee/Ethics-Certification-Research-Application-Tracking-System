@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\Reports\ApplicantSurveyReportService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -14,7 +15,7 @@ use Illuminate\View\View;
 
 class ResReportController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, ApplicantSurveyReportService $surveyReports): View
     {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
 
@@ -24,6 +25,7 @@ class ResReportController extends Controller
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Reports'],
             ],
+            'surveySummary' => $surveyReports->summary(),
         ]);
     }
 

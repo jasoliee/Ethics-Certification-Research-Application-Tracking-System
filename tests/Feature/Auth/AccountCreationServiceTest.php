@@ -23,18 +23,20 @@ class AccountCreationServiceTest extends TestCase
         $service = app(UserAccountService::class);
 
         $adviser = $service->create($resLead, $this->adviserAttributes());
-        $reviewer = $service->create($resLead, $this->reviewerAttributes());
         $student = $service->create($resLead, $this->studentAttributes());
         $faculty = $service->create($resLead, $this->facultyAttributes());
 
-        foreach ([$adviser, $reviewer, $student, $faculty] as $account) {
+        foreach ([$adviser, $student, $faculty] as $account) {
             $this->assertSame('pending_setup', $account->account_status);
             $this->assertNull($account->password_setup_completed_at);
             $this->assertSame($resLead->id, $account->created_by_user_id);
             $this->assertTrue(Hash::needsRehash($account->password) === false);
         }
 
-        $this->assertSame(4, AuditLog::where('action', 'user.created')->count());
+        $this->assertSame(3, AuditLog::where('action', 'user.created')->count());
+
+        $this->expectException(AuthorizationException::class);
+        $service->create($resLead, $this->reviewerAttributes());
     }
 
     public function test_adviser_can_create_applicants_but_not_reviewer_or_res_lead(): void
@@ -78,7 +80,7 @@ class AccountCreationServiceTest extends TestCase
         $service = app(UserAccountService::class);
 
         $this->expectValidation(fn () => $service->create($resLead, [...$this->studentAttributes(), 'year_level' => null]));
-        $this->expectValidation(fn () => $service->create($resLead, [...$this->reviewerAttributes(), 'reviewer_classification' => null]));
+        $this->expectValidation(fn () => $service->create($resLead, [...$this->adviserAttributes(), 'phone_number' => '0917123']));
 
         $adviser = $service->create($resLead, [...$this->adviserAttributes(), 'position_title' => null]);
         $this->assertNull($adviser->position_title);
@@ -92,7 +94,7 @@ class AccountCreationServiceTest extends TestCase
             'middle_name' => null,
             'last_name' => 'User',
             'suffix' => null,
-            'phone_number' => null,
+            'phone_number' => '09171234567',
             'institution' => 'Institute of Engineering',
             'department' => null,
         ], $overrides);

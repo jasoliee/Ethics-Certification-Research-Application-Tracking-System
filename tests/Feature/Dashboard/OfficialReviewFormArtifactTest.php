@@ -13,6 +13,7 @@ use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\OfficialReviewFormGenerationException;
 use App\Models\DeadlineConfiguration;
+use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\ReviewFormArtifact;
@@ -139,6 +140,13 @@ class OfficialReviewFormArtifactTest extends TestCase
             $this->assertSame(hash('sha256', $bytes), $artifact->sha256);
             $this->assertSame(ReviewFormCatalog::TEMPLATE_SHA256, $artifact->template_sha256);
             $this->assertSame(ReviewFormCatalog::GENERATOR_VERSION, $artifact->generator_version);
+            $this->assertNotNull($artifact->certificate_background_id);
+            $this->assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/', (string) $artifact->background_sha256);
+            $this->assertDatabaseHas('certificate_backgrounds', [
+                'id' => $artifact->certificate_background_id,
+                'background_type' => CertificateBackground::TYPE_REVIEW_WORKSHEET,
+                'sha256' => $artifact->background_sha256,
+            ]);
             $this->assertStringStartsWith('%PDF-', $bytes);
             $this->assertStringNotContainsString('/AcroForm', $bytes);
             $this->assertStringNotContainsString('/Widget', $bytes);
@@ -387,8 +395,8 @@ class OfficialReviewFormArtifactTest extends TestCase
             ->get(route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $artifact]))
             ->assertOk();
         $this->actingAs($otherReviewer)->get($reviewerPreview)->assertForbidden();
-        $this->actingAs($applicant)->get($reviewerPreview)->assertRedirect(route('dashboard'));
-        $this->actingAs($adviser)->get($reviewerPreview)->assertRedirect(route('dashboard'));
+        $this->actingAs($applicant)->get($reviewerPreview)->assertForbidden();
+        $this->actingAs($adviser)->get($reviewerPreview)->assertForbidden();
         $this->assertFalse(Route::has('applicant.applications.review-form-artifacts.preview'));
 
         $otherApplication = ResearchApplication::factory()->create();

@@ -22,6 +22,7 @@ class SaveReviewerDecisionRequest extends FormRequest
     {
         return [
             'intent' => ['required', Rule::in(['draft', 'submit'])],
+            'submission_token' => ['nullable', 'uuid'],
             'decision' => [
                 Rule::requiredIf(fn (): bool => $this->input('intent') === 'submit'),
                 'nullable',

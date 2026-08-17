@@ -28,12 +28,11 @@ class ResearchApplicationPolicy
     {
         return match ($user->role) {
             UserRole::Applicant => $researchApplication->applicant_user_id === $user->id,
-            UserRole::Adviser => $researchApplication->adviser_user_id === $user->id
-                && $researchApplication->isFormallySubmitted(),
-            UserRole::Reviewer => $researchApplication->reviewerAssignments()
-                ->current()
-                ->where('reviewer_user_id', $user->id)
-                ->exists(),
+            UserRole::Adviser => ($researchApplication->adviser_user_id === $user->id
+                && $researchApplication->isFormallySubmitted())
+                || ($user->hasReviewerAccess() && $this->isAssignedReviewer($user, $researchApplication)),
+            // Historical standalone Reviewer rows are denied until explicitly converted.
+            UserRole::Reviewer => false,
             UserRole::ResLead => true,
         };
     }
@@ -85,7 +84,7 @@ class ResearchApplicationPolicy
         ResearchApplication $researchApplication,
         ?ApplicationDocument $applicationDocument = null,
     ): bool {
-        if ($user->role !== UserRole::Reviewer) {
+        if (! $user->hasReviewerAccess() || $researchApplication->adviser_user_id === $user->id) {
             return $this->view($user, $researchApplication);
         }
 
@@ -97,6 +96,14 @@ class ResearchApplicationPolicy
             ->current()
             ->where('reviewer_user_id', $user->id)
             ->where('review_cycle', '>=', $minimumCycle)
+            ->exists();
+    }
+
+    private function isAssignedReviewer(User $user, ResearchApplication $researchApplication): bool
+    {
+        return $researchApplication->reviewerAssignments()
+            ->current()
+            ->where('reviewer_user_id', $user->id)
             ->exists();
     }
 
@@ -192,6 +199,7 @@ class ResearchApplicationPolicy
                 ApplicationStatus::AwaitingReviewerAssignment,
                 ApplicationStatus::UnderExpeditedReview,
                 ApplicationStatus::UnderFullBoardReview,
+                ApplicationStatus::UnderReReview,
                 ApplicationStatus::ReviewSubmittedPendingRelease,
             ], true);
     }

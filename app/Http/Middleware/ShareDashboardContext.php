@@ -42,7 +42,7 @@ class ShareDashboardContext
                 });
 
             view()->share([
-                'dashboardNavigation' => DashboardNavigation::for($user->role),
+                'dashboardNavigation' => DashboardNavigation::for($user),
                 'dashboardNotifications' => $notifications,
                 'dashboardUnreadCount' => $user->unreadNotifications()->count(),
                 'dashboardNotificationsRoute' => $fallbackRoute,

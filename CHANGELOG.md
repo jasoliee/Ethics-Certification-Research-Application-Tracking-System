@@ -4,6 +4,17 @@ All notable project changes should be documented here.
 
 ## Unreleased
 
+### 2026 Finale integration
+
+- Consolidated Reviewer work into an explicit, immediately enforced Adviser capability, preserving legacy Reviewer IDs/history and adding RES-managed Show/Hide Reviewer and identity reconciliation.
+- Added flexible bounded `.xlsx` structure validation, inert external-link handling without resolution, exactly 11-digit phone validation, and moved Dropdown Options into RES Settings.
+- Restricted new Applicant uploads to PDF and safe raster images; added requirement/version revision accordions, the ten-question evaluation, anonymous RES aggregates, and complete self-service Profile/Security & Privacy controls.
+- Added immutable Reviewer submission versions, edit/resubmit-until-release behavior, current-cycle reassignment, Full Board consensus/conflict release gates, inline asynchronous worksheets, and current-cycle dashboard/list semantics.
+- Renamed and privacy-limited Decision & Certificates, added automatic pending certificate generation after final approval, one-calendar-year validity, future-only Certificate/Review Worksheet backgrounds, RES signatory management, and issued-artifact immutability.
+- Added RES Adviser/Reviewer Review Monitoring and tightened Adviser Applicant visibility to created-by or formally-submitted relationships.
+- Added seven additive `2026_08_17_*` migrations for Reviewer entitlement/reconciliation/conflicts, versioned review evidence/consensus, certificate validity, worksheet-background provenance, questionnaire versioning, and role settings. Provenance-bearing migrations refuse unsafe rollback after use.
+- See `Documentations/THE_FINALE_IMPLEMENTATION_2026-08-17.md` for rollout order, superseded contracts, privacy invariants, focused evidence, and final checks still required. The current local database has not yet applied these seven migrations.
+
 ### Added
 
 - Role-authorized user-management pages for RES Lead and Research Adviser accounts.

@@ -3,21 +3,16 @@
 @section('content')
     @php
         $dialogApplicationId = (int) old('application_id');
-        $backgroundDialogOpen = $errors->certificateBackground->any() || request()->has('background_page');
         $hasFilters = filled($filters['q'] ?? null) || filled($filters['state'] ?? null);
     @endphp
 
     <div class="dashboard-page res-certification-page">
         <header class="dashboard-page-heading certificate-page-heading">
             <div>
-                <h1>Certificate Processing</h1>
-                <p>Release Applicant-visible decisions, generate official certificates, and manage active certificate backgrounds.</p>
+                <h1>Decision &amp; Certificates</h1>
+                <p>Release consensus decisions and manage official certificates without exposing identities before certification.</p>
             </div>
             <div class="certificate-page-actions">
-                <button class="dashboard-outline-action" type="button" data-certificate-background-open>
-                    <x-dashboard.icon name="image" size="17" />
-                    <span>Manage Certificate Background</span>
-                </button>
                 <button class="dashboard-primary-action" type="button" data-certificate-bulk-open>
                     <x-dashboard.icon name="award" size="17" />
                     <span>Release All</span>
@@ -29,23 +24,6 @@
             <div class="application-success-banner" role="status"><x-dashboard.icon name="check" size="19" /><span>{{ session('status') }}</span></div>
         @endif
 
-        @if ($backgroundSummary = session('background_regeneration_summary'))
-            <section class="application-panel certificate-bulk-summary" aria-labelledby="background-summary-title">
-                <header class="application-panel-heading">
-                    <div><h2 id="background-summary-title">Background Regeneration Result</h2><p>Previous certificate binaries remain available internally. The latest valid rendering stays active when an item fails.</p></div>
-                </header>
-                <dl class="certificate-background-summary-grid">
-                    <div><dt>Active certificates</dt><dd>{{ $backgroundSummary['total'] }}</dd></div>
-                    <div><dt>Regenerated</dt><dd>{{ $backgroundSummary['regenerated'] }}</dd></div>
-                    <div><dt>Already current</dt><dd>{{ $backgroundSummary['already_current'] }}</dd></div>
-                    <div><dt>Failed</dt><dd>{{ $backgroundSummary['failed'] }}</dd></div>
-                </dl>
-                @if ($backgroundSummary['failed_certificate_numbers'])
-                    <p role="alert">Certificates retaining their last valid rendering: {{ implode(', ', $backgroundSummary['failed_certificate_numbers']) }}</p>
-                @endif
-            </section>
-        @endif
-
         @if ($summary = session('bulk_certificate_summary'))
             <section class="application-panel certificate-bulk-summary" aria-labelledby="bulk-summary-title">
                 <header class="application-panel-heading">
@@ -55,6 +33,7 @@
                     <div><dt>Eligible</dt><dd>{{ $summary['eligible'] }}</dd></div>
                     <div><dt>Successfully released</dt><dd>{{ $summary['successfully_released'] }}</dd></div>
                     <div><dt>Already released</dt><dd>{{ $summary['already_released'] }}</dd></div>
+                    <div><dt>Conflicted (skipped)</dt><dd>{{ $summary['conflicted'] ?? 0 }}</dd></div>
                     <div><dt>Ineligible</dt><dd>{{ $summary['ineligible'] }}</dd></div>
                     <div><dt>Failed</dt><dd>{{ $summary['failed'] }}</dd></div>
                 </dl>
@@ -64,7 +43,7 @@
             </section>
         @endif
 
-        @foreach (['decisionRelease', 'certificateRelease', 'certificateBackground', 'bulkRelease'] as $bag)
+        @foreach (['decisionRelease', 'certificateRelease', 'bulkRelease'] as $bag)
             @if ($errors->{$bag}->any())
                 <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>The request was not completed.</strong><span>{{ $errors->{$bag}->first() }}</span></div></div>
             @endif
@@ -72,20 +51,16 @@
 
         <section class="application-panel certificate-metric-strip" aria-label="Certificate queue summary">
             <article>
-                <span class="certificate-metric-icon is-green"><x-dashboard.icon name="file-text" size="25" /></span>
-                <div><strong>{{ $queueMetrics['relevant'] }}</strong><span>Relevant Applications</span></div>
+                <span class="certificate-metric-icon is-orange"><x-dashboard.icon name="clock" size="25" /></span>
+                <div><strong>{{ $queueMetrics['pending_decision_release'] }}</strong><span>Pending Decision Release</span></div>
+            </article>
+            <article>
+                <span class="certificate-metric-icon is-blue"><x-dashboard.icon name="award" size="25" /></span>
+                <div><strong>{{ $queueMetrics['pending_certificate_release'] }}</strong><span>Pending Certificate Release</span></div>
             </article>
             <article>
                 <span class="certificate-metric-icon is-green"><x-dashboard.icon name="check" size="25" /></span>
-                <div><strong>{{ $queueMetrics['released'] }}</strong><span>Certificates Released</span></div>
-            </article>
-            <article>
-                <span class="certificate-metric-icon is-orange"><x-dashboard.icon name="clock" size="25" /></span>
-                <div><strong>{{ $queueMetrics['pending_final_approval'] }}</strong><span>Pending Final Approval</span></div>
-            </article>
-            <article>
-                <span class="certificate-metric-icon is-blue"><x-dashboard.icon name="clipboard" size="25" /></span>
-                <div><strong>{{ $queueMetrics['survey_required'] }}</strong><span>Survey Required</span></div>
+                <div><strong>{{ $queueMetrics['certificates_released'] }}</strong><span>Certificates Released</span></div>
             </article>
         </section>
 
@@ -93,14 +68,14 @@
             <div class="application-field application-search-field certificate-filter-search">
                 <label for="certificate-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
-                <input id="certificate-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Application code, title, or Applicant">
+                <input id="certificate-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Application code or research title">
             </div>
             <div class="application-field">
                 <label for="certificate-state">Queue state</label>
                 <select id="certificate-state" name="state">
                     <option value="">All relevant records</option>
                     <option value="decision" @selected(($filters['state'] ?? '') === 'decision')>Decision release</option>
-                    <option value="eligible" @selected(($filters['state'] ?? '') === 'eligible')>Eligible</option>
+                    <option value="certificate" @selected(($filters['state'] ?? '') === 'certificate')>Certificate release</option>
                     <option value="released" @selected(($filters['state'] ?? '') === 'released')>Released</option>
                     <option value="failed" @selected(($filters['state'] ?? '') === 'failed')>Generation failed</option>
                     <option value="claimed" @selected(($filters['state'] ?? '') === 'claimed')>Claimed</option>
@@ -113,7 +88,7 @@
         <section class="application-panel certificate-queue-panel" aria-labelledby="certificate-queue-title">
             <header class="application-panel-heading certificate-queue-heading">
                 <div>
-                    <h2 id="certificate-queue-title">Certification Queue</h2>
+                    <h2 id="certificate-queue-title">Decision &amp; Certificate Queue</h2>
                     <p>
                         Showing {{ $applications->firstItem() ?? 0 }} to {{ $applications->lastItem() ?? 0 }} of {{ $applications->total() }} relevant {{ Str::plural('application', $applications->total()) }}
                         @if ($hasFilters)<span>(filtered)</span>@endif
@@ -137,14 +112,11 @@
                             <tr>
                                 <th class="certificate-row-number">#</th>
                                 <th>Application</th>
-                                <th>Applicant</th>
-                                <th>Final Review</th>
-                                <th>Decision</th>
-                                <th>Certificate</th>
-                                <th>Survey</th>
-                                <th>Claim</th>
-                                <th>Last Updated</th>
-                                <th class="dashboard-table-action">Action</th>
+                                <th class="certificate-queue-centered">Status</th>
+                                <th class="certificate-queue-centered">Decision</th>
+                                <th class="certificate-queue-centered">Claim</th>
+                                <th class="certificate-queue-centered">Last Updated</th>
+                                <th class="dashboard-table-action certificate-queue-centered">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -154,33 +126,43 @@
                                     $state = $certificationStates[$application->id];
                                     $certificate = $application->certificate;
                                     $currentVersion = $certificate?->currentVersion;
-                                    $latestRelease = $application->decisionReleases->first();
                                     $isReleased = $currentVersion !== null;
-                                    $surveyComplete = $application->surveyResponse !== null;
-                                    $isClaimed = $certificate?->claimed_at !== null;
-                                    $certificateLabel = $currentVersion
-                                        ? 'Version '.$currentVersion->certificate_version.' ready'
-                                        : ($state === \App\Enums\CertificationState::GenerationFailed ? 'Generation failed' : 'Not generated');
-                                    $certificateTone = $currentVersion ? 'success' : ($state === \App\Enums\CertificationState::GenerationFailed ? 'red' : 'neutral');
-                                    $surveyLabel = $surveyComplete ? 'Completed' : ($isReleased ? 'Required' : 'Not available');
-                                    $surveyTone = $surveyComplete ? 'success' : ($isReleased ? 'blue' : 'neutral');
-                                    $claimLabel = $isClaimed ? 'Claimed' : ($surveyComplete && $isReleased ? 'Ready to claim' : 'Not claimed');
-                                    $claimTone = $isClaimed ? 'success' : ($surveyComplete && $isReleased ? 'blue' : 'neutral');
+                                    $latestRelease = $application->decisionReleases->first();
+                                    $isConflicted = $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted;
+                                    $queueLabel = match (true) {
+                                        $isConflicted => 'Conflicted Decisions',
+                                        $application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease => 'Pending Decision Release',
+                                        $isReleased => 'Certificate Released',
+                                        $state === \App\Enums\CertificationState::GenerationFailed => 'Certificate Generation Failed',
+                                        default => 'Pending Certificate Release',
+                                    };
+                                    $queueTone = match (true) {
+                                        $isConflicted, $state === \App\Enums\CertificationState::GenerationFailed => 'red',
+                                        $isReleased => 'success',
+                                        $application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease => 'orange',
+                                        default => 'blue',
+                                    };
+                                    $decision = $latestRelease?->decision ?? $application->review_consensus_decision;
+                                    $decisionLabel = $isConflicted ? 'Conflicted' : ($decision?->label() ?? 'Pending');
+                                    $decisionTone = $isConflicted ? 'red' : ($decision?->tone() ?? 'orange');
+                                    $claimLabel = match ($certificate?->status) {
+                                        \App\Enums\CertificateStatus::Claimed => 'Claimed',
+                                        \App\Enums\CertificateStatus::Released => 'Not claimed',
+                                        default => 'Not available',
+                                    };
+                                    $claimTone = $certificate?->status === \App\Enums\CertificateStatus::Claimed ? 'success' : 'neutral';
                                 @endphp
-                                <tr class="{{ $isReleased ? 'is-certificate-ready' : '' }}">
+                                <tr class="{{ $isConflicted ? 'is-review-conflicted' : ($isReleased ? 'is-certificate-ready' : '') }}">
                                     <td class="certificate-row-number" data-certificate-row-number="{{ $rowNumber }}">{{ $rowNumber }}</td>
                                     <td class="certificate-application-cell">
                                         <small>{{ $application->application_code }}</small>
                                         <strong>{{ $application->research_title }}</strong>
                                     </td>
-                                    <td>{{ $application->applicant?->name ?? 'Applicant record unavailable' }}</td>
-                                    <td><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
-                                    <td><x-dashboard.status-badge :label="$latestRelease?->decision?->label() ?? 'Pending'" :tone="$latestRelease?->decision?->tone() ?? 'orange'" /></td>
-                                    <td><x-dashboard.status-badge :label="$certificateLabel" :tone="$certificateTone" /></td>
-                                    <td><x-dashboard.status-badge :label="$surveyLabel" :tone="$surveyTone" /></td>
-                                    <td><x-dashboard.status-badge :label="$claimLabel" :tone="$claimTone" /></td>
-                                    <td class="certificate-updated-cell"><span>{{ $application->status_updated_at?->format('M j, Y') }}</span><small>{{ $application->status_updated_at?->format('g:i A') }}</small></td>
-                                    <td class="dashboard-table-action">
+                                    <td class="certificate-queue-centered"><x-dashboard.status-badge :label="$queueLabel" :tone="$queueTone" /></td>
+                                    <td class="certificate-queue-centered"><x-dashboard.status-badge :label="$decisionLabel" :tone="$decisionTone" /></td>
+                                    <td class="certificate-queue-centered"><x-dashboard.status-badge :label="$claimLabel" :tone="$claimTone" /></td>
+                                    <td class="certificate-updated-cell certificate-queue-centered"><span>{{ $application->status_updated_at?->format('M j, Y') }}</span><small>{{ $application->status_updated_at?->format('g:i A') }}</small></td>
+                                    <td class="dashboard-table-action certificate-queue-centered">
                                         <button class="dashboard-outline-action certificate-row-action" type="button" data-certificate-application-open="{{ $application->id }}">
                                             {{ $isReleased ? 'View Details' : 'Review & Release' }}
                                         </button>
@@ -194,11 +176,6 @@
             @endif
         </section>
 
-        <section class="application-panel certificate-background-callout">
-            <div><x-dashboard.icon name="circle-help" size="19" /><span>Changing the active background safely regenerates past and present certificates while preserving issue, release, and claim history.</span></div>
-            <button class="dashboard-outline-action" type="button" data-certificate-background-open><x-dashboard.icon name="image" size="17" /><span>Manage Background</span></button>
-        </section>
-
         @foreach ($applications as $application)
             @php
                 $state = $certificationStates[$application->id];
@@ -207,8 +184,8 @@
                 $cycle = max(0, ((int) $application->current_revision_cycle) - 1);
                 $cycleAssignments = $application->reviewerAssignments->where('review_cycle', $cycle);
                 $latestRelease = $application->decisionReleases->first();
-                $surveyComplete = $application->surveyResponse !== null;
-                $isClaimed = $certificate?->claimed_at !== null;
+                $decisionSource = $cycleAssignments->first()?->reviewSubmission;
+                $isConflicted = $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted;
                 $reopenApplicationDialog = $dialogApplicationId === $application->id
                     && ($errors->decisionRelease->any() || $errors->certificateRelease->any());
             @endphp
@@ -224,7 +201,6 @@
                             <span>Selected Application</span>
                             <small>{{ $application->application_code }}</small>
                             <h2 id="certificate-application-{{ $application->id }}-title">{{ $application->research_title }}</h2>
-                            <p>{{ $application->applicant?->name ?? 'Applicant record unavailable' }}</p>
                         </div>
                         <x-dashboard.status-badge :label="$state->label()" :tone="$state->tone()" />
                     </header>
@@ -232,20 +208,32 @@
                     <section class="certificate-modal-section" aria-labelledby="certificate-summary-{{ $application->id }}">
                         <h3 id="certificate-summary-{{ $application->id }}">Status Summary</h3>
                         <dl class="certificate-modal-status-grid">
-                            <div><dt>Final Review</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
+                            <div><dt>Review State</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
+                            <div><dt>Consensus</dt><dd><x-dashboard.status-badge :label="$application->review_consensus_status?->label() ?? 'Not evaluated'" :tone="$application->review_consensus_status?->tone() ?? 'neutral'" /></dd></div>
                             <div><dt>Decision</dt><dd><x-dashboard.status-badge :label="$latestRelease?->decision?->label() ?? 'Pending'" :tone="$latestRelease?->decision?->tone() ?? 'orange'" /></dd></div>
                             <div><dt>Generation</dt><dd><x-dashboard.status-badge :label="$currentVersion ? 'Version '.$currentVersion->certificate_version.' ready' : 'Not generated'" :tone="$currentVersion ? 'success' : 'neutral'" /></dd></div>
-                            <div><dt>Survey</dt><dd><x-dashboard.status-badge :label="$surveyComplete ? 'Completed' : 'Not completed'" :tone="$surveyComplete ? 'success' : 'neutral'" /></dd></div>
-                            <div><dt>Claim</dt><dd><x-dashboard.status-badge :label="$isClaimed ? 'Claimed' : 'Not claimed'" :tone="$isClaimed ? 'success' : 'neutral'" /></dd></div>
                         </dl>
                     </section>
 
                     @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
                         <section class="certificate-modal-section certificate-decision-workspace" aria-labelledby="certificate-decision-{{ $application->id }}">
                             <div class="certificate-modal-section-heading">
-                                <div><h3 id="certificate-decision-{{ $application->id }}">Submitted Reviewer Decisions</h3><p>Open the read-only workspace to inspect supporting files, comments, both worksheets, and release one exact submitted Reviewer decision.</p></div>
+                                <div><h3 id="certificate-decision-{{ $application->id }}">Submitted Reviewer Decisions</h3><p>Inspect the immutable submitted record or release the current consensus decision. Both actions are revalidated by the server.</p></div>
                             </div>
-                            <a class="dashboard-primary-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="file-search" size="17" /><span>Open Read-only Review Workspace</span></a>
+                            @if ($isConflicted)
+                                <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
+                            @endif
+                            <div class="certificate-modal-actions">
+                                <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="file-search" size="17" /><span>Open Workspace</span></a>
+                                @if ($decisionSource && ! $isConflicted && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus)
+                                    <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
+                                        @csrf
+                                        <input type="hidden" name="application_id" value="{{ $application->id }}">
+                                        <input type="hidden" name="review_submission_id" value="{{ $decisionSource->id }}">
+                                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>Release Decision</span></button>
+                                    </form>
+                                @endif
+                            </div>
                         </section>
                     @endif
 
@@ -254,13 +242,17 @@
                             <div><h3 id="certificate-actions-{{ $application->id }}">Certificate Actions</h3><p>Every action is revalidated against the current server state.</p></div>
                         </div>
                         <div class="certificate-modal-actions">
-                            @if (in_array($state, [\App\Enums\CertificationState::Eligible, \App\Enums\CertificationState::GenerationFailed], true))
+                            @if (in_array($state, [\App\Enums\CertificationState::Eligible, \App\Enums\CertificationState::PendingResRelease, \App\Enums\CertificationState::GenerationFailed], true))
                                 <form method="POST" action="{{ route('res.certificates.release', $application) }}" data-disable-on-submit>
                                     @csrf
                                     <input type="hidden" name="application_id" value="{{ $application->id }}">
                                     <button class="dashboard-primary-action" type="submit">
                                         <x-dashboard.icon name="award" size="17" />
-                                        <span>{{ $state === \App\Enums\CertificationState::GenerationFailed ? 'Retry Secure Generation' : 'Generate and Release Certificate' }}</span>
+                                        <span>{{ match ($state) {
+                                            \App\Enums\CertificationState::GenerationFailed => 'Retry Secure Generation',
+                                            \App\Enums\CertificationState::PendingResRelease => 'Release Generated Certificate',
+                                            default => 'Generate and Release Certificate',
+                                        } }}</span>
                                     </button>
                                 </form>
                             @endif
@@ -280,7 +272,7 @@
                                         </form>
                                     </div>
                                 </details>
-                            @elseif (! in_array($state, [\App\Enums\CertificationState::Eligible, \App\Enums\CertificationState::GenerationFailed], true))
+                            @elseif (! in_array($state, [\App\Enums\CertificationState::Eligible, \App\Enums\CertificationState::PendingResRelease, \App\Enums\CertificationState::GenerationFailed], true))
                                 <p class="certificate-modal-empty-action">Certificate actions become available after an authorized final approval or exemption.</p>
                             @endif
                         </div>
@@ -291,14 +283,14 @@
                             <div class="certificate-modal-section-heading"><div><h3 id="certificate-versions-{{ $application->id }}">Version History</h3><p>Issued files are immutable and retain their exact background provenance.</p></div></div>
                             <x-dashboard.overflow class="certificate-version-scroll" label="Certificate version history" wide>
                                 <table class="dashboard-table certificate-version-table">
-                                    <thead><tr><th>Version</th><th>Status</th><th>Issued</th><th>Regenerated</th><th>Background</th><th>File Hash</th><th>Action</th></tr></thead>
+                                    <thead><tr><th>Version</th><th>Status</th><th>Issued</th><th>Valid Until</th><th>Background</th><th>File Hash</th><th>Action</th></tr></thead>
                                     <tbody>
                                         @foreach ($certificate->versions as $version)
                                             <tr>
                                                 <td><strong>Version {{ $version->certificate_version }}</strong></td>
                                                 <td><x-dashboard.status-badge :label="Str::headline($version->status->value)" :tone="$version->id === $certificate->current_certificate_version_id ? 'success' : 'neutral'" /></td>
-                                                <td>{{ $version->generated_at?->format('M j, Y g:i A') }}</td>
-                                                <td>{{ $version->regenerated_at?->format('M j, Y g:i A') ?? 'Original issue' }}</td>
+                                                <td>{{ $version->issued_date?->format('M j, Y') ?? $version->generated_at?->format('M j, Y') }}</td>
+                                                <td>{{ $version->valid_until?->format('M j, Y') ?? 'Not recorded' }}</td>
                                                 <td>Version {{ $version->background?->asset_version ?? 'n/a' }}</td>
                                                 <td><code title="{{ $version->sha256 }}">{{ Str::limit($version->sha256, 18) }}</code></td>
                                                 <td><a href="{{ route('res.certificates.versions.preview', [$certificate, $version]) }}" target="_blank" rel="noopener">Preview</a></td>
@@ -314,72 +306,6 @@
                 </div>
             </section>
         @endforeach
-
-        <section class="application-modal-backdrop" data-certificate-background-dialog @if ($backgroundDialogOpen) data-open-on-load @else hidden @endif>
-            <div class="application-modal certificate-background-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-background-title" tabindex="-1">
-                <button class="application-modal-close" type="button" aria-label="Close certificate background manager" data-certificate-background-close><x-dashboard.icon name="x" size="20" /></button>
-                <header class="application-modal-heading">
-                    <span class="application-modal-icon"><x-dashboard.icon name="image" size="23" /></span>
-                    <div><h2 id="certificate-background-title">Manage Certificate Background</h2><p>Changes create traceable new renderings for active certificates; prior issued binaries are retained.</p></div>
-                </header>
-
-                <section class="certificate-background-current">
-                    <div>
-                        <span>Current background</span>
-                        <strong>{{ $activeBackground?->original_file_name ?? 'No active background' }}</strong>
-                        <small>{{ $activeBackground?->source_kind === \App\Services\Certificates\CertificateBackgroundService::OFFICIAL_SOURCE_KIND ? 'Official default' : 'RES uploaded' }}@if ($activeBackground) &middot; SHA-256 {{ Str::limit($activeBackground->sha256, 24) }}@endif</small>
-                    </div>
-                    @if ($activeBackground)
-                        <div class="certificate-background-current-actions">
-                            <x-dashboard.status-badge :label="'Active v'.$activeBackground->asset_version" tone="success" />
-                            <a class="dashboard-outline-action" href="{{ route('res.certificate-backgrounds.preview', $activeBackground) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview</span></a>
-                        </div>
-                    @endif
-                </section>
-
-                <section class="certificate-modal-section certificate-background-upload" aria-labelledby="certificate-background-upload-title">
-                    <div class="certificate-modal-section-heading"><div><h3 id="certificate-background-upload-title">Upload and Activate</h3><p>Use a one-page portrait A4-compatible PDF, JPEG, or PNG.</p></div></div>
-                    <form method="POST" action="{{ route('res.certificate-backgrounds.store') }}" enctype="multipart/form-data" data-disable-on-submit>
-                        @csrf
-                        <label><span>Background file</span><input type="file" name="background" accept=".pdf,.jpg,.jpeg,.png" required></label>
-                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="upload" size="17" /><span>Validate and Activate</span></button>
-                    </form>
-                    <form method="POST" action="{{ route('res.certificate-backgrounds.reset') }}" data-disable-on-submit>
-                        @csrf
-                        <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="refresh" size="17" /><span>Reset to Official Default</span></button>
-                    </form>
-                </section>
-
-                <section class="certificate-modal-section" aria-labelledby="certificate-background-history-title">
-                    <div class="certificate-modal-section-heading"><div><h3 id="certificate-background-history-title">Background History</h3><p>{{ $backgrounds->total() }} stored {{ Str::plural('version', $backgrounds->total()) }}</p></div></div>
-                    <x-dashboard.overflow class="certificate-background-scroll" label="Certificate background versions" wide>
-                        <table class="dashboard-table certificate-background-table">
-                            <thead><tr><th>Version</th><th>File</th><th>Source</th><th>Activated</th><th>Status</th><th>Actions</th></tr></thead>
-                            <tbody>
-                                @foreach ($backgrounds as $background)
-                                    <tr>
-                                        <td><strong>Version {{ $background->asset_version }}</strong></td>
-                                        <td>{{ $background->original_file_name }}</td>
-                                        <td>{{ $background->source_kind === \App\Services\Certificates\CertificateBackgroundService::OFFICIAL_SOURCE_KIND ? 'Official default' : 'RES uploaded' }}</td>
-                                        <td>{{ $background->activated_at?->format('M j, Y g:i A') ?? 'Never' }}</td>
-                                        <td><x-dashboard.status-badge :label="$background->is_active ? 'Active' : 'Available'" :tone="$background->is_active ? 'success' : 'neutral'" /></td>
-                                        <td class="certificate-background-row-actions">
-                                            <a href="{{ route('res.certificate-backgrounds.preview', $background) }}" target="_blank" rel="noopener">Preview</a>
-                                            @unless ($background->is_active)
-                                                <form method="POST" action="{{ route('res.certificate-backgrounds.activate', $background) }}" data-disable-on-submit>@csrf @method('PATCH')<button type="submit">Activate</button></form>
-                                            @endunless
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </x-dashboard.overflow>
-                    <x-dashboard.pagination :paginator="$backgrounds" label="Certificate background pages" />
-                </section>
-
-                <div class="application-modal-actions certificate-modal-footer"><button class="dashboard-outline-action" type="button" data-certificate-background-close>Close</button></div>
-            </div>
-        </section>
 
         <section class="application-modal-backdrop" data-certificate-bulk-dialog hidden>
             <div class="application-modal certificate-bulk-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-bulk-title" tabindex="-1">

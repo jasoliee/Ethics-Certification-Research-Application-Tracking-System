@@ -3,8 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewSubmissionStatus;
-use App\Enums\UserRole;
+use App\Models\ApplicationDecisionRelease;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
 
@@ -25,14 +24,15 @@ class ReviewerAssignmentPolicy
         return $this->owns($user, $reviewerAssignment)
             && $reviewerAssignment->isCurrent()
             && in_array($reviewerAssignment->assignment_status, $this->activeStatuses(), true)
-            && ! $reviewerAssignment->reviewSubmission()
-                ->where('status', ReviewSubmissionStatus::Submitted->value)
+            && ! ApplicationDecisionRelease::query()
+                ->where('research_application_id', $reviewerAssignment->research_application_id)
+                ->where('review_cycle', $reviewerAssignment->review_cycle)
                 ->exists();
     }
 
     private function owns(User $user, ReviewerAssignment $reviewerAssignment): bool
     {
-        return $user->role === UserRole::Reviewer
+        return $user->hasReviewerAccess()
             && $reviewerAssignment->reviewer_user_id === $user->id
             && $reviewerAssignment->isCurrent();
     }
@@ -44,6 +44,7 @@ class ReviewerAssignmentPolicy
             ReviewerAssignmentStatus::Pending,
             ReviewerAssignmentStatus::InReview,
             ReviewerAssignmentStatus::RevisionReview,
+            ReviewerAssignmentStatus::DecisionSubmitted,
         ];
     }
 }

@@ -18,6 +18,8 @@ class Certificate extends Model
         'current_certificate_version_id',
         'released_by_user_id',
         'released_at',
+        'issued_date',
+        'valid_until',
         'claimed_by_user_id',
         'claimed_certificate_version_id',
         'claimed_at',
@@ -28,6 +30,8 @@ class Certificate extends Model
         return [
             'status' => CertificateStatus::class,
             'released_at' => 'datetime',
+            'issued_date' => 'date',
+            'valid_until' => 'date',
             'claimed_at' => 'datetime',
         ];
     }

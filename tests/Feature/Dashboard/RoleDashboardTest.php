@@ -2,14 +2,18 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\DeadlineManualStatus;
 use App\Enums\RequirementStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Models\AcademicTerm;
+use App\Models\ApplicationDecisionRelease;
 use App\Models\ApplicationDocument;
+use App\Models\ApplicationRevision;
 use App\Models\ApplicationScreening;
 use App\Models\DeadlineConfiguration;
 use App\Models\DocumentRequirement;
@@ -34,7 +38,6 @@ class RoleDashboardTest extends TestCase
         $cases = [
             UserRole::Applicant->value => 'No application yet',
             UserRole::Adviser->value => 'No submitted applications yet',
-            UserRole::Reviewer->value => 'No assigned applications yet',
             UserRole::ResLead->value => 'No pending administrative actions',
         ];
 
@@ -48,6 +51,12 @@ class RoleDashboardTest extends TestCase
                 ->assertSee('data-menu-toggle="notifications"', false)
                 ->assertSee('data-menu-toggle="profile"', false);
         }
+
+        $reviewerAdviser = User::factory()->reviewer()->create();
+        $this->actingAs($reviewerAdviser)
+            ->get(route('reviewer.dashboard'))
+            ->assertOk()
+            ->assertSee('No assigned applications yet');
     }
 
     /**
@@ -58,7 +67,6 @@ class RoleDashboardTest extends TestCase
         // Arrange the first expected card for each dashboard role that owns a summary-card grid.
         $cases = [
             UserRole::Adviser->value => 'Pending',
-            UserRole::Reviewer->value => 'Pending Reviews',
             UserRole::ResLead->value => 'For RES Screening',
         ];
 
@@ -84,6 +92,12 @@ class RoleDashboardTest extends TestCase
             $this->assertLessThan($countPosition, $iconPosition);
             $this->assertLessThan($labelPosition, $countPosition);
         }
+
+        $reviewer = User::factory()->reviewer()->create();
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.dashboard'))
+            ->assertOk()
+            ->assertSee('aria-label="Pending Reviews: 0"', false);
     }
 
     public function test_applicant_dashboard_displays_active_application_requirements_and_milestone(): void
@@ -448,7 +462,7 @@ class RoleDashboardTest extends TestCase
             'is_active' => true,
         ]);
         $this->actingAs($reviewer)
-            ->get(route('dashboard'))
+            ->get(route('reviewer.dashboard'))
             ->assertOk()
             ->assertSee('Mapped Reviewing of Revision Period')
             ->assertDontSee('Mapped Reviewing Period');
@@ -506,6 +520,7 @@ class RoleDashboardTest extends TestCase
     {
         $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
         $otherReviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $application = ResearchApplication::factory()->create([
             'application_code' => 'REV-001',
             'application_status' => ApplicationStatus::UnderExpeditedReview,
@@ -524,11 +539,24 @@ class RoleDashboardTest extends TestCase
             'assignment_status' => ReviewerAssignmentStatus::RevisionReview,
             'review_deadline_at' => now()->addDays(8),
         ]);
+        $completedApplication = ResearchApplication::factory()->create([
+            'application_status' => ApplicationStatus::ForCertificateRelease,
+            'submitted_at' => now()->subDays(4),
+        ]);
         ReviewerAssignment::factory()->create([
+            'research_application_id' => $completedApplication->id,
             'reviewer_user_id' => $reviewer->id,
             'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
             'review_deadline_at' => now()->subDay(),
             'submitted_at' => now()->subHour(),
+        ]);
+        ApplicationDecisionRelease::create([
+            'research_application_id' => $completedApplication->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::Approved,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subMinutes(30),
         ]);
         ReviewerAssignment::factory()->create([
             'reviewer_user_id' => $otherReviewer->id,
@@ -536,12 +564,65 @@ class RoleDashboardTest extends TestCase
         ]);
 
         $this->actingAs($reviewer)
-            ->get(route('dashboard'))
+            ->get(route('reviewer.dashboard'))
             ->assertOk()
             ->assertSee('aria-label="Pending Reviews: 1"', false)
             ->assertSee('aria-label="Revision Reviews: 1"', false)
             ->assertSee('aria-label="Completed Reviews: 1"', false)
             ->assertSee('REV-001');
+    }
+
+    public function test_reviewer_dashboard_uses_only_the_latest_cycle_and_does_not_complete_an_open_revision(): void
+    {
+        $reviewer = User::factory()->reviewer()->create();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $application = ResearchApplication::factory()->create([
+            'application_code' => 'REVIEW-LATEST-CYCLE-ONLY',
+            'application_status' => ApplicationStatus::UnderReReview,
+            'current_revision_cycle' => 2,
+        ]);
+        ReviewerAssignment::factory()->create([
+            'research_application_id' => $application->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_cycle' => 0,
+            'review_type' => 'initial_review',
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now()->subDays(2),
+            'assigned_at' => now()->subDays(4),
+        ]);
+        $release = ApplicationDecisionRelease::create([
+            'research_application_id' => $application->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::MinorRevision,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subDay(),
+        ]);
+        ApplicationRevision::create([
+            'research_application_id' => $application->id,
+            'application_decision_release_id' => $release->id,
+            'revision_number' => 1,
+            'status' => ApplicationRevisionStatus::UnderReview,
+            'due_at' => now()->addDays(5),
+            'submitted_at' => now()->subHour(),
+        ]);
+        $latestAssignment = ReviewerAssignment::factory()->create([
+            'research_application_id' => $application->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_cycle' => 1,
+            'review_type' => 'revision_review',
+            'assignment_status' => ReviewerAssignmentStatus::RevisionReview,
+            'assigned_at' => now(),
+        ]);
+
+        $response = $this->actingAs($reviewer)->get(route('reviewer.dashboard'));
+
+        $response
+            ->assertOk()
+            ->assertSee('aria-label="Revision Reviews: 1"', false)
+            ->assertSee('aria-label="Completed Reviews: 0"', false)
+            ->assertViewHas('assignments', fn ($assignments): bool => $assignments->count() === 1
+                && $assignments->first()->is($latestAssignment));
     }
 
     public function test_reviewer_dashboard_uses_current_fresh_assignments_after_status_reassignment_and_revocation_changes(): void
@@ -611,7 +692,7 @@ class RoleDashboardTest extends TestCase
         ]);
 
         $this->actingAs($reviewer)
-            ->get(route('dashboard'))
+            ->get(route('reviewer.dashboard'))
             ->assertOk()
             ->assertSee('Latest Assigned Reviews')
             ->assertSeeInOrder(['REVIEW-CURRENT-STATUS', 'REVIEW-NEW-ASSIGNMENT'])
@@ -695,7 +776,6 @@ class RoleDashboardTest extends TestCase
         // Arrange the role-specific labels expected when the database contains no applications or assignments.
         $cases = [
             UserRole::Adviser->value => ['Pending', 'Endorsed', 'Returned'],
-            UserRole::Reviewer->value => ['Pending Reviews', 'Revision Reviews', 'Completed Reviews'],
             UserRole::ResLead->value => ['For RES Screening', 'Under RES Screening', 'Awaiting Assignment', 'Under Review', 'For Result Release'],
         ];
 
@@ -716,6 +796,18 @@ class RoleDashboardTest extends TestCase
             foreach ($labels as $label) {
                 $response->assertSee('aria-label="'.$label.': 0"', false);
             }
+        }
+
+        $reviewer = User::factory()->reviewer()->create();
+        $reviewerResponse = $this->actingAs($reviewer)->get(route('reviewer.dashboard'));
+        $reviewerResponse->assertOk()->assertSeeInOrder([
+            'dashboard-summary-icon',
+            'dashboard-summary-copy',
+            '<strong>0</strong>',
+            '<span>Pending Reviews</span>',
+        ], false);
+        foreach (['Pending Reviews', 'Revision Reviews', 'Completed Reviews'] as $label) {
+            $reviewerResponse->assertSee('aria-label="'.$label.': 0"', false);
         }
     }
 

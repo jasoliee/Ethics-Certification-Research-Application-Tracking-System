@@ -7,7 +7,7 @@
             ['password', 'New Password', 'new-password'],
             ['password_confirmation', 'Confirm New Password', 'new-password'],
         ];
-        $securityHasErrors = $errors->has('username') || collect($passwordFields)->contains(
+        $securityHasErrors = $errors->has('username') || $errors->has('email') || collect($passwordFields)->contains(
             fn (array $field): bool => $errors->has($field[0])
         );
         $initialTab = old('settings_tab') ?: ($securityHasErrors ? 'security' : 'profile');
@@ -45,6 +45,7 @@
                     <div><dt>Role</dt><dd>{{ $settingsUser->displayRoleLabel() }}</dd></div>
                     <div><dt>Reviewer Classification</dt><dd>{{ $settingsUser->reviewer_classification ?: 'Not specified' }}</dd></div>
                 </dl>
+                @include('settings.partials.profile-form')
             </section>
         </section>
 
@@ -70,6 +71,16 @@
                             <span class="settings-field-error" id="settings-username-error">@error('username'){{ $message }}@enderror</span>
                         </div>
                         <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="edit" size="17" /><span>Update Username</span></button>
+                    </form>
+
+                    <form class="settings-account-form settings-email-form" method="POST" action="{{ route('reviewer.settings.email.update') }}" data-settings-confirm data-confirm-title="Confirm Email Change" data-confirm-message="Change your email address and revoke other signed-in sessions?" data-confirm-action="Update Email">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="settings_tab" value="security">
+                        <div><h3>Change Email Address</h3><p>Your current email is <strong>{{ $settingsUser->email }}</strong>.</p></div>
+                        <div class="settings-field"><label for="settings_email">New Email Address</label><input id="settings_email" name="email" type="email" value="{{ old('email', $settingsUser->email) }}" maxlength="255" autocomplete="email" required>@error('email')<span class="settings-field-error">{{ $message }}</span>@enderror</div>
+                        <div class="settings-field"><label for="settings_email_current_password">Current Password</label><input id="settings_email_current_password" name="current_password" type="password" maxlength="128" autocomplete="current-password" required>@error('current_password')<span class="settings-field-error">{{ $message }}</span>@enderror</div>
+                        <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="mail" size="17" /><span>Update Email</span></button>
                     </form>
 
                     <form class="settings-account-form settings-password-form" method="POST" action="{{ route('reviewer.settings.password.update') }}" data-settings-password-form data-settings-confirm data-confirm-title="Confirm Password Change" data-confirm-message="Change the password for your Reviewer account?" data-confirm-action="Change Password">

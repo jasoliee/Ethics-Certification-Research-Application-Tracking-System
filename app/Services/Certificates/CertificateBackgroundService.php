@@ -18,68 +18,88 @@ class CertificateBackgroundService
 {
     public const OFFICIAL_RESOURCE = 'resources/certificates/res-certificate-background.jpeg';
 
+    public const OFFICIAL_REVIEW_WORKSHEET_RESOURCE = 'resources/assets/official/ovprii-document-background.png';
+
     public const OFFICIAL_SOURCE_KIND = 'official_default';
 
     public function __construct(
         private readonly AuditLogService $auditLog,
     ) {}
 
-    public function active(): CertificateBackground
+    public function active(string $type = CertificateBackground::TYPE_CERTIFICATE): CertificateBackground
     {
-        $active = CertificateBackground::query()->where('is_active', true)->latest('activated_at')->first();
+        $this->assertType($type);
+        $active = CertificateBackground::query()
+            ->where('background_type', $type)
+            ->where('is_active', true)
+            ->latest('activated_at')
+            ->first();
 
-        return $active && Storage::disk('local')->exists($active->stored_file_path)
+        return $active && $this->isIntact($active)
             ? $active
-            : $this->ensureOfficialDefault();
+            : $this->ensureOfficialDefault($type);
     }
 
-    public function ensureOfficialDefault(): CertificateBackground
+    public function ensureOfficialDefault(string $type = CertificateBackground::TYPE_CERTIFICATE): CertificateBackground
     {
-        $resource = base_path(self::OFFICIAL_RESOURCE);
+        $this->assertType($type);
+        $resource = base_path($type === CertificateBackground::TYPE_CERTIFICATE
+            ? self::OFFICIAL_RESOURCE
+            : self::OFFICIAL_REVIEW_WORKSHEET_RESOURCE);
         if (! is_readable($resource)) {
             throw ValidationException::withMessages([
-                'background' => 'The verified official certificate background is unavailable.',
+                'background' => 'The verified official background is unavailable.',
             ])->errorBag('certificateBackground');
         }
 
         $hash = hash_file('sha256', $resource);
         $dimensions = getimagesize($resource);
-        if (! is_string($hash) || ! is_array($dimensions) || ($dimensions['mime'] ?? null) !== 'image/jpeg') {
+        $expectedMime = $type === CertificateBackground::TYPE_CERTIFICATE ? 'image/jpeg' : 'image/png';
+        if (! is_string($hash) || ! is_array($dimensions) || ($dimensions['mime'] ?? null) !== $expectedMime) {
             throw ValidationException::withMessages([
-                'background' => 'The verified official certificate background is unavailable.',
+                'background' => 'The verified official background is unavailable.',
             ])->errorBag('certificateBackground');
         }
 
-        return DB::transaction(function () use ($resource, $hash, $dimensions): CertificateBackground {
+        return DB::transaction(function () use ($resource, $hash, $dimensions, $type, $expectedMime): CertificateBackground {
             $backgrounds = CertificateBackground::query()->orderBy('id')->lockForUpdate()->get();
-            $official = $backgrounds->firstWhere('source_kind', self::OFFICIAL_SOURCE_KIND);
-            $path = 'certificate-backgrounds/official-'.$hash.'.jpeg';
+            $typedBackgrounds = $backgrounds->where('background_type', $type);
+            $official = $typedBackgrounds->firstWhere('source_kind', self::OFFICIAL_SOURCE_KIND);
+            $extension = ($dimensions['mime'] ?? null) === 'image/png' ? 'png' : 'jpeg';
+            $path = "managed-backgrounds/{$type}/official-{$hash}.{$extension}";
 
-            if (! Storage::disk('local')->exists($path)
+            $storedHash = Storage::disk('local')->exists($path)
+                ? hash_file('sha256', Storage::disk('local')->path($path))
+                : false;
+            if ((! is_string($storedHash) || ! hash_equals($hash, $storedHash))
                 && ! Storage::disk('local')->put($path, file_get_contents($resource))) {
                 throw ValidationException::withMessages([
-                    'background' => 'The official certificate background could not be prepared securely.',
+                    'background' => 'The official background could not be prepared securely.',
                 ])->errorBag('certificateBackground');
             }
 
             if (! $official) {
                 $official = CertificateBackground::create([
-                    'asset_version' => ((int) $backgrounds->max('asset_version')) + 1,
+                    'background_type' => $type,
+                    'asset_version' => ((int) $typedBackgrounds->max('asset_version')) + 1,
                     'source_kind' => self::OFFICIAL_SOURCE_KIND,
-                    'original_file_name' => 'RES Certificate official background.jpeg',
+                    'original_file_name' => $type === CertificateBackground::TYPE_CERTIFICATE
+                        ? 'RES Certificate official background.jpeg'
+                        : 'RES Review Worksheet official background.png',
                     'stored_file_path' => $path,
-                    'mime_type' => 'image/jpeg',
+                    'mime_type' => $expectedMime,
                     'file_size_bytes' => filesize($resource),
                     'sha256' => $hash,
                     'width_pixels' => $dimensions[0],
                     'height_pixels' => $dimensions[1],
                     'page_count' => 1,
-                    'is_active' => ! $backgrounds->contains('is_active', true),
-                    'activated_at' => $backgrounds->contains('is_active', true) ? null : now(),
+                    'is_active' => ! $typedBackgrounds->contains('is_active', true),
+                    'activated_at' => $typedBackgrounds->contains('is_active', true) ? null : now(),
                 ]);
             } elseif ($official->stored_file_path !== $path || ! hash_equals($official->sha256, $hash)) {
                 $official->update([
                     'stored_file_path' => $path,
+                    'mime_type' => $expectedMime,
                     'file_size_bytes' => filesize($resource),
                     'sha256' => $hash,
                     'width_pixels' => $dimensions[0],
@@ -88,17 +108,30 @@ class CertificateBackgroundService
                 ]);
             }
 
-            if (! $backgrounds->contains('is_active', true) && ! $official->is_active) {
-                $official->update(['is_active' => true, 'activated_at' => now(), 'superseded_at' => null]);
+            $hasIntactActive = $typedBackgrounds
+                ->where('is_active', true)
+                ->contains(fn (CertificateBackground $background): bool => $this->isIntact($background));
+            if (! $hasIntactActive) {
+                $activatedAt = now();
+                CertificateBackground::query()
+                    ->where('background_type', $type)
+                    ->where('is_active', true)
+                    ->whereKeyNot($official->id)
+                    ->update(['is_active' => false, 'superseded_at' => $activatedAt]);
+                $official->update(['is_active' => true, 'activated_at' => $activatedAt, 'superseded_at' => null]);
             }
 
             return $official->refresh();
         }, 3);
     }
 
-    public function uploadAndActivate(User $actor, UploadedFile $file): CertificateBackground
-    {
+    public function uploadAndActivate(
+        User $actor,
+        UploadedFile $file,
+        string $type = CertificateBackground::TYPE_CERTIFICATE,
+    ): CertificateBackground {
         $this->authorize($actor);
+        $this->assertType($type);
         $metadata = $this->validateAsset($file);
         $hash = hash_file('sha256', (string) $file->getRealPath());
         if (! is_string($hash)) {
@@ -112,7 +145,7 @@ class CertificateBackgroundService
             'image/png' => 'png',
             default => 'jpg',
         };
-        $path = $file->storeAs('certificate-backgrounds', Str::uuid().'.'.$extension, 'local');
+        $path = $file->storeAs("managed-backgrounds/{$type}", Str::uuid().'.'.$extension, 'local');
         if (! is_string($path)) {
             throw ValidationException::withMessages([
                 'background' => 'The background could not be stored securely.',
@@ -120,11 +153,13 @@ class CertificateBackgroundService
         }
 
         try {
-            return DB::transaction(function () use ($actor, $file, $metadata, $hash, $path): CertificateBackground {
+            return DB::transaction(function () use ($actor, $file, $metadata, $hash, $path, $type): CertificateBackground {
                 $backgrounds = CertificateBackground::query()->orderBy('id')->lockForUpdate()->get();
+                $typedBackgrounds = $backgrounds->where('background_type', $type);
                 $matching = $backgrounds->first(
                     fn (CertificateBackground $background): bool => hash_equals($background->sha256, $hash)
-                        && Storage::disk('local')->exists($background->stored_file_path),
+                        && $background->background_type === $type
+                        && $this->isIntact($background),
                 );
 
                 if ($matching) {
@@ -132,7 +167,8 @@ class CertificateBackgroundService
                     $background = $matching;
                 } else {
                     $background = CertificateBackground::create([
-                        'asset_version' => ((int) $backgrounds->max('asset_version')) + 1,
+                        'background_type' => $type,
+                        'asset_version' => ((int) $typedBackgrounds->max('asset_version')) + 1,
                         'source_kind' => 'res_uploaded',
                         'original_file_name' => Str::limit(basename($file->getClientOriginalName()), 255, ''),
                         'stored_file_path' => $path,
@@ -148,6 +184,7 @@ class CertificateBackgroundService
 
                 $activatedAt = now();
                 CertificateBackground::query()
+                    ->where('background_type', $type)
                     ->where('is_active', true)
                     ->whereKeyNot($background->id)
                     ->update(['is_active' => false, 'superseded_at' => $activatedAt]);
@@ -157,13 +194,14 @@ class CertificateBackgroundService
                     'superseded_at' => null,
                 ]);
 
-                $this->auditLog->record($actor, 'certificate.background_activated', $background, [
+                $this->auditLog->record($actor, $this->auditAction($type), $background, [
                     'background_id' => $background->id,
+                    'background_type' => $type,
                     'asset_version' => $background->asset_version,
                     'source_kind' => $background->source_kind,
                     'mime_type' => $background->mime_type,
                     'sha256' => $background->sha256,
-                    'result' => 'active_for_all_certificates',
+                    'result' => 'active_for_future_outputs',
                 ]);
 
                 return $background->refresh();
@@ -182,40 +220,59 @@ class CertificateBackgroundService
         return DB::transaction(function () use ($actor, $background): CertificateBackground {
             CertificateBackground::query()->orderBy('id')->lockForUpdate()->get();
             $locked = CertificateBackground::query()->whereKey($background->id)->lockForUpdate()->firstOrFail();
-            abort_unless(Storage::disk('local')->exists($locked->stored_file_path), 404);
+            $this->assertType($locked->background_type);
+            abort_unless($this->isIntact($locked), 404);
 
             if ($locked->is_active) {
                 return $locked;
             }
 
             $activatedAt = now();
-            CertificateBackground::query()->where('is_active', true)->update([
-                'is_active' => false,
-                'superseded_at' => $activatedAt,
-            ]);
+            CertificateBackground::query()
+                ->where('background_type', $locked->background_type)
+                ->where('is_active', true)
+                ->update([
+                    'is_active' => false,
+                    'superseded_at' => $activatedAt,
+                ]);
             $locked->update([
                 'is_active' => true,
                 'activated_at' => $activatedAt,
                 'superseded_at' => null,
             ]);
-            $this->auditLog->record($actor, 'certificate.background_activated', $locked, [
+            $this->auditLog->record($actor, $this->auditAction($locked->background_type), $locked, [
                 'background_id' => $locked->id,
+                'background_type' => $locked->background_type,
                 'asset_version' => $locked->asset_version,
                 'source_kind' => $locked->source_kind,
                 'sha256' => $locked->sha256,
-                'result' => 'active_for_all_certificates',
+                'result' => 'active_for_future_outputs',
             ]);
 
             return $locked->refresh();
         }, 3);
     }
 
-    public function resetToOfficial(User $actor): CertificateBackground
-    {
+    public function resetToOfficial(
+        User $actor,
+        string $type = CertificateBackground::TYPE_CERTIFICATE,
+    ): CertificateBackground {
         $this->authorize($actor);
-        $official = $this->ensureOfficialDefault();
+        $official = $this->ensureOfficialDefault($type);
 
         return $this->activate($actor, $official);
+    }
+
+    public function isIntact(CertificateBackground $background): bool
+    {
+        $disk = Storage::disk('local');
+        if (! $disk->exists($background->stored_file_path)) {
+            return false;
+        }
+
+        $hash = hash_file('sha256', $disk->path($background->stored_file_path));
+
+        return is_string($hash) && hash_equals($background->sha256, $hash);
     }
 
     /** @return array{mime_type: string, width_pixels: int|null, height_pixels: int|null, page_count: int} */
@@ -224,7 +281,7 @@ class CertificateBackgroundService
         $mimeType = (string) $file->getMimeType();
         if (! in_array($mimeType, ['application/pdf', 'image/jpeg', 'image/png'], true)) {
             throw ValidationException::withMessages([
-                'background' => 'Upload a valid single-page PDF, JPEG, or PNG certificate background.',
+                'background' => 'Upload a valid single-page PDF, JPEG, or PNG background.',
             ])->errorBag('certificateBackground');
         }
 
@@ -260,7 +317,7 @@ class CertificateBackgroundService
         }
         if ($dimensions[0] < 596 || $dimensions[1] < 842) {
             throw ValidationException::withMessages([
-                'background' => 'Use a portrait certificate background of at least 596 by 842 pixels.',
+                'background' => 'Use a portrait background of at least 596 by 842 pixels.',
             ])->errorBag('certificateBackground');
         }
         $this->assertA4Compatible((float) $dimensions[0], (float) $dimensions[1]);
@@ -283,5 +340,20 @@ class CertificateBackgroundService
     private function authorize(User $actor): void
     {
         abort_unless($actor->role === UserRole::ResLead, 403);
+    }
+
+    private function assertType(string $type): void
+    {
+        abort_unless(in_array($type, [
+            CertificateBackground::TYPE_CERTIFICATE,
+            CertificateBackground::TYPE_REVIEW_WORKSHEET,
+        ], true), 404);
+    }
+
+    private function auditAction(string $type): string
+    {
+        return $type === CertificateBackground::TYPE_CERTIFICATE
+            ? 'certificate.background_activated'
+            : 'review_worksheet.background_activated';
     }
 }

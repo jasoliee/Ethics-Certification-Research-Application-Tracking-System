@@ -12,7 +12,7 @@ enum CertificateStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::PendingRelease => 'Pending RES Release',
+            self::PendingRelease => 'Pending Certificate Release',
             self::GenerationFailed => 'Generation Failed',
             self::Released => 'Released',
             self::Claimed => 'Claimed',

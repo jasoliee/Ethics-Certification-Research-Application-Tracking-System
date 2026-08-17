@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Settings;
 
-use App\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -13,7 +12,9 @@ class UpdateOwnPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role, [UserRole::ResLead, UserRole::Reviewer], true);
+        $user = $this->user();
+
+        return $user?->can('updateOwnSecurity', $user) ?? false;
     }
 
     /** @return array<string, array<int, string>> */

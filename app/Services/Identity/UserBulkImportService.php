@@ -43,7 +43,7 @@ class UserBulkImportService
 
         if ($extension !== 'xlsx') {
             throw ValidationException::withMessages([
-                'accounts_file' => 'Only the current official .xlsx account template is accepted.',
+                'accounts_file' => 'Upload a standard macro-free .xlsx workbook.',
             ]);
         }
 
@@ -511,11 +511,6 @@ class UserBulkImportService
             /** @var array<string, string> $row */
             $row = array_combine($fields, $workbookRow['values']);
 
-            // Skip only physical Row 2 while the workbook's exact visible sentinel remains present.
-            if ((int) $workbookRow['row'] === 2 && ($workbook['example_row_marked'] ?? false) === true) {
-                continue;
-            }
-
             if (count($rows) >= self::MAX_ROWS) {
                 throw ValidationException::withMessages([
                     'accounts_file' => 'A single Excel import may contain at most '.self::MAX_ROWS.' account rows.',
@@ -825,7 +820,7 @@ class UserBulkImportService
             'institutional_identifier' => 'The official unique Student Number or Employee ID using letters, numbers, periods, underscores, or hyphens.',
             'year_level', 'institution', 'department', 'program', 'reviewer_classification' => 'A current active value from the database-backed dropdown list.',
             'first_name', 'middle_name', 'last_name', 'suffix', 'position_title' => 'Plain text within the documented length limit.',
-            'phone_number' => 'Digits only, with at most 11 digits.',
+            'phone_number' => 'Exactly 11 digits.',
             default => 'A value accepted by the selected official account template.',
         };
     }

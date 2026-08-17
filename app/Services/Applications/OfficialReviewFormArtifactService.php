@@ -5,6 +5,8 @@ namespace App\Services\Applications;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewFormType;
 use App\Exceptions\OfficialReviewFormGenerationException;
+use App\Models\CertificateBackground;
+use App\Services\Certificates\CertificateBackgroundService;
 use App\Support\ReviewFormCatalog;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -16,6 +18,10 @@ use Throwable;
  */
 class OfficialReviewFormArtifactService
 {
+    public function __construct(
+        private readonly CertificateBackgroundService $backgrounds,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $payload
      * @param  array<string, mixed>  $context
@@ -29,9 +35,15 @@ class OfficialReviewFormArtifactService
     ): array {
         $sourcePath = ReviewFormCatalog::templatePath();
         $manifest = ReviewFormCatalog::template($type);
+        $background = $this->backgrounds->active(CertificateBackground::TYPE_REVIEW_WORKSHEET);
+        $backgroundPath = Storage::disk('local')->path($background->stored_file_path);
 
         if (! is_file($sourcePath) || ! is_readable($sourcePath)) {
             throw new OfficialReviewFormGenerationException('The official review-form source is unavailable.');
+        }
+
+        if (! $this->backgrounds->isIntact($background)) {
+            throw new OfficialReviewFormGenerationException('The active review worksheet background failed integrity verification.');
         }
 
         $templateHash = hash_file('sha256', $sourcePath);
@@ -41,7 +53,7 @@ class OfficialReviewFormArtifactService
         }
 
         try {
-            $bytes = $this->render($sourcePath, $type, $payload, $context);
+            $bytes = $this->render($sourcePath, $backgroundPath, $background->mime_type, $type, $payload, $context);
         } catch (OfficialReviewFormGenerationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
@@ -74,6 +86,8 @@ class OfficialReviewFormArtifactService
             'template_version' => $manifest['version'],
             'template_sha256' => $manifest['sha256'],
             'generator_version' => $manifest['generator_version'],
+            'certificate_background_id' => $background->id,
+            'background_sha256' => $background->sha256,
         ];
     }
 
@@ -82,12 +96,24 @@ class OfficialReviewFormArtifactService
      */
     private function render(
         string $sourcePath,
+        string $backgroundPath,
+        string $backgroundMimeType,
         ReviewFormType $type,
         array $payload,
         array $context,
     ): string {
         $pdf = new Fpdi('P', 'mm', 'A4');
         $pdf->SetAutoPageBreak(false);
+        $backgroundTemplateId = null;
+
+        if ($backgroundMimeType === 'application/pdf') {
+            $backgroundPageCount = $pdf->setSourceFile($backgroundPath);
+            if ($backgroundPageCount !== 1) {
+                throw new OfficialReviewFormGenerationException('The active review worksheet background must contain exactly one page.');
+            }
+            $backgroundTemplateId = $pdf->importPage(1);
+        }
+
         $pageCount = $pdf->setSourceFile($sourcePath);
         $manifest = ReviewFormCatalog::template($type);
 
@@ -99,6 +125,7 @@ class OfficialReviewFormArtifactService
             $templateId = $pdf->importPage($sourcePage);
             $size = $pdf->getTemplateSize($templateId);
             $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+            $this->applyBackground($pdf, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
             $pdf->useTemplate($templateId);
             $this->overlaySourcePage($pdf, $type, $sourcePage, $payload, $context);
         }
@@ -106,7 +133,15 @@ class OfficialReviewFormArtifactService
         $continuation = $this->continuationComments($type, $payload, $context);
 
         if ($continuation !== []) {
-            $this->addContinuationPages($pdf, $type, $continuation, $context);
+            $this->addContinuationPages(
+                $pdf,
+                $type,
+                $continuation,
+                $context,
+                $backgroundPath,
+                $backgroundMimeType,
+                $backgroundTemplateId,
+            );
         }
 
         $output = $pdf->Output('S');
@@ -392,14 +427,21 @@ class OfficialReviewFormArtifactService
     /** @param array<int, array{label: string, comment: string}> $comments
      * @param  array<string, mixed>  $context
      */
-    private function addContinuationPages(Fpdi $pdf, ReviewFormType $type, array $comments, array $context): void
-    {
+    private function addContinuationPages(
+        Fpdi $pdf,
+        ReviewFormType $type,
+        array $comments,
+        array $context,
+        string $backgroundPath,
+        string $backgroundMimeType,
+        ?int $backgroundTemplateId,
+    ): void {
         $pdf->SetAutoPageBreak(true, 18);
-        $this->startContinuationPage($pdf, $type, $context);
+        $this->startContinuationPage($pdf, $type, $context, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
 
         foreach ($comments as $entry) {
             if ($pdf->GetY() > 255) {
-                $this->startContinuationPage($pdf, $type, $context);
+                $this->startContinuationPage($pdf, $type, $context, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
             }
 
             $pdf->SetFont('Helvetica', 'B', 8);
@@ -411,9 +453,16 @@ class OfficialReviewFormArtifactService
     }
 
     /** @param array<string, mixed> $context */
-    private function startContinuationPage(Fpdi $pdf, ReviewFormType $type, array $context): void
-    {
+    private function startContinuationPage(
+        Fpdi $pdf,
+        ReviewFormType $type,
+        array $context,
+        string $backgroundPath,
+        string $backgroundMimeType,
+        ?int $backgroundTemplateId,
+    ): void {
         $pdf->AddPage('P', 'A4');
+        $this->applyBackground($pdf, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
         $pdf->SetMargins(18, 18, 18);
         $logoPath = base_path('assets/logo.png');
 
@@ -437,6 +486,26 @@ class OfficialReviewFormArtifactService
             'Confidential blind-review artifact - '.(string) ($context['application_code'] ?? '').' - source pages retain the official form layout and this page preserves the complete submitted review record.',
         ));
         $pdf->Ln(3);
+    }
+
+    private function applyBackground(
+        Fpdi $pdf,
+        string $backgroundPath,
+        string $backgroundMimeType,
+        ?int $backgroundTemplateId,
+    ): void {
+        if ($backgroundMimeType === 'application/pdf') {
+            if ($backgroundTemplateId === null) {
+                throw new OfficialReviewFormGenerationException('The active review worksheet background could not be imported.');
+            }
+
+            $pdf->useTemplate($backgroundTemplateId, 0, 0, 210, 297);
+
+            return;
+        }
+
+        $imageType = $backgroundMimeType === 'image/png' ? 'PNG' : 'JPEG';
+        $pdf->Image($backgroundPath, 0, 0, 210, 297, $imageType);
     }
 
     private function writeSingleLine(Fpdi $pdf, float $x, float $y, float $width, string $text): void

@@ -258,7 +258,7 @@ class UserAccountService
                 'regex:/^[A-Z0-9][A-Z0-9._-]*$/i',
                 $checkDatabaseUniqueness ? Rule::unique('users', 'institutional_identifier')->ignore($subject?->id) : null,
             ])),
-            'phone_number' => ['nullable', 'string', 'max:11', 'regex:/^[0-9]{1,11}$/'],
+            'phone_number' => ['required', 'digits:11'],
             'institution' => [
                 'nullable',
                 'string',
@@ -285,18 +285,26 @@ class UserAccountService
                 Rule::in($this->profileOptions->values(ProfileOptionField::YearLevel, $subject?->year_level)),
             ],
             'position_title' => ['nullable', 'string', 'max:150'],
-            'reviewer_classification' => [
-                Rule::requiredIf($targetRole === UserRole::Reviewer),
+            'reviewer_classifications' => [
+                Rule::requiredIf(
+                    $targetRole === UserRole::Adviser
+                    && (bool) ($subject?->reviewer_enabled ?? false),
+                ),
                 'nullable',
+                'array',
+                'min:1',
+                'max:2',
+            ],
+            'reviewer_classifications.*' => [
                 'string',
-                'max:150',
-                Rule::in($this->profileOptions->values(
-                    ProfileOptionField::ReviewerClassification,
-                    $subject?->reviewer_classification,
-                )),
+                'distinct',
+                Rule::in(['Expedited', 'Full Board']),
             ],
             'reviewer_capacity' => [
-                Rule::requiredIf($targetRole === UserRole::Reviewer),
+                Rule::requiredIf(
+                    $targetRole === UserRole::Adviser
+                    && (bool) ($subject?->reviewer_enabled ?? false),
+                ),
                 'nullable',
                 'integer',
                 'between:1,30',
@@ -311,6 +319,19 @@ class UserAccountService
             $attributes[$field] = filled($attributes[$field] ?? null)
                 ? Str::squish((string) $attributes[$field])
                 : null;
+        }
+
+        if (array_key_exists('reviewer_classifications', $attributes)) {
+            $submitted = is_array($attributes['reviewer_classifications'])
+                ? $attributes['reviewer_classifications']
+                : [$attributes['reviewer_classifications']];
+            $attributes['reviewer_classifications'] = collect($submitted)
+                ->map(fn (mixed $classification): mixed => is_string($classification)
+                    ? Str::squish($classification)
+                    : $classification)
+                ->filter(fn (mixed $classification): bool => $classification !== null && $classification !== '')
+                ->values()
+                ->all();
         }
 
         // Canonicalize current labels, immutable IDs, and historical aliases before shared validation.
@@ -335,13 +356,15 @@ class UserAccountService
         return [
             'email.email' => 'Email must be a valid address such as name@example.com.',
             'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
-            'phone_number.max' => 'Phone Number may contain at most 11 digits.',
-            'phone_number.regex' => 'Phone Number must contain digits only, with at most 11 digits.',
+            'phone_number.digits' => 'Phone Number must contain exactly 11 digits.',
+            'phone_number.required' => 'Phone Number is required and must contain exactly 11 digits.',
             'institution.in' => $this->profileOptions->validationMessage(ProfileOptionField::Institution),
             'department.in' => $this->profileOptions->validationMessage(ProfileOptionField::Department),
             'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $this->profileOptions->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classification.in' => $this->profileOptions->validationMessage(ProfileOptionField::ReviewerClassification),
+            'reviewer_classifications.required' => 'Select at least one Reviewer Classification while Reviewer access is shown.',
+            'reviewer_classifications.min' => 'Select at least one Reviewer Classification while Reviewer access is shown.',
+            'reviewer_classifications.*.in' => 'Reviewer Classification must be Expedited or Full Board.',
             'reviewer_capacity.between' => 'Reviewer Capacity must be between 1 and 30.',
         ];
     }
@@ -405,7 +428,7 @@ class UserAccountService
             'program',
             'year_level',
             'position_title',
-            'reviewer_classification',
+            'reviewer_classifications',
             'reviewer_capacity',
         ])->all();
 
@@ -416,9 +439,15 @@ class UserAccountService
             $values['year_level'] = null;
         }
 
-        if ($targetRole !== UserRole::Reviewer) {
+        if ($targetRole !== UserRole::Adviser) {
+            $values['reviewer_classifications'] = null;
             $values['reviewer_classification'] = null;
             $values['reviewer_capacity'] = null;
+        } else {
+            $classifications = array_values($validated['reviewer_classifications'] ?? []);
+            $values['reviewer_classifications'] = $classifications ?: null;
+            // Keep the legacy scalar synchronized while older reports and exports are retired.
+            $values['reviewer_classification'] = $classifications[0] ?? null;
         }
 
         return $values;

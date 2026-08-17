@@ -44,7 +44,7 @@
                     <div><dt>Research Category</dt><dd>{{ $application->research_category ?: 'Not specified' }}</dd></div>
                     <div><dt>Participant Group</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>
                     <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
-                    <div class="reviewer-assignment-detail-wide"><dt>Study Overview</dt><dd>{{ $application->abstract ?: 'Not provided' }}</dd></div>
+                    <div class="reviewer-assignment-detail-wide reviewer-study-overview"><dt>Study Overview</dt><dd>{{ $application->abstract ?: 'Not provided' }}</dd></div>
                 </dl>
             </section>
         </div>
@@ -65,12 +65,12 @@
                 {{-- Every action uses a nested, assignment-authorized route; private storage paths never enter markup. --}}
                 <x-dashboard.overflow label="Assigned application documents" wide>
                     <table class="dashboard-table reviewer-document-table">
-                        <thead><tr><th>Requirement</th><th>Document</th><th>Version</th><th>Uploaded</th><th class="dashboard-table-action">Action</th></tr></thead>
+                        <thead><tr><th class="reviewer-document-primary-column">Requirement</th><th class="reviewer-document-primary-column">Document</th><th>Version</th><th>Uploaded</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>
                             @foreach ($application->documents as $document)
                                 <tr>
-                                    <td>{{ $document->requirement?->name ?? 'Supporting Document' }}</td>
-                                    <td><strong data-table-tooltip="{{ $document->original_file_name }}">{{ $document->original_file_name }}</strong></td>
+                                    <td class="reviewer-document-primary-column">{{ $document->requirement?->name ?? 'Supporting Document' }}</td>
+                                    <td class="reviewer-document-primary-column"><strong data-table-tooltip="{{ $document->original_file_name }}">{{ $document->original_file_name }}</strong></td>
                                     <td>v{{ $document->document_version }}</td>
                                     <td>{{ $document->uploaded_at?->format('M j, Y') ?? 'Not recorded' }}</td>
                                     <td class="dashboard-table-action reviewer-document-actions">

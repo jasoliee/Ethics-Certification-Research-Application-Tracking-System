@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         $key = fn (Request $request): string => (string) ($request->user()?->id ?? $request->ip());
 
         RateLimiter::for('account-write', fn (Request $request) => Limit::perMinute(10)->by($key($request)));
+        RateLimiter::for('security-change', fn (Request $request) => Limit::perMinute(5)->by($key($request)));
         RateLimiter::for('account-option', fn (Request $request) => Limit::perMinute(10)->by($key($request)));
         RateLimiter::for('account-import', fn (Request $request) => Limit::perMinute(5)->by($key($request)));
         // Bound CPU- and memory-intensive verified workbook generation separately from upload validation attempts.

@@ -483,7 +483,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('revision.pdf', 20, 'application/pdf')],
+            ['document' => $this->pdfUpload('revision.pdf', 20)],
         )->assertRedirect();
         $this->assertSame(1, ApplicationDocument::firstOrFail()->document_version);
     }
@@ -503,12 +503,12 @@ class ApplicantApplicationWorkflowTest extends TestCase
         // Act by uploading and replacing the same requirement with accepted PDF content.
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('proposal.pdf', 20, 'application/pdf')],
+            ['document' => $this->pdfUpload('proposal.pdf', 20)],
         )->assertRedirect();
         $first = ApplicationDocument::firstOrFail();
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('proposal-revised.pdf', 24, 'application/pdf')],
+            ['document' => $this->pdfUpload('proposal-revised.pdf', 24)],
         )->assertRedirect();
 
         // Assert replacements inside one revision cycle retain version 1 while preserving private history.
@@ -529,7 +529,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $application->update(['current_revision_cycle' => 2]);
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('proposal-cycle-two.pdf', 24, 'application/pdf')],
+            ['document' => $this->pdfUpload('proposal-cycle-two.pdf', 24)],
         )->assertRedirect();
         $cycleTwoDocument = ApplicationDocument::query()->latest('id')->firstOrFail();
         $this->assertSame(2, $cycleTwoDocument->document_version);
@@ -578,10 +578,54 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('boundary.pdf', 102400, 'application/pdf')],
+            ['document' => $this->pdfUpload('boundary.pdf', 102400)],
         )->assertRedirect()->assertSessionDoesntHaveErrors();
 
         $this->assertSame(1, ApplicationDocument::count());
+    }
+
+    public function test_private_document_upload_requires_matching_extension_mime_and_signature_for_every_allowed_format(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+        ]);
+        $requirement = $this->requirement();
+        $allowedFiles = [
+            $this->pdfUpload('proposal.pdf'),
+            UploadedFile::fake()->image('photo.jpg'),
+            UploadedFile::fake()->image('photo.jpeg'),
+            UploadedFile::fake()->image('diagram.png'),
+            $this->signedUpload('animation.gif', 'image/gif', 'GIF89a'.str_repeat("\0", 20)),
+            $this->signedUpload('figure.webp', 'image/webp', 'RIFF'.pack('V', 4).'WEBPVP8 '),
+        ];
+
+        foreach ($allowedFiles as $file) {
+            $this->actingAs($applicant)->post(
+                route('applicant.applications.documents.store', [$application, $requirement]),
+                ['document' => $file],
+            )->assertRedirect()->assertSessionDoesntHaveErrors();
+        }
+
+        $this->assertSame(6, ApplicationDocument::count());
+        $this->assertSame(
+            ['application/pdf', 'image/jpeg', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+            ApplicationDocument::query()->orderBy('id')->pluck('mime_type')->all(),
+        );
+
+        $extensionMismatch = $this->signedUpload('disguised.jpg', 'application/pdf', "%PDF-1.7\n");
+        $invalidSignature = UploadedFile::fake()->create('forged.pdf', 1, 'application/pdf');
+
+        foreach ([$extensionMismatch, $invalidSignature] as $file) {
+            $this->actingAs($applicant)->post(
+                route('applicant.applications.documents.store', [$application, $requirement]),
+                ['document' => $file],
+            )->assertRedirect()->assertSessionHasErrors('document');
+        }
+
+        $this->assertSame(6, ApplicationDocument::count());
     }
 
     public function test_upload_all_processes_each_selected_requirement_independently(): void
@@ -616,7 +660,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             route('applicant.applications.documents.store-all', $application),
             [
                 'documents' => [
-                    $proposal->id => UploadedFile::fake()->create('proposal.pdf', 20, 'application/pdf'),
+                    $proposal->id => $this->pdfUpload('proposal.pdf', 20),
                     $consent->id => UploadedFile::fake()->create('unsafe.php', 1, 'text/x-php'),
                 ],
             ],
@@ -641,7 +685,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             route('applicant.applications.documents.store-all', $application),
             [
                 'documents' => [
-                    $consent->id => UploadedFile::fake()->create('consent.pdf', 18, 'application/pdf'),
+                    $consent->id => $this->pdfUpload('consent.pdf', 18),
                 ],
             ],
             $headers,
@@ -666,7 +710,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('remove-me.pdf', 10, 'application/pdf')],
+            ['document' => $this->pdfUpload('remove-me.pdf', 10)],
         )->assertRedirect();
         $document = ApplicationDocument::firstOrFail();
         Storage::disk('local')->assertExists($document->stored_file_path);
@@ -724,7 +768,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertSee('data-document-replace', false)
             ->assertSee('Preview unavailable')
             ->assertSee(route('applicant.applications.documents.preview', [$application, $document]), false)
-            ->assertSee('accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"', false)
+            ->assertSee('accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"', false)
             ->assertDontSee('Choose Replacement');
 
         $this->actingAs($applicant)
@@ -734,9 +778,13 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertSee('Secure inline preview unavailable')
             ->assertSee('Microsoft Excel workbook (.xlsx)')
             ->assertSee(route('applicant.applications.documents.download', [$application, $document]), false);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.documents.download', [$application, $document]))
+            ->assertOk()
+            ->assertDownload('participant-data.xlsx');
     }
 
-    public function test_excel_workbook_is_accepted_as_a_private_download_only_requirement_file(): void
+    public function test_new_office_upload_is_rejected_while_historical_office_files_remain_streamable(): void
     {
         Storage::fake('local');
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
@@ -755,12 +803,9 @@ class ApplicantApplicationWorkflowTest extends TestCase
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 ),
             ],
-        )->assertRedirect()->assertSessionDoesntHaveErrors();
+        )->assertRedirect()->assertSessionHasErrors('document');
 
-        $document = ApplicationDocument::firstOrFail();
-        $this->assertSame('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $document->mime_type);
-        $this->assertFalse($document->supportsInlinePreview());
-        Storage::disk('local')->assertExists($document->stored_file_path);
+        $this->assertSame(0, ApplicationDocument::count());
     }
 
     public function test_applicant_can_permanently_discard_only_their_own_unsubmitted_draft(): void
@@ -777,7 +822,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $requirement = $this->requirement();
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('preserved.pdf', 5, 'application/pdf')],
+            ['document' => $this->pdfUpload('preserved.pdf', 5)],
         )->assertRedirect();
         $document = ApplicationDocument::firstOrFail();
 
@@ -826,7 +871,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $requirement = $this->requirement();
         $this->actingAs($owner)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
-            ['document' => UploadedFile::fake()->create('private.pdf', 8, 'application/pdf')],
+            ['document' => $this->pdfUpload('private.pdf', 8)],
         )->assertRedirect();
         $document = ApplicationDocument::firstOrFail();
 
@@ -897,6 +942,23 @@ class ApplicantApplicationWorkflowTest extends TestCase
             'sort_order' => 1,
             'is_active' => true,
         ]);
+    }
+
+    private function pdfUpload(string $name, int $kilobytes = 1): UploadedFile
+    {
+        return $this->signedUpload($name, 'application/pdf', "%PDF-1.7\n% ECRATS test upload\n", $kilobytes);
+    }
+
+    private function signedUpload(
+        string $name,
+        string $mimeType,
+        string $contents,
+        int $kilobytes = 1,
+    ): UploadedFile {
+        $file = UploadedFile::fake()->create($name, $kilobytes, $mimeType);
+        file_put_contents((string) $file->getRealPath(), $contents);
+
+        return $file;
     }
 
     private function auditCount(string $action, ResearchApplication|ApplicationDocument $subject): int

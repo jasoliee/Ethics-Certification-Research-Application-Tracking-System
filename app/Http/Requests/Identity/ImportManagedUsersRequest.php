@@ -32,7 +32,7 @@ class ImportManagedUsersRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'accounts_file.extensions' => 'Upload the current official .xlsx template. CSV, legacy Excel, and macro-enabled files are not accepted.',
+            'accounts_file.extensions' => 'Upload a standard .xlsx workbook. CSV, legacy Excel, and macro-enabled files are not accepted.',
             'accounts_file.mimetypes' => 'The uploaded file content must be a standard macro-free XLSX workbook.',
             'accounts_file.max' => 'The Excel file must not exceed 2 MB.',
         ];

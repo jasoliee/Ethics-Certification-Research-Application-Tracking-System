@@ -92,9 +92,13 @@
                         @if ($managedUser->applicant_type === \App\Enums\ApplicantType::Student)<div><dt>Year Level</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->year_level }}">{{ $managedUser->year_level }}</dd></div>@endif
                     @endif
                     <div><dt>Position / Designation</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->position_title ?: 'Not provided' }}">{{ $managedUser->position_title ?: 'Not provided' }}</dd></div>
-                    @if ($managedUser->role === \App\Enums\UserRole::Reviewer)
-                        <div><dt>Reviewer Classification</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->reviewer_classification ?: 'Not provided' }}">{{ $managedUser->reviewer_classification ?: 'Not provided' }}</dd></div>
-                        <div><dt>Reviewer Capacity</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->reviewer_capacity }}">{{ $managedUser->reviewer_capacity }}</dd></div>
+                    @if ($reviewerProfile)
+                        <div><dt>Reviewer Access</dt><dd><x-dashboard.status-badge :label="$reviewerProfile['enabled'] ? 'Shown' : 'Hidden'" :tone="$reviewerProfile['enabled'] ? 'green' : 'neutral'" /></dd></div>
+                        <div><dt>Reviewer Classifications</dt><dd class="identity-table-truncate" data-table-tooltip="{{ implode(', ', $reviewerProfile['classifications']) ?: 'Not configured' }}">{{ implode(', ', $reviewerProfile['classifications']) ?: 'Not configured' }}</dd></div>
+                        <div><dt>Reviewer Capacity</dt><dd>{{ $reviewerProfile['capacity'] > 0 ? $reviewerProfile['capacity'] : 'Not configured' }}</dd></div>
+                        <div><dt>Active Review Load</dt><dd>{{ $reviewerProfile['active_load'] }}{{ $reviewerProfile['capacity'] > 0 ? ' / '.$reviewerProfile['capacity'] : '' }}</dd></div>
+                        <div><dt>Available Review Capacity</dt><dd>{{ $reviewerProfile['available_capacity'] }}</dd></div>
+                        <div><dt>Assignment Eligibility</dt><dd><x-dashboard.status-badge :label="$reviewerProfile['eligibility_label']" :tone="$reviewerProfile['eligible'] ? 'green' : 'orange'" /></dd></div>
                     @endif
                     <div><dt>Date Created</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->created_at?->format('F j, Y') }}">{{ $managedUser->created_at?->format('F j, Y') }}</dd></div>
                 </dl>
@@ -135,7 +139,9 @@
                 @if ($canChangeStatus || $canDelete)
                     <div class="identity-account-lifecycle-actions">
                         @if ($canChangeStatus)
-                            @php($nextStatus = $statusIsActive || $statusIsPending ? 'inactive' : 'active')
+                            @php
+                                $nextStatus = $statusIsActive || $statusIsPending ? 'inactive' : 'active';
+                            @endphp
                             @if ($nextStatus === 'inactive' || $canActivate)
                             <form class="identity-status-form" method="POST" action="{{ route($routeBase.'.status', $managedUser) }}" data-confirm-status="{{ $nextStatus === 'inactive' ? 'Deactivate this account and prevent future sign-ins?' : 'Reactivate this account and allow sign-in?' }}">
                                 @csrf

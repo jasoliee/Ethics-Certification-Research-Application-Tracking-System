@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ReviewConsensusStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\ResearchType;
 use Database\Factories\ResearchApplicationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -43,6 +45,12 @@ class ResearchApplication extends Model
         'current_stage',
         'review_type',
         'current_revision_cycle',
+        'review_consensus_status',
+        'review_consensus_cycle',
+        'review_consensus_decision',
+        'review_consensus_signature',
+        'review_consensus_evaluated_at',
+        'review_conflicted_at',
         'submitted_at',
         'status_updated_at',
     ];
@@ -54,6 +62,11 @@ class ResearchApplication extends Model
             'current_stage' => ApplicationStage::class,
             'research_type' => ResearchType::class,
             'current_revision_cycle' => 'integer',
+            'review_consensus_status' => ReviewConsensusStatus::class,
+            'review_consensus_cycle' => 'integer',
+            'review_consensus_decision' => ReviewDecision::class,
+            'review_consensus_evaluated_at' => 'datetime',
+            'review_conflicted_at' => 'datetime',
             'expected_start_date' => 'date',
             'expected_end_date' => 'date',
             'submitted_at' => 'datetime',

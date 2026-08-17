@@ -17,9 +17,9 @@ enum CertificationState: string
     {
         return match ($this) {
             self::NotEligible => 'Not Eligible',
-            self::PendingFinalApproval => 'Pending Final Approval',
+            self::PendingFinalApproval => 'Pending Decision Release',
             self::Eligible => 'Eligible for Certification',
-            self::PendingResRelease => 'Pending RES Release',
+            self::PendingResRelease => 'Pending Certificate Release',
             self::GenerationFailed => 'Generation Failed',
             self::SurveyRequired => 'Survey Required',
             self::Claimable => 'Ready to Claim',

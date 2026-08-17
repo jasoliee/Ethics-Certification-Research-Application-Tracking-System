@@ -19,9 +19,17 @@ class MassManagedUserActionRequest extends FormRequest
         $requiresSelection = $this->input('action') !== 'resend_all_pending';
 
         return [
-            'action' => ['required', Rule::in(['deactivate', 'archive', 'resend_setup', 'resend_all_pending'])],
+            'action' => ['required', Rule::in([
+                'deactivate',
+                'archive',
+                'resend_setup',
+                'resend_all_pending',
+                'show_reviewer',
+                'hide_reviewer',
+            ])],
             'user_ids' => [Rule::requiredIf($requiresSelection), 'array', 'max:100'],
             'user_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+            'confirm_active_assignments' => ['sometimes', 'boolean'],
         ];
     }
 }

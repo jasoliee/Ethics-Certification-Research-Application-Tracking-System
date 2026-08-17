@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\AccountStatus;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
@@ -41,6 +42,27 @@ class AuthenticatedSessionController extends Controller
             'password' => $request->validated('password'),
             'account_status' => 'active',
         ];
+
+        // A legacy standalone Reviewer record must never regain a dedicated login.
+        // Successful migration converts these rows in place, but this containment
+        // protects authentication if an old row is restored or imported later.
+        $legacyReviewer = User::query()
+            ->where('username', $request->validated('username'))
+            ->where('role', UserRole::Reviewer->value)
+            ->first();
+
+        if ($legacyReviewer && Hash::check($request->validated('password'), $legacyReviewer->password)) {
+            RateLimiter::hit($request->throttleKey());
+
+            $this->auditLog->record(null, 'auth.login_blocked_legacy_reviewer', $legacyReviewer, [
+                'username_hash' => hash('sha256', strtolower($legacyReviewer->username)),
+                'result' => 'blocked',
+            ]);
+
+            return back()->withErrors([
+                'credentials' => 'The username or password is incorrect.',
+            ])->onlyInput('username');
+        }
 
         if (! Auth::attempt($credentials)) {
             RateLimiter::hit($request->throttleKey());

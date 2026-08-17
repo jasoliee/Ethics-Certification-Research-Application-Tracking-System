@@ -6,6 +6,7 @@ use App\Enums\ApplicationStatus;
 use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
+use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
@@ -14,6 +15,7 @@ use App\Models\ReviewerAssignment;
 use App\Models\ReviewSubmission;
 use App\Models\User;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
+use App\Services\Applications\ReviewConsensusService;
 use App\Services\AuditLogService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +29,7 @@ class BulkReleaseService
         private readonly CertificateReleaseService $certificates,
         private readonly CertificationEligibilityService $eligibility,
         private readonly AuditLogService $auditLog,
+        private readonly ReviewConsensusService $consensus,
     ) {}
 
     /** @return array{certificate: int, decision: int, both: int} */
@@ -57,6 +60,7 @@ class BulkReleaseService
      *     eligible: int,
      *     successfully_released: int,
      *     already_released: int,
+     *     conflicted: int,
      *     ineligible: int,
      *     failed: int,
      *     failed_application_codes: array<int, string>
@@ -71,6 +75,7 @@ class BulkReleaseService
             'eligible' => 0,
             'successfully_released' => 0,
             'already_released' => 0,
+            'conflicted' => 0,
             'ineligible' => 0,
             'failed' => 0,
             'failed_application_codes' => [],
@@ -78,6 +83,7 @@ class BulkReleaseService
         $affected = [
             'successfully_released' => [],
             'already_released' => [],
+            'conflicted' => [],
             'ineligible' => [],
             'failed' => [],
         ];
@@ -97,6 +103,12 @@ class BulkReleaseService
                     if ($classification === 'already_released') {
                         $summary['already_released']++;
                         $affected['already_released'][] = $application->id;
+
+                        continue;
+                    }
+                    if ($classification === 'conflicted') {
+                        $summary['conflicted']++;
+                        $affected['conflicted'][] = $application->id;
 
                         continue;
                     }
@@ -123,6 +135,7 @@ class BulkReleaseService
             'completed_at' => $completedAt->toIso8601String(),
             'successfully_released_count' => $summary['successfully_released'],
             'already_released_count' => $summary['already_released'],
+            'conflicted_count' => $summary['conflicted'],
             'ineligible_count' => $summary['ineligible'],
             'failed_count' => $summary['failed'],
             'affected_application_ids' => array_map(
@@ -160,6 +173,7 @@ class BulkReleaseService
         $decisionReleased = $this->decisionAlreadyReleased($application);
         $certificateEligible = $this->isCertificateEligible($application);
         $decisionEligible = $this->decisionSource($application) !== null;
+        $decisionConflicted = $application->refresh()->review_consensus_status === ReviewConsensusStatus::Conflicted;
 
         return match ($type) {
             BulkReleaseType::Certificate => $certificateEligible
@@ -167,10 +181,10 @@ class BulkReleaseService
                 : ($certificateReleased ? 'already_released' : 'ineligible'),
             BulkReleaseType::Decision => $decisionEligible
                 ? 'eligible'
-                : ($decisionReleased ? 'already_released' : 'ineligible'),
+                : ($decisionReleased ? 'already_released' : ($decisionConflicted ? 'conflicted' : 'ineligible')),
             BulkReleaseType::Both => ($certificateEligible || $decisionEligible)
                 ? 'eligible'
-                : (($certificateReleased || $decisionReleased) ? 'already_released' : 'ineligible'),
+                : (($certificateReleased || $decisionReleased) ? 'already_released' : ($decisionConflicted ? 'conflicted' : 'ineligible')),
         };
     }
 
@@ -194,14 +208,14 @@ class BulkReleaseService
         return $application->decisionReleases->isNotEmpty();
     }
 
-    /**
-     * Bulk decision release is deterministic only when every current required
-     * Reviewer submitted the same decision. A split decision remains available
-     * for the RES Lead to inspect and release explicitly from the read-only workspace.
-     */
     private function decisionSource(ResearchApplication $application): ?ReviewSubmission
     {
         if ($application->application_status !== ApplicationStatus::ReviewSubmittedPendingRelease) {
+            return null;
+        }
+
+        $application = $this->consensus->evaluate($application);
+        if ($application->review_consensus_status !== ReviewConsensusStatus::Consensus) {
             return null;
         }
 
@@ -211,20 +225,7 @@ class BulkReleaseService
             ->where('review_cycle', $cycle)
             ->where('review_type', $reviewType);
 
-        if ($assignments->isEmpty() || $assignments->contains(
-            fn (ReviewerAssignment $assignment): bool => $assignment->assignment_status !== ReviewerAssignmentStatus::DecisionSubmitted
-                || $assignment->reviewSubmission?->status !== ReviewSubmissionStatus::Submitted
-                || $assignment->reviewSubmission?->decision === null,
-        )) {
-            return null;
-        }
-
-        $decisions = $assignments
-            ->map(fn (ReviewerAssignment $assignment): ?string => $assignment->reviewSubmission?->decision?->value)
-            ->filter()
-            ->unique();
-
-        return $decisions->count() === 1 ? $assignments->first()->reviewSubmission : null;
+        return $assignments->first()?->reviewSubmission;
     }
 
     private function relevantApplications(): Builder
@@ -234,6 +235,7 @@ class BulkReleaseService
                 $query->whereIn('application_status', [
                     ApplicationStatus::ReviewSubmittedPendingRelease->value,
                     ApplicationStatus::ResultReleasedAccepted->value,
+                    ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
                     ApplicationStatus::CertificateReleased->value,
                 ])->orWhereHas('certificate')

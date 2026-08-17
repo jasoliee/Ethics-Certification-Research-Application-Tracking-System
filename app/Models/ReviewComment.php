@@ -5,10 +5,13 @@ namespace App\Models;
 use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReviewComment extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'reviewer_assignment_id',
         'application_document_id',

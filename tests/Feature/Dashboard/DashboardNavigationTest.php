@@ -75,13 +75,13 @@ class DashboardNavigationTest extends TestCase
         }
     }
 
-    public function test_reviewer_sidebar_contains_only_home_and_assignments_while_direct_routes_remain_available(): void
+    public function test_reviewer_navigation_is_a_supplementary_adviser_submenu(): void
     {
-        $reviewer = User::factory()->create(['role' => UserRole::Reviewer]);
+        $reviewer = User::factory()->reviewer()->create();
 
         $this->assertSame(
-            ['Home', 'Assignments'],
-            array_column(DashboardNavigation::for(UserRole::Reviewer), 'label'),
+            ['Home', 'Application', 'Applicants', 'Reviewer'],
+            array_column(DashboardNavigation::for($reviewer), 'label'),
         );
 
         $response = $this->actingAs($reviewer)
@@ -91,12 +91,13 @@ class DashboardNavigationTest extends TestCase
         preg_match('/<nav class="dashboard-sidebar-nav".*?<\/nav>/s', $response->getContent(), $sidebar);
         $this->assertNotEmpty($sidebar);
         $this->assertStringContainsString('>Home</span>', $sidebar[0]);
+        $this->assertStringContainsString('>Reviewer</span>', $sidebar[0]);
+        $this->assertStringContainsString('>Reviewer Dashboard</span>', $sidebar[0]);
         $this->assertStringContainsString('>Assignments</span>', $sidebar[0]);
-        $this->assertStringNotContainsString('>Review</span>', $sidebar[0]);
         $this->assertStringNotContainsString('>Notifications</span>', $sidebar[0]);
         $this->assertStringNotContainsString('>Settings</span>', $sidebar[0]);
 
-        foreach (['reviewer.reviews.index', 'reviewer.notifications.index', 'reviewer.settings.index'] as $routeName) {
+        foreach (['reviewer.dashboard', 'reviewer.reviews.index', 'reviewer.notifications.index', 'reviewer.settings.index'] as $routeName) {
             $this->actingAs($reviewer)->get(route($routeName))->assertOk();
         }
     }
@@ -105,8 +106,7 @@ class DashboardNavigationTest extends TestCase
     {
         $cases = [
             UserRole::Applicant->value => ['User Management', 'Review Monitoring', 'Assignments', 'Reviewer', 'Certificates', 'Notifications'],
-            UserRole::Adviser->value => ['Certificates', 'Review Monitoring', 'Assignments', 'Notifications'],
-            UserRole::Reviewer->value => ['Applicants', 'User Management', 'Certificates'],
+            UserRole::Adviser->value => ['Certificates', 'Review Monitoring', 'Assignments', 'Reviewer Dashboard', 'Notifications'],
             UserRole::ResLead->value => ['Applicants', 'Assignments', 'Reviewer', 'Notifications'],
         ];
 
@@ -195,11 +195,10 @@ class DashboardNavigationTest extends TestCase
         $routes = [
             UserRole::Applicant->value => 'applicant.settings.index',
             UserRole::Adviser->value => 'adviser.settings.index',
-            UserRole::Reviewer->value => 'reviewer.settings.index',
             UserRole::ResLead->value => 'res.settings.index',
         ];
 
-        foreach (UserRole::cases() as $role) {
+        foreach ([UserRole::Applicant, UserRole::Adviser, UserRole::ResLead] as $role) {
             $user = User::factory()->create(['role' => $role]);
 
             foreach ($routes as $allowedRole => $routeName) {
@@ -211,7 +210,12 @@ class DashboardNavigationTest extends TestCase
                     ->get(route($routeName))
                     ->assertRedirect(route(RoleHome::routeNameFor($role)));
             }
+
+            $this->actingAs($user)->get(route('reviewer.settings.index'))->assertForbidden();
         }
+
+        $reviewerAdviser = User::factory()->reviewer()->create();
+        $this->actingAs($reviewerAdviser)->get(route('reviewer.settings.index'))->assertOk();
     }
 
     public function test_record_policies_prevent_applications_and_assignments_from_leaking_between_users(): void

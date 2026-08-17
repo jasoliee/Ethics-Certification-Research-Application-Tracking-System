@@ -64,7 +64,7 @@
                         id="replace_document_{{ $requirement->id }}"
                         name="document"
                         type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                        accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                         required
                         data-document-replace-file
                         data-requirement-file
@@ -86,7 +86,7 @@
                     id="document_{{ $requirement->id }}"
                     name="document"
                     type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                     required
                     data-application-file
                     data-requirement-file

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Identity;
 use App\Enums\AccountStatus;
 use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
+use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Exceptions\SpreadsheetRuntimeUnavailable;
 use App\Http\Controllers\Controller;
@@ -20,7 +21,10 @@ use App\Http\Requests\Identity\StoreProfileOptionRequest;
 use App\Http\Requests\Identity\UpdateManagedUserRequest;
 use App\Http\Requests\Identity\UpdateProfileOptionRequest;
 use App\Models\ProfileOption;
+use App\Models\ReviewerIdentityReconciliation;
 use App\Models\User;
+use App\Services\Applications\AdviserEndorsementStatisticsService;
+use App\Services\Applications\ReviewerCapabilityProfileService;
 use App\Services\Identity\AccountTypeCatalog;
 use App\Services\Identity\ManagedPasswordResetService;
 use App\Services\Identity\ManagedUserMassActionService;
@@ -45,6 +49,8 @@ class UserManagementController extends Controller
         private readonly UserManagementQueryService $queries,
         private readonly AccountTypeCatalog $accountTypes,
         private readonly ProfileOptionCatalog $profileOptions,
+        private readonly AdviserEndorsementStatisticsService $endorsementStatistics,
+        private readonly ReviewerCapabilityProfileService $reviewerCapabilities,
     ) {}
 
     public function index(Request $request): View
@@ -82,6 +88,7 @@ class UserManagementController extends Controller
                 'email',
                 'institutional_identifier',
                 'role',
+                'reviewer_enabled',
                 'applicant_type',
                 'account_status',
                 'institution',
@@ -91,16 +98,29 @@ class UserManagementController extends Controller
             ->latest('created_at')
             ->paginate(10)
             ->withQueryString();
+        $identityReconciliations = $request->user()->role === UserRole::ResLead
+            ? ReviewerIdentityReconciliation::query()
+                ->where('status', ReviewerIdentityReconciliation::STATUS_PENDING)
+                ->with([
+                    'sourceUser:id,name,email,institutional_identifier,account_status,reviewer_enabled',
+                    'targetAdviser:id,name,email,institutional_identifier,account_status,reviewer_enabled',
+                ])
+                ->oldest('created_at')
+                ->limit(25)
+                ->get()
+            : collect();
 
         return view('identity.users.index', [
             'pageTitle' => 'User Management',
             'users' => $users,
             'filters' => $filters,
             'counts' => $counts,
+            'adviserStatistics' => $this->endorsementStatistics->for($request->user()),
             'institutions' => $institutions,
             'routeBase' => $this->routeBase($request->user()),
             'isResLead' => $request->user()->role === UserRole::ResLead,
             'canManageProfileOptions' => $request->user()->can('manageProfileOptions', User::class),
+            'identityReconciliations' => $identityReconciliations,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'User Management'],
@@ -155,6 +175,7 @@ class UserManagementController extends Controller
             'pageTitle' => 'User Management',
             'managedUser' => $managedUser,
             'metrics' => $this->accountMetrics($managedUser),
+            'reviewerProfile' => $this->reviewerCapabilities->for($managedUser),
             'routeBase' => $this->routeBase($request->user()),
             'wasCreated' => $request->boolean('created'),
             'canChangeStatus' => $request->user()->can('changeStatus', $managedUser),
@@ -479,10 +500,20 @@ class UserManagementController extends Controller
             $request->user(),
             $request->validated('action'),
             $request->validated('user_ids', []),
+            [
+                'confirm_active_assignments' => $request->boolean('confirm_active_assignments'),
+            ],
         );
-        $message = in_array($request->validated('action'), ['resend_setup', 'resend_all_pending'], true)
+        $action = $request->validated('action');
+        $message = in_array($action, ['resend_setup', 'resend_all_pending'], true)
             ? "{$result['sent']} setup emails sent; {$result['failed']} failed."
-            : "{$result['affected']} accounts updated.";
+            : (in_array($action, ['show_reviewer', 'hide_reviewer'], true)
+                ? "{$result['affected']} Adviser ".str('account')->plural($result['affected']).' updated; '.($result['ignored'] ?? 0).' unchanged or ineligible.'
+                : "{$result['affected']} accounts updated.");
+
+        if (($result['active_assignments'] ?? 0) > 0) {
+            $message .= " {$result['active_assignments']} active review ".str('assignment')->plural($result['active_assignments']).' preserved.';
+        }
 
         return back()->with('status', $message);
     }
@@ -525,7 +556,11 @@ class UserManagementController extends Controller
         return [
             'all' => $all,
             'advisers' => (int) ($byRole[UserRole::Adviser->value] ?? 0),
-            'reviewers' => (int) ($byRole[UserRole::Reviewer->value] ?? 0),
+            'reviewers' => (clone $query)
+                ->where('role', UserRole::Adviser->value)
+                ->where('account_status', AccountStatus::Active->value)
+                ->where('reviewer_enabled', true)
+                ->count(),
             'applicants' => (int) ($byRole[UserRole::Applicant->value] ?? 0),
         ];
     }
@@ -539,6 +574,10 @@ class UserManagementController extends Controller
             ],
             UserRole::Adviser => [
                 ['label' => 'Advised Applications', 'value' => $user->advisedApplications()->count(), 'icon' => 'clipboard'],
+                ['label' => 'Active Review Assignments', 'value' => $user->reviewerAssignments()
+                    ->whereNull('superseded_at')
+                    ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())
+                    ->count(), 'icon' => 'file-search'],
             ],
             UserRole::Reviewer => [
                 ['label' => 'Review Assignments', 'value' => $user->reviewerAssignments()->count(), 'icon' => 'file-search'],

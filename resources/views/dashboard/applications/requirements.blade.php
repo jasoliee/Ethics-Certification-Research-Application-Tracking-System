@@ -46,7 +46,7 @@
         <section class="application-requirement-container" aria-label="Document requirements">
             @if ($canUpload && $requirementSummary['items']->isNotEmpty())
                 <div class="application-requirement-toolbar">
-                    <div><h2>Document Requirements</h2><p>PDF, Word, Excel, JPEG, or PNG; up to 100 MB per file.</p></div>
+                    <div><h2>Document Requirements</h2><p>PDF, JPG, JPEG, PNG, GIF, or WebP; up to 100 MB per file.</p></div>
                     <div class="application-upload-all-controls">
                         <button
                             class="dashboard-primary-action"

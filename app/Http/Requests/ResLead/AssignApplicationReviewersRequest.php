@@ -25,9 +25,12 @@ class AssignApplicationReviewersRequest extends FormRequest
         $application = $this->route('researchApplication');
         $reviewType = ReviewType::tryFrom((string) ($application?->review_type ?? ''));
         $requiredCount = $reviewType?->reviewerCount() ?? 0;
+        $reviewCycle = max(0, ((int) ($application?->current_revision_cycle ?? 1)) - 1);
+        $assignmentReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
         $currentReviewerIds = $application?->reviewerAssignments()
             ->current()
-            ->where('review_type', 'initial_review')
+            ->where('review_type', $assignmentReviewType)
+            ->where('review_cycle', $reviewCycle)
             ->pluck('reviewer_user_id')
             ->map(fn ($id): int => (int) $id)
             ->sort()

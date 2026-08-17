@@ -1,4 +1,5 @@
 import { initializeDashboard } from './dashboard';
+import { initializeRevisionDocumentHistory } from './revision-document-history';
 
 const LOGIN_DESIGN_WIDTH = 1040;
 const LOGIN_DESIGN_HEIGHT = 650;
@@ -189,6 +190,7 @@ function initializeLoginPage() {
 function initializeApplication() {
     initializeLoginPage();
     initializeDashboard();
+    initializeRevisionDocumentHistory();
 }
 
 if (document.readyState === 'loading') {

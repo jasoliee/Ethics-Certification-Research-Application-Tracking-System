@@ -28,10 +28,6 @@ class AccountTypeCatalog
             $types[] = $this->definition('adviser');
         }
 
-        if (in_array(UserRole::Reviewer, $allowedRoles, true)) {
-            $types[] = $this->definition('reviewer');
-        }
-
         return $types;
     }
 
@@ -59,7 +55,7 @@ class AccountTypeCatalog
                 'applicant_type' => ApplicantType::Student->value,
                 'icon' => 'user',
                 'identifier_field' => 'student_number',
-                'required_fields' => ['first_name', 'last_name', 'email', 'student_number', 'year_level'],
+                'required_fields' => ['first_name', 'last_name', 'email', 'student_number', 'phone_number', 'year_level'],
                 'template_columns' => [
                     'First Name' => 'first_name',
                     'Middle Name' => 'middle_name',
@@ -95,7 +91,7 @@ class AccountTypeCatalog
                 'applicant_type' => ApplicantType::Faculty->value,
                 'icon' => 'user-check',
                 'identifier_field' => 'employee_id',
-                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id'],
+                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id', 'phone_number'],
                 'template_columns' => [
                     'First Name' => 'first_name',
                     'Middle Name' => 'middle_name',
@@ -131,7 +127,7 @@ class AccountTypeCatalog
                 'applicant_type' => null,
                 'icon' => 'user-check',
                 'identifier_field' => 'employee_id',
-                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id'],
+                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id', 'phone_number'],
                 'template_columns' => [
                     'First Name' => 'first_name',
                     'Middle Name' => 'middle_name',
@@ -155,42 +151,6 @@ class AccountTypeCatalog
                     'institution' => 'Institute of Engineering',
                     'department' => 'Engineering Studies',
                     'position_title' => 'Research Adviser',
-                ],
-            ],
-            'reviewer' => [
-                'key' => $key,
-                'label' => 'Ethics Reviewer',
-                'description' => 'Can evaluate assigned anonymized ethics applications.',
-                'role' => UserRole::Reviewer->value,
-                'applicant_type' => null,
-                'icon' => 'users',
-                'identifier_field' => 'employee_id',
-                'required_fields' => ['first_name', 'last_name', 'email', 'employee_id', 'reviewer_classification'],
-                'template_columns' => [
-                    'First Name' => 'first_name',
-                    'Middle Name' => 'middle_name',
-                    'Last Name' => 'last_name',
-                    'Suffix' => 'suffix',
-                    'Email' => 'email',
-                    'Employee ID' => 'employee_id',
-                    'Phone Number' => 'phone_number',
-                    'Institution' => 'institution',
-                    'Department' => 'department',
-                    'Position / Designation' => 'position_title',
-                    'Reviewer Classification' => 'reviewer_classification',
-                ],
-                'example_values' => [
-                    'first_name' => 'Lourdes',
-                    'middle_name' => 'P.',
-                    'last_name' => 'Navarro',
-                    'suffix' => '',
-                    'email' => 'lourdes.navarro@example.com',
-                    'employee_id' => 'KLD-EMP-1003',
-                    'phone_number' => '09201234567',
-                    'institution' => 'Institute of Behavioral Sciences',
-                    'department' => 'Behavioral Sciences',
-                    'position_title' => 'Ethics Reviewer',
-                    'reviewer_classification' => 'Expedited',
                 ],
             ],
             default => throw new AuthorizationException('Unknown account type.'),

@@ -29,6 +29,7 @@ class ResScreeningWorkflowService
         private readonly ReviewerEligibilityService $reviewerEligibility,
         private readonly DeadlineProcessAvailability $deadlines,
         private readonly AuditLogService $auditLog,
+        private readonly ReviewConsensusService $consensus,
     ) {}
 
     /**
@@ -217,6 +218,8 @@ class ResScreeningWorkflowService
 
             Gate::forUser($actor)->authorize('assignReviewers', $locked);
             $reviewType = ReviewType::tryFrom((string) $locked->review_type);
+            $reviewCycle = max(0, ((int) $locked->current_revision_cycle) - 1);
+            $assignmentReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
 
             if (! $reviewType?->requiresReviewers() || ! $locked->screening()->exists()) {
                 throw ValidationException::withMessages([
@@ -235,7 +238,8 @@ class ResScreeningWorkflowService
             $currentAssignments = ReviewerAssignment::query()
                 ->current()
                 ->where('research_application_id', $locked->id)
-                ->where('review_type', 'initial_review')
+                ->where('review_type', $assignmentReviewType)
+                ->where('review_cycle', $reviewCycle)
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
@@ -269,7 +273,7 @@ class ResScreeningWorkflowService
 
             $assignedAt = now();
             $reviewDeadline = $this->deadlines
-                ->configuration('reviewer-submission', UserRole::Reviewer)
+                ->configuration($reviewCycle === 0 ? 'reviewer-submission' : 'reviewing-revision-period', UserRole::Reviewer)
                 ?->due_at;
             foreach ($supersededAssignments as $assignment) {
                 $assignment->update([
@@ -285,18 +289,21 @@ class ResScreeningWorkflowService
             $newAssignments = $reviewers
                 ->whereNotIn('id', $retainedReviewerIds)
                 ->values()
-                ->map(function (User $reviewer, int $index) use ($locked, $assignedAt, $reviewDeadline, $replacementLinks): ReviewerAssignment {
+                ->map(function (User $reviewer, int $index) use ($locked, $assignedAt, $reviewDeadline, $replacementLinks, $assignmentReviewType, $reviewCycle): ReviewerAssignment {
                     $sequence = (int) ReviewerAssignment::query()
                         ->where('research_application_id', $locked->id)
                         ->where('reviewer_user_id', $reviewer->id)
-                        ->where('review_type', 'initial_review')
+                        ->where('review_type', $assignmentReviewType)
                         ->max('assignment_sequence') + 1;
 
                     return $locked->reviewerAssignments()->create([
                         // Initial versus revision cycle remains separate from expedited/full-board classification.
                         'reviewer_user_id' => $reviewer->id,
-                        'review_type' => 'initial_review',
-                        'assignment_status' => ReviewerAssignmentStatus::Pending->value,
+                        'review_type' => $assignmentReviewType,
+                        'review_cycle' => $reviewCycle,
+                        'assignment_status' => $reviewCycle === 0
+                            ? ReviewerAssignmentStatus::Pending->value
+                            : ReviewerAssignmentStatus::RevisionReview->value,
                         'assignment_sequence' => $sequence,
                         'replaces_assignment_id' => $replacementLinks->get($index),
                         'assigned_at' => $assignedAt,
@@ -306,20 +313,30 @@ class ResScreeningWorkflowService
             $assignments = ReviewerAssignment::query()
                 ->current()
                 ->where('research_application_id', $locked->id)
-                ->where('review_type', 'initial_review')
+                ->where('review_type', $assignmentReviewType)
+                ->where('review_cycle', $reviewCycle)
                 ->with('reviewer')
                 ->orderBy('id')
                 ->get();
 
-            $nextStatus = $reviewType === ReviewType::Expedited
-                ? ApplicationStatus::UnderExpeditedReview
-                : ApplicationStatus::UnderFullBoardReview;
+            $nextStatus = $reviewCycle > 0
+                ? ApplicationStatus::UnderReReview
+                : ($reviewType === ReviewType::Expedited
+                    ? ApplicationStatus::UnderExpeditedReview
+                    : ApplicationStatus::UnderFullBoardReview);
 
             $locked->update([
                 'application_status' => $nextStatus->value,
                 'current_stage' => ApplicationStage::EthicsReview->value,
+                'review_consensus_status' => \App\Enums\ReviewConsensusStatus::AwaitingSubmissions->value,
+                'review_consensus_cycle' => $reviewCycle,
+                'review_consensus_decision' => null,
+                'review_consensus_signature' => null,
+                'review_consensus_evaluated_at' => $assignedAt,
+                'review_conflicted_at' => null,
                 'status_updated_at' => $assignedAt,
             ]);
+            $locked = $this->consensus->evaluateLocked($locked);
 
             // Audit only the classification and assignment total, never reviewer comments or document contents.
             $this->auditLog->record($actor, $supersededAssignments->isEmpty()

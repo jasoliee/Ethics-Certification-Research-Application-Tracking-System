@@ -19,6 +19,7 @@ class CertificationEligibilityService
 
         if (in_array($application->application_status, [
             ApplicationStatus::ResultReleasedAccepted,
+            ApplicationStatus::ForCertificateRelease,
             ApplicationStatus::CertificateReleased,
         ], true)) {
             if ($application->relationLoaded('decisionReleases')) {
@@ -73,6 +74,7 @@ class CertificationEligibilityService
             ApplicationStatus::UnderExpeditedReview,
             ApplicationStatus::UnderFullBoardReview,
             ApplicationStatus::ReviewSubmittedPendingRelease,
+            ApplicationStatus::ForCertificateRelease,
             ApplicationStatus::RevisionWindowOpen,
             ApplicationStatus::RevisionSubmitted,
             ApplicationStatus::UnderReReview,

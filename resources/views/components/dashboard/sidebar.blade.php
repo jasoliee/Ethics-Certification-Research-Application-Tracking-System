@@ -16,15 +16,42 @@
 
     <nav class="dashboard-sidebar-nav" aria-label="Primary navigation">
         @foreach ($dashboardNavigation as $item)
-            @php($isActive = request()->routeIs(...explode('|', $item['active'])))
-            <a
-                class="dashboard-nav-link {{ $isActive ? 'is-active' : '' }}"
-                href="{{ route($item['route']) }}"
-                @if ($isActive) aria-current="page" @endif
-            >
-                <x-dashboard.icon :name="$item['icon']" />
-                <span>{{ $item['label'] }}</span>
-            </a>
+            @php
+                $isActive = request()->routeIs(...explode('|', $item['active']));
+            @endphp
+            @if (isset($item['children']))
+                <details class="dashboard-nav-group" @if ($isActive) open @endif>
+                    <summary class="dashboard-nav-link {{ $isActive ? 'is-active' : '' }}">
+                        <x-dashboard.icon :name="$item['icon']" />
+                        <span>{{ $item['label'] }}</span>
+                        <x-dashboard.icon class="dashboard-nav-group-chevron" name="chevron-down" size="18" />
+                    </summary>
+                    <div class="dashboard-nav-submenu" aria-label="{{ $item['label'] }} navigation">
+                        @foreach ($item['children'] as $child)
+                            @php
+                                $childActive = request()->routeIs(...explode('|', $child['active']));
+                            @endphp
+                            <a
+                                class="dashboard-nav-link dashboard-nav-sublink {{ $childActive ? 'is-active' : '' }}"
+                                href="{{ route($child['route']) }}"
+                                @if ($childActive) aria-current="page" @endif
+                            >
+                                <x-dashboard.icon :name="$child['icon']" />
+                                <span>{{ $child['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </details>
+            @else
+                <a
+                    class="dashboard-nav-link {{ $isActive ? 'is-active' : '' }}"
+                    href="{{ route($item['route']) }}"
+                    @if ($isActive) aria-current="page" @endif
+                >
+                    <x-dashboard.icon :name="$item['icon']" />
+                    <span>{{ $item['label'] }}</span>
+                </a>
+            @endif
         @endforeach
     </nav>
 

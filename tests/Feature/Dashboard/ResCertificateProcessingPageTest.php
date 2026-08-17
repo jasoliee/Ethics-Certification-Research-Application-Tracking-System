@@ -29,23 +29,23 @@ class ResCertificateProcessingPageTest extends TestCase
 
         $response->assertOk()
             ->assertViewHas('queueMetrics', [
-                'relevant' => 2,
-                'released' => 0,
-                'pending_final_approval' => 1,
-                'survey_required' => 0,
+                'pending_decision_release' => 1,
+                'pending_certificate_release' => 1,
+                'certificates_released' => 0,
             ])
-            ->assertSee('Certificate Processing')
-            ->assertSee('Relevant Applications')
-            ->assertSee('Certification Queue')
-            ->assertSee('Final Review')
-            ->assertSee('Manage Certificate Background')
+            ->assertSee('Decision &amp; Certificates', false)
+            ->assertSee('Pending Decision Release')
+            ->assertSee('Pending Certificate Release')
+            ->assertSee('Decision &amp; Certificate Queue', false)
+            ->assertSeeInOrder(['Status', 'Decision', 'Claim', 'Last Updated', 'Action'])
+            ->assertDontSee('Manage Certificate Background')
             ->assertSee('Release All')
             ->assertSeeInOrder(['Certificate', 'Decision', 'Both Certificate and Decision'])
             ->assertSee('name="release_type" value="certificate"', false)
             ->assertSee('name="release_type" value="decision"', false)
             ->assertSee('name="release_type" value="both"', false)
             ->assertSee('data-certificate-bulk-dialog', false)
-            ->assertSee('data-certificate-background-dialog', false)
+            ->assertDontSee('data-certificate-background-dialog', false)
             ->assertSee('data-certificate-application-dialog="'.$eligible->id.'"', false)
             ->assertSee('data-certificate-application-dialog="'.$pending->id.'"', false)
             ->assertSee('data-certificate-row-number="1"', false)
@@ -56,7 +56,8 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertDontSee(route('res.certificates.decisions.release', $pending), false)
             ->assertDontSee('Documents requiring revision')
             ->assertDontSee('Official released decision')
-            ->assertSee(route('res.certificate-backgrounds.store'), false)
+            ->assertDontSee($eligible->applicant->name)
+            ->assertDontSee($pending->applicant->name)
             ->assertSee($eligible->research_title)
             ->assertSee($pending->research_title);
     }
@@ -68,10 +69,10 @@ class ResCertificateProcessingPageTest extends TestCase
         $eligible = $this->application('FILTER-ELIGIBLE', ApplicationStatus::ResultReleasedAccepted, $resLead);
         $pending = $this->application('FILTER-PENDING', ApplicationStatus::ReviewSubmittedPendingRelease, $resLead);
 
-        $response = $this->actingAs($resLead)->get(route('res.certificates.index', ['state' => 'eligible']));
+        $response = $this->actingAs($resLead)->get(route('res.certificates.index', ['state' => 'certificate']));
 
         $response->assertOk()
-            ->assertViewHas('queueMetrics', fn (array $metrics): bool => $metrics['relevant'] === 2)
+            ->assertViewHas('queueMetrics', fn (array $metrics): bool => array_sum($metrics) === 2)
             ->assertSee($eligible->research_title)
             ->assertDontSee($pending->research_title)
             ->assertSee('(filtered)');
@@ -152,7 +153,7 @@ class ResCertificateProcessingPageTest extends TestCase
                 'category' => 'general',
                 'body' => 'RES must not be allowed to write this Reviewer comment.',
             ])
-            ->assertRedirect(route('dashboard'));
+            ->assertForbidden();
 
         $this->actingAs($applicant)
             ->get(route('res.certificates.workspace', $pending))

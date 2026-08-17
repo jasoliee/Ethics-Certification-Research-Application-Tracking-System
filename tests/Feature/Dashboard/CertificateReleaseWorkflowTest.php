@@ -12,6 +12,7 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
+use App\Models\ApplicantSurveyResponse;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\Certificate;
 use App\Models\CertificateBackground;
@@ -23,6 +24,7 @@ use App\Services\Certificates\ApplicantCertificateService;
 use App\Services\Certificates\BulkReleaseService;
 use App\Services\Certificates\CertificateReleaseService;
 use App\Services\Certificates\OfficialCertificateGenerationService;
+use App\Support\ApplicantSurveyCatalog;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -34,6 +36,36 @@ use Tests\TestCase;
 class CertificateReleaseWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_pending_certificate_generation_uses_one_calendar_year_across_a_leap_day_and_release_reuses_the_binary(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('LEAPDAY');
+        $this->travelTo('2024-02-29 10:15:00');
+
+        $generated = app(CertificateReleaseService::class)->generatePending($resLead, $application);
+        $certificate = $generated['certificate'];
+        $version = $certificate->currentVersion;
+
+        $this->assertSame('generated', $generated['action']);
+        $this->assertSame(CertificateStatus::PendingRelease, $certificate->status);
+        $this->assertSame('2024-02-29', $certificate->issued_date->toDateString());
+        $this->assertSame('2025-02-28', $certificate->valid_until->toDateString());
+        $this->assertSame('2024-02-29', $version->issued_date->toDateString());
+        $this->assertSame('2025-02-28', $version->valid_until->toDateString());
+        $this->assertSame(ApplicationStatus::ForCertificateRelease, $application->refresh()->application_status);
+        Notification::assertNothingSentTo($applicant);
+
+        $this->travelTo('2024-03-01 09:00:00');
+        $released = app(CertificateReleaseService::class)->release($resLead, $application->refresh());
+        $this->assertSame('released', $released['action']);
+        $this->assertSame($version->id, $released['certificate']->currentVersion->id);
+        $this->assertSame(1, $released['certificate']->versions()->count());
+        $this->assertSame('2024-02-29', $released['certificate']->issued_date->toDateString());
+        $this->assertSame('2025-02-28', $released['certificate']->valid_until->toDateString());
+        Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
+    }
 
     public function test_release_survey_claim_and_private_download_form_one_server_gated_sequence(): void
     {
@@ -59,7 +91,13 @@ class CertificateReleaseWorkflowTest extends TestCase
             $this->assertArrayHasKey('certificate', $exception->errors());
         }
 
-        app(ApplicantCertificateService::class)->submitSurvey($applicant, $application, $this->surveyPayload());
+        $survey = app(ApplicantCertificateService::class)->submitSurvey($applicant, $application, $this->surveyPayload());
+        $duplicatePayload = $this->surveyPayload();
+        $duplicatePayload['ratings']['system_navigation'] = 1;
+        $duplicate = app(ApplicantCertificateService::class)->submitSurvey($applicant, $application, $duplicatePayload);
+        $this->assertSame($survey->id, $duplicate->id);
+        $this->assertSame(1, $application->surveyResponse()->count());
+        $this->assertSame(5, $survey->ratings['system_navigation']);
         $claimed = app(ApplicantCertificateService::class)->claim($applicant, $application);
 
         $this->assertSame(CertificateStatus::Claimed, $claimed->status);
@@ -88,8 +126,9 @@ class CertificateReleaseWorkflowTest extends TestCase
         $version = $certificate->currentVersion;
         $indexUrl = route('applicant.revision-certificates.index', ['application' => $application->id]);
         $invalidPayload = $this->surveyPayload();
-        $invalidPayload['positive_feedback'] = 'x';
-        $invalidPayload['improvement_feedback'] = 'y';
+        $invalidPayload['ratings']['system_navigation'] = 6;
+        unset($invalidPayload['ratings']['overall_satisfaction']);
+        $invalidPayload['ratings']['unexpected_question'] = 3;
 
         $invalidResponse = $this->actingAs($applicant)
             ->from($indexUrl)
@@ -98,8 +137,9 @@ class CertificateReleaseWorkflowTest extends TestCase
         $invalidResponse
             ->assertRedirect($indexUrl)
             ->assertSessionHasErrorsIn('certificateSurvey', [
-                'positive_feedback',
-                'improvement_feedback',
+                'ratings',
+                'ratings.system_navigation',
+                'ratings.overall_satisfaction',
             ]);
         $this->actingAs($applicant)
             ->followingRedirects()
@@ -107,8 +147,8 @@ class CertificateReleaseWorkflowTest extends TestCase
             ->post(route('applicant.revision-certificates.survey.store', $application), $invalidPayload)
             ->assertOk()
             ->assertSee('Evaluation was not submitted.')
-            ->assertSee('must be at least 5 characters')
-            ->assertSee('minlength="5"', false);
+            ->assertSee('must be between 1 and 5')
+            ->assertSee('Rate all 10 statements');
         $this->assertDatabaseMissing('applicant_survey_responses', [
             'research_application_id' => $application->id,
         ]);
@@ -122,7 +162,13 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertDatabaseHas('applicant_survey_responses', [
             'research_application_id' => $application->id,
             'applicant_user_id' => $applicant->id,
+            'questionnaire_version' => ApplicantSurveyCatalog::VERSION,
         ]);
+        $survey = $application->surveyResponse()->firstOrFail();
+        $this->assertSame(ApplicantSurveyCatalog::questionKeys(), array_keys($survey->ratings));
+        $this->assertSame('Thank you.', $survey->suggestions_comments);
+        $this->assertSame('', $survey->positive_feedback);
+        $this->assertSame('', $survey->improvement_feedback);
         $this->actingAs($applicant)
             ->get($indexUrl)
             ->assertOk()
@@ -147,7 +193,7 @@ class CertificateReleaseWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_background_change_regenerates_claimed_certificate_without_changing_historical_dates_or_claim(): void
+    public function test_background_change_never_regenerates_an_existing_claimed_certificate(): void
     {
         Storage::fake('local');
         Notification::fake();
@@ -164,37 +210,77 @@ class CertificateReleaseWorkflowTest extends TestCase
 
         $this->travelTo('2026-08-13 14:30:00');
         $this->actingAs($resLead)
-            ->post(route('res.certificate-backgrounds.store'), [
+            ->post(route('res.settings.backgrounds.store'), [
+                'background_type' => CertificateBackground::TYPE_CERTIFICATE,
                 'background' => UploadedFile::fake()->image('active-background.png', 596, 842),
             ])
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('background_regeneration_summary', fn (array $summary): bool => $summary['regenerated'] === 1
-                && $summary['failed'] === 0);
+            ->assertSessionMissing('background_regeneration_summary');
 
         $newBackground = CertificateBackground::query()->where('is_active', true)->firstOrFail();
         $claimed->refresh()->load('currentVersion');
-        $secondVersion = $claimed->currentVersion;
+        $currentVersion = $claimed->currentVersion;
 
         $this->assertNotSame($officialBackgroundId, $newBackground->id);
         $this->assertSame($officialBackgroundId, $firstVersion->refresh()->certificate_background_id);
-        $this->assertSame($newBackground->id, $secondVersion->certificate_background_id);
-        $this->assertSame(CertificateVersionStatus::Superseded, $firstVersion->status);
-        $this->assertSame(2, $secondVersion->certificate_version);
-        $this->assertSame($originalIssuedAt, $secondVersion->generated_at->toDateTimeString());
-        $this->assertSame($originalReleasedAt, $secondVersion->released_at->toDateTimeString());
-        $this->assertSame('2026-08-13 14:30:00', $secondVersion->regenerated_at->toDateTimeString());
-        $this->assertSame('background_update', $secondVersion->regeneration_reason);
+        $this->assertSame($firstVersion->id, $currentVersion->id);
+        $this->assertSame($officialBackgroundId, $currentVersion->certificate_background_id);
+        $this->assertSame(CertificateVersionStatus::Ready, $firstVersion->status);
+        $this->assertSame(1, $claimed->versions()->count());
+        $this->assertSame($originalIssuedAt, $currentVersion->generated_at->toDateTimeString());
+        $this->assertSame($originalReleasedAt, $currentVersion->released_at->toDateTimeString());
+        $this->assertNull($currentVersion->regenerated_at);
         $this->assertSame(CertificateStatus::Claimed, $claimed->status);
         $this->assertSame($originalReleasedAt, $claimed->released_at->toDateTimeString());
         $this->assertSame($originalClaimedAt, $claimed->claimed_at->toDateTimeString());
-        $this->assertSame($secondVersion->id, $claimed->claimed_certificate_version_id);
-        $this->assertSame($applicant->id, $secondVersion->claimed_by_user_id);
+        $this->assertSame($firstVersion->id, $claimed->claimed_certificate_version_id);
+        $this->assertSame($applicant->id, $currentVersion->claimed_by_user_id);
         Storage::disk('local')->assertExists($firstVersion->stored_file_path);
-        Storage::disk('local')->assertExists($secondVersion->stored_file_path);
         Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
     }
 
-    public function test_failed_background_regeneration_retains_the_last_valid_certificate_version(): void
+    public function test_res_report_shows_only_anonymous_current_questionnaire_aggregates(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('SURVEY-REPORT');
+        app(CertificateReleaseService::class)->release($resLead, $application);
+        $payload = $this->surveyPayload();
+        $payload['suggestions_comments'] = 'Private suggestion that must never appear in aggregate reports.';
+        app(ApplicantCertificateService::class)->submitSurvey($applicant, $application, $payload);
+        $legacyApplicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $legacyApplication = ResearchApplication::factory()->create(['applicant_user_id' => $legacyApplicant]);
+        ApplicantSurveyResponse::create([
+            'research_application_id' => $legacyApplication->id,
+            'applicant_user_id' => $legacyApplicant->id,
+            'ratings' => ['overall_process' => 5, 'communication' => 5, 'comments_helpfulness' => 5, 'timeliness' => 5],
+            'positive_feedback' => 'Legacy private positive feedback.',
+            'improvement_feedback' => 'Legacy private improvement feedback.',
+            'additional_comments' => 'Legacy private comments.',
+            'completed_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index'))
+            ->assertOk()
+            ->assertSee('Applicant Feedback Summary')
+            ->assertSee('completed response')
+            ->assertSee('Section 1 – System Experience')
+            ->assertSee('Section 2 – Ethics Review Process')
+            ->assertSee('3.00 / 5')
+            ->assertSee('The system was easy to navigate and use.')
+            ->assertSee('1 earlier questionnaire response')
+            ->assertDontSee('Private suggestion that must never appear')
+            ->assertDontSee('Legacy private positive feedback')
+            ->assertDontSee('Legacy private improvement feedback')
+            ->assertDontSee('Legacy private comments');
+
+        $this->actingAs($applicant)
+            ->get(route('res.reports.index'))
+            ->assertRedirect(route('dashboard'));
+    }
+
+    public function test_background_activation_does_not_invoke_certificate_generation(): void
     {
         Storage::fake('local');
         Notification::fake();
@@ -205,18 +291,15 @@ class CertificateReleaseWorkflowTest extends TestCase
         $originalReleasedAt = $certificate->released_at->toDateTimeString();
 
         $generator = $this->mock(OfficialCertificateGenerationService::class);
-        $generator->shouldReceive('renderAndStore')->once()->andThrow(
-            new CertificateGenerationException('Background rendering failed.', 'background_render_failed'),
-        );
+        $generator->shouldNotReceive('renderAndStore');
 
         $this->actingAs($resLead)
-            ->post(route('res.certificate-backgrounds.store'), [
+            ->post(route('res.settings.backgrounds.store'), [
+                'background_type' => CertificateBackground::TYPE_CERTIFICATE,
                 'background' => UploadedFile::fake()->image('failing-background.png', 596, 842),
             ])
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('background_regeneration_summary', fn (array $summary): bool => $summary['regenerated'] === 0
-                && $summary['failed'] === 1
-                && $summary['failed_certificate_numbers'] === [$certificate->certificate_number]);
+            ->assertSessionMissing('background_regeneration_summary');
 
         $certificate->refresh();
         $this->assertSame($originalVersion->id, $certificate->current_certificate_version_id);
@@ -401,14 +484,18 @@ class CertificateReleaseWorkflowTest extends TestCase
     {
         return [
             'ratings' => [
-                'overall_process' => 5,
-                'communication' => 4,
-                'comments_helpfulness' => 5,
-                'timeliness' => 4,
+                'system_navigation' => 5,
+                'system_instructions' => 4,
+                'submission_process' => 3,
+                'status_information' => 2,
+                'progress_monitoring' => 1,
+                'review_explanation' => 5,
+                'requirements_clarity' => 4,
+                'process_organization' => 3,
+                'response_convenience' => 2,
+                'overall_satisfaction' => 1,
             ],
-            'positive_feedback' => 'The released guidance was clear and useful.',
-            'improvement_feedback' => 'Add more progress updates during review.',
-            'additional_comments' => 'Thank you.',
+            'suggestions_comments' => 'Thank you.',
         ];
     }
 }

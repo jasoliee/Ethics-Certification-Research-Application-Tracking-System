@@ -29,7 +29,7 @@ class ReviewFormArtifactPolicy
             return true;
         }
 
-        return $user->role === UserRole::Reviewer
+        return $user->hasReviewerAccess()
             && $assignment->reviewer_user_id === $user->id
             && $assignment->isCurrent();
     }

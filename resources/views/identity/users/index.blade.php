@@ -6,19 +6,66 @@
         <header class="dashboard-page-heading-row identity-page-heading">
             <div class="dashboard-page-heading">
                 <h1>{{ $isResLead ? 'User Management' : 'Applicant Accounts' }}</h1>
-                <p>{{ $isResLead ? 'Manage researcher, adviser, and reviewer accounts.' : 'Manage the student and faculty researcher accounts assigned to you.' }}</p>
+                <p>{{ $isResLead ? 'Manage researcher and Adviser accounts, including supplementary Reviewer access.' : 'Manage the student and faculty researcher accounts assigned to you.' }}</p>
             </div>
 
             <div class="identity-heading-actions">
-                @if ($isResLead)
-                    <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.profile-options.index') }}"><x-dashboard.icon name="settings" size="19" /><span>Dropdown Options</span></a>
-                @endif
                 <a class="identity-button identity-button-primary" href="{{ route($routeBase.'.create') }}">
                     <x-dashboard.icon name="plus" size="19" />
                     <span>Add Account</span>
                 </a>
             </div>
         </header>
+
+        @if ($adviserStatistics)
+            <div class="dashboard-summary-grid dashboard-summary-grid-five" aria-label="Adviser endorsement workload">
+                <x-dashboard.summary-card label="Declared Expected" :count="$adviserStatistics['declared']" icon="clipboard" tone="blue" :href="route('adviser.settings.index', ['tab' => 'profile'])" />
+                <x-dashboard.summary-card label="Successfully Endorsed" :count="$adviserStatistics['endorsed']" icon="check" tone="green" :href="route('adviser.applications.index')" />
+                <x-dashboard.summary-card label="Received, Awaiting Endorsement" :count="$adviserStatistics['awaiting']" icon="file-text" tone="orange" :href="route('adviser.applications.index', ['status' => \App\Enums\ApplicationStatus::SubmittedToAdviser->value])" />
+                <x-dashboard.summary-card label="Remaining Expected Total" :count="$adviserStatistics['remaining']" icon="refresh" tone="violet" :href="route('adviser.applications.index')" />
+                <x-dashboard.summary-card label="Not Yet Received" :count="$adviserStatistics['not_received']" icon="clock" tone="neutral" :href="route('adviser.applicants.index')" />
+            </div>
+        @endif
+
+        @if ($isResLead && $identityReconciliations->isNotEmpty())
+            <section class="identity-table-panel" aria-labelledby="reviewer-reconciliation-heading">
+                <div class="identity-table-summary">
+                    <span>
+                        <strong id="reviewer-reconciliation-heading">Reviewer identity reconciliation</strong>
+                        <small>{{ $identityReconciliations->count() }} possible duplicate {{ str('identity')->plural($identityReconciliations->count()) }} require an RES decision. No record is merged automatically.</small>
+                    </span>
+                </div>
+                <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Pending Reviewer identity reconciliations" tabindex="0">
+                    <table class="identity-user-table">
+                        <thead>
+                            <tr><th>Preserved Reviewer identity</th><th>Existing Adviser identity</th><th>Matched fields</th><th>Resolution</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($identityReconciliations as $reconciliation)
+                                <tr>
+                                    <td><strong>{{ $reconciliation->sourceUser->name }}</strong><small>{{ $reconciliation->sourceUser->email }} · {{ $reconciliation->sourceUser->institutional_identifier }}</small></td>
+                                    <td><strong>{{ $reconciliation->targetAdviser->name }}</strong><small>{{ $reconciliation->targetAdviser->email }} · {{ $reconciliation->targetAdviser->institutional_identifier }}</small></td>
+                                    <td>{{ collect($reconciliation->matched_fields)->map(fn ($field) => Str::headline($field))->implode(', ') }}</td>
+                                    <td>
+                                        <div class="identity-heading-actions">
+                                            <form method="POST" action="{{ route('res.users.reviewer-reconciliations.keep-separate', $reconciliation) }}">
+                                                @csrf
+                                                <button class="identity-button identity-button-secondary" type="submit">Keep separate</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('res.users.reviewer-reconciliations.merge', $reconciliation) }}" onsubmit="return window.confirm('Merge preserved Reviewer history into this Adviser account? The duplicate account will be retained as inactive.');">
+                                                @csrf
+                                                <input type="hidden" name="confirm_merge" value="1">
+                                                <button class="identity-button identity-button-warning" type="submit">Merge history</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
 
         {{-- RES Lead retains role tabs; Adviser receives one accurate applicant-count header. --}}
         <nav class="identity-role-tabs {{ $isResLead ? 'is-four' : 'is-one' }}" aria-label="Account category filters">
@@ -63,7 +110,7 @@
                         <option value="">All roles</option>
                         <option value="{{ \App\Enums\UserRole::Applicant->value }}" @selected(($filters['role'] ?? null) === \App\Enums\UserRole::Applicant->value)>Applicants</option>
                         <option value="{{ \App\Enums\UserRole::Adviser->value }}" @selected(($filters['role'] ?? null) === \App\Enums\UserRole::Adviser->value)>Advisers</option>
-                        <option value="{{ \App\Enums\UserRole::Reviewer->value }}" @selected(($filters['role'] ?? null) === \App\Enums\UserRole::Reviewer->value)>Reviewers</option>
+                        <option value="{{ \App\Enums\UserRole::Reviewer->value }}" @selected(($filters['role'] ?? null) === \App\Enums\UserRole::Reviewer->value)>Reviewer-enabled Advisers</option>
                     </select>
                 </div>
             @endif
@@ -115,8 +162,11 @@
                         <option value="deactivate">Deactivate</option>
                         <option value="archive">Delete from active records</option>
                         <option value="resend_setup">Resend setup link</option>
+                        <option value="show_reviewer">Show Reviewer</option>
+                        <option value="hide_reviewer">Hide Reviewer</option>
                     </select>
                     <input type="hidden" name="action" value="" data-mass-action-value>
+                    <input type="hidden" name="confirm_active_assignments" value="0" data-reviewer-assignment-confirmation>
                     <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="selected">Apply Action</button>
                     <button class="identity-button identity-button-secondary" type="submit" data-mass-submit="resend_all_pending">Resend All Pending</button>
                 </div>
@@ -163,6 +213,12 @@
                                     \App\Enums\UserRole::Adviser => 'blue',
                                     default => 'green',
                                 };
+                                $roleLabel = $managedUser->role === \App\Enums\UserRole::Adviser && $managedUser->reviewer_enabled
+                                    ? 'Adviser / Reviewer'
+                                    : $managedUser->displayRoleLabel();
+                                if ($managedUser->reviewer_enabled) {
+                                    $roleTone = 'purple';
+                                }
                             @endphp
                             <tr>
                                 @if ($isResLead)<td class="identity-checkbox-cell"><input type="checkbox" name="user_ids[]" value="{{ $managedUser->id }}" aria-label="Select {{ $managedUser->name }}" data-select-user></td>@endif
@@ -174,7 +230,7 @@
                                 </td>
                                 <td class="identity-col-identifier"><span class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institutional_identifier }}">{{ $managedUser->institutional_identifier }}</span></td>
                                 <td class="identity-col-email"><a class="identity-table-truncate" data-table-tooltip="{{ $managedUser->email }}" href="mailto:{{ $managedUser->email }}">{{ $managedUser->email }}</a></td>
-                                <td class="identity-col-role"><x-dashboard.status-badge class="identity-role-badge" :label="$managedUser->displayRoleLabel()" :tone="$roleTone" /></td>
+                                <td class="identity-col-role"><x-dashboard.status-badge class="identity-role-badge" :label="$roleLabel" :tone="$roleTone" /></td>
                                 <td class="identity-col-unit">
                                     <span class="identity-table-unit">
                                         <strong class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institution ?: 'Not provided' }}">{{ $managedUser->institution ?: 'Not provided' }}</strong>

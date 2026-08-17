@@ -4,7 +4,7 @@
     <div class="dashboard-page reviewer-assignment-detail-page res-review-workspace-page">
         <header class="dashboard-page-heading reviewer-assignment-detail-heading">
             <div><h1>Read-only Review Workspace</h1><p>Inspect submitted Reviewer materials and release one exact decision without changing review content.</p></div>
-            <a class="dashboard-outline-action" href="{{ route('res.certificates.index', ['application' => $application->id]) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to Certificates</span></a>
+            <a class="dashboard-outline-action" href="{{ route('res.certificates.index', ['application' => $application->id]) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to Decision &amp; Certificates</span></a>
         </header>
 
         <section class="reviewer-confidentiality-banner" role="note">
@@ -16,8 +16,8 @@
             <dl>
                 <div><dt>Application Code</dt><dd>{{ $application->application_code }}</dd></div>
                 <div class="reviewer-workspace-meta-title"><dt>Research Title</dt><dd>{{ $application->research_title }}</dd></div>
-                <div><dt>Applicant</dt><dd>{{ $application->applicant?->name ?? 'Applicant record unavailable' }}</dd></div>
                 <div><dt>Review Type</dt><dd>{{ filled($application->review_type) ? Str::headline($application->review_type) : 'Not specified' }}</dd></div>
+                <div><dt>Consensus</dt><dd><x-dashboard.status-badge :label="$application->review_consensus_status?->label() ?? 'Not evaluated'" :tone="$application->review_consensus_status?->tone() ?? 'neutral'" /></dd></div>
                 <div><dt>Status</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
             </dl>
         </section>
@@ -49,37 +49,48 @@
             @endif
         </section>
 
-        <div class="res-readonly-review-grid">
+        @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
+            <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Conflicted Full Board decisions.</strong><span>Release is blocked until every current Reviewer has re-submitted the same decision.</span></div></div>
+        @endif
+
+        <div class="res-readonly-review-grid {{ $application->reviewerAssignments->count() === 1 ? 'is-single-reviewer' : '' }}">
             @forelse ($application->reviewerAssignments as $assignment)
+                @php
+                    $submittedVersion = $assignment->reviewSubmission?->currentVersion;
+                    $snapshotComments = collect(data_get($submittedVersion?->payload_snapshot, 'comments', []));
+                @endphp
                 <section class="application-panel res-readonly-review-card">
                     <header class="application-panel-heading">
-                        <div><h2>Reviewer {{ $loop->iteration }}</h2><p>Submitted {{ $assignment->reviewSubmission?->submitted_at?->format('M j, Y g:i A') ?? 'Not submitted' }}</p></div>
-                        <x-dashboard.status-badge :label="$assignment->reviewSubmission?->decision?->label() ?? 'Pending'" :tone="$assignment->reviewSubmission?->decision?->tone() ?? 'neutral'" />
+                        <div><h2>Reviewer {{ $loop->iteration }}</h2><p>Submitted {{ $submittedVersion?->submitted_at?->format('M j, Y g:i A') ?? 'Not submitted' }}@if ($submittedVersion) · Version {{ $submittedVersion->version_number }}@endif</p></div>
+                        <x-dashboard.status-badge :label="$submittedVersion?->decision?->label() ?? 'Pending'" :tone="$submittedVersion?->decision?->tone() ?? 'neutral'" />
                     </header>
 
-                    <div class="res-readonly-review-section"><h3>Decision Comment</h3><p>{{ $assignment->reviewSubmission?->decision_comment ?: 'No decision comment recorded.' }}</p></div>
+                    <div class="res-readonly-review-section"><h3>Decision Comment</h3><p>{{ $submittedVersion?->decision_comment ?: 'No decision comment recorded.' }}</p></div>
                     <div class="res-readonly-review-section"><h3>Review Comments</h3>
-                        @forelse ($assignment->comments as $comment)
-                            <article class="res-readonly-comment"><header><x-dashboard.status-badge :label="$comment->category->label()" :tone="$comment->category->tone()" /><span>{{ $comment->document?->requirement?->name ?? 'Entire Application' }}</span></header><p>{{ $comment->body }}</p></article>
+                        @forelse ($snapshotComments as $comment)
+                            @php
+                                $category = \App\Enums\ReviewCommentCategory::tryFrom((string) data_get($comment, 'category'));
+                            @endphp
+                            <article class="res-readonly-comment"><header><x-dashboard.status-badge :label="$category?->label() ?? 'Review Comment'" :tone="$category?->tone() ?? 'neutral'" /><span>{{ data_get($comment, 'application_document_id') ? 'Submitted document #'.data_get($comment, 'application_document_id') : 'Entire Application' }}</span></header><p>{{ data_get($comment, 'body') }}</p></article>
                         @empty
                             <p>No comments were submitted by this Reviewer.</p>
                         @endforelse
                     </div>
                     <div class="res-readonly-review-section"><h3>Submitted Worksheets</h3>
-                        @forelse ($assignment->formSubmissions as $form)
+                        @forelse ($submittedVersion?->artifacts ?? collect() as $artifact)
+                            @php
+                                $form = $artifact->formSubmission;
+                            @endphp
+                            @continue(! $form)
                             <div class="res-readonly-worksheet"><span><strong>{{ $form->form_type->code() }}</strong> {{ $form->form_type->label() }}</span>
-                                @if ($form->artifact)
-                                    <span><a href="{{ route('res.applications.review-form-artifacts.preview', [$application, $assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">Preview</a><a href="{{ route('res.applications.review-form-artifacts.download', [$application, $assignment, $form, $form->artifact]) }}">Download</a></span>
-                                @else
-                                    <x-dashboard.status-badge :label="$form->status->label()" :tone="$form->status === \App\Enums\ReviewFormStatus::Final ? 'success' : 'neutral'" />
-                                @endif
+                                <span><a href="{{ route('res.applications.review-form-artifacts.preview', [$application, $assignment, $form, $artifact]) }}" target="_blank" rel="noopener">Preview</a><a href="{{ route('res.applications.review-form-artifacts.download', [$application, $assignment, $form, $artifact]) }}">Download</a></span>
                             </div>
                         @empty
                             <p>No worksheets are available.</p>
                         @endforelse
                     </div>
 
-                    @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease && $assignment->reviewSubmission?->status === \App\Enums\ReviewSubmissionStatus::Submitted)
+                    @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $submittedVersion)
                         <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
                             @csrf
                             <input type="hidden" name="review_submission_id" value="{{ $assignment->reviewSubmission->id }}">

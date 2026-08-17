@@ -59,6 +59,8 @@ class ApplicationDocument extends Model
             'application/pdf',
             'image/jpeg',
             'image/png',
+            'image/gif',
+            'image/webp',
         ], true);
     }
 
@@ -72,7 +74,7 @@ class ApplicationDocument extends Model
     {
         return match ($this->mime_type) {
             'application/pdf' => 'pdf',
-            'image/jpeg', 'image/png' => 'image',
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp' => 'image',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.ms-excel',
@@ -94,6 +96,8 @@ class ApplicationDocument extends Model
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'Microsoft Excel workbook (.xlsx)',
             'image/jpeg' => 'JPEG image',
             'image/png' => 'PNG image',
+            'image/gif' => 'GIF image',
+            'image/webp' => 'WebP image',
             default => 'Document',
         };
     }

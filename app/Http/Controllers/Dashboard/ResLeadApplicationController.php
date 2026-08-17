@@ -307,6 +307,9 @@ class ResLeadApplicationController extends Controller
      */
     private function loadResApplication(ResearchApplication $application): ResearchApplication
     {
+        $reviewCycle = max(0, ((int) $application->current_revision_cycle) - 1);
+        $assignmentReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
+
         return $application->loadMissing([
             'applicant:id,name,email,institutional_identifier,institution,department,program,role,applicant_type',
             'adviser:id,name,email,institution,department',
@@ -314,7 +317,8 @@ class ResLeadApplicationController extends Controller
             'screening.screenedBy:id,name',
             'reviewerAssignments' => fn ($assignments) => $assignments
                 ->current()
-                ->where('review_type', 'initial_review')
+                ->where('review_type', $assignmentReviewType)
+                ->where('review_cycle', $reviewCycle)
                 ->orderBy('assigned_at')
                 ->with(['reviewer' => fn ($reviewers) => $reviewers
                     ->withCount(['reviewerAssignments as active_assignment_count' => fn (Builder $active) => $active

@@ -1,17 +1,26 @@
 @extends('layouts.dashboard')
 
 @section('content')
+    @php
+        $activeReviewTab = $filters['tab'] ?? null;
+        $assignmentSectionTitle = match ($activeReviewTab) {
+            'revision' => 'Revision Reviews',
+            'completed' => 'Completed Reviews',
+            default => 'Assigned Reviews',
+        };
+    @endphp
+
     <div class="dashboard-page reviewer-assignment-page">
         <header class="dashboard-page-heading">
             <h1>{{ $reviewTasksPage ? 'Review Tasks' : 'Assigned Applications' }}</h1>
-            <p>{{ $reviewTasksPage ? 'Continue active reviews, revision reviews, and completed submissions.' : 'Review applications assigned to your account and monitor their deadlines.' }}</p>
+            <p>{{ $reviewTasksPage ? 'Continue active and revision reviews, or revisit final approved work.' : 'Review applications assigned to your account and monitor their deadlines.' }}</p>
         </header>
 
         @if ($reviewTasksPage)
-            <nav class="settings-tabs" aria-label="Review task status">
+            <nav class="settings-tabs reviewer-task-tabs" aria-label="Review task status">
                 <a href="{{ route('reviewer.reviews.index', ['tab' => 'assigned']) }}" @if(($filters['tab'] ?? 'assigned') === 'assigned') aria-current="page" @endif>Assigned to Me</a>
-                <a href="{{ route('reviewer.reviews.index', ['tab' => 'revision']) }}" @if(($filters['tab'] ?? '') === 'revision') aria-current="page" @endif>For Revision</a>
-                <a href="{{ route('reviewer.reviews.index', ['tab' => 'completed']) }}" @if(($filters['tab'] ?? '') === 'completed') aria-current="page" @endif>Completed</a>
+                <a href="{{ route('reviewer.reviews.index', ['tab' => 'revision']) }}" @if(($filters['tab'] ?? '') === 'revision') aria-current="page" @endif>Revision Reviews</a>
+                <a href="{{ route('reviewer.reviews.index', ['tab' => 'completed']) }}" @if(($filters['tab'] ?? '') === 'completed') aria-current="page" @endif>Completed Reviews</a>
             </nav>
         @endif
 
@@ -62,7 +71,7 @@
             <a class="dashboard-outline-action" href="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index', $reviewTasksPage ? ['tab' => $filters['tab'] ?? 'assigned'] : []) }}">Reset</a>
         </form>
 
-        <x-dashboard.section title="Assigned Reviews">
+        <x-dashboard.section :title="$assignmentSectionTitle">
             @if ($assignments->isEmpty())
                 <x-dashboard.empty-state
                     image="no-assignments"
@@ -75,15 +84,20 @@
                 <x-dashboard.overflow label="Assigned reviewer applications" wide>
                     <table class="dashboard-table reviewer-assignment-table">
                         <thead>
-                            <tr><th class="reviewer-table-centered">Application Code</th><th>Research Title</th><th>Review Type</th><th class="reviewer-table-centered">Status</th><th class="reviewer-table-centered">Deadline</th><th class="dashboard-table-action">Action</th></tr>
+                            <tr><th>Application Code</th><th>Research Title</th><th>Review Type</th><th class="reviewer-table-centered">Status</th><th class="reviewer-table-centered">Deadline</th><th class="dashboard-table-action">Action</th></tr>
                         </thead>
                         <tbody>
                             @foreach ($assignments as $assignment)
                                 <tr>
-                                    <td class="reviewer-table-centered"><a href="{{ route('reviewer.assignments.show', $assignment) }}">{{ $assignment->researchApplication->application_code }}</a></td>
+                                    <td><a href="{{ route('reviewer.assignments.show', $assignment) }}">{{ $assignment->researchApplication->application_code }}</a></td>
                                     <td class="reviewer-assignment-title"><x-dashboard.research-title :title="$assignment->researchApplication->research_title" :href="route('reviewer.assignments.show', $assignment)" /></td>
                                     <td>{{ Str::headline($assignment->review_type) }}</td>
-                                    <td class="reviewer-table-centered"><x-dashboard.status-badge :label="$assignment->assignment_status->label()" :tone="$assignment->assignment_status->tone()" /></td>
+                                    <td class="reviewer-table-centered">
+                                        <x-dashboard.status-badge
+                                            :label="$activeReviewTab === 'completed' ? 'Completed' : $assignment->assignment_status->label()"
+                                            :tone="$assignment->assignment_status->tone()"
+                                        />
+                                    </td>
                                     <td class="reviewer-table-centered reviewer-deadline-value">
                                         <span @class(['reviewer-deadline-overdue' => $assignment->review_deadline_at?->isPast() && in_array($assignment->assignment_status->value, \App\Enums\ReviewerAssignmentStatus::activeValues(), true)])>
                                             {{ $assignment->review_deadline_at?->format('M j, Y') ?? 'Not configured' }}

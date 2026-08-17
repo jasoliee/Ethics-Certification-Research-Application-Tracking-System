@@ -232,6 +232,7 @@ class ReviewerWorkflowController extends Controller
             $decision,
             $request->validated('decision_comment'),
             $submit,
+            $request->validated('submission_token'),
         );
 
         if ($request->expectsJson()) {

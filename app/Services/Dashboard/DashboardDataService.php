@@ -137,6 +137,7 @@ class DashboardDataService
         // Current assignment history, not academic-term cache state, is authoritative for Reviewer visibility.
         $base = ReviewerAssignment::query()
             ->current()
+            ->latestCycleForReviewer()
             ->where('reviewer_user_id', $user->id)
             ->where('assignment_status', '!=', ReviewerAssignmentStatus::Superseded->value)
             ->whereHas('researchApplication', fn (Builder $applications) => $applications
@@ -147,7 +148,7 @@ class DashboardDataService
             'counts' => [
                 'pending' => $statusCounts->get(ReviewerAssignmentStatus::Pending->value, 0),
                 'revision' => $statusCounts->get(ReviewerAssignmentStatus::RevisionReview->value, 0),
-                'completed' => $statusCounts->get(ReviewerAssignmentStatus::DecisionSubmitted->value, 0),
+                'completed' => (clone $base)->completedFinalApproval()->count(),
             ],
             'assignments' => (clone $base)
                 ->select([

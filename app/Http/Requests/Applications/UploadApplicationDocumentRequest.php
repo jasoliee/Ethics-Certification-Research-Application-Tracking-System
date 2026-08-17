@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Applications;
 
 use App\Models\ResearchApplication;
+use App\Rules\SafeApplicationDocumentUpload;
 use App\Services\Applications\ApplicationDocumentService;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -25,7 +26,7 @@ class UploadApplicationDocumentRequest extends FormRequest
     /**
      * Reject oversized, executable, and unsupported file types before storage.
      *
-     * @return array<string, array<int, string>>
+     * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
@@ -37,7 +38,7 @@ class UploadApplicationDocumentRequest extends FormRequest
     /**
      * Share the same per-file contract with the multi-requirement upload endpoint.
      *
-     * @return array<int, string>
+     * @return array<int, mixed>
      */
     public static function documentRules(): array
     {
@@ -45,7 +46,9 @@ class UploadApplicationDocumentRequest extends FormRequest
             'required',
             'file',
             'max:'.ApplicationDocumentService::MAX_FILE_KILOBYTES,
-            'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+            'extensions:pdf,jpg,jpeg,png,gif,webp',
+            'mimetypes:application/pdf,image/jpeg,image/png,image/gif,image/webp',
+            new SafeApplicationDocumentUpload,
         ];
     }
 }

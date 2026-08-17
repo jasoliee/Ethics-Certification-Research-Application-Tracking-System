@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
@@ -20,7 +19,7 @@ class ReviewerAssignmentFactory extends Factory
                 'application_status' => ApplicationStatus::UnderExpeditedReview,
                 'submitted_at' => now()->subDays(3),
             ]),
-            'reviewer_user_id' => User::factory()->state(['role' => UserRole::Reviewer]),
+            'reviewer_user_id' => User::factory()->reviewer(),
             'review_type' => 'initial_review',
             'review_cycle' => 0,
             'assignment_status' => ReviewerAssignmentStatus::Pending,

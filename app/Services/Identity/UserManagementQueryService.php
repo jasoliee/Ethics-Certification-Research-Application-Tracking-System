@@ -3,6 +3,7 @@
 namespace App\Services\Identity;
 
 use App\Enums\ApplicantType;
+use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,13 +19,21 @@ class UserManagementQueryService
             return $query->where('role', '!=', UserRole::ResLead->value);
         }
 
-        // Advisers see only applicant accounts tied through creation or an assigned application.
+        // Advisers see only accounts they created or Applicants who crossed the formal
+        // submission boundary with them. Merely selecting an Adviser in a private draft
+        // never grants account-directory access.
         return $query
             ->where('role', UserRole::Applicant->value)
             ->where(function (Builder $visible) use ($actor): void {
                 $visible
                     ->where('created_by_user_id', $actor->id)
-                    ->orWhereHas('researchApplications', fn (Builder $applications) => $applications->where('adviser_user_id', $actor->id));
+                    ->orWhereHas('researchApplications', fn (Builder $applications) => $applications
+                        ->where('adviser_user_id', $actor->id)
+                        ->whereNotNull('submitted_at')
+                        ->whereNotIn('application_status', [
+                            ApplicationStatus::Draft->value,
+                            ApplicationStatus::Incomplete->value,
+                        ]));
             });
     }
 
@@ -45,7 +54,15 @@ class UserManagementQueryService
         }
 
         if ($role = UserRole::tryFrom((string) ($filters['role'] ?? ''))) {
-            $query->where('role', $role->value);
+            if ($role === UserRole::Reviewer) {
+                // "Reviewer" remains a useful management filter, but it now means
+                // active Advisers whose supplementary Reviewer surface is enabled.
+                $query->where('role', UserRole::Adviser->value)
+                    ->where('account_status', 'active')
+                    ->where('reviewer_enabled', true);
+            } else {
+                $query->where('role', $role->value);
+            }
         }
 
         if ($applicantType = ApplicantType::tryFrom((string) ($filters['applicant_type'] ?? ''))) {

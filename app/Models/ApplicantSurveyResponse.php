@@ -10,16 +10,19 @@ class ApplicantSurveyResponse extends Model
     protected $fillable = [
         'research_application_id',
         'applicant_user_id',
+        'questionnaire_version',
         'ratings',
         'positive_feedback',
         'improvement_feedback',
         'additional_comments',
+        'suggestions_comments',
         'completed_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'questionnaire_version' => 'integer',
             'ratings' => 'array',
             'completed_at' => 'datetime',
         ];

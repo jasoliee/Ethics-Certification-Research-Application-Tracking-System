@@ -2,6 +2,8 @@
 @php
     $profileRole = $managedUser?->role?->value ?? ($selectedType['role'] ?? null);
     $profileApplicantType = $managedUser?->applicant_type?->value ?? ($selectedType['applicant_type'] ?? null);
+    $reviewerClassifications = old('reviewer_classifications', $managedUser?->reviewerClassificationLabels() ?? []);
+    $reviewerClassifications = is_array($reviewerClassifications) ? $reviewerClassifications : [];
 @endphp
 {{-- Personal fields use the shared section-title spacing across every supported account type. --}}
 <fieldset class="identity-form-section">
@@ -45,8 +47,8 @@
             @error('institutional_identifier')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         <div class="identity-field">
-            <label for="phone_number">Phone Number</label>
-            <input id="phone_number" name="phone_number" type="tel" value="{{ old('phone_number', $managedUser?->phone_number) }}" maxlength="11" inputmode="numeric" pattern="[0-9]{1,11}" autocomplete="tel">
+            <label for="phone_number">Phone Number <span aria-hidden="true">*</span></label>
+            <input id="phone_number" name="phone_number" type="tel" value="{{ old('phone_number', $managedUser?->phone_number) }}" minlength="11" maxlength="11" inputmode="numeric" pattern="[0-9]{11}" autocomplete="tel" required>
             @error('phone_number')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         <div class="identity-field">
@@ -93,27 +95,29 @@
                 </div>
             @endif
         @endif
-        @if (in_array($profileRole, [\App\Enums\UserRole::Adviser->value, \App\Enums\UserRole::Reviewer->value], true) || $profileApplicantType === \App\Enums\ApplicantType::Faculty->value)
+        @if ($profileRole === \App\Enums\UserRole::Adviser->value || $profileApplicantType === \App\Enums\ApplicantType::Faculty->value)
             <div class="identity-field">
                 <label for="position_title">Position / Designation @if ($profileRole === \App\Enums\UserRole::Adviser->value)<span aria-hidden="true">*</span>@endif</label>
                 <input id="position_title" name="position_title" type="text" value="{{ old('position_title', $managedUser?->position_title) }}" maxlength="150" @required($profileRole === \App\Enums\UserRole::Adviser->value)>
                 @error('position_title')<span class="identity-field-error">{{ $message }}</span>@enderror
             </div>
         @endif
-        @if ($profileRole === \App\Enums\UserRole::Reviewer->value)
-            <div class="identity-field">
-                <label for="reviewer_classification">Reviewer Classification <span aria-hidden="true">*</span></label>
-                <select id="reviewer_classification" name="reviewer_classification" required>
-                    <option value="">Select classification</option>
-                    @foreach ($profileOptions[\App\Enums\ProfileOptionField::ReviewerClassification->value] ?? [] as $option)
-                        <option value="{{ $option }}" @selected(old('reviewer_classification', $managedUser?->reviewer_classification) === $option)>{{ $option }}</option>
-                    @endforeach
-                </select>
-                @error('reviewer_classification')<span class="identity-field-error">{{ $message }}</span>@enderror
+        @if ($managedUser?->role === \App\Enums\UserRole::Adviser)
+            <div class="identity-field" role="group" aria-labelledby="reviewer-classifications-label">
+                <span id="reviewer-classifications-label">Reviewer Classifications @if ($managedUser->reviewer_enabled)<span aria-hidden="true">*</span>@endif</span>
+                @foreach (['Expedited', 'Full Board'] as $classification)
+                    <label class="identity-confirm-check">
+                        <input type="checkbox" name="reviewer_classifications[]" value="{{ $classification }}" @checked(in_array($classification, $reviewerClassifications, true))>
+                        <span>{{ $classification }}</span>
+                    </label>
+                @endforeach
+                @error('reviewer_classifications')<span class="identity-field-error">{{ $message }}</span>@enderror
+                @error('reviewer_classifications.*')<span class="identity-field-error">{{ $message }}</span>@enderror
+                <small>RES controls these eligibility classifications. Reviewer access is shown or hidden from User Management.</small>
             </div>
             <div class="identity-field">
-                <label for="reviewer_capacity">Reviewer Capacity <span aria-hidden="true">*</span></label>
-                <input id="reviewer_capacity" name="reviewer_capacity" type="number" value="{{ old('reviewer_capacity', $managedUser?->reviewer_capacity ?? 30) }}" min="1" max="30" required>
+                <label for="reviewer_capacity">Reviewer Capacity @if ($managedUser->reviewer_enabled)<span aria-hidden="true">*</span>@endif</label>
+                <input id="reviewer_capacity" name="reviewer_capacity" type="number" value="{{ old('reviewer_capacity', $managedUser?->reviewer_capacity) }}" min="1" max="30" @required($managedUser->reviewer_enabled)>
                 @error('reviewer_capacity')<span class="identity-field-error">{{ $message }}</span>@enderror
             </div>
         @endif

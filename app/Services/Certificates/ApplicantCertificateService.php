@@ -10,6 +10,7 @@ use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Support\ApplicantSurveyCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -62,14 +63,25 @@ class ApplicantCertificateService
                 return $existing;
             }
 
+            $ratings = $this->validatedRatings($payload);
+            $suggestions = $payload['suggestions_comments'] ?? null;
+            if ($suggestions !== null && (! is_string($suggestions) || mb_strlen($suggestions) > 2000)) {
+                throw ValidationException::withMessages([
+                    'suggestions_comments' => 'Suggestions and comments must be text no longer than 2,000 characters.',
+                ])->errorBag('certificateSurvey');
+            }
+
             $response = ApplicantSurveyResponse::create([
                 'research_application_id' => $lockedApplication->id,
                 'applicant_user_id' => $actor->id,
-                'ratings' => $payload['ratings'],
-                'positive_feedback' => trim((string) $payload['positive_feedback']),
-                'improvement_feedback' => trim((string) $payload['improvement_feedback']),
-                'additional_comments' => filled($payload['additional_comments'] ?? null)
-                    ? trim((string) $payload['additional_comments'])
+                'questionnaire_version' => ApplicantSurveyCatalog::VERSION,
+                'ratings' => $ratings,
+                // Keep legacy non-null columns intact without storing duplicate free-text answers.
+                'positive_feedback' => '',
+                'improvement_feedback' => '',
+                'additional_comments' => null,
+                'suggestions_comments' => filled($suggestions)
+                    ? trim($suggestions)
                     : null,
                 'completed_at' => now(),
             ]);
@@ -84,6 +96,47 @@ class ApplicantCertificateService
 
             return $response;
         }, 3);
+    }
+
+    /**
+     * Enforce the same exact questionnaire contract for non-HTTP service callers.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, int>
+     */
+    private function validatedRatings(array $payload): array
+    {
+        $submitted = $payload['ratings'] ?? null;
+        if (! is_array($submitted)) {
+            throw ValidationException::withMessages([
+                'ratings' => 'All 10 evaluation ratings are required.',
+            ])->errorBag('certificateSurvey');
+        }
+
+        $expectedKeys = ApplicantSurveyCatalog::questionKeys();
+        $submittedKeys = array_keys($submitted);
+        sort($expectedKeys);
+        sort($submittedKeys);
+
+        if ($submittedKeys !== $expectedKeys) {
+            throw ValidationException::withMessages([
+                'ratings' => 'Submit exactly the 10 current evaluation ratings.',
+            ])->errorBag('certificateSurvey');
+        }
+
+        $ratings = [];
+        foreach (ApplicantSurveyCatalog::questionKeys() as $key) {
+            $rating = filter_var($submitted[$key], FILTER_VALIDATE_INT);
+            if ($rating === false || $rating < 1 || $rating > 5) {
+                throw ValidationException::withMessages([
+                    "ratings.{$key}" => 'Each evaluation rating must be an integer from 1 to 5.',
+                ])->errorBag('certificateSurvey');
+            }
+
+            $ratings[$key] = $rating;
+        }
+
+        return $ratings;
     }
 
     public function claim(User $actor, ResearchApplication $application): Certificate

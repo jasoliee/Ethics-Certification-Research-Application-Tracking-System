@@ -28,4 +28,17 @@ class DashboardController extends Controller
             'breadcrumbs' => [],
         ]);
     }
+
+    /** Render the review-capability dashboard without changing the Adviser's primary home. */
+    public function reviewer(Request $request, DashboardDataService $dashboard): View
+    {
+        return view('dashboard.roles.reviewer', [
+            ...$dashboard->reviewer($request->user()),
+            'pageTitle' => 'Reviewer Dashboard',
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Reviewer Dashboard'],
+            ],
+        ]);
+    }
 }

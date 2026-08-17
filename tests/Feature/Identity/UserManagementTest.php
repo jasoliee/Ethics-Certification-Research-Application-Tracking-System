@@ -509,7 +509,7 @@ class UserManagementTest extends TestCase
         $this->assertSame(1, User::where('email', 'excel.student@school.edu')->count());
     }
 
-    public function test_phone_numbers_are_limited_to_eleven_digits_and_bulk_import_accepts_alphanumeric_student_ids(): void
+    public function test_phone_numbers_require_exactly_eleven_digits_and_bulk_import_accepts_alphanumeric_student_ids(): void
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -540,7 +540,7 @@ class UserManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Excel Row 3')
             ->assertSee('Phone Number')
-            ->assertSee('Digits only, with at most 11 digits.');
+            ->assertSee('exactly 11 digits');
 
         $validPath = $this->templatePath($resLead);
         $validRow = $this->studentRow(
@@ -603,9 +603,9 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'private.preview@ecrats.test']);
     }
 
-    public function test_only_the_exact_example_marker_is_ignored_and_normal_row_two_is_validated(): void
+    public function test_legacy_download_example_is_skipped_while_unmarked_row_two_is_normal_input(): void
     {
-        // Arrange a marked official template with one genuine account on Row 3.
+        // Arrange a legacy downloaded template with one genuine account on Row 3.
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $examplePath = $this->templatePath($resLead);
@@ -616,13 +616,13 @@ class UserManagementTest extends TestCase
             identifier: 'KLD-STU-901',
         ));
 
-        // Act and assert that only the marker-bound realistic Row 2 example is skipped.
+        // Act and assert that the unchanged legacy Row 2 example is skipped.
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
             'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($examplePath),
         ])->assertOk()->assertSee('real.student@ecrats.test')->assertDontSee('juandelacruz@example.com');
 
-        // Arrange a different valid Row 2 and deliberately remove only the visible Instructions marker.
+        // Arrange a different valid Row 2 and remove the legacy Instructions marker.
         $rowTwoPath = $this->templatePath($resLead);
         $this->replaceSpreadsheetRow($rowTwoPath, 2, $this->studentRow(
             firstName: 'Row Two',
@@ -891,15 +891,17 @@ class UserManagementTest extends TestCase
         ]);
     }
 
-    public function test_excel_validation_rejects_invalid_rows_formulas_unknown_sheets_and_external_links(): void
+    public function test_excel_validation_rejects_invalid_rows_and_formulas_but_accepts_flexible_sheets_and_external_link_metadata(): void
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
 
-        $invalidPath = $this->templatePath($resLead, 'reviewer');
-        $this->replaceSpreadsheetRow($invalidPath, 3, $this->reviewerRow('not-an-email', 'KLD-EMP-701', 'Unknown Classification'));
+        $invalidPath = $this->templatePath($resLead);
+        $invalidRow = $this->studentRow(email: 'not-an-email', identifier: 'KLD-STU-701');
+        $invalidRow[7] = 'Unknown Year Level';
+        $this->replaceSpreadsheetRow($invalidPath, 3, $invalidRow);
         $invalidResponse = $this->actingAs($resLead)->post(route('res.users.import.store'), [
-            'account_type' => 'reviewer',
+            'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($invalidPath, 'invalid.xlsx'),
         ]);
 
@@ -934,12 +936,88 @@ class UserManagementTest extends TestCase
         $this->assertWorkbookRejected($resLead, $formulaPath, 'formula.xlsx');
 
         $renamedSheetPath = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($renamedSheetPath, 3, $this->studentRow(
+            email: 'renamed.sheet@ecrats.test',
+            identifier: 'KLD-STU-RENAMED',
+        ));
         $this->replaceZipEntry($renamedSheetPath, 'xl/workbook.xml', fn (string $xml): string => str_replace('name="Instructions"', 'name="Unexpected"', $xml));
-        $this->assertWorkbookRejected($resLead, $renamedSheetPath, 'unexpected-sheet.xlsx');
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($renamedSheetPath, 'renamed-sheet.xlsx'),
+        ])->assertOk()->assertSee('renamed.sheet@ecrats.test');
 
         $externalPath = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($externalPath, 3, $this->studentRow(
+            email: 'external.metadata@ecrats.test',
+            identifier: 'KLD-STU-EXTERNAL',
+        ));
         $this->addZipEntry($externalPath, 'xl/externalLinks/externalLink1.xml', '<externalLink xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>');
-        $this->assertWorkbookRejected($resLead, $externalPath, 'external-link.xlsx');
+        $this->addZipEntry($externalPath, 'xl/externalLinks/_rels/externalLink1.xml.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath" Target="https://example.invalid/source.xlsx" TargetMode="External"/></Relationships>');
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($externalPath, 'external-link.xlsx'),
+        ])->assertOk()->assertSee('external.metadata@ecrats.test');
+
+        $ddePath = $this->templatePath($resLead);
+        $this->addZipEntry($ddePath, 'xl/externalLinks/externalLink1.xml', '<externalLink xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><ddeLink ddeService="cmd" ddeTopic="/c calc"/></externalLink>');
+        $this->assertWorkbookRejected($resLead, $ddePath, 'dde-link.xlsx');
+    }
+
+    public function test_import_discovers_reordered_required_headers_on_a_renamed_hidden_worksheet(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $path = Storage::disk('local')->path('flexible-import.xlsx');
+        $workbook = new Spreadsheet;
+        $workbook->getActiveSheet()->setTitle('Read Me')->setCellValue('A1', 'Prepared outside ECRATS');
+        $accounts = $workbook->createSheet();
+        $accounts->setTitle('People 2026')->setSheetState('hidden');
+        $headers = ['EMAIL', 'Phone_Number', 'Student Number', 'FIRST-NAME', 'Year Level', 'Last Name', 'Internal Note'];
+        $values = ['flexible.student@ecrats.test', '09171234567', 'KLD-STU-FLEX', 'Flexible', 'Fourth Year', 'Student', 'Ignored safely'];
+
+        foreach ($headers as $index => $header) {
+            $accounts->setCellValue([$index + 1, 4], $header);
+            $accounts->setCellValue([$index + 1, 5], $values[$index]);
+        }
+
+        (new XlsxWriter($workbook))->save($path);
+        $workbook->disconnectWorksheets();
+
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'student_researcher',
+            'accounts_file' => $this->uploadedWorkbook($path, 'independent-workbook.xlsx'),
+        ])->assertOk()
+            ->assertSee('Import Preview')
+            ->assertSee('flexible.student@ecrats.test')
+            ->assertSee('KLD-STU-FLEX');
+    }
+
+    public function test_import_page_describes_compatible_workbooks_and_inert_external_links(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.import.form', ['account_type' => 'student_researcher']))
+            ->assertOk()
+            ->assertSee('Optional Template')
+            ->assertSee('Required headers may be reordered')
+            ->assertSee('never opens, fetches, resolves, or trusts external workbook targets');
+    }
+
+    public function test_optional_declared_account_type_must_match_the_selected_import(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $facultyWorkbook = $this->templatePath($resLead, 'faculty_researcher');
+
+        $this->actingAs($resLead)
+            ->from(route('res.users.import.form', ['account_type' => 'adviser']))
+            ->post(route('res.users.import.store'), [
+                'account_type' => 'adviser',
+                'accounts_file' => $this->uploadedWorkbook($facultyWorkbook, 'faculty-as-adviser.xlsx'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('accounts_file');
     }
 
     /**
@@ -947,35 +1025,33 @@ class UserManagementTest extends TestCase
      */
     public function test_successful_revalidation_clears_the_import_error_state(): void
     {
-        // Arrange one invalid reviewer workbook and one corrected workbook for the same authorized user.
+        // Arrange one invalid student workbook and one corrected workbook for the same authorized user.
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $invalidPath = $this->templatePath($resLead, 'reviewer');
-        $this->replaceSpreadsheetRow($invalidPath, 3, $this->reviewerRow(
-            'invalid-email',
-            'KLD-EMP-REVALIDATE',
-            'Unknown Classification',
+        $invalidPath = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($invalidPath, 3, $this->studentRow(
+            email: 'invalid-email',
+            identifier: 'KLD-STU-REVALIDATE',
         ));
 
         // Act with invalid data and assert the response exposes the unresolved indicator and generic message.
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
-            'account_type' => 'reviewer',
+            'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($invalidPath, 'invalid-revalidation.xlsx'),
         ])->assertOk()
             ->assertSee('An error occurred.')
             ->assertSee('has-errors is-attention', false);
 
         // Arrange corrected values in a fresh current template to model the user's successful revalidation.
-        $validPath = $this->templatePath($resLead, 'reviewer');
-        $this->replaceSpreadsheetRow($validPath, 3, $this->reviewerRow(
-            'corrected.reviewer@ecrats.test',
-            'KLD-EMP-REVALIDATE',
-            'Expedited',
+        $validPath = $this->templatePath($resLead);
+        $this->replaceSpreadsheetRow($validPath, 3, $this->studentRow(
+            email: 'corrected.student@ecrats.test',
+            identifier: 'KLD-STU-REVALIDATE',
         ));
 
         // Act again and assert only the clean modal state remains in the new server-authoritative response.
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
-            'account_type' => 'reviewer',
+            'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($validPath, 'corrected-revalidation.xlsx'),
         ])->assertOk()
             ->assertDontSee('An error occurred.')
@@ -996,7 +1072,7 @@ class UserManagementTest extends TestCase
         $this->assertWorkbookRejected($resLead, $path, 'protected.xlsx');
     }
 
-    public function test_excel_upload_enforces_file_sheet_header_column_and_row_limits(): void
+    public function test_excel_upload_enforces_file_required_header_unlabeled_column_and_row_limits(): void
     {
         $this->withoutMiddleware(ThrottleRequests::class);
         Storage::fake('local');
@@ -1015,16 +1091,8 @@ class UserManagementTest extends TestCase
             ->assertRedirect()
             ->assertSessionHasErrors('accounts_file');
 
-        $extraSheetPath = $this->templatePath($resLead);
-        $this->replaceZipEntry($extraSheetPath, 'xl/workbook.xml', fn (string $xml): string => str_replace(
-            '</sheets>',
-            '<sheet name="Extra" sheetId="4" r:id="rId3"/></sheets>',
-            $xml,
-        ));
-        $this->assertWorkbookRejected($resLead, $extraSheetPath, 'extra-sheet.xlsx');
-
         $headerPath = $this->templatePath($resLead);
-        $this->replaceZipEntry($headerPath, 'xl/worksheets/sheet1.xml', fn (string $xml): string => str_replace('Middle Name', 'Middle Names', $xml));
+        $this->replaceZipEntry($headerPath, 'xl/worksheets/sheet1.xml', fn (string $xml): string => str_replace('Phone Number', 'Telephone', $xml));
         $this->assertWorkbookRejected($resLead, $headerPath, 'changed-header.xlsx');
 
         $extraColumnPath = $this->templatePath($resLead);
@@ -1040,7 +1108,22 @@ class UserManagementTest extends TestCase
         $this->assertWorkbookRejected($resLead, $duplicateCellPath, 'duplicate-cell.xlsx');
 
         $extraRowPath = $this->templatePath($resLead);
-        $this->appendSpreadsheetRow($extraRowPath, SafeSpreadsheet::MAX_ACCOUNT_ROWS + 3, $this->studentRow(identifier: 'KLD-STU-OVERFLOW'));
+        $overflowWorkbook = (new XlsxReader)->load($extraRowPath);
+        $accounts = $overflowWorkbook->getSheetByName('Accounts');
+
+        for ($row = 3; $row <= SafeSpreadsheet::MAX_ACCOUNT_ROWS + 3; $row++) {
+            $values = $this->studentRow(
+                email: 'student'.$row.'@ecrats.test',
+                identifier: 'KLD-STU-'.$row,
+            );
+
+            foreach ($values as $column => $value) {
+                $accounts?->setCellValue([$column + 1, $row], $value);
+            }
+        }
+
+        (new XlsxWriter($overflowWorkbook))->save($extraRowPath);
+        $overflowWorkbook->disconnectWorksheets();
         $this->assertWorkbookRejected($resLead, $extraRowPath, 'extra-row.xlsx');
     }
 
@@ -1200,27 +1283,26 @@ class UserManagementTest extends TestCase
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        ProfileOption::where('field', ProfileOptionField::ReviewerClassification->value)->update(['is_active' => false]);
-        $path = $this->templatePath($resLead, 'reviewer');
+        ProfileOption::where('field', ProfileOptionField::YearLevel->value)->update(['is_active' => false]);
+        $path = $this->templatePath($resLead);
 
         $this->assertStringContainsString(
-            'No active Reviewer Classification options are configured.',
+            'No active Year Level options are configured.',
             $this->workbookEntry($path, 'xl/worksheets/sheet3.xml'),
         );
-        $this->replaceSpreadsheetRow($path, 3, $this->reviewerRow(
-            'unconfigured.reviewer@ecrats.test',
-            'KLD-EMP-UNCONFIGURED',
-            'Expedited',
+        $this->replaceSpreadsheetRow($path, 3, $this->studentRow(
+            email: 'unconfigured.student@ecrats.test',
+            identifier: 'KLD-STU-UNCONFIGURED',
         ));
 
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
-            'account_type' => 'reviewer',
+            'account_type' => 'student_researcher',
             'accounts_file' => $this->uploadedWorkbook($path),
         ])->assertOk()
-            ->assertSee('No accepted Reviewer Classification options are configured')
+            ->assertSee('No accepted Year Level options are configured')
             ->assertDontSee('Confirm Account Creation');
 
-        $this->assertDatabaseMissing('users', ['institutional_identifier' => 'KLD-EMP-UNCONFIGURED']);
+        $this->assertDatabaseMissing('users', ['institutional_identifier' => 'KLD-STU-UNCONFIGURED']);
     }
 
     public function test_audit_log_filters_hide_completion_events_and_sensitive_metadata(): void
@@ -1563,6 +1645,7 @@ class UserManagementTest extends TestCase
             'last_name' => 'Reviewer',
             'email' => 'new.reviewer@ecrats.test',
             'institutional_identifier' => 'KLD-EMP-501',
+            'phone_number' => '09171234567',
             'position_title' => 'Faculty Reviewer',
             'reviewer_classification' => 'Expedited',
             'reviewer_capacity' => 30,
@@ -1585,18 +1668,12 @@ class UserManagementTest extends TestCase
             '',
             $email,
             $identifier,
-            '',
+            '09171234567',
             'Fourth Year',
             'Institute of Engineering',
             '',
             '',
         ];
-    }
-
-    /** @return array<int, string> */
-    private function reviewerRow(string $email, string $identifier, string $classification): array
-    {
-        return ['Excel', '', 'Reviewer', '', $email, $identifier, '', 'Institute of Engineering', '', 'Faculty Reviewer', $classification];
     }
 
     private function templatePath(User $actor, string $accountType = 'student_researcher'): string
@@ -1687,21 +1764,6 @@ class UserManagementTest extends TestCase
         $this->assertIsString($contents);
         $this->assertTrue($zip->addFromString($entry, $replace($contents)));
         $zip->close();
-    }
-
-    /** @param array<int, string> $values */
-    private function appendSpreadsheetRow(string $path, int $rowNumber, array $values): void
-    {
-        $cells = '';
-
-        foreach ($values as $index => $value) {
-            $column = chr(65 + $index);
-            $escaped = htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-            $cells .= '<c r="'.$column.$rowNumber.'" t="inlineStr"><is><t>'.$escaped.'</t></is></c>';
-        }
-
-        $row = '<row r="'.$rowNumber.'">'.$cells.'</row>';
-        $this->replaceZipEntry($path, 'xl/worksheets/sheet1.xml', fn (string $xml): string => str_replace('</sheetData>', $row.'</sheetData>', $xml));
     }
 
     private function addZipEntry(string $path, string $entry, string $contents): void
