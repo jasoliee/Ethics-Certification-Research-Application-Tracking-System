@@ -41,7 +41,7 @@ class ApplicationRevisionWorkflowService
     public function releaseDecision(
         User $actor,
         ResearchApplication $application,
-        ReviewSubmission $sourceSubmission,
+        ?ReviewSubmission $sourceSubmission = null,
     ): ApplicationDecisionRelease {
         $release = DB::transaction(function () use ($actor, $application, $sourceSubmission): ApplicationDecisionRelease {
             $locked = ResearchApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
@@ -55,7 +55,8 @@ class ApplicationRevisionWorkflowService
                 ->first();
 
             if ($existing) {
-                if ($existing->source_review_submission_id === $sourceSubmission->id
+                if ($sourceSubmission === null
+                    || $existing->source_review_submission_id === $sourceSubmission->id
                     || ($existing->source_review_submission_id === null && $existing->decision === $sourceSubmission->decision)) {
                     return $existing;
                 }
@@ -284,7 +285,7 @@ class ApplicationRevisionWorkflowService
                     ! $document
                     || $document->research_application_id !== $lockedApplication->id
                     || ! $document->is_current
-                    || (int) $document->document_version !== ((int) $lockedRevision->revision_number) + 1
+                    || $document->document_requirement_id !== $requirement->document_requirement_id
                 );
             });
 
@@ -385,7 +386,8 @@ class ApplicationRevisionWorkflowService
 
         User::query()
             ->whereIn('id', $reviewerIds)
-            ->where('role', UserRole::Reviewer->value)
+            ->where('role', UserRole::Adviser->value)
+            ->where('reviewer_enabled', true)
             ->where('account_status', AccountStatus::Active->value)
             ->each(function (User $reviewer): void {
                 $reviewer->notify(new DashboardUpdateNotification([

@@ -10,6 +10,12 @@ enum ProfileOptionField: string
     case Program = 'program';
     case ReviewerClassification = 'reviewer_classification';
 
+    /** @return array<int, self> */
+    public static function managedCases(): array
+    {
+        return [self::YearLevel, self::Institution, self::Department, self::Program];
+    }
+
     public function label(): string
     {
         return match ($this) {

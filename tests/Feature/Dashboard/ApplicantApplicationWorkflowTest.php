@@ -120,7 +120,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         }
     }
 
-    public function test_applicant_application_list_filters_by_semester_and_academic_year(): void
+    public function test_applicant_application_list_filters_by_one_academic_term_or_all_terms(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $firstTerm = AcademicTerm::create([
@@ -150,8 +150,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index', [
-                'semester' => '1st Semester',
-                'academic_year' => '2026-2027',
+                'academic_term_id' => $firstTerm->id,
             ]))
             ->assertOk()
             ->assertSee('Visible First Term Study')
@@ -525,14 +524,14 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertSame(1, $this->auditCount('application.requirement_uploaded', $documents[0]));
         $this->assertSame(1, $this->auditCount('application.requirement_replaced', $documents[1]));
 
-        // Start an explicit revision cycle and assert the next replacement advances the displayed version.
+        // A cycle counter alone does not advance a document that was not reviewed and replaced.
         $application->update(['current_revision_cycle' => 2]);
         $this->actingAs($applicant)->post(
             route('applicant.applications.documents.store', [$application, $requirement]),
             ['document' => $this->pdfUpload('proposal-cycle-two.pdf', 24)],
         )->assertRedirect();
         $cycleTwoDocument = ApplicationDocument::query()->latest('id')->firstOrFail();
-        $this->assertSame(2, $cycleTwoDocument->document_version);
+        $this->assertSame(1, $cycleTwoDocument->document_version);
         $this->assertTrue($cycleTwoDocument->is_current);
 
         // Act with an executable extension and assert validation prevents another stored record.
@@ -925,6 +924,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             'adviser_user_id' => $adviser->id,
             'abstract' => 'This study examines privacy expectations in community-facing digital research.',
             'target_participants' => 'Adult KLD students who provide informed consent.',
+            'certificate_recipients' => ['John S. Doe'],
             'expected_start_date' => '2026-08-01',
             'expected_end_date' => '2027-05-31',
         ];

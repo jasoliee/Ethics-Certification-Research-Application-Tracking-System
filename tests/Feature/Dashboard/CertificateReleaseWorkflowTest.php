@@ -13,9 +13,11 @@ use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
 use App\Models\ApplicantSurveyResponse;
+use App\Models\ApplicationDocument;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\Certificate;
 use App\Models\CertificateBackground;
+use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
@@ -31,11 +33,159 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class CertificateReleaseWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_each_certificate_recipient_gets_a_personalized_artifact_and_all_are_claimed_together(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('GROUP04');
+        $names = ['Alexa M. Researcher', 'Bianca R. Santos', 'Carlo D. Reyes', 'Dana P. Cruz'];
+        $application->certificateRecipients()->delete();
+        $application->certificateRecipients()->createMany(collect($names)->map(
+            fn (string $name, int $index): array => [
+                'recipient_name' => $name,
+                'normalized_name' => mb_strtolower($name),
+                'sort_order' => $index + 1,
+            ],
+        )->all());
+
+        $result = app(CertificateReleaseService::class)->release($resLead, $application->refresh());
+        $certificates = $application->certificates()->with('currentVersion')->orderBy('id')->get();
+
+        $this->assertSame('released', $result['action']);
+        $this->assertCount(4, $result['certificates']);
+        $this->assertSame($names, $certificates->pluck('recipient_name')->all());
+        $this->assertSame([
+            $application->application_code,
+            $application->application_code.'-M02',
+            $application->application_code.'-M03',
+            $application->application_code.'-M04',
+        ], $certificates->pluck('certificate_number')->all());
+        $certificates->each(function (Certificate $certificate): void {
+            $this->assertSame(CertificateStatus::Released, $certificate->status);
+            $this->assertSame(CertificateVersionStatus::Ready, $certificate->currentVersion->status);
+            Storage::disk('local')->assertExists($certificate->currentVersion->stored_file_path);
+        });
+        Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
+
+        app(ApplicantCertificateService::class)->submitSurvey($applicant, $application, $this->surveyPayload());
+        app(ApplicantCertificateService::class)->claim($applicant, $application);
+
+        $this->assertSame(4, Certificate::query()
+            ->where('research_application_id', $application->id)
+            ->where('status', CertificateStatus::Claimed->value)
+            ->where('claimed_by_user_id', $applicant->id)
+            ->count());
+    }
+
+    public function test_certificate_configuration_is_snapshotted_without_retroactively_changing_prior_versions(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [, $resLead, $firstApplication] = $this->approvedApplication('SNAP01');
+        $firstQr = UploadedFile::fake()->image('qr-one.png', 256, 256);
+        $firstQrBytes = file_get_contents($firstQr->getRealPath());
+        $this->assertIsString($firstQrBytes);
+        Storage::disk('local')->put('settings/certificate-qr/qr-one.png', $firstQrBytes);
+        $resLead->forceFill([
+            'certificate_signatory_name' => 'Dr. First Signatory',
+            'certificate_valid_until' => '2027-06-30',
+            'certificate_qr_path' => 'settings/certificate-qr/qr-one.png',
+            'certificate_qr_sha256' => hash('sha256', $firstQrBytes),
+            'certificate_qr_width' => 256,
+            'certificate_qr_height' => 256,
+            'certificate_qr_uploaded_at' => now(),
+        ])->save();
+
+        $firstVersion = app(CertificateReleaseService::class)
+            ->release($resLead->refresh(), $firstApplication)['certificate']->currentVersion;
+
+        $secondQr = UploadedFile::fake()->image('qr-two.png', 320, 320);
+        $secondQrBytes = file_get_contents($secondQr->getRealPath());
+        $this->assertIsString($secondQrBytes);
+        Storage::disk('local')->put('settings/certificate-qr/qr-two.png', $secondQrBytes);
+        $resLead->forceFill([
+            'certificate_signatory_name' => 'Dr. Second Signatory',
+            'certificate_valid_until' => '2028-12-31',
+            'certificate_qr_path' => 'settings/certificate-qr/qr-two.png',
+            'certificate_qr_sha256' => hash('sha256', $secondQrBytes),
+            'certificate_qr_width' => 320,
+            'certificate_qr_height' => 320,
+            'certificate_qr_uploaded_at' => now(),
+        ])->save();
+        [, , $secondApplication] = $this->approvedApplication('SNAP02', $resLead);
+        $secondVersion = app(CertificateReleaseService::class)
+            ->release($resLead->refresh(), $secondApplication)['certificate']->currentVersion;
+
+        $this->assertSame('Dr. First Signatory', $firstVersion->refresh()->signatory_name_snapshot);
+        $this->assertSame('2027-06-30', $firstVersion->valid_until->toDateString());
+        $this->assertSame('settings/certificate-qr/qr-one.png', $firstVersion->qr_code_path);
+        $this->assertSame(hash('sha256', $firstQrBytes), $firstVersion->qr_code_sha256);
+        $this->assertSame(256, $firstVersion->qr_code_width);
+        $this->assertSame(256, $firstVersion->qr_code_height);
+        $this->assertSame('Dr. Second Signatory', $secondVersion->signatory_name_snapshot);
+        $this->assertSame('2028-12-31', $secondVersion->valid_until->toDateString());
+        $this->assertSame('settings/certificate-qr/qr-two.png', $secondVersion->qr_code_path);
+        $this->assertSame(hash('sha256', $secondQrBytes), $secondVersion->qr_code_sha256);
+    }
+
+    public function test_generated_pdf_quotes_the_title_lists_documents_on_the_next_line_and_excludes_payment_proof(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('CONTENT');
+        $requirements = collect([
+            ['code' => 'PROPOSAL-CONTENT', 'name' => 'Research Proposal'],
+            ['code' => 'PAYMENT-CONTENT', 'name' => 'Payment Proof'],
+            ['code' => 'CONSENT-CONTENT', 'name' => 'Informed Consent'],
+        ])->map(fn (array $attributes, int $index): DocumentRequirement => DocumentRequirement::create([
+            ...$attributes,
+            'description' => $attributes['name'],
+            'is_mandatory' => true,
+            'research_types' => [],
+            'sort_order' => $index + 1,
+            'is_active' => true,
+        ]));
+        foreach ($requirements as $requirement) {
+            ApplicationDocument::create([
+                'research_application_id' => $application->id,
+                'document_requirement_id' => $requirement->id,
+                'uploaded_by_user_id' => $applicant->id,
+                'original_file_name' => str($requirement->name)->slug().'.pdf',
+                'stored_file_path' => 'applications/content/'.$requirement->id.'.pdf',
+                'mime_type' => 'application/pdf',
+                'file_size_bytes' => 1024,
+                'file_sha256' => str_repeat((string) (($requirement->id % 9) + 1), 64),
+                'document_version' => 1,
+                'validation_status' => 'completed',
+                'is_current' => true,
+                'uploaded_at' => now(),
+            ]);
+        }
+
+        $version = app(CertificateReleaseService::class)
+            ->release($resLead, $application)['certificate']->currentVersion;
+        $process = new Process(['pdftotext', Storage::disk('local')->path($version->stored_file_path), '-']);
+        $process->run();
+        if (! $process->isSuccessful()) {
+            $this->markTestSkipped('pdftotext is unavailable for generated certificate content verification.');
+        }
+        $text = preg_replace('/\s+/', ' ', $process->getOutput());
+        $this->assertIsString($text);
+
+        $this->assertStringContainsString('"A COMMUNITY-BASED STUDY OF ETHICAL DIGITAL SERVICE DELIVERY"', $text);
+        $this->assertStringContainsString(
+            'The committee reviewed the following documents: Research Proposal, Informed Consent',
+            $text,
+        );
+        $this->assertStringNotContainsString('Payment Proof', $text);
+    }
 
     public function test_pending_certificate_generation_uses_one_calendar_year_across_a_leap_day_and_release_reuses_the_binary(): void
     {

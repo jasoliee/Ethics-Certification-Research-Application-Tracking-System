@@ -16,6 +16,7 @@ use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -33,8 +34,7 @@ class ApplicantApplicationController extends Controller
         ApplicationSubmissionWindow $submissionWindow,
     ): View {
         $filters = validator($request->query(), [
-            'semester' => ['nullable', 'string', 'max:50'],
-            'academic_year' => ['nullable', 'string', 'max:20'],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
         ])->validate();
 
         // Paginate applicant-owned records and eager load Adviser identity for a bounded list query.

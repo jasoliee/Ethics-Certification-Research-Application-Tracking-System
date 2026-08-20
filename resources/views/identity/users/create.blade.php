@@ -47,7 +47,6 @@
             @endphp
             <header class="dashboard-page-heading identity-page-heading identity-individual-heading">
                 <h1>{{ $selectedType['label'] }}</h1>
-                <p>Enter the required identity and institutional information.</p>
             </header>
 
             <form class="identity-form-card" method="POST" action="{{ route($routeBase.'.store') }}" data-managed-account-form>

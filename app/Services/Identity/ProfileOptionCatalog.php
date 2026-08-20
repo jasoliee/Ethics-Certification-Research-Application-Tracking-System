@@ -28,7 +28,7 @@ class ProfileOptionCatalog
     public function grouped(): array
     {
         if ($this->loadedOptions === null) {
-            $this->loadedOptions = collect(ProfileOptionField::cases())
+            $this->loadedOptions = collect(ProfileOptionField::managedCases())
                 ->mapWithKeys(fn (ProfileOptionField $field): array => [$field->value => []])
                 ->all();
             $options = ProfileOption::query()
@@ -67,10 +67,6 @@ class ProfileOptionCatalog
             ProfileOptionField::Institution->value => $this->values(ProfileOptionField::Institution, $user->institution),
             ProfileOptionField::Department->value => $this->values(ProfileOptionField::Department, $user->department),
             ProfileOptionField::Program->value => $this->values(ProfileOptionField::Program, $user->program),
-            ProfileOptionField::ReviewerClassification->value => $this->values(
-                ProfileOptionField::ReviewerClassification,
-                $user->reviewer_classification,
-            ),
         ];
     }
 
@@ -295,7 +291,7 @@ class ProfileOptionCatalog
             return $this->loadedIdentities;
         }
 
-        $this->loadedIdentities = collect(ProfileOptionField::cases())
+        $this->loadedIdentities = collect(ProfileOptionField::managedCases())
             ->mapWithKeys(fn (ProfileOptionField $field): array => [$field->value => []])
             ->all();
         $options = ProfileOption::query()

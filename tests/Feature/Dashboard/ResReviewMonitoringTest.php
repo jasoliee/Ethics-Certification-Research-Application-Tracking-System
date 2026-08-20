@@ -42,7 +42,8 @@ class ResReviewMonitoringTest extends TestCase
             ->get(route('res.review-monitoring.index'))
             ->assertOk()
             ->assertSee('Review Monitoring')
-            ->assertSee('No reviewer assignments yet');
+            ->assertSee('No reviewer-enabled Advisers')
+            ->assertDontSee('Assignment progress and deadlines');
     }
 
     public function test_full_board_conflict_is_prominent_anonymous_and_excludes_applicant_and_comment_data(): void
@@ -124,7 +125,7 @@ class ResReviewMonitoringTest extends TestCase
         $this->assertStringNotContainsString('review_comments', $queries);
     }
 
-    public function test_metrics_filters_and_deadline_order_use_current_assignment_state(): void
+    public function test_metrics_use_current_assignment_state_without_the_removed_assignment_progress_container(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $overdueApplication = ResearchApplication::factory()->create([
@@ -166,19 +167,10 @@ class ResReviewMonitoringTest extends TestCase
         );
 
         $response = $this->actingAs($resLead)
-            ->get(route('res.review-monitoring.index', [
-                'q' => 'Alpha',
-                'review_type' => 'expedited',
-                'assignment_status' => ReviewerAssignmentStatus::Pending->value,
-                'deadline' => 'overdue',
-                'consensus' => ReviewConsensusStatus::AwaitingSubmissions->value,
-            ]))
+            ->get(route('res.review-monitoring.index'))
             ->assertOk()
-            ->assertSee('RES-MONITOR-ALPHA')
-            ->assertSee('Overdue')
-            ->assertDontSee('RES-MONITOR-BETA')
-            ->assertViewHas('applications', fn ($applications): bool => $applications->total() === 1
-                && $applications->first()->is($overdueApplication))
+            ->assertDontSee('Assignment progress and deadlines')
+            ->assertSee('Reviewer-enabled Adviser workload')
             ->assertViewHas('metrics', fn (array $metrics): bool => $metrics === [
                 'active_applications' => 1,
                 'active_assignments' => 1,
@@ -189,10 +181,7 @@ class ResReviewMonitoringTest extends TestCase
                 'conflicted_applications' => 0,
             ]);
 
-        $response
-            ->assertSee('dashboard-overflow-region', false)
-            ->assertSee('review-monitoring-table', false)
-            ->assertSee('review-monitoring-workload-grid', false);
+        $response->assertSee('review-monitoring-reviewer-table', false);
     }
 
     public function test_reviewer_enabled_adviser_capacity_shows_load_without_comments_or_disabled_accounts(): void
@@ -235,12 +224,11 @@ class ResReviewMonitoringTest extends TestCase
             ->assertOk()
             ->assertSee('Full Capacity Adviser')
             ->assertSee('Available Capacity Adviser')
-            ->assertSee('1 / 1')
-            ->assertSee('0 / 3')
-            ->assertSee('At capacity')
-            ->assertSee('Available')
-            ->assertSee('Expedited')
-            ->assertSee('Full Board')
+            ->assertSee('Current Number of Applications')
+            ->assertSee('Successfully Completed Applications')
+            ->assertSee('Remaining Applications to Be Reviewed')
+            ->assertSee('View Assignments')
+            ->assertDontSee('Reviewer classifications')
             ->assertDontSee('DRAFT CONFIDENTIAL CAPACITY COMMENT');
 
         preg_match(
@@ -252,9 +240,10 @@ class ResReviewMonitoringTest extends TestCase
         $this->assertStringNotContainsString('Disabled Reviewer Account', $reviewerCapacitySection[0]);
 
         $response->assertViewHas('reviewerWorkloads', function ($reviewers) use ($fullReviewer, $availableReviewer): bool {
-            return $reviewers->pluck('id')->all() === [$fullReviewer->id, $availableReviewer->id]
+            return $reviewers->pluck('id')->sort()->values()->all() === collect([$fullReviewer->id, $availableReviewer->id])->sort()->values()->all()
                 && (int) $reviewers->firstWhere('id', $fullReviewer->id)->active_assignment_count === 1
-                && (int) $reviewers->firstWhere('id', $availableReviewer->id)->active_assignment_count === 0;
+                && (int) $reviewers->firstWhere('id', $availableReviewer->id)->active_assignment_count === 0
+                && (int) $reviewers->firstWhere('id', $fullReviewer->id)->completed_application_count === 0;
         });
     }
 
@@ -325,8 +314,9 @@ class ResReviewMonitoringTest extends TestCase
             ->assertSee('data-awaiting="1"', false)
             ->assertSee('data-remaining="4"', false)
             ->assertSee('data-not-received="3"', false)
-            ->assertSee('RES-UNENDORSED-SAFE-002')
-            ->assertSee(route('res.applications.show', $awaitingApplication), false)
+            ->assertSee('View Applications')
+            ->assertSee(route('res.review-monitoring.advisers.applications', $adviser), false)
+            ->assertDontSee('RES-UNENDORSED-SAFE-002')
             ->assertDontSee('Private Unendorsed Applicant')
             ->assertDontSee('private-unendorsed@example.test')
             ->assertDontSee('private-unendorsed-user')
@@ -336,10 +326,6 @@ class ResReviewMonitoringTest extends TestCase
 
         $response->assertViewHas('adviserWorkloads', function ($advisers) use ($adviser): bool {
             $row = $advisers->first();
-            $applicationsArePrivacyLimited = $row?->advisedApplications->every(
-                fn (ResearchApplication $application): bool => ! array_key_exists('applicant_user_id', $application->getAttributes())
-                    && ! $application->relationLoaded('applicant'),
-            );
 
             return $advisers->total() === 1
                 && $row?->is($adviser)
@@ -349,30 +335,38 @@ class ResReviewMonitoringTest extends TestCase
                     'awaiting' => 1,
                     'remaining' => 4,
                     'not_received' => 3,
-                ]
-                && $applicationsArePrivacyLimited;
+                ];
         });
+
+        $this->actingAs($resLead)
+            ->get(route('res.review-monitoring.advisers.applications', $adviser))
+            ->assertOk()
+            ->assertSee('RES-ENDORSED-SAFE-001')
+            ->assertDontSee('RES-UNENDORSED-SAFE-002')
+            ->assertDontSee('Private Unendorsed Applicant');
     }
 
     public function test_monitoring_filters_collapse_responsively_and_the_wide_table_stays_scrollable(): void
     {
         $css = file_get_contents(resource_path('css/review-monitoring.css'));
+        $dashboardCss = file_get_contents(resource_path('css/dashboard.css'));
 
         $this->assertIsString($css);
+        $this->assertIsString($dashboardCss);
         $this->assertMatchesRegularExpression(
             '/\.review-monitoring-table\s*\{[^}]*min-width:\s*1220px;/s',
             $css,
         );
         $this->assertMatchesRegularExpression(
-            '/\.review-monitoring-adviser-table\s*\{[^}]*min-width:\s*1240px;/s',
+            '/\.review-monitoring-adviser-table\s*\{[^}]*min-width:\s*980px;/s',
             $css,
         );
         $this->assertMatchesRegularExpression(
             '/\.dashboard-overflow-region\s*\{[^}]*overflow-x:\s*auto;/s',
-            $css,
+            $dashboardCss,
         );
         $this->assertMatchesRegularExpression(
-            '/@container \(max-width:\s*620px\)\s*\{.*?\.review-monitoring-filters,\s*\.review-monitoring-adviser-filters,\s*\.review-monitoring-workload-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/s',
+            '/@container \(max-width:\s*620px\)\s*\{.*?\.review-monitoring-adviser-filters[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/s',
             $css,
         );
     }

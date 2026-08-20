@@ -183,7 +183,6 @@ class AdviserApplicantScopeAndProfileTest extends TestCase
 
         $profile = app(ReviewerCapabilityProfileService::class)->for($adviser);
         $this->assertTrue($profile['enabled']);
-        $this->assertSame(['Expedited', 'Full Board'], $profile['classifications']);
         $this->assertSame(4, $profile['capacity']);
         $this->assertSame(2, $profile['active_load']);
         $this->assertSame(2, $profile['available_capacity']);
@@ -194,8 +193,7 @@ class AdviserApplicantScopeAndProfileTest extends TestCase
             ->get(route('adviser.profile.show'))
             ->assertOk()
             ->assertSee('Reviewer Access')
-            ->assertSee('Permitted Classifications')
-            ->assertSee('Expedited, Full Board')
+            ->assertDontSee('Permitted Classifications')
             ->assertSee('Maximum Active Application Load')
             ->assertSee('Current Active Assignment Load')
             ->assertSee('Available Capacity')

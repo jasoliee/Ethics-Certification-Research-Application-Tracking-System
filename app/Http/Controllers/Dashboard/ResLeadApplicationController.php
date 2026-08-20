@@ -16,6 +16,7 @@ use App\Models\ReviewFormArtifact;
 use App\Services\Applications\ApplicationRequirementService;
 use App\Services\Applications\ResScreeningWorkflowService;
 use App\Services\Applications\ReviewerEligibilityService;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class ResLeadApplicationController extends Controller
     /**
      * Display the searchable and filterable RES applications queue.
      */
-    public function index(Request $request): View
+    public function index(Request $request, AcademicTermResolver $terms): View
     {
         $visibleStatuses = collect(ApplicationStatus::afterAdviserEndorsement());
         $filters = $request->validate([
@@ -41,9 +42,11 @@ class ResLeadApplicationController extends Controller
             'affiliation' => ['nullable', 'string', 'max:150'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
         ]);
 
         $applicationsQuery = $this->visibleApplicationsQuery($visibleStatuses->pluck('value')->all());
+        $terms->applyFilters($applicationsQuery, $filters);
 
         // Applicant identity is deliberately excluded from this RES queue search boundary.
         $applicationsQuery
@@ -112,6 +115,7 @@ class ResLeadApplicationController extends Controller
             'reviewTypes' => ReviewType::cases(),
             'affiliations' => $affiliations,
             'filters' => $filters,
+            'termOptions' => $terms->filterOptions(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Applications'],

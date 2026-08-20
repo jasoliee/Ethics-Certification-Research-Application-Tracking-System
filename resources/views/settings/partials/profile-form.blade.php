@@ -108,7 +108,6 @@
         <div class="settings-section-heading"><span><x-dashboard.icon name="clipboard" size="23" /></span><div><h3 id="reviewer-profile-title">Reviewer Capability</h3><p>These eligibility fields are read-only and managed by the RES Lead.</p></div></div>
         <dl class="settings-profile-summary">
             <div><dt>Reviewer Access</dt><dd>{{ $reviewerProfile['enabled'] ? 'Enabled' : 'Disabled' }}</dd></div>
-            <div><dt>Classifications</dt><dd>{{ implode(', ', $reviewerProfile['classifications']) ?: 'Not configured' }}</dd></div>
             <div><dt>Capacity</dt><dd>{{ $reviewerProfile['capacity'] ?: 'Not configured' }}</dd></div>
             <div><dt>Active Load</dt><dd>{{ $reviewerProfile['active_load'] }}{{ $reviewerProfile['capacity'] ? ' / '.$reviewerProfile['capacity'] : '' }}</dd></div>
             <div><dt>Available Capacity</dt><dd>{{ $reviewerProfile['available_capacity'] }}</dd></div>

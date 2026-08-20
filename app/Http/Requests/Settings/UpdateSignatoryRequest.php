@@ -25,7 +25,9 @@ class UpdateSignatoryRequest extends FormRequest
     {
         return [
             'certificate_signatory_name' => ['required', 'string', 'max:120'],
+            'certificate_valid_until' => ['nullable', 'date', 'after_or_equal:today'],
             'signature' => ['nullable', 'file', 'max:2048', 'mimes:png'],
+            'qr_image' => ['nullable', 'file', 'max:4096', 'mimes:png'],
         ];
     }
 }

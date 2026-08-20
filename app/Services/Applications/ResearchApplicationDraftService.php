@@ -12,6 +12,7 @@ use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -44,6 +45,18 @@ class ResearchApplicationDraftService
         }
 
         return DB::transaction(function () use ($actor, $attributes, $requestedApplication): ResearchApplication {
+            $recipientNames = collect($attributes['certificate_recipients'] ?? [])
+                ->map(fn (string $name): string => Str::squish($name))
+                ->filter()
+                ->values();
+            unset($attributes['certificate_recipients']);
+
+            if ($recipientNames->map(fn (string $name): string => mb_strtolower($name))->unique()->count() !== $recipientNames->count()) {
+                throw ValidationException::withMessages([
+                    'certificate_recipients' => 'Each certificate recipient name may be added only once.',
+                ]);
+            }
+
             // Serialize draft creation and the submitted-application limit for one Applicant.
             User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
 
@@ -122,6 +135,14 @@ class ResearchApplicationDraftService
                 'status_updated_at' => now(),
             ]);
             $application->save();
+            $application->certificateRecipients()->delete();
+            $application->certificateRecipients()->createMany(
+                $recipientNames->map(fn (string $name, int $index): array => [
+                    'recipient_name' => $name,
+                    'normalized_name' => mb_strtolower($name),
+                    'sort_order' => $index + 1,
+                ])->all(),
+            );
 
             // Record draft creation once while keeping every information save independently traceable.
             if ($created) {
@@ -136,7 +157,7 @@ class ResearchApplicationDraftService
                 'result' => 'updated',
             ]);
 
-            return $application->refresh();
+            return $application->refresh()->load('certificateRecipients');
         }, 3);
     }
 

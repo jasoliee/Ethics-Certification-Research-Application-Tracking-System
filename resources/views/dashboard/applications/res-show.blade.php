@@ -15,9 +15,6 @@
         <header class="dashboard-page-heading res-screening-page-heading">
             <div>
                 <h1>{{ $screening ? 'Application Details' : 'Application Screening Details' }}</h1>
-                <p>{{ $screening
-                    ? 'View the endorsed application record, screening classification, supporting documents, and reviewer assignment state.'
-                    : 'Review endorsed application details and uploaded requirements before classification.' }}</p>
             </div>
             <div class="res-page-heading-actions">
                 <a class="dashboard-outline-action" href="{{ route('res.applications.index') }}">

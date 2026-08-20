@@ -4,7 +4,6 @@
     <div class="dashboard-page">
         <header class="dashboard-page-heading">
             <h1>Reviewer Dashboard</h1>
-            <p>Manage assigned ethics reviews, monitor deadlines, and continue pending review tasks.</p>
         </header>
 
         {{-- Reviewer summary cards keep assignment counts distinct while sharing the centered card layout. --}}

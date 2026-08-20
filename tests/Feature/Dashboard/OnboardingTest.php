@@ -29,16 +29,15 @@ class OnboardingTest extends TestCase
             ->assertSee('data-guide-open', false)
             ->assertSee('hidden >', false);
 
-        $reviewer = User::factory()->create([
-            'role' => UserRole::Reviewer,
+        $reviewer = User::factory()->reviewer()->create([
             'onboarding_completed_at' => null,
         ]);
 
         $this->actingAs($reviewer)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Ethics Reviewer Guide')
-            ->assertSee('protect applicant and reviewer confidentiality');
+            ->assertSee('Research Adviser Guide')
+            ->assertSee('Review submissions');
     }
 
     public function test_completion_updates_only_current_user_and_is_idempotent(): void

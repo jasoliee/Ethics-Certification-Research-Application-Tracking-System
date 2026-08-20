@@ -4,6 +4,7 @@ namespace Tests\Feature\Dashboard;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ApplicationRevisionStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
@@ -12,6 +13,8 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
+use App\Models\ApplicationDecisionRelease;
+use App\Models\ApplicationRevision;
 use App\Models\DeadlineConfiguration;
 use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
@@ -30,6 +33,52 @@ use Tests\TestCase;
 class ApplicantRevisionCertificationWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_a_document_first_replaced_in_the_second_revision_cycle_becomes_version_two(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, , $resLead, $application, , $document] = $this->reviewedApplication();
+        $this->openWindow('revision-period', UserRole::Applicant);
+        $application->update([
+            'application_status' => ApplicationStatus::RevisionWindowOpen,
+            'current_stage' => ApplicationStage::Revision,
+            'current_revision_cycle' => 3,
+        ]);
+        $release = ApplicationDecisionRelease::create([
+            'research_application_id' => $application->id,
+            'review_cycle' => 1,
+            'source_review_type' => 'revision_review',
+            'decision' => ReviewDecision::MinorRevision,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now(),
+        ]);
+        $revision = ApplicationRevision::create([
+            'research_application_id' => $application->id,
+            'application_decision_release_id' => $release->id,
+            'revision_number' => 2,
+            'status' => ApplicationRevisionStatus::PendingUploads,
+            'due_at' => now()->addWeek(),
+        ]);
+        $revisionRequirement = $revision->requirements()->create([
+            'document_requirement_id' => $document->document_requirement_id,
+            'source_application_document_id' => $document->id,
+            'is_required' => true,
+        ]);
+
+        $replacement = app(ApplicationDocumentService::class)->uploadRevision(
+            $applicant,
+            $application->refresh(),
+            $revision,
+            $revisionRequirement,
+            UploadedFile::fake()->createWithContent('first-cycle-two-replacement.pdf', '%PDF-1.4 cycle two'),
+        );
+
+        $this->assertSame(2, $replacement->document_version);
+        $this->assertSame(1, $document->document_version);
+        $this->assertFalse($document->refresh()->is_current);
+        $this->assertTrue($replacement->is_current);
+    }
 
     public function test_res_releases_the_exact_reviewer_submission_and_routes_a_versioned_revision_to_the_same_reviewer(): void
     {

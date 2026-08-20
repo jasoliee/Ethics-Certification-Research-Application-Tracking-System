@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\ApplicationStatus;
 use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -12,12 +13,12 @@ use App\Http\Requests\ResLead\ReleaseApplicationDecisionRequest;
 use App\Models\Certificate;
 use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
-use App\Models\ReviewSubmission;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
 use App\Services\Applications\ReviewConsensusService;
 use App\Services\Certificates\BulkReleaseService;
 use App\Services\Certificates\CertificateReleaseService;
 use App\Services\Certificates\CertificationEligibilityService;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,11 +34,15 @@ class ResCertificationController extends Controller
         CertificationEligibilityService $eligibility,
         BulkReleaseService $bulkReleases,
         ReviewConsensusService $consensus,
+        AcademicTermResolver $terms,
     ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
-            'state' => ['nullable', Rule::in(['decision', 'certificate', 'released', 'failed', 'claimed'])],
+            'status' => ['nullable', Rule::enum(ApplicationStatus::class)],
+            'decision' => ['nullable', Rule::enum(ReviewDecision::class)],
+            'claim' => ['nullable', Rule::in(['claimed', 'unclaimed', 'unavailable'])],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
         ]);
         $relevantApplications = ResearchApplication::query()
             ->where(function (Builder $query): void {
@@ -49,6 +54,7 @@ class ResCertificationController extends Controller
                     ApplicationStatus::CertificateReleased->value,
                 ])->orWhereHas('certificate');
             });
+        $terms->applyFilters($relevantApplications, $filters);
         (clone $relevantApplications)
             ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value)
             ->select('id')
@@ -81,23 +87,27 @@ class ResCertificationController extends Controller
                     ->where('application_code', 'like', "%{$search}%")
                     ->orWhere('research_title', 'like', "%{$search}%"));
             })
-            ->when(($filters['state'] ?? null) === 'decision', fn (Builder $query) => $query
-                ->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value))
-            ->when(($filters['state'] ?? null) === 'certificate', fn (Builder $query) => $query
-                ->whereIn('application_status', [
-                    ApplicationStatus::ResultReleasedAccepted->value,
-                    ApplicationStatus::ForCertificateRelease->value,
-                    ApplicationStatus::Exempted->value,
-                ]))
-            ->when(($filters['state'] ?? null) === 'released', fn (Builder $query) => $query
-                ->whereHas('certificate', fn (Builder $certificates) => $certificates->where('status', 'released')))
-            ->when(($filters['state'] ?? null) === 'failed', fn (Builder $query) => $query
-                ->whereHas('certificate', fn (Builder $certificates) => $certificates->where('status', 'generation_failed')))
-            ->when(($filters['state'] ?? null) === 'claimed', fn (Builder $query) => $query
-                ->whereHas('certificate', fn (Builder $certificates) => $certificates->where('status', 'claimed')))
+            ->when(filled($filters['status'] ?? null), fn (Builder $query) => $query
+                ->where('application_status', $filters['status']))
+            ->when(filled($filters['decision'] ?? null), function (Builder $query) use ($filters): void {
+                $decision = (string) $filters['decision'];
+                $query->where(fn (Builder $matching) => $matching
+                    ->where('review_consensus_decision', $decision)
+                    ->orWhereHas('decisionReleases', fn (Builder $releases) => $releases->where('decision', $decision)));
+            })
+            ->when(($filters['claim'] ?? null) === 'claimed', fn (Builder $query) => $query
+                ->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->where('status', CertificateStatus::Claimed->value)))
+            ->when(($filters['claim'] ?? null) === 'unclaimed', fn (Builder $query) => $query
+                ->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->where('status', CertificateStatus::Released->value)))
+            ->when(($filters['claim'] ?? null) === 'unavailable', fn (Builder $query) => $query
+                ->whereDoesntHave('certificates', fn (Builder $certificates) => $certificates
+                    ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value])))
             ->with([
-                'certificate.currentVersion:id,certificate_id,certificate_version,status,generated_at,issued_date,valid_until,certificate_background_id',
-                'certificate.versions' => fn ($versions) => $versions
+                'certificates.recipient:id,recipient_name',
+                'certificates.currentVersion:id,certificate_id,certificate_version,status,generated_at,issued_date,valid_until,certificate_background_id',
+                'certificates.versions' => fn ($versions) => $versions
                     ->with('background:id,asset_version,source_kind')
                     ->orderByDesc('certificate_version'),
                 'documents' => fn ($documents) => $documents
@@ -129,6 +139,7 @@ class ResCertificationController extends Controller
             'queueMetrics' => $queueMetrics,
             'certificationStates' => $states,
             'filters' => $filters,
+            'termOptions' => $terms->filterOptions(),
             'bulkEligibleCounts' => $bulkReleases->eligibleCounts($request->user()),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
@@ -145,10 +156,9 @@ class ResCertificationController extends Controller
         $workflow->releaseDecision(
             $request->user(),
             $researchApplication,
-            ReviewSubmission::query()->findOrFail($request->validated('review_submission_id')),
         );
 
-        return back()->with('status', 'The selected Reviewer decision and its comments were released to the Applicant.');
+        return back()->with('status', 'The application decision and its comments were released to the Applicant.');
     }
 
     public function workspace(

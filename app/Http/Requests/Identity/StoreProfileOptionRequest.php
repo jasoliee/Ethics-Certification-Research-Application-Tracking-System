@@ -18,7 +18,7 @@ class StoreProfileOptionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'option_field' => ['required', Rule::enum(ProfileOptionField::class)],
+            'option_field' => ['required', Rule::in(collect(ProfileOptionField::managedCases())->pluck('value')->all())],
             'option_value' => ['required', 'string', 'max:150'],
         ];
     }

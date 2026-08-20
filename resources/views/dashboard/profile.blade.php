@@ -4,7 +4,7 @@
     <div class="dashboard-page dashboard-profile-page">
         <header class="dashboard-page-heading">
             <h1>Profile</h1>
-            <p>Review your account identity and access classification.</p>
+            <p>Review your account identity and access details.</p>
         </header>
 
         <section class="dashboard-profile-card">
@@ -38,7 +38,6 @@
                     <div><dt>Remaining Expected Total</dt><dd>{{ $adviserStatistics['remaining'] }}</dd></div>
                     <div><dt>Not Yet Received</dt><dd>{{ $adviserStatistics['not_received'] }}</dd></div>
                     <div><dt>Reviewer Access</dt><dd>{{ $reviewerProfile['enabled'] ? 'Enabled' : 'Disabled' }}</dd></div>
-                    <div><dt>Permitted Classifications</dt><dd>{{ implode(', ', $reviewerProfile['classifications']) ?: 'Not configured' }}</dd></div>
                     <div><dt>Maximum Active Application Load</dt><dd>{{ $reviewerProfile['capacity'] ?: 'Not configured' }}</dd></div>
                     <div><dt>Current Active Assignment Load</dt><dd>{{ $reviewerProfile['active_load'] }}</dd></div>
                     <div><dt>Available Capacity</dt><dd>{{ $reviewerProfile['available_capacity'] }}</dd></div>

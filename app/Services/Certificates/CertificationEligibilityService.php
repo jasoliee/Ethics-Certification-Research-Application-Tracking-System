@@ -37,23 +37,26 @@ class CertificationEligibilityService
 
     public function state(ResearchApplication $application): CertificationState
     {
-        $certificate = $application->relationLoaded('certificate')
-            ? $application->certificate
-            : $application->certificate()->with('currentVersion')->first();
+        $certificates = $application->relationLoaded('certificates')
+            ? $application->certificates
+            : $application->certificates()->with('currentVersion')->get();
 
-        if ($certificate?->status === CertificateStatus::GenerationFailed) {
+        if ($certificates->contains(fn ($certificate): bool => $certificate->status === CertificateStatus::GenerationFailed)) {
             return CertificationState::GenerationFailed;
         }
 
-        if ($certificate?->status === CertificateStatus::PendingRelease) {
+        if ($certificates->contains(fn ($certificate): bool => $certificate->status === CertificateStatus::PendingRelease)) {
             return CertificationState::PendingResRelease;
         }
 
-        if ($certificate
-            && in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
-            && $certificate->currentVersion?->status === CertificateVersionStatus::Ready) {
-            if ($certificate->status === CertificateStatus::Claimed
-                && $certificate->claimed_certificate_version_id === $certificate->current_certificate_version_id) {
+        if ($certificates->isNotEmpty() && $certificates->every(fn ($certificate): bool =>
+            in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
+            && $certificate->currentVersion?->status === CertificateVersionStatus::Ready
+        )) {
+            if ($certificates->every(fn ($certificate): bool =>
+                $certificate->status === CertificateStatus::Claimed
+                && $certificate->claimed_certificate_version_id === $certificate->current_certificate_version_id
+            )) {
                 return CertificationState::Claimed;
             }
 

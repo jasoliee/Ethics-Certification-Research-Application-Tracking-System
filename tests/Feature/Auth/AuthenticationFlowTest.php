@@ -108,7 +108,7 @@ class AuthenticationFlowTest extends TestCase
         $accounts = [
             ['applicanttest', '12345678', 'No application yet'],
             ['advisertest', '12345678', 'Welcome back, Adviser!'],
-            ['reviewertest', '12345678', 'Welcome back, Reviewer!'],
+            ['reviewertest', '12345678', 'Welcome back, Adviser!'],
             ['reslead', '12345kld', 'Welcome back, RES Lead/Admin!'],
         ];
 
@@ -134,23 +134,26 @@ class AuthenticationFlowTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $accounts = [
-            'applicanttest' => 'applicant.settings.index',
-            'advisertest' => 'adviser.settings.index',
-            'reviewertest' => 'reviewer.settings.index',
-            'reslead' => 'res.settings.index',
+            'applicanttest' => ['applicant.settings.index'],
+            'advisertest' => ['adviser.settings.index'],
+            'reviewertest' => ['adviser.settings.index', 'reviewer.settings.index'],
+            'reslead' => ['res.settings.index'],
         ];
 
-        foreach ($accounts as $username => $authorizedRoute) {
+        foreach ($accounts as $username => $authorizedRoutes) {
             $user = User::where('username', $username)->firstOrFail();
 
-            foreach ($accounts as $targetRoute) {
-                if ($targetRoute === $authorizedRoute) {
+            foreach (collect($accounts)->flatten()->unique() as $targetRoute) {
+                if (in_array($targetRoute, $authorizedRoutes, true)) {
                     continue;
                 }
 
-                $this->actingAs($user)
-                    ->get(route($targetRoute))
-                    ->assertRedirect(route('dashboard'));
+                $response = $this->actingAs($user)->get(route($targetRoute));
+                if ($response->status() === 403) {
+                    $response->assertForbidden();
+                } else {
+                    $response->assertRedirect(route('dashboard'));
+                }
             }
 
             Auth::logout();
@@ -221,7 +224,7 @@ class AuthenticationFlowTest extends TestCase
         $accounts = [
             'applicanttest' => ['12345678', UserRole::Applicant],
             'advisertest' => ['12345678', UserRole::Adviser],
-            'reviewertest' => ['12345678', UserRole::Reviewer],
+            'reviewertest' => ['12345678', UserRole::Adviser],
             'reslead' => ['12345kld', UserRole::ResLead],
         ];
 

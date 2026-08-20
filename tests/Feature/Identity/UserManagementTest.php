@@ -1308,7 +1308,7 @@ class UserManagementTest extends TestCase
     public function test_audit_log_filters_hide_completion_events_and_sensitive_metadata(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $reviewer = User::factory()->create(['role' => UserRole::Reviewer, 'name' => 'Filtered Reviewer']);
+        $reviewer = User::factory()->reviewer()->create(['name' => 'Filtered Reviewer']);
         $visible = AuditLog::create([
             'actor_user_id' => $reviewer->id,
             'action' => 'user.profile_updated',
@@ -1346,7 +1346,7 @@ class UserManagementTest extends TestCase
         $today = now()->toDateString();
         $this->actingAs($resLead)->get(route('res.reports.audit.index', [
             'search' => 'Filtered',
-            'role' => UserRole::Reviewer->value,
+            'role' => UserRole::Adviser->value,
             'result' => 'completed',
             'target_type' => User::class,
             'date_from' => $today,
@@ -1354,7 +1354,7 @@ class UserManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertSee('Filtered Reviewer')
-            ->assertSee('Reviewer')
+            ->assertSee('Adviser')
             ->assertSee('Profile Updated')
             ->assertDontSee('Onboarding Completed')
             ->assertDontSee('Password Setup Completed')
@@ -1453,7 +1453,7 @@ class UserManagementTest extends TestCase
             ->get(route('res.users.index'))
             ->assertOk()
             ->assertSee('Apply Action')
-            ->assertSee('Dropdown Options')
+            ->assertDontSee('Dropdown Options')
             ->assertSee('identity-button-warning', false)
             ->assertDontSee('>Setup Email<', false)
             ->assertDontSee('>Subject<', false);
@@ -1468,7 +1468,7 @@ class UserManagementTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.users.create', ['mode' => 'individual', 'account_type' => 'student_researcher']))
             ->assertOk()
-            ->assertSee('Dropdown Options')
+            ->assertDontSee('Dropdown Options')
             ->assertDontSee('Account Access')
             ->assertDontSee('name="username"', false)
             ->assertDontSee('name="password"', false)
@@ -1592,8 +1592,8 @@ class UserManagementTest extends TestCase
             'institutional_identifier' => 'KLD-STU-904',
             'confirm_username_regeneration' => '1',
         ])->assertRedirect(route('res.users.show', $subject));
-        $this->assertSame('kld.stu.904.corrected.name', $subject->refresh()->username);
-        Notification::assertSentTo($subject, UsernameChangedNotification::class);
+        $this->assertSame('kld.stu.903.oldname', $subject->refresh()->username);
+        Notification::assertNotSentTo($subject, UsernameChangedNotification::class);
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             $this->actingAs($resLead)->post(route('res.users.password-reset', $subject))->assertRedirect();

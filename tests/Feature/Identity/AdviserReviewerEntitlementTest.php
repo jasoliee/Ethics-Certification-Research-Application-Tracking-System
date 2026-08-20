@@ -110,7 +110,7 @@ class AdviserReviewerEntitlementTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_adviser_reviewer_profile_supports_two_res_managed_classifications_and_capacity(): void
+    public function test_adviser_reviewer_profile_manages_capability_and_capacity_without_using_legacy_classifications(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $adviser = $this->adviser([
@@ -123,17 +123,19 @@ class AdviserReviewerEntitlementTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.users.edit', $adviser))
             ->assertOk()
-            ->assertSee('name="reviewer_classifications[]"', false)
-            ->assertSee('Full Board');
+            ->assertSee('name="reviewer_enabled"', false)
+            ->assertDontSee('Reviewer Classifications');
 
         $this->actingAs($resLead)->put(route('res.users.update', $adviser), [
             ...$this->profilePayload($adviser),
-            'reviewer_classifications' => ['Expedited', 'Full Board'],
+            'reviewer_enabled' => '1',
             'reviewer_capacity' => 7,
         ])->assertRedirect(route('res.users.show', $adviser));
 
         $adviser->refresh();
-        $this->assertSame(['Expedited', 'Full Board'], $adviser->reviewer_classifications);
+        $this->assertTrue($adviser->reviewer_enabled);
+        // Historical fields remain intact but no longer participate in current eligibility.
+        $this->assertSame(['Expedited'], $adviser->reviewer_classifications);
         $this->assertSame('Expedited', $adviser->reviewer_classification);
         $this->assertSame(7, $adviser->reviewer_capacity);
 
@@ -141,7 +143,7 @@ class AdviserReviewerEntitlementTest extends TestCase
             ->get(route('res.users.show', $adviser))
             ->assertOk()
             ->assertSee('Reviewer Access')
-            ->assertSee('Expedited, Full Board')
+            ->assertDontSee('Reviewer Classifications')
             ->assertSee('Active Review Load')
             ->assertSee('Eligible for assignment');
     }

@@ -3,7 +3,8 @@
 @section('content')
     @php
         $application = $selectedApplication;
-        $certificate = $application?->certificate;
+        $certificates = $application?->certificates ?? collect();
+        $certificate = $certificates->first() ?? $application?->certificate;
         $currentCertificateVersion = $certificate?->currentVersion;
         $revisionPending = $activeRevision?->status === \App\Enums\ApplicationRevisionStatus::PendingUploads;
         $revisionSubmitted = $activeRevision?->status === \App\Enums\ApplicationRevisionStatus::UnderReview;
@@ -12,12 +13,13 @@
         $showCertification = ! $activeRevision;
         $step = match (true) {
             ! $application => 1,
-            $certificationState === \App\Enums\CertificationState::Claimed => 5,
+            $certificationState === \App\Enums\CertificationState::Claimed,
             $certificationState === \App\Enums\CertificationState::Claimable,
-            $certificationState === \App\Enums\CertificationState::SurveyRequired => 4,
-            $revisionSubmitted => 3,
+            $certificationState === \App\Enums\CertificationState::PendingResRelease => 3,
+            $certificationState === \App\Enums\CertificationState::SurveyRequired,
+            $revisionSubmitted => 2,
             $revisionPending => 1,
-            default => 2,
+            default => 1,
         };
     @endphp
 
@@ -25,7 +27,6 @@
         <header class="dashboard-page-heading">
             <div>
                 <h1>Revision and Certificates</h1>
-                <p>Review released feedback, submit required document versions, complete the evaluation, and claim your certificate.</p>
             </div>
         </header>
 
@@ -56,12 +57,20 @@
             <nav class="application-panel revision-application-switcher" aria-label="Revision and certificate applications">
                 <div>
                     <strong>Application</strong>
-                    <span>Select an owned application record.</span>
                 </div>
+                <form class="revision-term-filter" method="GET" action="{{ route('applicant.revision-certificates.index') }}">
+                    <label for="revision-academic-term">Academic Term</label>
+                    <select id="revision-academic-term" name="academic_term_id" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        @foreach ($termOptions as $term)
+                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
+                        @endforeach
+                    </select>
+                </form>
                 <div class="revision-application-tabs">
                     @foreach ($applications as $item)
                         <a
-                            href="{{ route('applicant.revision-certificates.index', ['application' => $item->id]) }}"
+                            href="{{ route('applicant.revision-certificates.index', ['application' => $item->id, 'academic_term_id' => $filters['academic_term_id'] ?? null]) }}"
                             @if ($application?->is($item)) aria-current="page" @endif
                         >
                             <strong>{{ $item->application_code }}</strong>
@@ -73,27 +82,28 @@
             </nav>
 
             <ol class="revision-progress" aria-label="Revision and certification progress">
-                @foreach (['Revision Requirements', 'Released Comments', 'Revision Submission', 'Evaluation Form', 'Certification'] as $label)
-                    <li @class(['is-active' => $loop->iteration === $step, 'is-complete' => $loop->iteration < $step || ($loop->iteration === 5 && $certificationState === \App\Enums\CertificationState::Claimed)])>
+                @foreach (['Revision Submission', 'Evaluation Form', 'Certification'] as $label)
+                    <li @class(['is-active' => $loop->iteration === $step, 'is-complete' => $loop->iteration < $step || ($loop->iteration === 3 && $certificationState === \App\Enums\CertificationState::Claimed)])>
                         <span>{{ $loop->iteration < $step ? '✓' : $loop->iteration }}</span>
                         <strong>{{ $label }}</strong>
                     </li>
                 @endforeach
             </ol>
 
-            <section class="application-panel revision-status-overview" aria-labelledby="revision-status-title">
-                <header class="application-panel-heading">
+            <details class="application-panel revision-status-overview revision-major-disclosure" open>
+                <summary class="application-panel-heading">
                     <div><h2 id="revision-status-title">Application Status Overview</h2></div>
-                </header>
+                    <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
+                </summary>
                 <dl>
                     <div><dt>Application Code</dt><dd>{{ $application->application_code }}</dd></div>
                     <div><dt>Research Title</dt><dd>{{ $application->research_title }}</dd></div>
                     <div><dt>Released Decision</dt><dd>{{ $latestRelease?->decision?->label() ?? 'Not released' }}</dd></div>
-                    <div><dt>Current Status</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
+                    <div><dt>Current Status</dt><dd><x-dashboard.status-badge :label="$application->statusLabel()" :tone="$application->application_status->tone()" /></dd></div>
                     <div><dt>Date Released</dt><dd>{{ $latestRelease?->released_at?->format('M j, Y g:i A') ?? 'Not released' }}</dd></div>
                     <div><dt>Revision Due</dt><dd>{{ $activeRevision?->due_at?->format('M j, Y g:i A') ?? 'Not applicable' }}</dd></div>
                 </dl>
-            </section>
+            </details>
 
             <div @class([
                 'revision-workspace-grid',
@@ -101,16 +111,16 @@
                 'is-final-approved' => $finalApproved,
             ])>
                 <main>
-                    <section class="application-panel revision-feedback-panel" aria-labelledby="released-feedback-title">
-                        <header class="application-panel-heading">
+                    <details class="application-panel revision-feedback-panel revision-major-disclosure" open>
+                        <summary class="application-panel-heading">
                             <div>
                                 <h2 id="released-feedback-title">Released Feedback and Document History</h2>
-                                <p>Open a requirement to review anonymous RES-released comments and its protected document versions.</p>
                             </div>
                             @if ($latestRelease)
                                 <x-dashboard.status-badge :label="$latestRelease->decision->label()" :tone="$latestRelease->decision->tone()" />
                             @endif
-                        </header>
+                            <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
+                        </summary>
 
                         @if ($requirementFeedbackGroups->isEmpty())
                             <p class="revision-empty-state">No released requirement feedback or document versions are available yet.</p>
@@ -136,74 +146,136 @@
                                                 @if ($group['reviewer_groups']->isEmpty())
                                                     <p class="revision-empty-state">No detailed comments were released for this requirement.</p>
                                                 @else
-                                                    @foreach ($group['reviewer_groups'] as $reviewerGroup)
-                                                        <section class="revision-anonymous-reviewer-group">
-                                                            <h4>{{ $reviewerGroup['label'] }}</h4>
-                                                            @foreach ($reviewerGroup['comments'] as $comment)
-                                                                <article>
-                                                                    <header>
-                                                                        <x-dashboard.status-badge :label="$comment->category->label()" :tone="$comment->category->tone()" />
-                                                                        <span>{{ $comment->scope->label() }}</span>
-                                                                        <time datetime="{{ $comment->released_at?->toIso8601String() }}">Released {{ $comment->released_at?->format('M j, Y') }}</time>
-                                                                    </header>
-                                                                    <p>{{ $comment->body }}</p>
-                                                                    @if ($comment->document || $comment->page_number)
-                                                                        <small>
-                                                                            @if ($comment->document)Document version {{ $comment->document->document_version }}@endif
-                                                                            @if ($comment->document && $comment->page_number) · @endif
-                                                                            @if ($comment->page_number)Page {{ $comment->page_number }}@endif
-                                                                        </small>
-                                                                    @endif
-                                                                </article>
-                                                            @endforeach
-                                                        </section>
-                                                    @endforeach
+                                                    <div class="revision-reviewer-feedback-grid">
+                                                        @foreach ($group['reviewer_groups'] as $reviewerGroup)
+                                                            <section class="revision-anonymous-reviewer-group">
+                                                                <h4>{{ $reviewerGroup['label'] }}</h4>
+                                                                @foreach ($reviewerGroup['comments'] as $comment)
+                                                                    <article>
+                                                                        <header>
+                                                                            <x-dashboard.status-badge :label="$comment->category->label()" :tone="$comment->category->tone()" />
+                                                                            <span>{{ $comment->scope->label() }}</span>
+                                                                            <time datetime="{{ $comment->released_at?->toIso8601String() }}">Released {{ $comment->released_at?->format('M j, Y') }}</time>
+                                                                        </header>
+                                                                        <p>{{ $comment->body }}</p>
+                                                                        @if ($comment->document || $comment->page_number)
+                                                                            <small>
+                                                                                @if ($comment->document)Document version {{ $comment->document->document_version }}@endif
+                                                                                @if ($comment->document && $comment->page_number) · @endif
+                                                                                @if ($comment->page_number)Page {{ $comment->page_number }}@endif
+                                                                            </small>
+                                                                        @endif
+                                                                    </article>
+                                                                @endforeach
+                                                            </section>
+                                                        @endforeach
+                                                    </div>
                                                 @endif
                                             </section>
 
                                             @if ($group['versions']->isNotEmpty())
-                                                <section class="revision-requirement-versions" aria-labelledby="{{ $versionSelectorId }}-title">
+                                                <div class="revision-version-control">
                                                     <div class="revision-version-selector-heading">
-                                                        <h3 id="{{ $versionSelectorId }}-title">Document Version History</h3>
                                                         <label for="{{ $versionSelectorId }}">
-                                                            <span>Selected version</span>
-                                                            <select id="{{ $versionSelectorId }}" data-revision-version-select>
+                                                            <span>Select version</span>
+                                                            <select id="{{ $versionSelectorId }}" data-revision-version-select data-table-tooltip="">
                                                                 @foreach ($group['versions'] as $document)
-                                                                    <option value="{{ $document->id }}">Version {{ $document->document_version }}{{ $document->is_current ? ' · Current' : '' }} — {{ $document->original_file_name }}</option>
+                                                                    <option value="{{ $document->id }}">Version {{ $document->document_version }}: {{ $document->original_file_name }}{{ $document->is_current ? ' - Current' : '' }}</option>
                                                                 @endforeach
                                                             </select>
                                                         </label>
+                                                        <div class="revision-version-panels">
+                                                            @foreach ($group['versions'] as $document)
+                                                                <article data-revision-version-panel="{{ $document->id }}" @if (! $loop->first) hidden @endif>
+                                                                    <div class="revision-version-actions">
+                                                                        <a href="{{ route('applicant.applications.documents.preview', [$application, $document]) }}" target="_blank" rel="noopener">Preview</a>
+                                                                        <a href="{{ route('applicant.applications.documents.download', [$application, $document]) }}">Download</a>
+                                                                    </div>
+                                                                    <div class="revision-version-meta">
+                                                                        @if ($document->is_current)<strong>Current</strong>@endif
+                                                                        <time datetime="{{ $document->uploaded_at?->toIso8601String() }}">{{ $document->uploaded_at?->format('M j, Y g:i A') ?? 'Date not recorded' }}</time>
+                                                                    </div>
+                                                                </article>
+                                                            @endforeach
+                                                        </div>
                                                     </div>
-                                                    <div class="revision-version-panels">
-                                                        @foreach ($group['versions'] as $document)
-                                                            <article data-revision-version-panel="{{ $document->id }}" @if (! $loop->first) hidden @endif>
-                                                                <div>
-                                                                    <strong>Version {{ $document->document_version }} @if ($document->is_current) · Current @endif</strong>
-                                                                    <span>{{ $document->original_file_name }}</span>
-                                                                    <small>{{ $document->uploaded_at?->format('M j, Y g:i A') ?? 'Date not recorded' }}</small>
-                                                                </div>
-                                                                <div>
-                                                                    <a href="{{ route('applicant.applications.documents.preview', [$application, $document]) }}" target="_blank" rel="noopener">Preview</a>
-                                                                    <a href="{{ route('applicant.applications.documents.download', [$application, $document]) }}">Download</a>
-                                                                </div>
-                                                            </article>
-                                                        @endforeach
-                                                    </div>
-                                                </section>
+                                                </div>
                                             @endif
                                         </div>
                                     </details>
+                                    @if (Str::lower($group['name']) === 'research proposal' && $worksheetGroups->isNotEmpty())
+                                        <details class="revision-requirement-disclosure applicant-review-worksheet" data-applicant-review-worksheet>
+                                            <summary>
+                                                <strong>Review Worksheet</strong>
+                                                <span>{{ $worksheetGroups->count() }} official worksheet types</span>
+                                            </summary>
+                                            <div class="applicant-review-worksheet-body">
+                                                <div class="applicant-review-worksheet-tabs" role="tablist" aria-label="Review worksheet type">
+                                                    @foreach ($worksheetGroups as $worksheetGroup)
+                                                        <button
+                                                            type="button"
+                                                            role="tab"
+                                                            aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                                                            data-applicant-worksheet-tab="{{ $worksheetGroup['type']->value }}"
+                                                        >{{ $worksheetGroup['type']->label() }}</button>
+                                                    @endforeach
+                                                </div>
+                                                @foreach ($worksheetGroups as $worksheetGroup)
+                                                    @php
+                                                        $worksheetType = $worksheetGroup['type'];
+                                                        $firstWorksheet = $worksheetGroup['artifacts']->first();
+                                                        $firstWorksheetArtifact = $firstWorksheet['artifact'];
+                                                        $firstWorksheetPreview = route('applicant.revision-certificates.worksheets.preview', [
+                                                            $application,
+                                                            $firstWorksheet['assignment'],
+                                                            $firstWorksheetArtifact->formSubmission,
+                                                            $firstWorksheetArtifact,
+                                                        ]);
+                                                    @endphp
+                                                    <section data-applicant-worksheet-panel="{{ $worksheetType->value }}" @if (! $loop->first) hidden @endif>
+                                                        <div class="applicant-review-worksheet-controls">
+                                                            <label>
+                                                                <span>Select version</span>
+                                                                <select data-applicant-worksheet-version>
+                                                                    @foreach ($worksheetGroup['artifacts'] as $worksheet)
+                                                                        @php
+                                                                            $worksheetArtifact = $worksheet['artifact'];
+                                                                            $worksheetPreview = route('applicant.revision-certificates.worksheets.preview', [
+                                                                                $application,
+                                                                                $worksheet['assignment'],
+                                                                                $worksheetArtifact->formSubmission,
+                                                                                $worksheetArtifact,
+                                                                            ]);
+                                                                            $worksheetDownload = route('applicant.revision-certificates.worksheets.download', [
+                                                                                $application,
+                                                                                $worksheet['assignment'],
+                                                                                $worksheetArtifact->formSubmission,
+                                                                                $worksheetArtifact,
+                                                                            ]);
+                                                                        @endphp
+                                                                        <option value="{{ $worksheetArtifact->id }}" data-preview-url="{{ $worksheetPreview }}" data-download-url="{{ $worksheetDownload }}">Version {{ $worksheet['version_number'] }} - {{ $worksheet['reviewer_label'] }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                            </label>
+                                                            <a href="{{ $firstWorksheetPreview }}" target="_blank" rel="noopener" data-applicant-worksheet-preview-link>Open in New Tab</a>
+                                                            <a href="{{ route('applicant.revision-certificates.worksheets.download', [$application, $firstWorksheet['assignment'], $firstWorksheetArtifact->formSubmission, $firstWorksheetArtifact]) }}" data-applicant-worksheet-download-link>Download</a>
+                                                        </div>
+                                                        <iframe src="{{ $firstWorksheetPreview }}" title="{{ $worksheetType->label() }} secure preview" loading="lazy" referrerpolicy="no-referrer" data-applicant-worksheet-frame></iframe>
+                                                    </section>
+                                                @endforeach
+                                            </div>
+                                        </details>
+                                    @endif
                                 @endforeach
                             </div>
                         @endif
-                    </section>
+                    </details>
 
                     @unless ($finalApproved)
                     <section class="application-panel revision-documents-panel" aria-labelledby="revision-documents-title">
                         <header class="application-panel-heading">
                             <div>
                                 <h2 id="revision-documents-title">Revision Submission</h2>
-                                <p>Every replacement is stored privately as a new version; original files remain available in history.</p>
                             </div>
                             @if ($activeRevision)
                                 <x-dashboard.status-badge :label="$activeRevision->status->label()" :tone="$revisionPending ? 'orange' : 'blue'" />
@@ -223,7 +295,12 @@
                                     <article>
                                         <div class="revision-requirement-copy">
                                             <strong>{{ $revisionRequirement->requirement?->name ?? 'Required Document' }}</strong>
-                                            <span>Source: version {{ $revisionRequirement->sourceDocument?->document_version ?? 'not recorded' }} · {{ $revisionRequirement->sourceDocument?->original_file_name ?? 'file unavailable' }}</span>
+                                            <span>
+                                                Source: Version {{ $revisionRequirement->sourceDocument?->document_version ?? 'not recorded' }} · {{ $revisionRequirement->sourceDocument?->original_file_name ?? 'file unavailable' }}
+                                                @if ($revisionRequirement->sourceDocument)
+                                                    <a href="{{ route('applicant.applications.documents.preview', [$application, $revisionRequirement->sourceDocument]) }}" target="_blank" rel="noopener">View Source</a>
+                                                @endif
+                                            </span>
                                             @if ($replacement)
                                                 <small class="revision-upload-complete">Ready: version {{ $replacement->document_version }} uploaded {{ $replacement->uploaded_at?->format('M j, Y g:i A') }}</small>
                                             @else
@@ -231,26 +308,24 @@
                                             @endif
                                         </div>
                                         <div class="revision-requirement-actions">
-                                            @if ($revisionRequirement->sourceDocument)
-                                                <a href="{{ route('applicant.applications.documents.preview', [$application, $revisionRequirement->sourceDocument]) }}" target="_blank" rel="noopener">View source</a>
-                                            @endif
                                             @if ($replacement)
                                                 <a href="{{ route('applicant.applications.documents.preview', [$application, $replacement]) }}" target="_blank" rel="noopener">View replacement</a>
                                             @endif
+                                            <form
+                                                method="POST"
+                                                action="{{ route('applicant.revision-certificates.revisions.documents.store', [$application, $activeRevision, $revisionRequirement]) }}"
+                                                enctype="multipart/form-data"
+                                                data-revision-upload-form
+                                            >
+                                                @csrf
+                                                <label class="dashboard-outline-action revision-file-control">
+                                                    <x-dashboard.icon name="upload" size="16" />
+                                                    <span data-revision-file-name>Choose File</span>
+                                                    <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" required data-revision-upload-input>
+                                                </label>
+                                                <span class="application-upload-feedback" role="status" aria-live="polite" data-revision-upload-feedback></span>
+                                            </form>
                                         </div>
-                                        <form
-                                            method="POST"
-                                            action="{{ route('applicant.revision-certificates.revisions.documents.store', [$application, $activeRevision, $revisionRequirement]) }}"
-                                            enctype="multipart/form-data"
-                                            data-disable-on-submit
-                                        >
-                                            @csrf
-                                            <label>
-                                                <span>{{ $replacement ? 'Replace revised file' : 'Upload revised file' }}</span>
-                                                <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" required>
-                                            </label>
-                                            <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="upload" size="16" /><span>Upload Version {{ $activeRevision->revision_number + 1 }}</span></button>
-                                        </form>
                                     </article>
                                 @endforeach
                             </div>
@@ -264,7 +339,6 @@
                                     <x-dashboard.icon name="send" size="17" />
                                     <span>Submit Revision for Re-review</span>
                                 </button>
-                                @unless ($revisionReady)<small>Upload every required replacement before submitting.</small>@endunless
                             </form>
                         @elseif ($revisionSubmitted)
                             <div class="revision-complete-state">
@@ -288,11 +362,12 @@
 
                 @if ($showCertification)
                 <aside>
-                    <section class="application-panel certification-panel" aria-labelledby="certification-state-title">
-                        <header class="application-panel-heading">
-                            <div><h2 id="certification-state-title">Certification</h2><p>Every condition is checked by the server.</p></div>
+                    <details class="application-panel certification-panel revision-major-disclosure" open>
+                        <summary class="application-panel-heading">
+                            <div><h2 id="certification-state-title">Certification</h2></div>
                             <x-dashboard.status-badge :label="$certificationState->label()" :tone="$certificationState->tone()" />
-                        </header>
+                            <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
+                        </summary>
 
                         @if ($errors->certificateSurvey->any())
                             <div class="res-form-error-summary certificate-action-error" role="alert">
@@ -353,10 +428,24 @@
                         @elseif ($certificationState === \App\Enums\CertificationState::Claimed && $certificate && $currentCertificateVersion)
                             <div class="certificate-action-state">
                                 <x-dashboard.icon name="award" size="42" />
-                                <h3>Certificate claimed</h3>
-                                <p>{{ $certificate->certificate_number }} · version {{ $currentCertificateVersion->certificate_version }} · claimed {{ $certificate->claimed_at?->format('M j, Y g:i A') }}</p>
-                                <a class="dashboard-outline-action" href="{{ route('applicant.revision-certificates.certificate.preview', [$application, $certificate, $currentCertificateVersion]) }}" target="_blank" rel="noopener">View Certificate</a>
-                                <a class="dashboard-primary-action" href="{{ route('applicant.revision-certificates.certificate.download', [$application, $certificate, $currentCertificateVersion]) }}">Download Certificate (PDF)</a>
+                                <h3>Personalized certificates claimed</h3>
+                                <div class="applicant-certificate-list">
+                                    @foreach ($certificates as $personalizedCertificate)
+                                        @php($personalizedVersion = $personalizedCertificate->currentVersion)
+                                        @if ($personalizedVersion)
+                                            <article>
+                                                <div>
+                                                    <strong>{{ $personalizedCertificate->recipient_name ?: $application->applicant?->name }}</strong>
+                                                    <span>{{ $personalizedCertificate->certificate_number }} · version {{ $personalizedVersion->certificate_version }}</span>
+                                                </div>
+                                                <div>
+                                                    <a class="dashboard-outline-action" href="{{ route('applicant.revision-certificates.certificate.preview', [$application, $personalizedCertificate, $personalizedVersion]) }}" target="_blank" rel="noopener">View</a>
+                                                    <a class="dashboard-primary-action" href="{{ route('applicant.revision-certificates.certificate.download', [$application, $personalizedCertificate, $personalizedVersion]) }}">Download</a>
+                                                </div>
+                                            </article>
+                                        @endif
+                                    @endforeach
+                                </div>
                             </div>
                         @elseif ($certificationState === \App\Enums\CertificationState::GenerationFailed)
                             <div class="certificate-action-state is-error"><x-dashboard.icon name="alert-triangle" size="34" /><h3>Generation failed safely</h3><p>RES has been asked to retry. No incomplete certificate is available.</p></div>
@@ -372,7 +461,7 @@
                                 } }}</p>
                             </div>
                         @endif
-                    </section>
+                    </details>
                 </aside>
                 @endif
             </div>

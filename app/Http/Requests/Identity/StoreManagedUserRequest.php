@@ -28,6 +28,7 @@ class StoreManagedUserRequest extends FormRequest
     public function rules(): array
     {
         $isApplicant = $this->input('role') === UserRole::Applicant->value;
+        $isAdviser = $this->input('role') === UserRole::Adviser->value;
         $isStudent = $isApplicant && $this->input('applicant_type') === ApplicantType::Student->value;
         $options = app(ProfileOptionCatalog::class);
 
@@ -44,9 +45,13 @@ class StoreManagedUserRequest extends FormRequest
             'program' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Program))],
             'year_level' => [Rule::requiredIf($isStudent), 'nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::YearLevel))],
             'position_title' => ['nullable', 'string', 'max:150'],
-            'reviewer_classifications' => ['nullable', 'array', 'min:1', 'max:2'],
-            'reviewer_classifications.*' => ['string', 'distinct', Rule::in(['Expedited', 'Full Board'])],
-            'reviewer_capacity' => ['nullable', 'integer', 'between:1,30'],
+            'reviewer_enabled' => [Rule::prohibitedIf(! $isAdviser), 'nullable', 'boolean'],
+            'reviewer_capacity' => [
+                Rule::requiredIf($isAdviser && $this->boolean('reviewer_enabled')),
+                'nullable',
+                'integer',
+                'between:1,30',
+            ],
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [Rule::requiredIf($isApplicant), 'nullable', Rule::enum(ApplicantType::class)],
         ];
@@ -66,7 +71,7 @@ class StoreManagedUserRequest extends FormRequest
             'department.in' => $options->validationMessage(ProfileOptionField::Department),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classifications.*.in' => 'Reviewer Classification must be Expedited or Full Board.',
+            'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
         ];
     }
 }

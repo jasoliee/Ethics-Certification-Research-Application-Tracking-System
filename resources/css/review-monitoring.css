@@ -514,7 +514,7 @@
     }
 
     .review-monitoring-adviser-table {
-        min-width: 1240px;
+        min-width: 980px;
     }
 
     .review-monitoring-adviser-table th,
@@ -623,6 +623,53 @@
         color: #667085;
         font-size: 12px;
     }
+
+    .review-monitoring-reviewer-table {
+        min-width: 900px;
+    }
+
+    .review-monitoring-reviewer-table th,
+    .review-monitoring-reviewer-table td,
+    .monitoring-drilldown-table th,
+    .monitoring-drilldown-table td {
+        text-align: center;
+    }
+
+    .review-monitoring-reviewer-table th:first-child,
+    .review-monitoring-reviewer-table td:first-child,
+    .monitoring-drilldown-table th:first-child,
+    .monitoring-drilldown-table td:first-child {
+        text-align: left;
+    }
+
+    .review-monitoring-reviewer-table .dashboard-outline-action,
+    .review-monitoring-adviser-table .dashboard-outline-action {
+        width: max-content;
+        margin-inline: auto;
+    }
+
+    .monitoring-drilldown-filters {
+        display: grid;
+        grid-template-columns: minmax(220px, 360px) auto;
+        align-items: end;
+        justify-content: start;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .monitoring-drilldown-table {
+        min-width: 860px;
+    }
+
+    .monitoring-drilldown-table td:first-child {
+        max-width: 320px;
+    }
+
+    .monitoring-drilldown-table td > small {
+        display: block;
+        margin-top: 4px;
+        color: #667085;
+    }
 }
 
 @container (max-width: 1160px) {
@@ -721,5 +768,9 @@
     .review-monitoring-workload-card > footer {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .monitoring-drilldown-filters {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

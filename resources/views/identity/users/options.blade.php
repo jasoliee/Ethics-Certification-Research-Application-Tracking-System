@@ -21,7 +21,7 @@
                 <div class="identity-field">
                     <label for="option_field">Option Group</label>
                     <select id="option_field" name="option_field" required>
-                        @foreach (\App\Enums\ProfileOptionField::cases() as $field)
+                        @foreach (\App\Enums\ProfileOptionField::managedCases() as $field)
                             <option value="{{ $field->value }}" @selected(old('option_field', $filters['field'] ?? null) === $field->value)>{{ $field->label() }}</option>
                         @endforeach
                     </select>
@@ -43,7 +43,7 @@
                 <label for="option-group-filter">Option Group</label>
                 <select id="option-group-filter" name="field">
                     <option value="">All groups</option>
-                    @foreach (\App\Enums\ProfileOptionField::cases() as $field)
+                    @foreach (\App\Enums\ProfileOptionField::managedCases() as $field)
                         <option value="{{ $field->value }}" @selected(($filters['field'] ?? null) === $field->value)>{{ $field->label() }}</option>
                     @endforeach
                 </select>

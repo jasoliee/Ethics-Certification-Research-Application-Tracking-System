@@ -2432,10 +2432,72 @@
         overflow: hidden;
     }
 
+    .notification-filter-bar,
+    .notification-all-actions,
+    .notification-bulk-bar {
+        display: flex;
+        align-items: end;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .notification-filter-bar {
+        padding: 16px;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        background: #ffffff;
+    }
+
+    .notification-filter-field {
+        display: grid;
+        gap: 6px;
+        min-width: 180px;
+        flex: 1 1 180px;
+    }
+
+    .notification-filter-field label,
+    .notification-bulk-bar label {
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .notification-filter-field input,
+    .notification-filter-field select,
+    .notification-bulk-bar select {
+        min-height: 42px;
+        border: 1px solid #cbd5ce;
+        border-radius: 6px;
+        padding: 8px 11px;
+        background: #ffffff;
+        color: #202b3c;
+    }
+
+    .notification-all-actions,
+    .notification-bulk-bar {
+        justify-content: flex-end;
+    }
+
+    .notification-all-actions form {
+        margin: 0;
+    }
+
+    .notification-bulk-bar {
+        padding: 12px 16px;
+        border: 1px solid #dce5e0;
+        border-radius: 8px;
+        background: #f8faf9;
+    }
+
+    .notification-bulk-bar select {
+        width: min(100%, 220px);
+    }
+
     .dashboard-notification-row {
+        position: relative;
         min-height: 104px;
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
         align-items: center;
         gap: 16px;
         border-bottom: 1px solid #e5ebe7;
@@ -2465,6 +2527,73 @@
     .dashboard-notification-row time {
         color: #6b7280;
         font-size: 12px;
+    }
+
+    .notification-select {
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+    }
+
+    .notification-select input {
+        width: 18px;
+        height: 18px;
+        accent-color: #15713f;
+    }
+
+    .notification-row-copy {
+        min-width: 0;
+    }
+
+    .notification-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .notification-row-actions form {
+        margin: 0;
+    }
+
+    .dashboard-icon-button.is-danger,
+    .dashboard-outline-action.is-danger {
+        color: #b42318;
+    }
+
+    @media (max-width: 700px) {
+        .notification-filter-bar,
+        .notification-filter-field,
+        .notification-filter-bar > .dashboard-primary-action,
+        .notification-filter-bar > .dashboard-outline-action,
+        .notification-bulk-bar {
+            width: 100%;
+        }
+
+        .notification-all-actions {
+            justify-content: stretch;
+        }
+
+        .notification-all-actions form,
+        .notification-all-actions button {
+            flex: 1 1 145px;
+        }
+
+        .dashboard-notification-row {
+            grid-template-columns: auto auto minmax(0, 1fr);
+            align-items: start;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .notification-row-actions {
+            grid-column: 2 / -1;
+            justify-content: flex-end;
+        }
+
+        .dashboard-unread-dot {
+            position: absolute;
+            right: 12px;
+        }
     }
 
     .dashboard-pagination {
@@ -2997,9 +3126,21 @@
     }
 
     .certificate-queue-filters {
-        grid-template-columns: minmax(300px, 1.2fr) minmax(220px, .9fr) auto auto;
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
         gap: 14px;
         padding: 16px 18px;
+    }
+
+    .certificate-filter-search {
+        grid-column: span 2;
+    }
+
+    .certificate-filter-actions {
+        grid-column: span 2;
+        display: flex;
+        align-items: end;
+        justify-content: flex-end;
+        gap: 10px;
     }
 
     .certificate-queue-filters .application-field {
@@ -3238,7 +3379,7 @@
 
     .certificate-modal-status-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         margin: 10px 0 0;
         overflow: hidden;
         border: 1px solid #dfe6e2;
@@ -3380,6 +3521,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
+        justify-content: center;
         gap: 10px;
     }
 
@@ -3418,6 +3560,23 @@
     .certificate-background-table td {
         height: 43px;
         padding: 8px 12px;
+        text-align: center;
+    }
+
+    .res-application-release-panel {
+        display: grid;
+    }
+
+    .res-application-release-panel > .application-panel-heading {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .res-application-release-panel > form {
+        display: flex;
+        justify-content: center;
+        border-top: 1px solid #e4eae6;
+        padding: 18px;
     }
 
     .certificate-version-table a,
@@ -5605,6 +5764,58 @@
         padding: 22px;
         background: #ffffff;
         box-shadow: 0 22px 56px rgba(12, 35, 22, 0.25);
+    }
+
+    .application-recipient-builder {
+        display: grid;
+        gap: 12px;
+    }
+
+    .application-recipient-builder > p {
+        margin: 0;
+        color: #526174;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .application-recipient-entry {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 10px;
+    }
+
+    .application-recipient-entry .dashboard-outline-action {
+        min-height: 42px;
+    }
+
+    .application-recipient-list {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .application-recipient-list li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid #dce5e0;
+        border-radius: 7px;
+        padding: 9px 11px;
+        background: #f8fbf9;
+    }
+
+    .application-recipient-list button {
+        border: 0;
+        padding: 4px;
+        color: #b42318;
+        font: inherit;
+        font-weight: 700;
+        background: transparent;
+        cursor: pointer;
     }
 
     /* Gives the secure document viewer enough room for meaningful PDF or image inspection. */
@@ -8634,7 +8845,8 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
         grid-template-areas:
             "search search status apply"
-            "review affiliation date clear";
+            "review affiliation term clear"
+            "date date date date";
         align-items: end;
         gap: 12px;
         padding: 16px;
@@ -8644,6 +8856,7 @@
     .application-filter-bar-res > .res-filter-status { grid-area: status; }
     .application-filter-bar-res > .res-filter-review-type { grid-area: review; }
     .application-filter-bar-res > .res-filter-affiliation { grid-area: affiliation; }
+    .application-filter-bar-res > .res-filter-term { grid-area: term; }
     .application-filter-bar-res > .res-filter-date-range { grid-area: date; }
 
     .application-filter-bar-res > .res-application-filter-actions {
@@ -9233,7 +9446,7 @@
     /* Reviewer assignment filters mirror the shared dashboard controls without crowding the work table. */
     .reviewer-assignment-filter-bar {
         display: grid;
-        grid-template-columns: minmax(250px, 1.3fr) repeat(4, minmax(145px, 0.65fr)) auto auto;
+        grid-template-columns: minmax(250px, 1.3fr) repeat(5, minmax(145px, 0.65fr)) auto auto;
         align-items: end;
         gap: 10px;
         border: 1px solid #dce5e0;
@@ -9615,6 +9828,7 @@
             "search search"
             "status review"
             "affiliation affiliation"
+            "term term"
             "date date"
             "apply clear";
     }
@@ -9729,6 +9943,7 @@
             "status"
             "review"
             "affiliation"
+            "term"
             "date"
             "apply"
             "clear";
@@ -9876,7 +10091,7 @@
 
     .revision-requirement-disclosure-body {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: 14px;
         border-top: 1px solid #e5ebe7;
         padding: 14px;
@@ -9884,7 +10099,7 @@
     }
 
     .revision-requirement-feedback,
-    .revision-requirement-versions,
+    .revision-version-control,
     .revision-anonymous-reviewer-group,
     .revision-version-panels {
         display: grid;
@@ -9938,10 +10153,9 @@
     }
 
     .revision-version-selector-heading {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(220px, 330px) minmax(0, 1fr);
         align-items: end;
-        justify-content: space-between;
-        flex-wrap: wrap;
         gap: 10px;
     }
 
@@ -9954,7 +10168,8 @@
     }
 
     .revision-version-selector-heading select {
-        max-width: min(100%, 330px);
+        width: 330px;
+        max-width: 100%;
         border: 1px solid #cbd8d1;
         border-radius: 6px;
         padding: 8px 10px;
@@ -9963,37 +10178,37 @@
     }
 
     .revision-version-panels article {
-        display: flex;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        border: 1px solid #e6ece8;
-        border-radius: 7px;
-        padding: 11px;
-        background: #fff;
+        border: 0;
+        padding: 0 0 1px;
+        background: transparent;
     }
 
     .revision-version-panels article[hidden] {
         display: none;
     }
 
-    .revision-version-panels article > div:first-child {
-        display: grid;
-        gap: 3px;
-        min-width: 0;
-    }
-
-    .revision-version-panels article span,
-    .revision-version-panels article small {
+    .revision-version-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
         color: #64748b;
         font-size: 12px;
-        overflow-wrap: anywhere;
     }
 
-    .revision-version-panels article > div:last-child {
+    .revision-version-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 9px;
+    }
+
+    .revision-version-meta strong {
+        color: #16814b;
     }
 
     .revision-version-panels article a {
@@ -10018,11 +10233,15 @@
         .revision-version-selector-heading,
         .revision-version-panels article {
             align-items: stretch;
-            flex-direction: column;
+            grid-template-columns: minmax(0, 1fr);
         }
 
         .revision-requirement-disclosure > summary span {
             text-align: left;
+        }
+
+        .revision-version-meta {
+            justify-content: flex-start;
         }
     }
 }
@@ -10069,6 +10288,90 @@
         background-image: linear-gradient(45deg, #eef2ef 25%, transparent 25%), linear-gradient(-45deg, #eef2ef 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eef2ef 75%), linear-gradient(-45deg, transparent 75%, #eef2ef 75%);
         background-position: 0 0, 0 5px, 5px -5px, -5px 0;
         background-size: 10px 10px;
+    }
+
+    .settings-certificate-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    .settings-certificate-identity,
+    .settings-certificate-upload {
+        min-width: 0;
+        display: grid;
+        align-content: start;
+        gap: 10px;
+    }
+
+    .settings-certificate-upload > span {
+        color: #34453b;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .settings-file-control {
+        min-width: 0;
+        min-height: 88px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        overflow: hidden;
+        border: 1px dashed #9db2a5;
+        border-radius: 7px;
+        padding: 12px;
+        color: #176f3d;
+        text-align: center;
+        background: #f8fbf9;
+        cursor: pointer;
+    }
+
+    .settings-file-control:hover,
+    .settings-file-control:focus-within,
+    .settings-file-control.has-file {
+        border-color: #16804a;
+        background: #edf8f1;
+        box-shadow: 0 0 0 3px rgba(22, 128, 74, 0.12);
+    }
+
+    .settings-file-control input {
+        width: 1px;
+        height: 1px;
+        position: absolute;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .settings-file-control [data-settings-file-label] {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .settings-qr-preview {
+        width: 88px;
+        height: 88px;
+        justify-self: center;
+        object-fit: contain;
+        border: 1px solid #d7e1dc;
+        padding: 4px;
+        background: #fff;
+    }
+
+    @media (max-width: 1000px) {
+        .settings-certificate-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 620px) {
+        .settings-certificate-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
     }
 
     .settings-background-grid {
@@ -10252,9 +10555,11 @@
 
     .revision-application-switcher {
         display: grid;
-        grid-template-columns: minmax(160px, .35fr) minmax(0, 1.65fr);
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
         gap: 14px;
         padding: 14px;
+        text-align: center;
     }
 
     .revision-application-switcher > div:first-child,
@@ -10270,7 +10575,9 @@
     }
 
     .revision-application-tabs {
+        width: 100%;
         display: flex;
+        justify-content: center;
         gap: 8px;
         min-width: 0;
         overflow-x: auto;
@@ -10298,9 +10605,32 @@
         grid-column: 1 / -1;
     }
 
+    .revision-term-filter {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+    }
+
+    .revision-term-filter label {
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .revision-term-filter select {
+        min-height: 38px;
+        border: 1px solid #cfdad4;
+        border-radius: 6px;
+        padding: 7px 10px;
+        color: #26362d;
+        background: #fff;
+        font: inherit;
+    }
+
     .revision-progress {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         margin: 0;
         padding: 17px 16px;
         border: 1px solid #dce5e0;
@@ -10361,6 +10691,7 @@
 
     .revision-status-overview {
         padding: 16px 18px;
+        text-align: center;
     }
 
     .revision-status-overview dl,
@@ -10389,6 +10720,7 @@
         min-width: 0;
         padding: 3px 14px;
         border-left: 1px solid #e0e7e3;
+        text-align: center;
     }
 
     .revision-status-overview dl > div:first-child,
@@ -10533,6 +10865,102 @@
     .certification-panel,
     .certificate-background-manager {
         padding: 16px;
+    }
+
+    .revision-major-disclosure > summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .revision-major-disclosure > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .revision-major-disclosure:not([open]) .reviewer-workflow-accordion-chevron {
+        transform: rotate(-90deg);
+    }
+
+    .revision-reviewer-feedback-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .applicant-review-worksheet > summary strong {
+        color: #b45309;
+    }
+
+    .applicant-review-worksheet-body {
+        display: grid;
+        gap: 12px;
+        border-top: 1px solid #e5ebe7;
+        padding: 14px;
+    }
+
+    .applicant-review-worksheet-tabs,
+    .applicant-review-worksheet-controls {
+        display: flex;
+        align-items: end;
+        flex-wrap: wrap;
+        gap: 9px;
+    }
+
+    .applicant-review-worksheet-tabs button {
+        min-height: 38px;
+        border: 1px solid #cbd8d1;
+        border-radius: 6px;
+        padding: 8px 12px;
+        color: #34473c;
+        font: inherit;
+        font-weight: 700;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .applicant-review-worksheet-tabs button[aria-selected='true'] {
+        border-color: #b45309;
+        color: #92400e;
+        background: #fff8e8;
+    }
+
+    .applicant-review-worksheet-body section {
+        display: grid;
+        gap: 10px;
+    }
+
+    .applicant-review-worksheet-body section[hidden] {
+        display: none;
+    }
+
+    .applicant-review-worksheet-controls label {
+        display: grid;
+        gap: 4px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .applicant-review-worksheet-controls select {
+        width: min(330px, 70vw);
+        border: 1px solid #cbd8d1;
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #fff;
+    }
+
+    .applicant-review-worksheet-controls a {
+        color: #176f3d;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .applicant-review-worksheet iframe {
+        width: 100%;
+        min-height: 560px;
+        border: 1px solid #dce5e0;
+        border-radius: 6px;
+        background: #f4f7f5;
     }
 
     .revision-empty-state {
@@ -10703,6 +11131,44 @@
         font-weight: 700;
     }
 
+    .revision-requirement-copy span a {
+        margin-left: 6px;
+        color: #176f3d;
+        font-weight: 700;
+    }
+
+    .revision-requirement-list .revision-requirement-actions [data-revision-upload-form] {
+        display: grid;
+        gap: 5px;
+        border: 0;
+        padding: 0;
+    }
+
+    .revision-file-control {
+        position: relative;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        max-width: 260px;
+        cursor: pointer;
+    }
+
+    .revision-file-control input {
+        width: 1px;
+        height: 1px;
+        position: absolute;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .revision-file-control [data-revision-file-name] {
+        max-width: 190px;
+        overflow: hidden;
+        color: inherit !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .revision-requirement-list form {
         grid-column: 1 / -1;
         display: flex;
@@ -10744,6 +11210,37 @@
     .certificate-action-state h3,
     .certificate-action-state p {
         margin: 0;
+    }
+
+    .applicant-certificate-list {
+        width: 100%;
+        display: grid;
+        gap: 9px;
+    }
+
+    .applicant-certificate-list article {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid #dce5e0;
+        border-radius: 7px;
+        padding: 10px;
+        background: #fff;
+    }
+
+    .applicant-certificate-list article > div {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .applicant-certificate-list article > div:first-child {
+        display: grid;
+        justify-items: start;
+        gap: 3px;
+        text-align: left;
     }
 
     .revision-version-history {
@@ -11170,7 +11667,7 @@
     }
 
     .revision-progress {
-        grid-template-columns: repeat(5, minmax(130px, 1fr));
+        grid-template-columns: repeat(3, minmax(130px, 1fr));
         overflow-x: auto;
     }
 
@@ -11195,6 +11692,14 @@
 }
 
 @media (max-width: 620px) {
+    .application-recipient-entry {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .application-recipient-entry .dashboard-outline-action {
+        width: 100%;
+    }
+
     .revision-status-overview dl,
     .certificate-bulk-summary dl,
     .certificate-queue-metadata,
@@ -12638,14 +13143,8 @@
         text-decoration: underline;
     }
 
-    .reviewer-inline-form-host {
-        min-width: 0;
-    }
-
     .reviewer-inline-form-shell {
         min-width: 0;
-        border-top: 1px solid #dce5e0;
-        background: #fbfdfb;
     }
 
     .reviewer-inline-form-shell[hidden] {

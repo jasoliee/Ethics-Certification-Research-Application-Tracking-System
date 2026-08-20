@@ -27,7 +27,6 @@
         <header class="dashboard-page-heading reviewer-assignment-detail-heading">
             <div>
                 <h1>Review Workspace</h1>
-                <p>Complete the assigned blind review, record comments, and submit your recommendation.</p>
             </div>
             <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.show', $assignment) }}">
                 <x-dashboard.icon name="arrow-left" size="17" />
@@ -71,7 +70,7 @@
         {{-- Desktop mirrors the high-fidelity three-column workspace; smaller viewports stack without losing controls. --}}
         <div class="reviewer-review-studio" data-reviewer-review-studio>
             <aside class="application-panel reviewer-document-library" aria-label="Submitted documents">
-                <header class="application-panel-heading"><div><h2>Documents</h2><p>Select a current private file.</p></div></header>
+                <header class="application-panel-heading"><div><h2>Documents</h2></div></header>
                 @if ($application->documents->isEmpty())
                     <p class="reviewer-empty-copy">No supporting documents are available.</p>
                 @else
@@ -142,7 +141,7 @@
             <aside class="reviewer-review-rail">
                 <details class="application-panel reviewer-workflow-accordion reviewer-comments-panel">
                 <summary class="application-panel-heading reviewer-workflow-accordion-summary">
-                    <div><h2>Review Comment</h2><p>Comments stay confidential and are not visible to the Applicant before official release.</p></div>
+                    <div><h2>Review Comment</h2></div>
                     <span data-reviewer-comment-count>
                         <x-dashboard.status-badge :label="$commentTotal.' recorded'" tone="neutral" data-reviewer-comment-total="{{ $commentTotal }}" />
                     </span>
@@ -183,7 +182,6 @@
                             @endforeach
                         </select>
                     </div>
-                    <p class="reviewer-comment-guidance">Choose Entire Application for an overall comment, or choose one current document for a document-linked comment.</p>
                     <div class="application-field application-field-full">
                         <label for="review-comment-body">Comment</label>
                         <textarea id="review-comment-body" name="body" rows="4" minlength="3" maxlength="2000" @disabled(! $canWrite) required>{{ old('body') }}</textarea>
@@ -227,7 +225,7 @@
 
                 <details class="application-panel reviewer-workflow-accordion reviewer-form-panel reviewer-worksheet-launch-panel" data-reviewer-worksheet-accordion>
                     <summary class="application-panel-heading reviewer-workflow-accordion-summary">
-                        <div><h2>Review Worksheet</h2><p>Complete both official worksheets before submitting the decision.</p></div>
+                        <div><h2>Review Worksheet</h2></div>
                         <x-dashboard.status-badge :label="$completedForms.' / 2 completed'" :tone="$completedForms === 2 ? 'success' : 'orange'" data-reviewer-forms-summary />
                         <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
                     </summary>
@@ -305,13 +303,12 @@
                                 </article>
                             @endforeach
                         </div>
-                        <div class="reviewer-inline-form-host" data-reviewer-inline-forms></div>
                     </div>
                 </details>
 
                 <details class="application-panel reviewer-workflow-accordion reviewer-decision-panel">
                     <summary class="application-panel-heading reviewer-workflow-accordion-summary">
-                        <div><h2>Review Assessment</h2><p>Save a draft or submit after both required worksheets are complete.</p></div>
+                        <div><h2>Review Assessment</h2></div>
                         <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
                     </summary>
                     <div class="reviewer-workflow-accordion-body">
@@ -371,7 +368,6 @@
                 <header class="application-panel-heading">
                     <div>
                         <h2 id="reviewer-revision-history-title">Previous Versions and Comments</h2>
-                        <p>Read-only reference from earlier authorized review cycles. Historical comments never enter the current composer.</p>
                     </div>
                     <x-dashboard.status-badge :label="'Revision '.$assignment->review_cycle" tone="violet" />
                 </header>
@@ -599,12 +595,12 @@
                     : $form?->recommendation?->value;
             @endphp
             <section
-                class="reviewer-inline-form-shell"
+                class="application-modal-backdrop reviewer-inline-form-shell"
                 id="reviewer-inline-form-{{ $type->value }}"
                 data-reviewer-form-dialog="{{ $type->value }}"
                 @if ($errors->reviewerForm->any() && old('form_type') === $type->value) data-open-on-load @else hidden @endif
             >
-                <div class="reviewer-inline-form" aria-labelledby="reviewer-form-{{ $type->value }}-title" tabindex="-1">
+                <div class="application-modal reviewer-inline-form" role="dialog" aria-modal="true" aria-labelledby="reviewer-form-{{ $type->value }}-title" tabindex="-1">
                     <header class="application-modal-heading reviewer-inline-form-heading">
                         <span class="application-modal-icon"><x-dashboard.icon name="clipboard" size="24" /></span>
                         <div>
@@ -659,7 +655,7 @@
                             </fieldset>
                         @endif
 
-                        <div class="reviewer-form-question-list" @if ($type === \App\Enums\ReviewFormType::InformedConsent) data-reviewer-consent-dependent @if ((string) $consentValue === '0') hidden @endif @endif>
+                        <div class="reviewer-form-question-list" @if ($type === \App\Enums\ReviewFormType::InformedConsent) data-reviewer-consent-dependent @if ((string) $consentValue !== '1') hidden @endif @endif>
                             @foreach ($catalog['items'] as $questionKey => $item)
                                 @php
                                     $question = $item['text'];
@@ -677,7 +673,7 @@
                                     </legend>
                                     <div class="reviewer-form-answer-options">
                                         @foreach ($catalog['answers'] as $answerValue => $answerLabel)
-                                            <label><input type="radio" name="responses[{{ $questionKey }}][answer]" value="{{ $answerValue }}" @checked($savedAnswer === $answerValue) @disabled(! $formCanWrite || ($type === \App\Enums\ReviewFormType::InformedConsent && (string) $consentValue === '0')) @required($loop->first && $formCanWrite && ! ($type === \App\Enums\ReviewFormType::InformedConsent && (string) $consentValue === '0'))> {{ $answerLabel }}</label>
+                                            <label><input type="radio" name="responses[{{ $questionKey }}][answer]" value="{{ $answerValue }}" @checked($savedAnswer === $answerValue) @disabled(! $formCanWrite || ($type === \App\Enums\ReviewFormType::InformedConsent && (string) $consentValue !== '1')) @required($loop->first && $formCanWrite && ! ($type === \App\Enums\ReviewFormType::InformedConsent && (string) $consentValue !== '1'))> {{ $answerLabel }}</label>
                                         @endforeach
                                     </div>
                                     @if ($type === \App\Enums\ReviewFormType::Protocol)

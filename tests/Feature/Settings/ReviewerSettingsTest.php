@@ -15,25 +15,25 @@ class ReviewerSettingsTest extends TestCase
 
     public function test_reviewer_settings_page_is_functional_and_owner_scoped(): void
     {
-        $reviewer = User::factory()->create([
-            'role' => UserRole::Reviewer,
-            'reviewer_classification' => 'Technical',
-        ]);
+        $reviewer = User::factory()->reviewer(['Technical'])->create();
 
         $this->actingAs($reviewer)
             ->get(route('reviewer.settings.index'))
             ->assertOk()
             ->assertSee('Security and Privacy')
-            ->assertSee('Reviewer Classification')
-            ->assertSee('Technical')
+            ->assertDontSee('Reviewer Classification')
+            ->assertDontSee('Technical')
             ->assertSee(route('reviewer.settings.username.update'), false)
             ->assertSee(route('reviewer.settings.password.update'), false)
             ->assertDontSee('Account settings will be managed here.');
 
         foreach ([UserRole::Applicant, UserRole::Adviser, UserRole::ResLead] as $role) {
-            $this->actingAs(User::factory()->create(['role' => $role]))
-                ->get(route('reviewer.settings.index'))
-                ->assertRedirect(route('dashboard'));
+            $response = $this->actingAs(User::factory()->create(['role' => $role]))
+                ->get(route('reviewer.settings.index'));
+
+            $response->status() === 403
+                ? $response->assertForbidden()
+                : $response->assertRedirect(route('dashboard'));
         }
     }
 

@@ -6,7 +6,6 @@
         <header class="dashboard-page-heading-row identity-page-heading">
             <div class="dashboard-page-heading">
                 <h1>{{ $isResLead ? 'User Management' : 'Applicant Accounts' }}</h1>
-                <p>{{ $isResLead ? 'Manage researcher and Adviser accounts, including supplementary Reviewer access.' : 'Manage the student and faculty researcher accounts assigned to you.' }}</p>
             </div>
 
             <div class="identity-heading-actions">

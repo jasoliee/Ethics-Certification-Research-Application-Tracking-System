@@ -43,7 +43,7 @@ class DashboardNavigationTest extends TestCase
             ->assertSee('href="'.route('dashboard').'"', false)
             ->assertSee('<span aria-current="page">Settings</span>', false)
             ->assertSeeInOrder(['dashboard-topbar', 'dashboard-breadcrumbs', 'dashboard-content'], false)
-            ->assertSee('Account settings will be managed here.');
+            ->assertSee('Editable Profile Information');
     }
 
     public function test_non_sidebar_dashboard_actions_and_notification_pages_also_resolve(): void

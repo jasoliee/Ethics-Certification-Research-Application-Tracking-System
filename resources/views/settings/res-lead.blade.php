@@ -11,7 +11,9 @@
             fn (string $key): bool => str_starts_with($key, 'processes.')
                 || in_array($key, ['semester', 'academic_year', 'term_starts_on', 'term_ends_on'], true)
         );
-        $profileHasErrors = $errors->getBag('signatory')->any() || collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'position_title', 'certificate_signatory_name', 'signature'])
+        $profileHasErrors = collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'position_title'])
+            ->contains(fn (string $field): bool => $errors->has($field));
+        $certificateHasErrors = $errors->getBag('signatory')->any() || collect(['certificate_signatory_name', 'certificate_valid_until', 'signature', 'qr_image'])
             ->contains(fn (string $field): bool => $errors->has($field));
         $securityHasErrors = $errors->has('username') || $errors->has('email') || collect($passwordFields)->contains(
             fn (array $field): bool => $errors->has($field[0])
@@ -20,12 +22,13 @@
         $backgroundsHaveErrors = $errors->getBag('certificateBackground')->any() || $errors->has('background') || $errors->has('background_type');
         $requestedTab = request('tab');
         $initialTab = old('settings_tab')
-            ?: ($securityHasErrors ? 'security'
+            ?: ($certificateHasErrors ? 'certificate'
+                : ($securityHasErrors ? 'security'
                 : ($deadlineHasErrors ? 'deadlines'
                     : ($optionsHaveErrors ? 'options'
                         : ($backgroundsHaveErrors ? 'backgrounds'
                             : ($profileHasErrors ? 'profile'
-                                : (in_array($requestedTab, ['profile', 'deadlines', 'options', 'backgrounds', 'security'], true) ? $requestedTab : 'profile'))))));
+                                : (in_array($requestedTab, ['profile', 'deadlines', 'options', 'backgrounds', 'certificate', 'security'], true) ? $requestedTab : 'profile')))))));
         $processIcons = [
             'application-submission' => 'file-text',
             'adviser-endorsement' => 'user-check',
@@ -67,6 +70,10 @@
                 <x-dashboard.icon name="image" size="18" />
                 <span>Background Management</span>
             </button>
+            <button id="settings-tab-certificate" type="button" role="tab" aria-controls="settings-panel-certificate" aria-selected="{{ $initialTab === 'certificate' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'certificate' ? '0' : '-1' }}" data-settings-tab="certificate">
+                <x-dashboard.icon name="award" size="18" />
+                <span>Certificate Configuration</span>
+            </button>
             <button id="settings-tab-security" type="button" role="tab" aria-controls="settings-panel-security" aria-selected="{{ $initialTab === 'security' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'security' ? '0' : '-1' }}" data-settings-tab="security">
                 <x-dashboard.icon name="lock" size="18" />
                 <span>Security and Privacy</span>
@@ -99,33 +106,69 @@
 
                 @include('settings.partials.profile-form')
 
+            </section>
+        </section>
+
+        <section
+            class="settings-tab-panel"
+            id="settings-panel-certificate"
+            role="tabpanel"
+            aria-labelledby="settings-tab-certificate"
+            data-settings-panel="certificate"
+            @if ($initialTab !== 'certificate') hidden @endif
+        >
+            <section class="settings-section" aria-labelledby="certificate-configuration-title">
+                <div class="settings-section-heading">
+                    <span><x-dashboard.icon name="award" size="23" /></span>
+                    <div><h2 id="certificate-configuration-title">Certificate Configuration</h2></div>
+                </div>
+
                 <form class="settings-account-form settings-signatory-form" method="POST" action="{{ route('res.settings.signatory.update') }}" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
-                    <input type="hidden" name="settings_tab" value="profile">
-                    <div>
-                        <h3>Certificate Signatory</h3>
-                        <p>The current authorized printed name and transparent signature are used only for certificates generated after this change.</p>
-                    </div>
-                    <div class="settings-signatory-grid">
-                        <div class="settings-field">
-                            <label for="certificate_signatory_name">Printed Signatory Name</label>
-                            <input id="certificate_signatory_name" name="certificate_signatory_name" type="text" value="{{ old('certificate_signatory_name', $settingsUser->certificate_signatory_name ?: $settingsUser->name) }}" maxlength="120" required>
-                            @error('certificate_signatory_name')<span class="settings-field-error">{{ $message }}</span>@enderror
+                    <input type="hidden" name="settings_tab" value="certificate">
+                    <div class="settings-certificate-grid">
+                        <div class="settings-certificate-identity">
+                            <div class="settings-field">
+                                <label for="certificate_signatory_name">Printed Signatory Name</label>
+                                <input id="certificate_signatory_name" name="certificate_signatory_name" type="text" value="{{ old('certificate_signatory_name', $settingsUser->certificate_signatory_name ?: $settingsUser->name) }}" maxlength="120" required>
+                                @error('certificate_signatory_name')<span class="settings-field-error">{{ $message }}</span>@enderror
+                            </div>
+                            <div class="settings-field">
+                                <label for="certificate_valid_until">Valid Until</label>
+                                <input id="certificate_valid_until" name="certificate_valid_until" type="date" value="{{ old('certificate_valid_until', $settingsUser->certificate_valid_until?->format('Y-m-d') ?? now()->addYearNoOverflow()->format('Y-m-d')) }}" min="{{ now()->format('Y-m-d') }}" required>
+                                @error('certificate_valid_until')<span class="settings-field-error">{{ $message }}</span>@enderror
+                            </div>
                         </div>
-                        <div class="settings-field">
-                            <label for="settings_signature">Transparent PNG Signature</label>
-                            <input id="settings_signature" name="signature" type="file" accept="image/png,.png">
-                            <small>PNG only, up to 2 MB, 64×32 through 2400×1200 pixels, with transparency.</small>
+                        <div class="settings-certificate-upload">
+                            <span>Transparent PNG Signature</span>
+                            <label class="settings-file-control" for="settings_signature" data-settings-file-control>
+                                <x-dashboard.icon name="upload" size="17" />
+                                <span data-settings-file-label>Choose File</span>
+                                <input id="settings_signature" name="signature" type="file" accept="image/png,.png">
+                            </label>
                             @error('signature')<span class="settings-field-error">{{ $message }}</span>@enderror
                             @error('signature', 'signatory')<span class="settings-field-error">{{ $message }}</span>@enderror
                         </div>
                         <div class="settings-signature-preview">
-                            <span>Current signature</span>
+                            <span>Current Signature</span>
                             <img src="{{ route('res.settings.signatory.preview') }}" alt="Current authorized RES certificate signature">
                         </div>
+                        <div class="settings-certificate-upload">
+                            <span>QR Image</span>
+                            <label class="settings-file-control" for="settings_qr_image" data-settings-file-control>
+                                <x-dashboard.icon name="upload" size="17" />
+                                <span data-settings-file-label>Choose File</span>
+                                <input id="settings_qr_image" name="qr_image" type="file" accept="image/png,.png">
+                            </label>
+                            @error('qr_image')<span class="settings-field-error">{{ $message }}</span>@enderror
+                            @error('qr_image', 'signatory')<span class="settings-field-error">{{ $message }}</span>@enderror
+                            @if ($settingsUser->certificate_qr_path)
+                                <img class="settings-qr-preview" src="{{ route('res.settings.certificate-qr.preview') }}" alt="Current certificate QR code">
+                            @endif
+                        </div>
                     </div>
-                    <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>Save Signatory</span></button>
+                    <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>Save Certificate Configuration</span></button>
                 </form>
             </section>
         </section>
@@ -150,7 +193,7 @@
                     <div class="identity-field">
                         <label for="settings_option_field">Option Group</label>
                         <select id="settings_option_field" name="option_field" required>
-                            @foreach (\App\Enums\ProfileOptionField::cases() as $field)
+                            @foreach (\App\Enums\ProfileOptionField::managedCases() as $field)
                                 <option value="{{ $field->value }}" @selected(old('option_field') === $field->value)>{{ $field->label() }}</option>
                             @endforeach
                         </select>

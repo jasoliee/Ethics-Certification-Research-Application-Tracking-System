@@ -150,6 +150,8 @@ class ResLeadSettingsController extends Controller
             $request->user(),
             $request->validated('certificate_signatory_name'),
             $request->file('signature'),
+            $request->validated('certificate_valid_until'),
+            $request->file('qr_image'),
         );
 
         return back()->with('status', 'The certificate signatory was updated for future certificates.');
@@ -178,6 +180,24 @@ class ResLeadSettingsController extends Controller
         return response()->file(
             base_path(SignatorySettingsService::OFFICIAL_SIGNATURE_RESOURCE),
             $this->privateHeaders('image/png'),
+        );
+    }
+
+    public function previewCertificateQr(Request $request): StreamedResponse
+    {
+        abort_unless($request->user()->can('manageCertificateSignatory', $request->user()), 403);
+        $user = $request->user();
+        $disk = Storage::disk('local');
+        abort_unless(filled($user->certificate_qr_path) && $disk->exists($user->certificate_qr_path), 404);
+        $actualHash = hash_file('sha256', $disk->path($user->certificate_qr_path));
+        abort_unless(is_string($actualHash)
+            && hash_equals((string) $user->certificate_qr_sha256, $actualHash), 404);
+
+        return $disk->response(
+            $user->certificate_qr_path,
+            'certificate-qr.png',
+            $this->privateHeaders('image/png'),
+            'inline',
         );
     }
 

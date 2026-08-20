@@ -19,8 +19,6 @@ class ReleaseApplicationDecisionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'review_submission_id' => ['required', 'integer', 'exists:review_submissions,id'],
-        ];
+        return [];
     }
 }

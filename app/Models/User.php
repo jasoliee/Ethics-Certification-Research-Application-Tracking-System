@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -34,11 +35,17 @@ use Illuminate\Notifications\Notifiable;
     'position_title',
     'expected_endorsement_count',
     'certificate_signatory_name',
+    'certificate_valid_until',
     'certificate_signature_path',
     'certificate_signature_sha256',
     'certificate_signature_width',
     'certificate_signature_height',
     'certificate_signature_uploaded_at',
+    'certificate_qr_path',
+    'certificate_qr_sha256',
+    'certificate_qr_width',
+    'certificate_qr_height',
+    'certificate_qr_uploaded_at',
     'reviewer_classification',
     'reviewer_classifications',
     'reviewer_capacity',
@@ -77,6 +84,10 @@ class User extends Authenticatable
             'certificate_signature_width' => 'integer',
             'certificate_signature_height' => 'integer',
             'certificate_signature_uploaded_at' => 'datetime',
+            'certificate_valid_until' => 'date',
+            'certificate_qr_width' => 'integer',
+            'certificate_qr_height' => 'integer',
+            'certificate_qr_uploaded_at' => 'datetime',
             'reviewer_capacity' => 'integer',
             'reviewer_enabled' => 'boolean',
             'reviewer_classifications' => 'array',
@@ -218,5 +229,10 @@ class User extends Authenticatable
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class, 'actor_user_id');
+    }
+
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(DatabaseNotification::class, 'notifiable')->latest();
     }
 }

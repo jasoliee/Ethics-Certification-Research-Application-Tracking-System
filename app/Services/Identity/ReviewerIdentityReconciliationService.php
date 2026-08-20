@@ -121,14 +121,8 @@ class ReviewerIdentityReconciliationService
                 }
             }
 
-            $classifications = collect([
-                ...$target->reviewerClassificationLabels(),
-                ...$source->reviewerClassificationLabels(),
-            ])->unique()->values()->all();
             $target->forceFill([
                 'reviewer_enabled' => true,
-                'reviewer_classifications' => $classifications ?: null,
-                'reviewer_classification' => $classifications[0] ?? null,
                 'reviewer_capacity' => max(
                     (int) ($target->reviewer_capacity ?? 0),
                     (int) ($source->reviewer_capacity ?? 0),

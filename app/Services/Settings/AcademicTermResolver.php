@@ -68,6 +68,12 @@ class AcademicTermResolver
      */
     public function applyFilters(Builder $query, array $filters): Builder
     {
+        $academicTermId = $filters['academic_term_id'] ?? null;
+
+        if (filled($academicTermId)) {
+            return $query->where('academic_term_id', (int) $academicTermId);
+        }
+
         $semester = trim((string) ($filters['semester'] ?? ''));
         $academicYear = trim((string) ($filters['academic_year'] ?? ''));
 

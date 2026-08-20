@@ -4,7 +4,6 @@
     <div class="dashboard-page">
         <header class="dashboard-page-heading">
             <h1>Welcome back, Adviser!</h1>
-            <p>Manage research ethics applications.</p>
         </header>
 
         {{-- Adviser summary cards keep role-scoped application counts in the shared centered layout. --}}

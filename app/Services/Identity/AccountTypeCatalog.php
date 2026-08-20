@@ -139,6 +139,8 @@ class AccountTypeCatalog
                     'Institution' => 'institution',
                     'Department' => 'department',
                     'Position / Designation' => 'position_title',
+                    'Reviewer Enabled' => 'reviewer_enabled',
+                    'Reviewer Capacity' => 'reviewer_capacity',
                 ],
                 'example_values' => [
                     'first_name' => 'Roberto',
@@ -151,6 +153,8 @@ class AccountTypeCatalog
                     'institution' => 'Institute of Engineering',
                     'department' => 'Engineering Studies',
                     'position_title' => 'Research Adviser',
+                    'reviewer_enabled' => 'Yes',
+                    'reviewer_capacity' => '6',
                 ],
             ],
             default => throw new AuthorizationException('Unknown account type.'),

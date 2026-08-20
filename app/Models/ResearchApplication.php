@@ -4,9 +4,9 @@ namespace App\Models;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ResearchType;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewDecision;
-use App\Enums\ResearchType;
 use Database\Factories\ResearchApplicationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -127,6 +127,16 @@ class ResearchApplication extends Model
         return $this->hasOne(Certificate::class);
     }
 
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
+    }
+
+    public function certificateRecipients(): HasMany
+    {
+        return $this->hasMany(ApplicationCertificateRecipient::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Resolve the database-enforced single initial RES screening decision.
      */
@@ -179,5 +189,14 @@ class ResearchApplication extends Model
         }
 
         return $this->expected_duration ?: 'Not specified';
+    }
+
+    public function statusLabel(): string
+    {
+        if ($this->application_status === ApplicationStatus::RevisionWindowOpen) {
+            return 'For Revision C'.max(1, ((int) $this->current_revision_cycle) - 1);
+        }
+
+        return $this->application_status->label();
     }
 }

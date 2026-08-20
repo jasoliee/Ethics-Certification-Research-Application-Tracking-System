@@ -8,7 +8,6 @@
     <div class="dashboard-page application-workspace res-workflow-page">
         <header class="dashboard-page-heading">
             <h1>Applications Queue</h1>
-            <p>View adviser-endorsed submissions, track current status, and open records requiring RES action.</p>
         </header>
 
         {{-- Queue filters mirror the approved screening fields and remain outside the table overflow region. --}}
@@ -45,6 +44,16 @@
                     <option value="">All institutes / programs</option>
                     @foreach ($affiliations as $affiliation)
                         <option value="{{ $affiliation }}" @selected(($filters['affiliation'] ?? '') === $affiliation)>{{ $affiliation }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="application-field res-filter-term">
+                <label for="res-academic-term">Academic Term</label>
+                <select id="res-academic-term" name="academic_term_id">
+                    <option value="">All</option>
+                    @foreach ($termOptions as $term)
+                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                     @endforeach
                 </select>
             </div>

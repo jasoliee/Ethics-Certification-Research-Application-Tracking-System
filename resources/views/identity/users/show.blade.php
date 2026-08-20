@@ -94,7 +94,6 @@
                     <div><dt>Position / Designation</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->position_title ?: 'Not provided' }}">{{ $managedUser->position_title ?: 'Not provided' }}</dd></div>
                     @if ($reviewerProfile)
                         <div><dt>Reviewer Access</dt><dd><x-dashboard.status-badge :label="$reviewerProfile['enabled'] ? 'Shown' : 'Hidden'" :tone="$reviewerProfile['enabled'] ? 'green' : 'neutral'" /></dd></div>
-                        <div><dt>Reviewer Classifications</dt><dd class="identity-table-truncate" data-table-tooltip="{{ implode(', ', $reviewerProfile['classifications']) ?: 'Not configured' }}">{{ implode(', ', $reviewerProfile['classifications']) ?: 'Not configured' }}</dd></div>
                         <div><dt>Reviewer Capacity</dt><dd>{{ $reviewerProfile['capacity'] > 0 ? $reviewerProfile['capacity'] : 'Not configured' }}</dd></div>
                         <div><dt>Active Review Load</dt><dd>{{ $reviewerProfile['active_load'] }}{{ $reviewerProfile['capacity'] > 0 ? ' / '.$reviewerProfile['capacity'] : '' }}</dd></div>
                         <div><dt>Available Review Capacity</dt><dd>{{ $reviewerProfile['available_capacity'] }}</dd></div>

@@ -96,7 +96,6 @@
                     <span data-application-file-name>No file selected</span>
                     <label class="dashboard-outline-action" for="document_{{ $requirement->id }}"><x-dashboard.icon name="upload" size="17" /><span>Choose File</span></label>
                 </div>
-                <button class="dashboard-primary-action" type="submit">Upload</button>
             </form>
         @endif
         <span class="application-upload-feedback" role="status" data-upload-feedback></span>

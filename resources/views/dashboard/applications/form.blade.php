@@ -8,6 +8,13 @@
         $selectedResearchType = old('research_type', $application?->research_type?->value);
         $expectedStartDate = old('expected_start_date', $application?->expected_start_date?->format('Y-m-d'));
         $expectedEndDate = old('expected_end_date', $application?->expected_end_date?->format('Y-m-d'));
+        $persistedRecipientNames = $application
+            ? $application->certificateRecipients()->pluck('recipient_name')->all()
+            : [auth()->user()->name];
+        $certificateRecipientNames = collect(old(
+            'certificate_recipients',
+            $persistedRecipientNames,
+        ))->filter(fn ($name) => filled($name))->values();
     @endphp
 
     <div class="dashboard-page application-workspace">
@@ -83,6 +90,35 @@
                         @error('adviser_user_id')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
                     </div>
+                </div>
+            </section>
+
+            <section class="application-form-section" aria-labelledby="certificate-recipients-title" data-certificate-recipients>
+                <header class="application-form-section-heading">
+                    <span aria-hidden="true"><x-dashboard.icon name="users" size="18" /></span>
+                    <h2 id="certificate-recipients-title">Certificate Recipients</h2>
+                </header>
+                <div class="application-form-section-body application-recipient-builder">
+                    <p>Enter the name of each member one at a time. Click "Add Name" after entering each name. Use the format: First Name M.I. Last Name (e.g., John S. Doe).</p>
+                    <div class="application-recipient-entry">
+                        <label class="application-field" for="certificate_recipient_name">
+                            <span>Member Name</span>
+                            <input id="certificate_recipient_name" maxlength="180" autocomplete="name" data-certificate-recipient-input>
+                        </label>
+                        <button class="dashboard-outline-action" type="button" data-certificate-recipient-add>Add Name</button>
+                    </div>
+                    <p class="application-upload-feedback" role="status" aria-live="polite" data-certificate-recipient-feedback></p>
+                    <ul class="application-recipient-list" aria-label="Added certificate recipient names" data-certificate-recipient-list>
+                        @foreach ($certificateRecipientNames as $recipientName)
+                            <li data-certificate-recipient>
+                                <span>{{ $recipientName }}</span>
+                                <input type="hidden" name="certificate_recipients[]" value="{{ $recipientName }}">
+                                <button type="button" aria-label="Remove {{ $recipientName }}" data-certificate-recipient-remove>Remove</button>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @error('certificate_recipients')<span class="identity-field-error">{{ $message }}</span>@enderror
+                    @error('certificate_recipients.*')<span class="identity-field-error">{{ $message }}</span>@enderror
                 </div>
             </section>
 

@@ -44,17 +44,10 @@ class UpdateManagedUserRequest extends FormRequest
                 'max:150',
                 Rule::in($options->values(ProfileOptionField::YearLevel, $subject->year_level)),
             ],
-            'position_title' => [Rule::requiredIf($subject->role === UserRole::Adviser), 'nullable', 'string', 'max:150'],
-            'reviewer_classifications' => [
-                Rule::requiredIf($subject->role === UserRole::Adviser && (bool) $subject->reviewer_enabled),
-                'nullable',
-                'array',
-                'min:1',
-                'max:2',
-            ],
-            'reviewer_classifications.*' => ['string', 'distinct', Rule::in(['Expedited', 'Full Board'])],
+            'position_title' => ['nullable', 'string', 'max:150'],
+            'reviewer_enabled' => [Rule::prohibitedIf($subject->role !== UserRole::Adviser), 'nullable', 'boolean'],
             'reviewer_capacity' => [
-                Rule::requiredIf($subject->role === UserRole::Adviser && (bool) $subject->reviewer_enabled),
+                Rule::requiredIf($subject->role === UserRole::Adviser && $this->boolean('reviewer_enabled')),
                 'nullable',
                 'integer',
                 'between:1,30',
@@ -77,9 +70,7 @@ class UpdateManagedUserRequest extends FormRequest
             'department.in' => $options->validationMessage(ProfileOptionField::Department),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classifications.required' => 'Select at least one Reviewer Classification while Reviewer access is shown.',
-            'reviewer_classifications.min' => 'Select at least one Reviewer Classification while Reviewer access is shown.',
-            'reviewer_classifications.*.in' => 'Reviewer Classification must be Expedited or Full Board.',
+            'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
         ];
     }
 }

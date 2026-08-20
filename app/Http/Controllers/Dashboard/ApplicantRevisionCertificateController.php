@@ -7,6 +7,7 @@ use App\Enums\ApplicationStatus;
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
 use App\Enums\CertificationState;
+use App\Enums\ReviewFormType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Applicant\StoreApplicantSurveyRequest;
 use App\Http\Requests\Applicant\SubmitApplicantRevisionRequest;
@@ -20,20 +21,27 @@ use App\Services\Applications\ApplicationDocumentService;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
 use App\Services\Certificates\ApplicantCertificateService;
 use App\Services\Certificates\CertificationEligibilityService;
+use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApplicantRevisionCertificateController extends Controller
 {
-    public function index(Request $request, CertificationEligibilityService $eligibility): View
+    public function index(
+        Request $request,
+        CertificationEligibilityService $eligibility,
+        AcademicTermResolver $terms,
+    ): View
     {
         $filters = $request->validate([
             'application' => ['nullable', 'integer'],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
         ]);
         $query = ResearchApplication::query()
             ->where('applicant_user_id', $request->user()->id)
@@ -52,8 +60,9 @@ class ApplicantRevisionCertificateController extends Controller
                     ApplicationStatus::CertificateReleased->value,
                 ])->orWhereHas('revisions')->orWhereHas('certificate');
             });
+        $terms->applyFilters($query, $filters);
         $applications = (clone $query)
-            ->select(['id', 'application_code', 'research_title', 'application_status', 'current_stage', 'status_updated_at'])
+            ->select(['id', 'academic_term_id', 'application_code', 'research_title', 'application_status', 'current_stage', 'status_updated_at'])
             ->latest('status_updated_at')
             ->latest('id')
             ->paginate(12)
@@ -68,11 +77,14 @@ class ApplicantRevisionCertificateController extends Controller
             'pageTitle' => 'Revision and Certificates',
             'applications' => $applications,
             'selectedApplication' => $selected,
+            'filters' => $filters,
+            'termOptions' => $terms->filterOptions(),
             'latestRelease' => null,
             'activeRevision' => null,
             'releasedReviewerGroups' => collect(),
             'documentVersions' => collect(),
             'requirementFeedbackGroups' => collect(),
+            'worksheetGroups' => collect(),
             'certificationState' => null,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
@@ -112,6 +124,9 @@ class ApplicantRevisionCertificateController extends Controller
                 ->orderByDesc('document_version')
                 ->orderByDesc('id'),
             'certificate.currentVersion.background:id,asset_version,source_kind',
+            'certificates' => fn ($certificates) => $certificates
+                ->with('currentVersion.background:id,asset_version,source_kind')
+                ->orderBy('id'),
             'surveyResponse',
         ]);
 
@@ -160,6 +175,34 @@ class ApplicantRevisionCertificateController extends Controller
                 'comment_count' => $overallComments->count(),
             ]);
         }
+        $worksheetAssignments = $latestRelease
+            ? $selected->reviewerAssignments()
+                ->where('review_cycle', $latestRelease->review_cycle)
+                ->with([
+                    'reviewSubmissionVersions' => fn ($versions) => $versions
+                        ->with(['artifacts.formSubmission'])
+                        ->orderBy('version_number'),
+                ])
+                ->orderBy('assignment_sequence')
+                ->orderBy('id')
+                ->get()
+            : collect();
+        $worksheetGroups = collect(ReviewFormType::cases())->map(function (ReviewFormType $type) use ($worksheetAssignments): array {
+            $artifacts = $worksheetAssignments->values()->flatMap(
+                fn ($assignment, int $reviewerIndex) => $assignment->reviewSubmissionVersions->flatMap(
+                    fn ($version) => $version->artifacts
+                        ->filter(fn ($artifact): bool => $artifact->formSubmission?->form_type === $type)
+                        ->map(fn ($artifact): array => [
+                            'artifact' => $artifact,
+                            'assignment' => $assignment,
+                            'reviewer_label' => 'Reviewer '.($reviewerIndex + 1),
+                            'version_number' => $version->version_number,
+                        ]),
+                ),
+            )->values();
+
+            return ['type' => $type, 'artifacts' => $artifacts];
+        })->filter(fn (array $group): bool => $group['artifacts']->isNotEmpty())->values();
         $activeRevision = $selected->revisions->first(
             fn (ApplicationRevision $revision): bool => in_array($revision->status, [
                 ApplicationRevisionStatus::PendingUploads,
@@ -175,6 +218,7 @@ class ApplicantRevisionCertificateController extends Controller
             'releasedReviewerGroups' => $releasedReviewerGroups,
             'documentVersions' => $documentVersions,
             'requirementFeedbackGroups' => $requirementFeedbackGroups,
+            'worksheetGroups' => $worksheetGroups,
             'certificationState' => $selected->application_status === ApplicationStatus::ForCertificateRelease
                 ? CertificationState::PendingResRelease
                 : $eligibility->state($selected),

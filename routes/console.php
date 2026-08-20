@@ -1,8 +1,17 @@
 <?php
 
+use App\Models\DatabaseNotification;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::call(fn () => DatabaseNotification::onlyTrashed()
+    ->where('deleted_at', '<=', now()->subDays(7))
+    ->forceDelete())
+    ->dailyAt('02:15')
+    ->name('purge-expired-notification-bin')
+    ->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

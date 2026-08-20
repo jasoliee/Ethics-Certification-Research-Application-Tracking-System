@@ -109,8 +109,8 @@ class ApplicationDocumentService
                     ->lockForUpdate()
                     ->get();
                 $current = $currentDocuments->firstWhere('is_current', true);
-                // Replacements within one revision cycle retain the same displayed document version.
-                $documentVersion = max(1, (int) $lockedApplication->current_revision_cycle);
+                // Initial-submission replacements remain Version 1 until a reviewed revision requires a new version.
+                $documentVersion = max(1, (int) ($current?->document_version ?? 1));
 
                 // Retain previous private files and database history while moving the current pointer atomically.
                 ApplicationDocument::query()
@@ -247,13 +247,21 @@ class ApplicationDocumentService
                     ])->errorBag('revisionUpload');
                 }
 
-                $targetVersion = ((int) $lockedRevision->revision_number) + 1;
                 $documents = ApplicationDocument::query()
                     ->where('research_application_id', $lockedApplication->id)
                     ->where('document_requirement_id', $lockedRequirement->document_requirement_id)
                     ->lockForUpdate()
                     ->get();
                 $current = $documents->firstWhere('is_current', true);
+                $existingRevisionReplacement = $documents->firstWhere(
+                    'id',
+                    $lockedRequirement->replacement_application_document_id,
+                );
+                // Increment only for the first actual replacement of this requirement in this review cycle.
+                // Re-uploading the same requirement before submission keeps that business version.
+                $targetVersion = $existingRevisionReplacement
+                    ? (int) $existingRevisionReplacement->document_version
+                    : max(1, (int) $documents->max('document_version')) + 1;
 
                 if ($current
                     && (int) $current->document_version === $targetVersion

@@ -11,7 +11,9 @@ class Certificate extends Model
 {
     protected $fillable = [
         'research_application_id',
+        'application_certificate_recipient_id',
         'applicant_user_id',
+        'recipient_name',
         'certificate_number',
         'status',
         'generation_failure_code',
@@ -44,6 +46,11 @@ class Certificate extends Model
     public function applicant(): BelongsTo
     {
         return $this->belongsTo(User::class, 'applicant_user_id')->withTrashed();
+    }
+
+    public function recipient(): BelongsTo
+    {
+        return $this->belongsTo(ApplicationCertificateRecipient::class, 'application_certificate_recipient_id');
     }
 
     public function versions(): HasMany

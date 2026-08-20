@@ -1,0 +1,867 @@
+DOOMSDAY HANDOFF - ECRATS AUGUST 20 UPDATE
+==========================================
+
+Prepared: 2026-08-20
+Repository: C:\Users\User\Documents\GitHub\KLD-ECRATS
+Branch: main
+Baseline before the handoff commit: 2ed8c94
+Original requirements: C:\Users\User\Downloads\DOOMSDAY-INPUT.txt
+
+This document describes the actual state of the working tree. It deliberately does not
+call a feature complete merely because code exists. The implementation was stopped when
+the DOOMSDAY protocol was received. No product code was changed after that instruction.
+
+
+1. ORIGINAL TASK
+================
+
+Implement the complete cross-viewport ECRATS update in DOOMSDAY-INPUT.txt while preserving
+private data and history, enforcing authorization server-side, using safe forward migrations,
+adding focused tests, validating responsive behavior, and updating documentation.
+
+The required business changes are:
+
+- Treat Full Board, Expedited, and Exempted as application classifications, never Reviewer
+  classifications. Adviser is the primary role and Reviewer is an RES-controlled capability.
+- Add Reviewer capability/capacity to individual Adviser creation and Adviser Excel import.
+- Revise the RES Decision & Certificates queue, modal, Full Board conflict behavior, and
+  application-level decision release. Approved consensus must automatically enter secure
+  certificate preparation without a separate decision-release action.
+- Correct certificate/review worksheet background uniqueness to be scoped by background type.
+- Enforce exact document business-version rules and worksheet cycle versions V1/V2/V3.
+- Correct certificate content, add validity/signature/QR configuration and immutable snapshots,
+  and generate one personalized certificate per applicant-supplied recipient name.
+- Replace Review Monitoring cards with reviewer/adviser tables, filters, and secure drill-downs.
+- Make initial and revision document selection upload automatically without Upload/Upload All.
+- Redesign Revision and Certificates status, navigation, three-step progress, feedback/version
+  panels, collapsible sections, and released worksheet access.
+- Prevent Minor/Major Revision decisions without at least one actionable revision comment.
+- Open Reviewer worksheets in modals, conditionally show consent questions, and retain private
+  access to the Reviewer's own prior comments.
+- Fix profile layout, preserve usernames during identity edits, show required profile summary
+  fields, use authorized same-origin previews, and align search icons.
+- Implement notification filtering, individual/bulk/all actions, a soft-delete Bin, restore and
+  permanent delete paths, 20-row pagination, and automatic seven-day purge.
+- Remove every specifically listed redundant subtext string.
+- Add server-side academic-term filtering to relevant applications, reviews, assignments,
+  certificates, monitoring, reports, and related workflow lists, with an All option.
+- Run automated/tooling/viewport validation and update implementation, changelog, testing,
+  manual-validation, plans, and known-issues documentation.
+
+
+2. COMPLETED
+============
+
+2.1 Reviewer capability and current eligibility rules
+-----------------------------------------------------
+
+- Current account creation/editing, profile catalogs, Reviewer capability summaries, spreadsheet
+  templates/import validation, assignment candidate queries, and reconciliation no longer use
+  Reviewer Full Board/Expedited classifications.
+- Adviser accounts can be reviewer-enabled and can receive Expedited or Full Board work.
+- Candidate eligibility remains constrained by active account/setup state, enabled capability,
+  declared capacity, conflicts, assignment limits, and whether the Adviser actually endorsed the
+  specific application. That endorser rule is revalidated server-side.
+- Historical classification columns and values were preserved rather than destructively removed.
+- TestingUserSeeder now seeds reviewertest as an Adviser with Reviewer capability and no current
+  classification values.
+- Main implementation: ReviewerEligibilityService, ReviewerCapabilityProfileService,
+  ReviewerIdentityReconciliationService, UserAccountService, ProfileOptionCatalog,
+  ProfileOptionField, User, the user-management views, and entitlement/workflow tests.
+
+2.2 Individual Adviser creation and bulk import
+-----------------------------------------------
+
+- Individual Adviser forms now expose RES-controlled Reviewer Capability and Reviewer Capacity.
+- Capacity is required only when Reviewer capability is enabled and is validated from 1 through 30.
+- Position/Designation is optional during RES individual Adviser creation.
+- Adviser Excel templates contain Reviewer Enabled and Reviewer Capacity columns with example
+  values, width definitions, accepted-format guidance, shared validation, and row-level errors.
+- Current Reviewer classification template columns/options were removed.
+- Main implementation: AccountTypeCatalog, SafeSpreadsheet, UserBulkImportService,
+  StoreManagedUserRequest, UpdateManagedUserRequest, UserAccountService, profile-fields.blade.php,
+  import.blade.php, and identity tests.
+
+2.3 Certificate queue filters and presentation code
+---------------------------------------------------
+
+- Queue State was replaced with server-side Status, Decision, Claim, and Academic Term filters.
+- The search field uses the existing left-inside icon pattern.
+- Queue hero cards, filter layouts, selected-application status cells, action areas, version tables,
+  and responsive rules were updated in the Blade/CSS implementation.
+- Generation was renamed Certificate in Status Summary. Version history now includes recipient.
+- Main implementation: ResCertificationController, res-index.blade.php,
+  res-workspace.blade.php, dashboard.css, and ResCertificateProcessingPageTest.
+- These presentation changes still need real desktop/tablet/mobile inspection; see NEEDS TESTING.
+
+2.4 Full Board conflict blocking and application-level controls
+---------------------------------------------------------------
+
+- The exact requested conflict message is shown below Open Workspace in the queue modal.
+- Conflicted Full Board releases remain blocked by ReviewConsensusService server-side.
+- Individual Release This Decision controls were removed. A full-width application-level
+  Release Decision action exists between Supporting Documents and Reviewer records in the
+  read-only workspace for non-Approved consensus outcomes.
+- Forged review_submission_id input is ignored; the backend re-evaluates application consensus.
+- Approved consensus invokes ApprovedDecisionAutomationService after the final submission,
+  releases the approved result, transitions to For Certificate Release, and attempts secure
+  pending certificate generation. Approved records do not show a separate release button.
+- Main implementation: ReleaseApplicationDecisionRequest, ResCertificationController,
+  ApplicationRevisionWorkflowService, ApprovedDecisionAutomationService,
+  ReviewerWorkflowService, res-index.blade.php, and res-workspace.blade.php.
+- IMPORTANT: Full Board feedback aggregation is not complete; see PARTIALLY COMPLETED 3.1.
+
+2.5 Background version database error
+-------------------------------------
+
+- The safe forward migration
+  database/migrations/2026_08_18_000000_scope_certificate_background_asset_versions_by_type.php
+  already exists in the repository and has run locally.
+- It drops certificate_backgrounds_asset_version_unique and creates the composite unique key
+  certificate_background_type_version_unique on (background_type, asset_version).
+- Its down path refuses to restore the legacy key if overlapping versions exist.
+- Local migration status confirms it is Ran in batch 18. No destructive migration is needed.
+
+2.6 Document business versions
+------------------------------
+
+- Replacing a file during initial submission retains Version 1.
+- Revision upload now increments from the maximum actual document version only on the first
+  replacement of that requirement in that revision cycle.
+- Re-uploading before revision submission retains the same business version.
+- A document first replaced during the second revision cycle becomes Version 2, not Version 3.
+- Historical document rows/files remain immutable and the current pointer is moved atomically.
+- Main implementation: ApplicationDocumentService, ApplicationRevisionWorkflowService, and
+  ApplicantRevisionCertificationWorkflowTest.
+
+2.7 Generated certificate content and personalized certificates
+---------------------------------------------------------------
+
+- Application creation now collects one recipient name at a time, displays an editable list,
+  supports Remove, and validates 1-30 distinct names with a Unicode-aware name format.
+- Recipients are persisted per application with deterministic ordering and case-normalized
+  uniqueness. Existing applications are safely backfilled with the applicant name.
+- Certificate generation creates one Certificate and one PDF per recipient. The first retains the
+  application code; additional certificates use -M02, -M03, etc. Applicant claim processes all
+  personalized certificates atomically and the UI lists each View/Download action.
+- Generated PDFs quote the research title, exclude Payment Proof, and put the reviewed-document
+  list after the requested sentence line break.
+- The generator uses the configured QR image at fixed 22 mm by 22 mm coordinates and verifies its
+  stored hash. Recipient name, validity, signatory, signature hash, QR path/hash/dimensions, and
+  background/version provenance are persisted on certificate/version records as applicable.
+- Automated PDF text extraction passed for title quoting, line content, and Payment Proof exclusion.
+- Main implementation: ApplicationCertificateRecipient, ResearchApplication relationships,
+  ApplicationInformationService, ResearchApplicationDraftService, form.blade.php,
+  CertificateReleaseService, ApplicantCertificateService, CertificationEligibilityService,
+  OfficialCertificateGenerationService, revision-certificates.blade.php, factory, and certificate
+  workflow tests.
+
+2.8 RES Certificate Configuration
+---------------------------------
+
+- RES Settings has a Certificate Configuration tab separate from Profile Settings.
+- Printed Signatory Name, Valid Until, transparent PNG signature upload/current preview, QR PNG
+  upload/current preview, and save action are present.
+- File controls show Choose File until selection, then the filename. CSS/JS supplies centered,
+  hover, focus, selected, and pointer states.
+- QR and signature files are stored privately with hash/dimension checks; previews use authorized
+  same-origin routes and private headers.
+- Future generation reads the current RES configuration; certificate versions snapshot validity,
+  signatory, signature hash, and QR provenance so later settings changes do not alter old rows.
+- Main implementation: UpdateSignatoryRequest, ResLeadSettingsController,
+  SignatorySettingsService, User/CertificateVersion fields, res-lead.blade.php, dashboard.js/CSS,
+  and CertificateReleaseWorkflowTest.
+
+2.9 Review Monitoring code
+--------------------------
+
+- Assignment progress and deadlines was removed.
+- Reviewer-enabled Adviser cards were replaced with a paginated responsive table containing the
+  five requested columns. Completed applications use approved applications in For Certificate
+  Release or Certificate Released states. Remaining count is capacity minus active application load.
+- Reviewer Name, Department, Institution, and Academic Term filters are server-side.
+- View Assignments opens a RES-only paginated page listing each assignment and completion state.
+- Adviser workload now says Awaiting Endorsement, removes Remaining Expected, retains calculated
+  Not Yet Received, and uses Action / View Applications.
+- Adviser Name, Department, Institution, and Academic Term filters are server-side.
+- View Applications returns only applications with an Endorsed record for that Adviser, preventing
+  unendorsed Applicant data from entering the drill-down.
+- Main implementation: ResReviewMonitoringController, ResReviewMonitoringQueryService,
+  AdviserEndorsementStatisticsService, res-monitoring.blade.php, the two new drill-down views,
+  routes/web.php, CSS, and ResReviewMonitoringTest.
+
+2.10 Applicant initial and revision uploads
+-------------------------------------------
+
+- Choosing an initial document automatically uploads that single file asynchronously. Separate
+  Upload and Upload All controls were removed from the rendered submission UI.
+- Revision replacement selection also uploads automatically, shows filename/loading/success/error,
+  and retains secure View Source/View replacement actions.
+- Existing authorization, ownership, workflow, file validation, private storage, and server-side
+  submission rules remain in the controllers/services.
+- Main implementation: requirements.blade.php, requirement-upload-row.blade.php,
+  revision-certificates.blade.php, dashboard.js/CSS, and application workflow tests.
+
+2.11 Applicant revision page and validation
+-------------------------------------------
+
+- ResearchApplication::statusLabel displays For Revision C1/C2 using the workflow counter offset.
+- In-revision application details show Go to Revision under Back to List with shared sizing.
+- Revision and Certificates now has three progress steps: Revision Submission, Evaluation Form,
+  Certification.
+- Application Status Overview, Released Feedback and Document History, and Certification use
+  accessible details/summary collapsibles. The application selector and overview were re-laid out.
+- The later instruction to remove Upload every required replacement before submitting was honored;
+  the redundant warning is no longer rendered.
+- The separate Document Version History container was removed. Each requirement contains a fixed
+  version selector, Preview/Download actions, upload date, Current styling, truncation, and a
+  500 ms hover/focus tooltip.
+- Revision replacement rows place automatic Choose File beside the document information and move
+  View Source next to Source.
+- Minor/Major Revision submission is blocked server-side unless the Reviewer's assignment has at
+  least one non-empty Required Revision comment.
+- Main implementation: ResearchApplication, ApplicantRevisionCertificateController,
+  ReviewerWorkflowService, applicant/show/revision Blade files, dashboard.js/CSS, and revision tests.
+
+2.12 Applicant Review Worksheet panel and secure access
+-------------------------------------------------------
+
+- A pending-orange Review Worksheet collapsible appears below the requirement panels when released
+  artifacts exist.
+- Protocol Review Worksheet and Informed Consent Checklist selectors are rendered with available
+  artifact choices, secure same-origin preview iframe/Open in New Tab, and download controls.
+- Applicant access checks application ownership/authorization, assignment/form/artifact nesting,
+  and the existence of a released decision for that review cycle.
+- Main implementation: ApplicantRevisionCertificateController, ReviewFormArtifactController,
+  routes/web.php, revision-certificates.blade.php, and dashboard.js/CSS.
+- The labels do not yet implement the exact worksheet V1/V2/V3 cycle rule; see 3.2.
+
+2.13 Reviewer workspace behavior
+--------------------------------
+
+- Start opens each worksheet in an accessible modal instead of embedding it in the collapsible.
+- Successful final worksheet submission closes only that modal; async drafts stay in place and the
+  removed completion message is no longer shown.
+- The consent worksheet initially shows only the gate question. Questions 1-15 appear only for Yes;
+  No keeps the explanation/no-path behavior. Disabled/required states are also synchronized.
+- Existing Reviewer revision-history loading remains assignment-owner scoped, allowing a Reviewer
+  to see their own earlier comments without exposing another Reviewer's identity/comments/forms.
+- Main implementation: workspace.blade.php, dashboard.js/CSS, ReviewerWorkflowService,
+  ReviewerAssignmentPageController, and Reviewer workflow/artifact tests.
+
+2.14 Profiles and username stability
+------------------------------------
+
+- Surname and institutional identifier edits no longer regenerate username in UserAccountService.
+  The old regenerate-username form was removed; identity correction preserves username and records
+  username_preserved in the audit entry.
+- Normal profile update and forged identity update paths therefore cannot implicitly change username.
+  Explicit username changes remain in Security and Privacy.
+- Profile summary already contains Phone Number, Institution/Affiliation, Department/Unit, and
+  Adviser Position/Designation using authorized account data; Reviewer classification copy was removed.
+- Additional responsive grid/overflow/select rules were added for Editable Profile Information.
+- Main implementation: UserAccountService, edit/profile/settings views, dashboard.css, and identity tests.
+
+2.15 Notification inbox/bin server behavior
+-------------------------------------------
+
+- Inbox and Bin have server-side Date, Notification Type, and Read/Unread filters and 20-row
+  paginators preserving query strings.
+- Inbox supports individual read/unread/delete, selected read/unread/delete, and all read/unread/delete.
+- Bin supports individual restore/permanent delete, selected restore/permanent delete, and all
+  restore/permanent delete.
+- Ownership is constrained in every query/action and missing/forged selections fail safely.
+- notifications.deleted_at and a lookup index support soft deletion. A daily 02:15 scheduler task
+  force-deletes Bin entries older than seven days; opening Bin also purges expired entries.
+- Main implementation: DatabaseNotification, User::notifications override,
+  NotificationPageController, notifications.blade.php, routes/web.php, routes/console.php,
+  notification migration, icons/CSS, and DashboardNotificationTest.
+- Custom confirmation modal behavior is incomplete; see 3.3.
+
+2.16 Specified subtext removal
+------------------------------
+
+- All exact strings listed in the REMOVE ALL OF THIS SUBTEXT section are absent from current source
+  views. A literal repository search found matches only in old generated tmp/JUnit or compiled-view
+  artifacts, not application source.
+- Required validation, warnings, status messages, titles, and button labels were retained.
+
+2.17 Academic-term filtering implemented on major changed surfaces
+-----------------------------------------------------------------
+
+- Server-side academic_term_id validation/filtering and an All option were added to Applicant
+  Applications, Adviser Applications, RES Applications, Reviewer assignment/review lists,
+  Applicant Revision and Certificates, RES Decision & Certificates, Review Monitoring, and its
+  reviewer/adviser drill-downs.
+- Existing report filtering continues through AcademicTermResolver; the resolver now accepts the
+  canonical academic_term_id in addition to legacy semester/year inputs.
+- Queries continue to apply role/ownership boundaries before or alongside term filtering.
+- An exhaustive every-dashboard/every-related-record audit remains open; see 3.4.
+
+
+3. PARTIALLY COMPLETED
+======================
+
+3.1 Full Board application-level release does not aggregate all feedback
+-----------------------------------------------------------------------
+
+Implemented:
+- UI and request contract are application-level; no individual Reviewer release button remains.
+- Consensus revalidation checks all required current Reviewer submissions and blocks conflicts.
+- The application stores a consensus signature tied to all current submission versions.
+
+Unfinished:
+- ReviewConsensusService::assertReleaseableLocked() returns one source ReviewSubmissionVersion
+  (the first current assignment when no source is requested).
+- ApplicationRevisionWorkflowService::releaseDecision() builds released_feedback_snapshot and
+  marks released comments only from that one source version.
+- As a result, a Full Board release can have the correct combined decision but expose only the first
+  Reviewer's released comments to the Applicant. The new three-column Applicant UI cannot show all
+  three unless all three snapshots are aggregated.
+
+Next action:
+- Change the application-level release service to load every current submission version participating
+  in the validated consensus signature, aggregate their immutable comment snapshots and actionable
+  requirements, release/link every relevant comment, and retain anonymous Reviewer labels.
+- Decide whether ApplicationDecisionRelease needs a join/snapshot structure for multiple source
+  version IDs rather than relying on source_review_submission_version_id alone.
+- Add a Full Board feature test that submits distinct comments from all three Reviewers, releases once,
+  and verifies all three anonymous groups and revision requirements are visible.
+
+3.2 Worksheet business versions do not follow revision cycle
+------------------------------------------------------------
+
+Implemented:
+- Worksheet artifacts and immutable review submission versions are retained and selectable.
+- Applicant/Reviewer/RES authorized history paths exist.
+
+Unfinished:
+- ReviewerWorkflowService derives artifact_version from the maximum artifact version for one
+  ReviewFormSubmission. A new revision assignment receives new form rows, so its first artifact can
+  be Version 1 again.
+- ApplicantRevisionCertificateController labels worksheet choices using
+  ReviewSubmissionVersion::version_number, which is also local to a new ReviewSubmission and can
+  reset to 1 each cycle.
+- Required business display is initial review V1, revision cycle one V2, revision cycle two V3.
+
+Next action:
+- Define worksheet business version as reviewer_assignment.review_cycle + 1 for generated artifact
+  metadata and all UI labels, while preserving immutable resubmission/revision history separately.
+- If repeated submissions within one cycle need uniqueness, retain an internal artifact revision or
+  submission version independent of the business worksheet version.
+- Add tests covering initial, first revision, second revision, re-submission within one cycle, and
+  authorized access to prior worksheets.
+
+3.3 Notification confirmations are not the requested modal implementation
+--------------------------------------------------------------------------
+
+Implemented:
+- Several destructive forms use native window.confirm through inline onsubmit handlers.
+
+Unfinished:
+- The prompt requires a confirmation modal. No reusable in-app modal was added for notification
+  destructive actions.
+- Selected inbox Delete currently has no confirmation handler; other delete/restore-all operations
+  use browser confirms rather than the system modal pattern.
+
+Next action:
+- Add one accessible confirmation modal using the existing application modal infrastructure and route
+  every individual/selected/all destructive notification action through it.
+- Verify focus trapping/restoration, Escape, submit disabling, mobile sizing, and permanent-delete copy.
+
+3.4 Term filtering is broad but not proven exhaustive
+-----------------------------------------------------
+
+Implemented:
+- Major application/review/certificate/monitoring lists described in 2.17 are filtered server-side.
+
+Unfinished:
+- The specification includes all relevant dashboards, reports, revision cycles, decisions,
+  certificates, monitoring data, and other related records. Every dashboard metric and every secondary
+  list was not exhaustively audited in the final state.
+- Dedicated cross-role tests proving selected-term and All behavior on every affected surface were not
+  completed.
+
+Next action:
+- Inventory every query returning term-owned workflow records. Add the same active-term selector and
+  scoped query predicate where absent, without weakening role/ownership filters.
+- Add coverage for dashboards, reports, decisions, certificates, revisions, and cross-term leakage.
+
+3.5 Responsive/UI and global search/profile fixes need real browser validation
+-----------------------------------------------------------------------------
+
+Implemented:
+- Extensive CSS and Blade changes target card spacing, centered modal/table content, search icons,
+  fixed controls, file selectors, truncation, stacking, overflow, and profile select/grid behavior.
+
+Unfinished:
+- No authenticated browser walkthrough was completed at desktop, tablet, and mobile sizes.
+- Therefore all search bars across every role, all dropdown stacking contexts, modal sizing, long-name
+  wrapping, and control overlap cannot be honestly called verified.
+
+Next action:
+- Run the app and inspect every changed screen at minimum 1440x900, 1024x768, 768x1024, and 390x844.
+- Test long names, long filenames, empty/error/loading states, keyboard focus, and open selects/modals.
+
+3.6 Secure preview behavior needs manual browser verification
+-------------------------------------------------------------
+
+Implemented:
+- New Applicant worksheet previews use authenticated same-origin routes, nesting checks, release checks,
+  private storage responses, and inline/attachment modes. Existing application document and certificate
+  paths remain authorization-scoped.
+
+Unfinished:
+- Browser-blocked PDF/image behavior, response headers, iframe rendering, Open in New Tab, download,
+  no-store/nosniff/referrer/framing behavior were not manually checked across every role/browser.
+
+Next action:
+- Inspect response headers and rendered previews for Applicant, Reviewer, Adviser, and RES routes with
+  both authorized and forged cross-account URLs.
+
+3.7 Documentation deliverables are incomplete
+----------------------------------------------
+
+Implemented:
+- PLANS.md contains an August 20 implementation plan and known input limitation.
+- This standalone handoff documents actual status, changes, tests, and risks.
+
+Unfinished:
+- No separate changelog, implementation/status document, or manual-validation/testing document was
+  updated before the stop instruction.
+- PLANS.md still says Status: In progress and also states the original no-push restriction; the later
+  direct user request authorized pushing this handoff/current work to main.
+
+Next action:
+- After product fixes and verification, update the repository's expected changelog/status/manual QA
+  documents and make PLANS.md match the final verified state.
+
+3.8 Certificate visual placement is coded but not fully reference-verified
+-------------------------------------------------------------------------
+
+Implemented:
+- QR is fixed at x=169 mm, y=237 mm, width=22 mm, height=22 mm on the official background.
+- PDF text assertions verify key content.
+
+Unfinished:
+- The checked-in official certificate reference has no explicit QR area and no separate QR placement
+  reference image was available in DOOMSDAY-INPUT.txt.
+- A final generated certificate with realistic title/document/signature/QR data was not rendered and
+  visually compared at multiple lengths after all changes.
+
+Next action:
+- Obtain/confirm the intended QR reference, generate representative short/long certificates, render to
+  PNG, and adjust coordinates only if the authoritative reference requires it.
+
+
+4. NOT STARTED
+==============
+
+No entire top-level business area in DOOMSDAY-INPUT.txt was left untouched. The following explicit
+subrequirements/validation deliverables have no completed implementation or execution:
+
+- Reusable in-app confirmation modals for every notification destructive action.
+- Full authenticated desktop/tablet/mobile browser validation.
+- A systematic every-query audit proving term filtering on every relevant dashboard and secondary list.
+- Separate changelog and manual-validation/testing documentation updates.
+- Final Pint check, Blade compilation check, and Vite production build after the last code changes.
+
+
+5. NEEDS TESTING
+================
+
+Automated status at handoff:
+
+- Full command run with DB_CONNECTION=sqlite and DB_DATABASE=:memory::
+  php artisan test
+- Result: 306 tests, 305 passed, 1 failed, 4,116 assertions, 80.355 seconds.
+- Failure:
+  Tests\Feature\Auth\ReviewerEntitlementFoundationTest::
+  test_testing_reviewer_identity_is_seeded_as_an_entitled_adviser_idempotently
+  at tests/Feature/Auth/ReviewerEntitlementFoundationTest.php:128.
+  It expects reviewer_classifications to equal ['Expedited']; TestingUserSeeder now correctly stores
+  null because current Reviewer classifications were removed. Align this stale test with the new spec.
+- Focused CertificateReleaseWorkflowTest run before the handoff: 13 passed, 168 assertions.
+- Focused Applicant revision workflow/presentation group: 8 passed, 86 assertions.
+- Focused authentication/artifact/settings group: 22 passed, 366 assertions.
+- git diff --check passed with no output.
+- Focused route listings succeeded for notifications (14 routes), Review Monitoring (3 routes), and
+  the certificate QR preview route. An initial route:list invocation used an unsupported --columns
+  option and failed only because that CLI option does not exist in this Laravel version.
+- php artisan migrate:status succeeded. The two new 2026-08-20 migrations are Pending locally.
+
+Required follow-up automated testing:
+
+- Fix only the stale classification assertion, then run the full suite again on in-memory SQLite.
+- Add the missing three-Reviewer feedback aggregation test described in 3.1.
+- Add exact worksheet cycle V1/V2/V3 coverage described in 3.2.
+- Add notification modal/client interaction coverage and verify every destructive level.
+- Add individual and bulk Adviser creation/import tests for Reviewer Enabled/Capacity, including bad
+  boolean, missing conditional capacity, out-of-range capacity, unauthorized field, and row errors.
+- Add term isolation tests across every newly filtered role surface and All behavior.
+- Test authorized/forbidden preview response headers for documents, worksheets, QR, and certificates.
+- Test automatic upload retry/network/JSON validation behavior and no accidental whole-app submission.
+- Test Approved automation when multiple active RES Leads exist and when pending certificate rendering
+  fails. Confirm failure state is visible/retryable without losing the authoritative decision.
+- Audit old singular ResearchApplication::certificate consumers against new multi-recipient
+  ResearchApplication::certificates behavior, especially bulk release and dashboard metrics.
+
+Required manual/database/tooling testing:
+
+- Back up the target database, then run php artisan migrate (not migrate:fresh). Verify recipient
+  backfill, certificate uniqueness conversion, QR/validity columns, and notification soft deletes.
+- Load RES Settings and submit both background types at Version 1; submit a Reviewer decision and
+  confirm no raw duplicate-key/SQL error is shown.
+- Generate and visually inspect personalized certificates with 1 and 30 names, short/long research
+  titles, long document lists, signatures, and QR configurations.
+- Verify all changed pages at desktop/tablet/mobile widths and with keyboard-only interaction.
+- Run vendor/bin/pint --test (or the repository's documented Pint command), php artisan view:cache,
+  php artisan route:list, npm run build, and git diff --check.
+- Review the production build output and browser console/network panel for JS, CSP, preview, and upload
+  errors.
+
+
+6. FILES MODIFIED
+=================
+
+Tracked implementation/documentation files modified in this session:
+
+- PLANS.md - added the August 20 implementation plan, safety notes, batches, and validation plan.
+- app/Enums/ProfileOptionField.php - added managedCases() so current option UIs exclude Reviewer classification.
+- app/Http/Controllers/Dashboard/AdviserApplicationController.php - canonical academic_term_id filtering.
+- app/Http/Controllers/Dashboard/ApplicantApplicationController.php - canonical academic_term_id filtering.
+- app/Http/Controllers/Dashboard/ApplicantRevisionCertificateController.php - term filters, worksheet
+  groups, personalized certificate loading, and Applicant revision data.
+- app/Http/Controllers/Dashboard/NotificationPageController.php - filtered/paginated inbox and Bin,
+  ownership-safe individual/selected/all actions, and expiry purge.
+- app/Http/Controllers/Dashboard/ResCertificationController.php - Status/Decision/Claim/term filters,
+  multi-certificate loading, and application-level release.
+- app/Http/Controllers/Dashboard/ResLeadApplicationController.php - academic-term filtering.
+- app/Http/Controllers/Dashboard/ResReviewMonitoringController.php - new filters and RES-only reviewer/
+  adviser drill-down endpoints.
+- app/Http/Controllers/Dashboard/ReviewFormArtifactController.php - released Applicant worksheet preview/download.
+- app/Http/Controllers/Dashboard/ReviewerAssignmentPageController.php - reviewer assignment term filtering.
+- app/Http/Controllers/Identity/UserManagementController.php - Adviser creation/edit capability data handling.
+- app/Http/Controllers/Settings/ResLeadSettingsController.php - validity/QR updates and secure QR preview.
+- app/Http/Requests/Identity/StoreManagedUserRequest.php - Adviser capability/capacity validation.
+- app/Http/Requests/Identity/StoreProfileOptionRequest.php - limits current managed option fields.
+- app/Http/Requests/Identity/UpdateManagedUserRequest.php - optional position and capability/capacity validation.
+- app/Http/Requests/ResLead/ReleaseApplicationDecisionRequest.php - removed individual submission ID input.
+- app/Http/Requests/Settings/UpdateSignatoryRequest.php - validity and QR PNG validation.
+- app/Models/Certificate.php - recipient fields and relationship.
+- app/Models/CertificateVersion.php - signatory/signature/QR snapshot fields.
+- app/Models/ResearchApplication.php - recipients/certificates relationships and revision statusLabel().
+- app/Models/User.php - certificate configuration fields/casts and soft-deletable notification relation.
+- app/Services/Applications/AdviserEndorsementStatisticsService.php - term-aware counts.
+- app/Services/Applications/ApplicationDocumentService.php - actual reviewed/replaced business versions.
+- app/Services/Applications/ApplicationInformationService.php - 1-30 recipient name validation/data.
+- app/Services/Applications/ApplicationRevisionWorkflowService.php - application-level release, certificate
+  preparation, replacement validation, and Adviser Reviewer notifications.
+- app/Services/Applications/ResReviewMonitoringQueryService.php - new workload/filter/privacy queries.
+- app/Services/Applications/ResearchApplicationDraftService.php - persist ordered unique recipients.
+- app/Services/Applications/ReviewerCapabilityProfileService.php - classification-free capability summary.
+- app/Services/Applications/ReviewerEligibilityService.php - classification-free eligible Adviser query
+  with endorser/conflict/capacity checks.
+- app/Services/Applications/ReviewerWorkflowService.php - actionable revision-comment validation and
+  Approved automation hook.
+- app/Services/Certificates/ApplicantCertificateService.php - survey/claim handling for all certificates.
+- app/Services/Certificates/CertificateReleaseService.php - one artifact per recipient and configuration snapshots.
+- app/Services/Certificates/CertificationEligibilityService.php - aggregate multi-certificate state.
+- app/Services/Certificates/OfficialCertificateGenerationService.php - personalized name/content,
+  validity, signatory, QR, filenames, and snapshots.
+- app/Services/Identity/AccountTypeCatalog.php - Adviser spreadsheet columns/examples.
+- app/Services/Identity/ProfileOptionCatalog.php - remove current classification options.
+- app/Services/Identity/ReviewerIdentityReconciliationService.php - stop merging current classifications.
+- app/Services/Identity/SafeSpreadsheet.php - Adviser columns and managed option ranges.
+- app/Services/Identity/UserAccountService.php - capability/capacity profile rules and username preservation.
+- app/Services/Identity/UserBulkImportService.php - new row guidance/field mapping.
+- app/Services/Settings/AcademicTermResolver.php - academic_term_id support.
+- app/Services/Settings/SignatorySettingsService.php - validity/QR persistence, integrity, dimensions, cleanup.
+- database/factories/ResearchApplicationFactory.php - default recipient fixture per application.
+- database/seeders/TestingUserSeeder.php - reviewertest is an Adviser capability with null classifications.
+- resources/css/dashboard.css - certificate, revision, upload, worksheet modal, notification, settings,
+  profile, monitoring, search, table, and responsive styling.
+- resources/css/review-monitoring.css - revised monitoring tables and responsive filters.
+- resources/js/dashboard.js - worksheet modal/consent behavior, automatic uploads, version/worksheet
+  selectors, recipient builder, file labels, and tooltips.
+- resources/views/components/dashboard/icon.blade.php - icons used by new notification/configuration UI.
+- resources/views/dashboard/applications/adviser-index.blade.php - term selector and subtext cleanup.
+- resources/views/dashboard/applications/applicant-index.blade.php - term selector and subtext cleanup.
+- resources/views/dashboard/applications/form.blade.php - certificate recipient builder.
+- resources/views/dashboard/applications/partials/requirement-upload-row.blade.php - removed manual Upload.
+- resources/views/dashboard/applications/requirements.blade.php - removed Upload All/manual upload copy.
+- resources/views/dashboard/applications/res-index.blade.php - term selector and subtext cleanup.
+- resources/views/dashboard/applications/res-reviewers.blade.php - classification-free Reviewer display.
+- resources/views/dashboard/applications/res-show.blade.php - subtext cleanup.
+- resources/views/dashboard/applications/revision-certificates.blade.php - full Applicant revision,
+  versions, worksheets, upload, collapsible, and personalized certificate UI.
+- resources/views/dashboard/applications/show.blade.php - Go to Revision and heading cleanup.
+- resources/views/dashboard/assignments/index.blade.php - term selector and Reviewer copy cleanup.
+- resources/views/dashboard/assignments/show.blade.php - subtext cleanup.
+- resources/views/dashboard/assignments/workspace.blade.php - modal worksheets, consent gate, and copy cleanup.
+- resources/views/dashboard/certificates/res-index.blade.php - queue filters/modal/version/recipient UI.
+- resources/views/dashboard/certificates/res-workspace.blade.php - application-level release placement.
+- resources/views/dashboard/notifications.blade.php - inbox/Bin filters/actions/pagination UI.
+- resources/views/dashboard/profile.blade.php - classification-free profile summary wording.
+- resources/views/dashboard/reviews/res-monitoring.blade.php - monitoring tables/filters/actions.
+- resources/views/dashboard/roles/adviser.blade.php - specified subtext removal.
+- resources/views/dashboard/roles/applicant.blade.php - specified subtext removal.
+- resources/views/dashboard/roles/reviewer.blade.php - specified subtext removal.
+- resources/views/identity/users/create.blade.php - specified subtext removal.
+- resources/views/identity/users/edit.blade.php - editable identity with stable username; old regenerate form removed.
+- resources/views/identity/users/import.blade.php - specified subtext removal.
+- resources/views/identity/users/index.blade.php - specified subtext removal.
+- resources/views/identity/users/options.blade.php - hide legacy classification option group.
+- resources/views/identity/users/partials/profile-fields.blade.php - capability/capacity and optional position UI.
+- resources/views/identity/users/show.blade.php - classification/subtext cleanup.
+- resources/views/settings/partials/profile-form.blade.php - classification cleanup.
+- resources/views/settings/res-lead.blade.php - Certificate Configuration tab/form.
+- resources/views/settings/reviewer.blade.php - classification cleanup.
+- routes/console.php - scheduled seven-day notification Bin purge.
+- routes/web.php - notification, Applicant worksheet, monitoring drill-down, and QR preview routes.
+
+New implementation files:
+
+- app/Models/ApplicationCertificateRecipient.php - ordered application recipient model.
+- app/Models/DatabaseNotification.php - Laravel database notification model with SoftDeletes.
+- app/Services/Applications/ApprovedDecisionAutomationService.php - automatic approved result release trigger.
+- database/migrations/2026_08_20_000000_add_personalized_certificate_configuration.php - recipients,
+  per-recipient certificates, RES validity/QR, and certificate-version snapshots.
+- database/migrations/2026_08_20_000100_add_notification_bin.php - notification deleted_at/index.
+- resources/views/dashboard/reviews/res-adviser-applications.blade.php - endorsed Adviser drill-down.
+- resources/views/dashboard/reviews/res-reviewer-assignments.blade.php - Reviewer assignment drill-down.
+
+Modified tests:
+
+- tests/Feature/Auth/AuthenticationFlowTest.php - Adviser-capability test account expectations.
+- tests/Feature/Dashboard/AdviserApplicantScopeAndProfileTest.php - current role/profile expectations.
+- tests/Feature/Dashboard/AdviserApplicationVisibilityTest.php - current role expectations.
+- tests/Feature/Dashboard/AdviserReviewerCapabilityTest.php - capability behavior.
+- tests/Feature/Dashboard/ApplicantApplicationWorkflowTest.php - recipient payload/current copy.
+- tests/Feature/Dashboard/ApplicantRevisionCertificationWorkflowTest.php - skipped-cycle Version 2 test.
+- tests/Feature/Dashboard/ApplicantRevisionPresentationTest.php - For Revision C1/C2 presentation.
+- tests/Feature/Dashboard/ApplicationSubmissionTest.php - required recipient payload.
+- tests/Feature/Dashboard/CertificateReleaseWorkflowTest.php - personalized artifacts, claim all,
+  immutable config snapshots, and generated PDF content.
+- tests/Feature/Dashboard/DashboardNavigationTest.php - current Adviser/Reviewer navigation.
+- tests/Feature/Dashboard/DashboardNotificationTest.php - filters/actions/Bin/ownership/expiry/pagination.
+- tests/Feature/Dashboard/OfficialReviewFormArtifactTest.php - actionable revision-comment setup.
+- tests/Feature/Dashboard/OnboardingTest.php - current Adviser capability role.
+- tests/Feature/Dashboard/ResCertificateProcessingPageTest.php - new filters/application-level release.
+- tests/Feature/Dashboard/ResLeadApplicationVisibilityTest.php - current role expectations.
+- tests/Feature/Dashboard/ResReviewMonitoringTest.php - tables, filters, drill-down privacy, removed panel.
+- tests/Feature/Dashboard/ReviewerReassignmentWorkflowTest.php - Adviser capability fixtures.
+- tests/Feature/Dashboard/ReviewerWorkflowTest.php - actionable revision comments/current fixtures.
+- tests/Feature/Identity/AdviserReviewerEntitlementTest.php - classification-free entitlement/capacity.
+- tests/Feature/Identity/UserManagementTest.php - current UI/role/username-stability expectations.
+- tests/Feature/Settings/ReviewerSettingsTest.php - classification-free Adviser capability settings.
+
+Generated/private untracked files deliberately not included as implementation:
+
+- storage/framework/lsp-1488a5a8451c774d.php
+- storage/framework/lsp-4c813b8794e35653.php
+- storage/framework/lsp-e8aa8ca53f610265.php
+  These pre-existed as user/tool working files and must not be staged, deleted, or overwritten.
+- tmp/full-junit.xml and tmp/one-junit.xml are generated test reports and should not be committed.
+- tmp/pdfs/certificate-reference/ contains generated reference rendering and should not be committed.
+
+
+7. DATABASE CHANGES
+===================
+
+New pending migration: 2026_08_20_000000_add_personalized_certificate_configuration.php
+
+- Creates application_certificate_recipients:
+  id, research_application_id, recipient_name, normalized_name, sort_order, timestamps.
+- Unique key: (research_application_id, normalized_name).
+- Index: (research_application_id, sort_order).
+- Foreign key to research_applications with cascade delete.
+- Adds to users:
+  certificate_valid_until; certificate_qr_path; certificate_qr_sha256;
+  certificate_qr_width; certificate_qr_height; certificate_qr_uploaded_at.
+- Adds to certificates:
+  application_certificate_recipient_id and recipient_name.
+- Adds to certificate_versions:
+  signatory_name_snapshot; signature_sha256_snapshot; qr_code_path; qr_code_sha256;
+  qr_code_width; qr_code_height.
+- Backfills one ordered recipient per existing application from the Applicant name and associates
+  existing certificates with that recipient.
+- Replaces the one-certificate-per-application unique key with a normal application index plus one
+  certificate per application_certificate_recipient_id.
+- Its down path refuses unsafe rollback when multiple personalized certificates exist.
+
+New pending migration: 2026_08_20_000100_add_notification_bin.php
+
+- Adds notifications.deleted_at through softDeletes().
+- Adds notifications_bin_lookup_index on
+  (notifiable_type, notifiable_id, deleted_at, created_at).
+
+Relevant pre-existing migration already applied:
+
+- 2026_08_18_000000_scope_certificate_background_asset_versions_by_type.php changes the certificate
+  background unique key to (background_type, asset_version), allowing both background types to use V1.
+
+Relationships/casts/factories/seeders:
+
+- ResearchApplication hasMany certificateRecipients and certificates; the legacy singular certificate
+  relationship remains for compatibility and requires audit.
+- Certificate belongsTo recipient. ApplicationCertificateRecipient belongsTo application and hasOne certificate.
+- User uses DatabaseNotification for soft-deletable morphMany notifications and casts validity/QR data.
+- ResearchApplicationFactory creates a default recipient.
+- TestingUserSeeder stores reviewertest as role Adviser with reviewer_enabled=true, capacity 6, and
+  null historical classification values.
+
+Commands required on the target environment:
+
+- Take a verified database backup.
+- Run php artisan migrate.
+- Run php artisan migrate:status and verify both 2026-08-20 migrations show Ran.
+- Ensure the application scheduler is running so the 02:15 notification purge executes.
+- Never use migrate:fresh, db:wipe, or a broad rollback.
+
+Local database incident/recovery disclosure:
+
+- Earlier in this implementation session, php artisan migrate:fresh --env=testing --force was
+  accidentally invoked while testing environment overrides were not active, and it targeted the local
+  MySQL ecrats_db. This violated the original safety rule.
+- The database was restored from the Laragon backup and binary logs. Post-recovery counts were verified:
+  users 21, research applications 21, documents 54, audit logs 684, reviewer assignments 13,
+  certificates 3.
+- A recovery SQL dump was retained at:
+  C:\laragon\backup\mysql\ecrats-recovered-pre-implementation-2026-08-20.sql
+- The final full test was explicitly forced to in-memory SQLite. Continue doing that for tests. Do not
+  run destructive database commands against the local MySQL database.
+- Current local migration status shows both new 2026-08-20 migrations Pending; no attempt was made to
+  apply them after the DOOMSDAY stop instruction.
+
+
+8. ROUTES / CONTROLLERS / MODELS
+================================
+
+New routes:
+
+- GET notifications/bin -> notifications.bin
+- POST notifications/bulk -> notifications.bulk
+- POST notifications/all -> notifications.all
+- PATCH notifications/{notification}/read-status -> notifications.read-status
+- DELETE notifications/{notification} -> notifications.destroy
+- POST notifications/bin/bulk -> notifications.bin.bulk
+- POST notifications/bin/all -> notifications.bin.all
+- PATCH notifications/bin/{notification}/restore -> notifications.bin.restore
+- DELETE notifications/bin/{notification} -> notifications.bin.destroy
+- Applicant released worksheet preview/download routes nested under application, assignment, form,
+  and artifact.
+- GET res-lead/review-monitoring/reviewers/{reviewer}/assignments.
+- GET res-lead/review-monitoring/advisers/{adviser}/applications.
+- GET res-lead/settings/certificate-qr/preview.
+
+Changed route behavior:
+
+- Existing decision release now accepts only the application and resolves consensus server-side; no
+  client-selected review_submission_id is required.
+- Existing certificate preview/download routes support each personalized Certificate instance while
+  preserving nested application ownership checks.
+
+Controllers, models, services, requests, and scheduler changes are individually described in section 6.
+No new middleware, policies, events/listeners, or jobs were added. Existing Gates/policies are reused.
+The seven-day notification purge is a scheduled closure in routes/console.php rather than a queued job.
+
+
+9. UI CHANGES
+=============
+
+- User Management: Adviser creation/edit has Reviewer capability toggle and capacity; Position is optional
+  during creation; bulk template/import uses the same fields; classification controls are hidden.
+- Decision & Certificates: full-width hero/filter presentation, left search icon, Status/Decision/Claim/
+  Term filters, centered queue/modal/status/action/version content, application release control, recipient
+  version rows, and responsive overflow.
+- RES Settings: Certificate Configuration tab with signatory, validity, signature, QR, previews, filename
+  controls, and responsive grid.
+- Review Monitoring: new Reviewer/Adviser workload tables, server filters, View Assignments/View Applications,
+  term filters, privacy-limited drill-down tables, and removed assignment-progress container.
+- Applicant Application: one-at-a-time certificate recipient builder and automatic document uploads.
+- Applicant application details: For Revision C1/C2 and Go to Revision.
+- Revision and Certificates: term-aware selector, three steps, centered overview, collapsible major panels,
+  per-requirement feedback/version controls, auto replacement uploads, released worksheet panel, and one
+  claimed-certificate row per recipient.
+- Reviewer Workspace: worksheet modals, initial consent gate, automatic close after completion, own-history
+  access retained, and requested copy removed.
+- Profiles/Settings: classification copy removed, stable identity edits, summary fields retained, and
+  responsive select/grid/overflow adjustments.
+- Notifications: inbox/Bin mode, filters, checkboxes, action dropdown, all-actions, individual icons,
+  pagination, and responsive layout.
+- All exact subtext strings listed in the prompt were removed from current source views.
+
+
+10. KNOWN ISSUES
+================
+
+- Full Board application release snapshots only the first consensus Reviewer's feedback; see 3.1.
+- Worksheet business versions can reset to V1 on a new revision assignment; see 3.2.
+- Full test suite has one stale classification expectation; see section 5.
+- Notification destructive confirmation uses native confirms inconsistently rather than a reusable modal;
+  selected inbox Delete has no confirmation.
+- New migrations are pending on the restored local MySQL database.
+- No final authenticated responsive/browser QA has been performed.
+- No final Pint, Blade compilation, or Vite production build has been run after the last changes.
+- Multi-recipient code coexists with the legacy singular ResearchApplication::certificate relationship.
+  Remaining consumers must be audited so metrics/bulk flows do not silently use only the first recipient.
+- ApprovedDecisionAutomationService selects the first active, setup-complete RES Lead as the release actor.
+  Multi-RES ownership/audit expectations should be confirmed. Its caller reports and suppresses automation
+  exceptions, so operational visibility of failures depends on logs and certificate failure state.
+- Certificate QR coordinates are fixed but not validated against an authoritative QR reference area.
+- PLANS.md is still In progress and other required documentation files were not updated.
+- Generated JUnit/reference files and three LSP files remain untracked and must stay out of the commit.
+- The accidental local MySQL reset was recovered; see section 7 and retain the recovery dump until the user
+  independently confirms the database.
+
+
+11. IMPORTANT TECHNICAL DECISIONS
+=================================
+
+- Preserve legacy Reviewer role/classification schema for historical compatibility, but exclude it from
+  current entitlement, eligibility, forms, filters, and current display.
+- Use Adviser role plus reviewer_enabled/reviewer_capacity as the current Reviewer contract.
+- Define the disallowed Reviewer for a specific application by actual endorsement credentials/record, not
+  simply application.adviser_user_id. This matches the explicit prompt wording and supports Adviser review
+  of other Advisers' applications.
+- Keep document business versions separate from revision-cycle count. Increment only when an already reviewed
+  document is actually replaced; replacing the same revision upload before submit does not increment.
+- Keep worksheet immutable submission/artifact history, but a separate business cycle version still must be
+  implemented as described in 3.2.
+- Use soft deletes on Laravel database notifications with ownership-scoped queries and force-delete only in Bin.
+- Store active certificate configuration on the authorized RES Lead and snapshot applicable values/provenance on
+  CertificateVersion. Private QR/signature paths are hash-verified before use.
+- Use a normalized application recipient table and one Certificate row per recipient rather than one PDF bundle.
+- Claim all personalized certificates for one application atomically after one authorized survey response.
+- Use blank academic_term_id to mean All; selected IDs are validated against active academic_terms and filtered
+  in SQL without broadening role scope.
+- Keep preview/download same-origin and private; never move artifacts into public storage or third-party viewers.
+- Tests must explicitly set DB_CONNECTION=sqlite and DB_DATABASE=:memory: to avoid local MySQL.
+
+
+12. NEXT AGENT ACTION PLAN
+==========================
+
+1. Read DOOMSDAY-INPUT.txt and this handoff, inspect git status, and preserve the three untracked LSP files.
+2. Fix Full Board release aggregation so all three immutable Reviewer feedback sets and actionable document
+   requirements are released by the one application-level action; add an end-to-end feature test.
+3. Implement worksheet business versions from review_cycle + 1 without discarding internal artifact/submission
+   history; add initial/C1/C2/re-submission tests and correct Applicant labels.
+4. Add the reusable notification confirmation modal and cover individual/selected/all destructive actions.
+5. Update the one stale ReviewerEntitlementFoundationTest expectation to the new classification-free contract,
+   then run the complete suite using in-memory SQLite.
+6. Audit all singular certificate consumers for multi-recipient correctness and add regression tests for bulk
+   release, queue metrics, survey, claim, preview/download nesting, and generation failures.
+7. Complete the all-surface academic-term query inventory and cross-term leakage tests.
+8. Run the two new migrations on a backed-up test copy, verify RES Settings/background uploads/Reviewer decision
+   submission, and never use migrate:fresh against MySQL.
+9. Run Pint check, Blade compilation, full route listing, Vite production build, and git diff --check.
+10. Start the local server and complete authenticated desktop/tablet/mobile QA, including previews, modals,
+    selects, long content, automatic uploads, notifications, monitoring, and certificates.
+11. Render representative certificates and verify title, documents, recipient, validity, signature, and QR
+    against the authoritative design/reference.
+12. Update changelog, implementation/status, manual validation/testing, PLANS.md, and known issues. Only then
+    mark the overall August 20 update complete.
+
+END OF HANDOFF

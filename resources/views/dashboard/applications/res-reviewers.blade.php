@@ -11,7 +11,7 @@
         <header class="dashboard-page-heading res-screening-page-heading">
             <div>
                 <h1>Reviewer Assignment</h1>
-                <p>Assign qualified {{ $reviewType->label() }} reviewers using the saved screening classification.</p>
+                <p>Assign eligible reviewer-enabled Advisers for this {{ $reviewType->label() }} application.</p>
             </div>
             <a class="dashboard-outline-action" href="{{ route('res.applications.show', $application) }}">
                 <x-dashboard.icon name="arrow-left" size="17" />
@@ -64,7 +64,6 @@
                 <section class="res-workflow-panel res-reviewer-candidates-panel">
                     <header class="res-workflow-panel-heading res-workflow-panel-heading-split">
                         <div><x-dashboard.icon name="users" size="21" /><h2>Eligible Reviewers</h2></div>
-                        <x-dashboard.status-badge :label="$reviewType->label().' only'" tone="success" />
                     </header>
 
                     {{-- Filter and selection forms are siblings inside one panel, avoiding invalid nested forms. --}}
@@ -146,7 +145,7 @@
                                                     data-reviewer-select
                                                 >
                                             </td>
-                                            <td><label for="reviewer-{{ $candidate->id }}"><strong>{{ $candidate->name }}</strong><small>{{ $candidate->reviewer_classification }} Reviewer</small></label></td>
+                                            <td><label for="reviewer-{{ $candidate->id }}"><strong>{{ $candidate->name }}</strong><small>Adviser with Reviewer capability</small></label></td>
                                             <td>{{ $candidate->position_title ?: 'Not specified' }}</td>
                                             <td>{{ $candidate->department ?: 'Not specified' }}</td>
                                             <td>{{ $candidate->institution ?: 'Not specified' }}</td>

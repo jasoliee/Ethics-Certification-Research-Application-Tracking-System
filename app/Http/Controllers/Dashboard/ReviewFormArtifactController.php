@@ -62,6 +62,28 @@ class ReviewFormArtifactController extends Controller
         return $this->fileResponse($reviewFormArtifact, 'attachment');
     }
 
+    public function applicantPreview(
+        ResearchApplication $researchApplication,
+        ReviewerAssignment $reviewerAssignment,
+        ReviewFormSubmission $reviewFormSubmission,
+        ReviewFormArtifact $reviewFormArtifact,
+    ): StreamedResponse {
+        $this->assertApplicantNesting($researchApplication, $reviewerAssignment, $reviewFormSubmission, $reviewFormArtifact);
+
+        return $this->fileResponse($reviewFormArtifact, 'inline');
+    }
+
+    public function applicantDownload(
+        ResearchApplication $researchApplication,
+        ReviewerAssignment $reviewerAssignment,
+        ReviewFormSubmission $reviewFormSubmission,
+        ReviewFormArtifact $reviewFormArtifact,
+    ): StreamedResponse {
+        $this->assertApplicantNesting($researchApplication, $reviewerAssignment, $reviewFormSubmission, $reviewFormArtifact);
+
+        return $this->fileResponse($reviewFormArtifact, 'attachment');
+    }
+
     private function assertReviewerNesting(
         ReviewerAssignment $assignment,
         ReviewFormSubmission $form,
@@ -83,6 +105,24 @@ class ReviewFormArtifactController extends Controller
     ): void {
         abort_unless($assignment->research_application_id === $application->id, 404);
         $this->assertReviewerNesting($assignment, $form, $artifact);
+    }
+
+    private function assertApplicantNesting(
+        ResearchApplication $application,
+        ReviewerAssignment $assignment,
+        ReviewFormSubmission $form,
+        ReviewFormArtifact $artifact,
+    ): void {
+        Gate::authorize('viewRevisionCertification', $application);
+        abort_unless($assignment->research_application_id === $application->id, 404);
+        $this->assertReviewerNesting($assignment, $form, $artifact);
+        abort_unless(
+            $application->decisionReleases()
+                ->where('review_cycle', $assignment->review_cycle)
+                ->whereNotNull('released_at')
+                ->exists(),
+            403,
+        );
     }
 
     private function fileResponse(ReviewFormArtifact $artifact, string $disposition): StreamedResponse

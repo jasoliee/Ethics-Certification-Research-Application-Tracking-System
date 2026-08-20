@@ -105,7 +105,7 @@
                 <x-dashboard.deadline-alert
                     :deadline="$deadline"
                     empty-title="No upcoming deadlines"
-                    empty-message="Important application deadlines and reminders will appear here."
+                    empty-message=""
                 />
             </x-dashboard.section>
 

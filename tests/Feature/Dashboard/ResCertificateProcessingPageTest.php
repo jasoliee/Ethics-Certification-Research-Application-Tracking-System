@@ -69,7 +69,9 @@ class ResCertificateProcessingPageTest extends TestCase
         $eligible = $this->application('FILTER-ELIGIBLE', ApplicationStatus::ResultReleasedAccepted, $resLead);
         $pending = $this->application('FILTER-PENDING', ApplicationStatus::ReviewSubmittedPendingRelease, $resLead);
 
-        $response = $this->actingAs($resLead)->get(route('res.certificates.index', ['state' => 'certificate']));
+        $response = $this->actingAs($resLead)->get(route('res.certificates.index', [
+            'status' => ApplicationStatus::ResultReleasedAccepted->value,
+        ]));
 
         $response->assertOk()
             ->assertViewHas('queueMetrics', fn (array $metrics): bool => array_sum($metrics) === 2)
@@ -94,7 +96,7 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertDontSee('data-certificate-row-number="1"', false);
     }
 
-    public function test_decision_release_rejects_an_unowned_submission_identifier(): void
+    public function test_decision_release_ignores_forged_submission_identifiers_and_revalidates_application_consensus(): void
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);

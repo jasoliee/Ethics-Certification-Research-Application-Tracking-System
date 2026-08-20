@@ -3,7 +3,7 @@
 @section('content')
     <div class="dashboard-page reviewer-assignment-detail-page res-review-workspace-page">
         <header class="dashboard-page-heading reviewer-assignment-detail-heading">
-            <div><h1>Read-only Review Workspace</h1><p>Inspect submitted Reviewer materials and release one exact decision without changing review content.</p></div>
+            <div><h1>Read-only Review Workspace</h1></div>
             <a class="dashboard-outline-action" href="{{ route('res.certificates.index', ['application' => $application->id]) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to Decision &amp; Certificates</span></a>
         </header>
 
@@ -23,7 +23,7 @@
         </section>
 
         <section class="application-panel">
-            <header class="application-panel-heading"><div><h2>Supporting Documents</h2><p>Current private files delivered only through authorized RES routes.</p></div></header>
+            <header class="application-panel-heading"><div><h2>Supporting Documents</h2></div></header>
             @if ($application->documents->isEmpty())
                 <p class="reviewer-empty-copy">No current supporting documents are available.</p>
             @else
@@ -49,8 +49,18 @@
             @endif
         </section>
 
-        @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
-            <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Conflicted Full Board decisions.</strong><span>Release is blocked until every current Reviewer has re-submitted the same decision.</span></div></div>
+        @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
+            <section class="application-panel res-application-release-panel" aria-labelledby="application-release-title">
+                <header class="application-panel-heading"><div><h2 id="application-release-title">Application Decision</h2></div></header>
+                @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
+                    <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Conflicted Full Board decisions.</strong><span>Release is blocked until every current Reviewer has re-submitted the same decision.</span></div></div>
+                @elseif ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $application->review_consensus_decision !== \App\Enums\ReviewDecision::Approved)
+                    <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
+                        @csrf
+                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>Release Decision</span></button>
+                    </form>
+                @endif
+            </section>
         @endif
 
         <div class="res-readonly-review-grid {{ $application->reviewerAssignments->count() === 1 ? 'is-single-reviewer' : '' }}">
@@ -90,13 +100,6 @@
                         @endforelse
                     </div>
 
-                    @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $submittedVersion)
-                        <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
-                            @csrf
-                            <input type="hidden" name="review_submission_id" value="{{ $assignment->reviewSubmission->id }}">
-                            <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>Release This Decision</span></button>
-                        </form>
-                    @endif
                 </section>
             @empty
                 <section class="application-panel"><p class="reviewer-empty-copy">No current submitted Reviewer records are available.</p></section>

@@ -236,11 +236,12 @@ class UserManagementController extends Controller
         Gate::authorize('manageProfileOptions', User::class);
         $filters = validator($request->query(), [
             'search' => ['nullable', 'string', 'max:100'],
-            'field' => ['nullable', Rule::enum(ProfileOptionField::class)],
+            'field' => ['nullable', Rule::in(collect(ProfileOptionField::managedCases())->pluck('value')->all())],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
         ])->validate();
         $search = trim((string) ($filters['search'] ?? ''));
         $query = ProfileOption::query()
+            ->whereIn('field', collect(ProfileOptionField::managedCases())->pluck('value')->all())
             ->select(['id', 'field', 'value', 'sort_order', 'is_active', 'created_at', 'updated_at'])
             ->with('aliases:id,profile_option_id,value')
             ->when($search !== '', fn ($options) => $options->whereLike('value', '%'.$search.'%'))
@@ -258,8 +259,8 @@ class UserManagementController extends Controller
             'usageCounts' => $this->profileOptions->usageCounts($options->getCollection()),
             'filters' => $filters,
             'counts' => [
-                'active' => ProfileOption::query()->where('is_active', true)->count(),
-                'inactive' => ProfileOption::query()->where('is_active', false)->count(),
+                'active' => ProfileOption::query()->whereIn('field', collect(ProfileOptionField::managedCases())->pluck('value')->all())->where('is_active', true)->count(),
+                'inactive' => ProfileOption::query()->whereIn('field', collect(ProfileOptionField::managedCases())->pluck('value')->all())->where('is_active', false)->count(),
             ],
             'routeBase' => 'res.users',
             'breadcrumbs' => [
@@ -275,6 +276,7 @@ class UserManagementController extends Controller
         ProfileOption $profileOption,
         ProfileOptionCatalog $profileOptions,
     ): RedirectResponse {
+        abort_unless(in_array($profileOption->field, ProfileOptionField::managedCases(), true), 404);
         $profileOptions->update($request->user(), $profileOption, $request->validated('option_value'));
 
         return back()->with('status', 'Dropdown option updated. Existing account values were left unchanged.');
@@ -285,6 +287,7 @@ class UserManagementController extends Controller
         ProfileOption $profileOption,
         ProfileOptionCatalog $profileOptions,
     ): RedirectResponse {
+        abort_unless(in_array($profileOption->field, ProfileOptionField::managedCases(), true), 404);
         $isActive = $request->boolean('is_active');
         $profileOptions->setActive($request->user(), $profileOption, $isActive);
 
@@ -327,7 +330,7 @@ class UserManagementController extends Controller
 
         return redirect()
             ->route($this->routeBase($request->user()).'.show', $managedUser)
-            ->with('status', 'Identity corrected and the generated username was updated.');
+            ->with('status', 'Identity corrected. The existing username was preserved.');
     }
 
     public function sendPasswordReset(

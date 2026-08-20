@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApplicationDocument;
 use App\Models\ReviewerAssignment;
 use App\Services\Settings\DeadlineProcessAvailability;
+use App\Services\Settings\AcademicTermResolver;
 use App\Support\ReviewFormCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class ReviewerAssignmentPageController extends Controller
     /**
      * List only assignments owned by the authenticated Reviewer.
      */
-    public function index(Request $request): View
+    public function index(Request $request, AcademicTermResolver $terms): View
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
@@ -36,6 +37,7 @@ class ReviewerAssignmentPageController extends Controller
             'research_type' => ['nullable', Rule::enum(ResearchType::class)],
             'deadline' => ['nullable', Rule::in(['due_soon', 'overdue', 'no_deadline'])],
             'tab' => ['nullable', Rule::in(['assigned', 'revision', 'completed'])],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
         ]);
         $reviewTasksPage = $request->routeIs('reviewer.reviews.index');
         $activeTab = $reviewTasksPage ? ($filters['tab'] ?? 'assigned') : null;
@@ -49,7 +51,10 @@ class ReviewerAssignmentPageController extends Controller
             ->latestCycleForReviewer()
             ->where('reviewer_user_id', $request->user()->id)
             ->where('assignment_status', '!=', ReviewerAssignmentStatus::Superseded->value)
-            ->with(['researchApplication:id,application_code,research_title,research_type,review_type'])
+            ->with(['researchApplication:id,academic_term_id,application_code,research_title,research_type,review_type'])
+            ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $query) => $query
+                ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                    ->where('academic_term_id', (int) $filters['academic_term_id'])) )
             ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
                 $search = trim((string) $filters['q']);
 
@@ -92,6 +97,7 @@ class ReviewerAssignmentPageController extends Controller
             'filters' => $filters,
             'statuses' => ReviewerAssignmentStatus::cases(),
             'researchTypes' => ResearchType::cases(),
+            'termOptions' => $terms->filterOptions(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => $request->routeIs('reviewer.reviews.index') ? 'Review Tasks' : 'Assigned Applications'],

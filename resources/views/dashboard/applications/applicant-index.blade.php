@@ -1,17 +1,12 @@
 @extends('layouts.dashboard')
 
 @section('content')
-    @php
-        $semesterOptions = $termOptions->pluck('semester')->unique()->values();
-        $academicYearOptions = $termOptions->pluck('academic_year')->unique()->values();
-        $hasTermFilter = filled($filters['semester'] ?? null) || filled($filters['academic_year'] ?? null);
-    @endphp
+    @php($hasTermFilter = filled($filters['academic_term_id'] ?? null))
     <div class="dashboard-page application-workspace">
         {{-- The applicant list heading keeps the primary create action reachable at every viewport. --}}
         <header class="dashboard-page-heading-row">
             <div class="dashboard-page-heading">
                 <h1>My Applications</h1>
-                <p>Prepare, submit, and track your research ethics applications.</p>
             </div>
             <div class="application-heading-actions">
                 <span class="application-submission-state {{ $submissionWindow['open'] ? 'is-open' : 'is-closed' }}" role="status">
@@ -49,20 +44,11 @@
         @if ($termOptions->isNotEmpty())
             <form class="application-filter-bar application-term-filter" method="GET" action="{{ route('applicant.applications.index') }}">
                 <div class="application-field">
-                    <label for="applicant-semester">Semester</label>
-                    <select id="applicant-semester" name="semester">
-                        <option value="">All semesters</option>
-                        @foreach ($semesterOptions as $semester)
-                            <option value="{{ $semester }}" @selected(($filters['semester'] ?? '') === $semester)>{{ $semester }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="application-field">
-                    <label for="applicant-academic-year">Academic Year</label>
-                    <select id="applicant-academic-year" name="academic_year">
-                        <option value="">All academic years</option>
-                        @foreach ($academicYearOptions as $academicYear)
-                            <option value="{{ $academicYear }}" @selected(($filters['academic_year'] ?? '') === $academicYear)>{{ $academicYear }}</option>
+                    <label for="applicant-academic-term">Academic Term</label>
+                    <select id="applicant-academic-term" name="academic_term_id">
+                        <option value="">All terms</option>
+                        @foreach ($termOptions as $term)
+                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -78,7 +64,7 @@
                     image="no-applications"
                     alt="Empty application workspace"
                     :title="$hasTermFilter ? 'No applications found' : 'No application yet'"
-                    :message="$hasTermFilter ? 'No application records match the selected semester and academic year.' : 'Start an application to enter your research information and complete its document requirements.'"
+                    :message="$hasTermFilter ? 'No application records match the selected academic term.' : 'Start an application to enter your research information and complete its document requirements.'"
                     :action-label="$canStartApplication ? ($editableApplication ? 'Resume Application' : 'Start Application') : null"
                     :action-href="$canStartApplication ? route('applicant.applications.create') : null"
                 />
@@ -87,7 +73,7 @@
             {{-- Application history uses the shared internal-overflow component and bounded pagination. --}}
             <section class="application-panel">
                 <div class="application-panel-heading">
-                    <div><h2>Application Records</h2><p>Your newest application appears first.</p></div>
+                    <div><h2>Application Records</h2></div>
                 </div>
                 <x-dashboard.overflow label="Applicant application records" wide>
                     <table class="dashboard-table application-table">
@@ -101,7 +87,7 @@
                                     <td><x-dashboard.research-title :title="$application->research_title" :href="route('applicant.applications.show', $application)" /></td>
                                     <td>{{ $application->research_type?->label() ?? 'Not set' }}</td>
                                     <td>{{ $application->current_stage?->label() ?? 'Application Information' }}</td>
-                                    <td class="dashboard-table-status"><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></td>
+                                    <td class="dashboard-table-status"><x-dashboard.status-badge :label="$application->statusLabel()" :tone="$application->application_status->tone()" /></td>
                                     <td class="applicant-submitted-column">{{ $application->submitted_at?->format('M j, Y') ?? 'Not submitted' }}</td>
                                     <td class="application-table-actions dashboard-table-action">
                                         <x-dashboard.action-link :href="route('applicant.applications.show', $application)">View</x-dashboard.action-link>

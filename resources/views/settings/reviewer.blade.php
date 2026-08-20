@@ -43,7 +43,7 @@
                     <div><dt>Name</dt><dd>{{ $settingsUser->name }}</dd></div>
                     <div><dt>Email Address</dt><dd>{{ $settingsUser->email }}</dd></div>
                     <div><dt>Role</dt><dd>{{ $settingsUser->displayRoleLabel() }}</dd></div>
-                    <div><dt>Reviewer Classification</dt><dd>{{ $settingsUser->reviewer_classification ?: 'Not specified' }}</dd></div>
+                    <div><dt>Reviewer Capacity</dt><dd>{{ $settingsUser->reviewer_capacity ?: 'Not configured' }}</dd></div>
                 </dl>
                 @include('settings.partials.profile-form')
             </section>

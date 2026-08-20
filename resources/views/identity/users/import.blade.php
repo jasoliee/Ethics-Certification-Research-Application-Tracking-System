@@ -29,7 +29,7 @@
     <div class="dashboard-page identity-management-page">
         {{-- Page heading identifies the selected account type and preserves back navigation. --}}
         <header class="dashboard-page-heading-row identity-page-heading">
-            <div class="dashboard-page-heading"><h1>Excel Bulk Import: {{ $selectedType['label'] }}</h1><p>Validate a compatible workbook and review every result before creating accounts.</p></div>
+            <div class="dashboard-page-heading"><h1>Excel Bulk Import: {{ $selectedType['label'] }}</h1></div>
             <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.create') }}"><x-dashboard.icon name="arrow-left" size="18" /><span>Back</span></a>
         </header>
 
@@ -37,7 +37,7 @@
         <div class="identity-import-grid">
             {{-- The downloadable template is optional convenience; uploads are identified by required headers. --}}
             <section class="identity-import-guide">
-                <div class="identity-dialog-heading identity-template-heading"><div><h2>Optional Template</h2><p>Start with the provided workbook or upload your own compatible file for {{ Str::lower($selectedType['label']) }} accounts.</p></div></div>
+                <div class="identity-dialog-heading identity-template-heading"><div><h2>Optional Template</h2></div></div>
                 <div class="identity-template-actions">
                     <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.import.template', ['account_type' => $selectedType['key']]) }}"><x-dashboard.icon name="download" size="18" /><span>Download Excel Template</span></a>
                 </div>

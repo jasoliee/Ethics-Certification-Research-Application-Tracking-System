@@ -167,7 +167,7 @@ class OfficialReviewFormArtifactTest extends TestCase
         $this->finalizeForms($reviewer, $assignment);
         $firstComment = $assignment->comments()->create([
             'scope' => 'overall',
-            'category' => 'general',
+            'category' => 'required_revision',
             'body' => 'FIRST-PERSISTED-ARTIFACT-COMMENT',
             'status' => 'open',
         ]);

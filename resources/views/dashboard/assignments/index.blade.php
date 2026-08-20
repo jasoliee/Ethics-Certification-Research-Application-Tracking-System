@@ -13,7 +13,6 @@
     <div class="dashboard-page reviewer-assignment-page">
         <header class="dashboard-page-heading">
             <h1>{{ $reviewTasksPage ? 'Review Tasks' : 'Assigned Applications' }}</h1>
-            <p>{{ $reviewTasksPage ? 'Continue active and revision reviews, or revisit final approved work.' : 'Review applications assigned to your account and monitor their deadlines.' }}</p>
         </header>
 
         @if ($reviewTasksPage)
@@ -65,6 +64,15 @@
                     <option value="due_soon" @selected(($filters['deadline'] ?? '') === 'due_soon')>Due within 7 days</option>
                     <option value="overdue" @selected(($filters['deadline'] ?? '') === 'overdue')>Overdue</option>
                     <option value="no_deadline" @selected(($filters['deadline'] ?? '') === 'no_deadline')>Not configured</option>
+                </select>
+            </div>
+            <div class="application-field">
+                <label for="assignment-academic-term">Academic Term</label>
+                <select id="assignment-academic-term" name="academic_term_id">
+                    <option value="">All</option>
+                    @foreach ($termOptions as $term)
+                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
+                    @endforeach
                 </select>
             </div>
             <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Apply Filters</span></button>

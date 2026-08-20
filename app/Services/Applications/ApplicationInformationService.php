@@ -146,6 +146,15 @@ class ApplicationInformationService
             'adviser_user_id' => ['required', 'integer', $adviserRule],
             'abstract' => ['required', 'string', 'max:5000'],
             'target_participants' => ['required', 'string', 'max:2000'],
+            'certificate_recipients' => ['required', 'array', 'min:1', 'max:30'],
+            'certificate_recipients.*' => [
+                'required',
+                'string',
+                'min:3',
+                'max:180',
+                'distinct:ignore_case',
+                'regex:/^[\pL\pM][\pL\pM .\'-]*[\pL\pM.]$/u',
+            ],
             ...$durationRules,
         ];
     }
@@ -205,6 +214,9 @@ class ApplicationInformationService
             'expected_start_date.required' => 'Enter the expected research starting date.',
             'expected_end_date.required' => 'Enter the expected research ending date.',
             'expected_end_date.after_or_equal' => 'The ending date must be on or after the starting date.',
+            'certificate_recipients.required' => 'Add the applicant name and every group member who should receive a certificate.',
+            'certificate_recipients.*.distinct' => 'Each certificate recipient name may be added only once.',
+            'certificate_recipients.*.regex' => 'Enter each certificate recipient using a valid full name.',
         ];
     }
 
@@ -215,6 +227,8 @@ class ApplicationInformationService
      */
     private function applicationData(ResearchApplication $application): array
     {
+        $application->loadMissing('certificateRecipients');
+
         return [
             'research_title' => $application->research_title,
             'research_type' => $application->research_type?->value,
@@ -225,6 +239,7 @@ class ApplicationInformationService
             'adviser_user_id' => $application->adviser_user_id,
             'abstract' => $application->abstract,
             'target_participants' => $application->target_participants,
+            'certificate_recipients' => $application->certificateRecipients->pluck('recipient_name')->all(),
             'expected_duration' => $application->expected_duration,
             'expected_start_date' => $application->expected_start_date?->format('Y-m-d'),
             'expected_end_date' => $application->expected_end_date?->format('Y-m-d'),

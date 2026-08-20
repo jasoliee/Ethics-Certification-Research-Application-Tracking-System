@@ -67,6 +67,7 @@ class ApplicantRevisionPresentationTest extends TestCase
             ->assertSee('data-revision-version-panel="'.$first->id.'"', false)
             ->assertSee('Version 2')
             ->assertSee('Version 1')
+            ->assertSee('For Revision C1')
             ->assertSee('Reviewer 1')
             ->assertSee('Revise the participant safeguards in this protocol.')
             ->assertSee('Apply the released guidance across the whole study.')
@@ -82,6 +83,9 @@ class ApplicantRevisionPresentationTest extends TestCase
             '/data-revision-version-panel="'.preg_quote((string) $first->id, '/').'"[^>]*\shidden(?:\s|>)/',
             $response->getContent(),
         );
+
+        $application->update(['current_revision_cycle' => 3]);
+        $this->assertSame('For Revision C2', $application->refresh()->statusLabel());
     }
 
     public function test_final_approval_shows_released_feedback_before_pending_certificate_and_hides_revision_submission(): void

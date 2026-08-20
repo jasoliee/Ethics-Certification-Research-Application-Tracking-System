@@ -163,7 +163,7 @@ class ReviewerReassignmentWorkflowTest extends TestCase
         Notification::assertSentTo($original, DashboardUpdateNotification::class);
     }
 
-    public function test_replacement_revalidates_entitlement_classification_capacity_conflict_and_endorsement_atomically(): void
+    public function test_replacement_ignores_legacy_classification_and_revalidates_other_eligibility_rules_atomically(): void
     {
         [$resLead, $application] = $this->reviewApplication();
         $original = $this->reviewer();
@@ -194,7 +194,7 @@ class ReviewerReassignmentWorkflowTest extends TestCase
             'endorsed_at' => now(),
         ]);
 
-        foreach ([$disabled, $wrongClassification, $full, $conflicted, $endorser] as $candidate) {
+        foreach ([$disabled, $full, $conflicted, $endorser] as $candidate) {
             $this->actingAs($resLead)
                 ->post(route('res.applications.reviewers.store', $application), [
                     'reviewer_ids' => [$candidate->id],
@@ -213,6 +213,20 @@ class ReviewerReassignmentWorkflowTest extends TestCase
                 'reviewer_user_id' => $candidate->id,
             ]);
         }
+
+        $this->actingAs($resLead)
+            ->post(route('res.applications.reviewers.store', $application), [
+                'reviewer_ids' => [$wrongClassification->id],
+                'confirm_assignment' => '1',
+                'reassignment_reason' => 'Legacy classifications do not restrict current assignments.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('reviewer_assignments', [
+            'research_application_id' => $application->id,
+            'reviewer_user_id' => $wrongClassification->id,
+            'superseded_at' => null,
+        ]);
     }
 
     /** @return array{0: User, 1: ResearchApplication} */

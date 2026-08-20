@@ -5,8 +5,8 @@ namespace App\Services\Applications;
 use App\Enums\AccountStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
-use App\Models\ReviewerConflict;
 use App\Models\ResearchApplication;
+use App\Models\ReviewerConflict;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Resolves and revalidates active reviewers against classification, account state, conflicts, and workload.
+ * Resolves and revalidates reviewer-enabled Advisers against account state, conflicts, and workload.
  */
 class ReviewerEligibilityService
 {
@@ -37,8 +37,6 @@ class ReviewerEligibilityService
                 'institution',
                 'department',
                 'program',
-                'reviewer_classification',
-                'reviewer_classifications',
                 'reviewer_capacity',
                 'reviewer_enabled',
             ])
@@ -95,11 +93,6 @@ class ReviewerEligibilityService
         ResearchApplication $application,
         ReviewType $reviewType,
     ): void {
-        $expectedClassification = mb_strtolower((string) $reviewType->reviewerClassification());
-        $knownIdentityConflict = in_array($reviewer->id, [
-            $application->applicant_user_id,
-            $application->adviser_user_id,
-        ], true);
         $endorsedThisApplication = $reviewer->endorsements()
             ->where('research_application_id', $application->id)
             ->exists();
@@ -111,8 +104,6 @@ class ReviewerEligibilityService
 
         if (! $reviewer->hasReviewerAccess()
             || $reviewer->password_setup_completed_at === null
-            || ! $reviewer->hasReviewerClassification($expectedClassification)
-            || $knownIdentityConflict
             || $endorsedThisApplication
             || $declaredConflict) {
             throw ValidationException::withMessages([
@@ -143,24 +134,11 @@ class ReviewerEligibilityService
             ->reviewerEnabled()
             ->where('account_status', AccountStatus::Active->value)
             ->whereNotNull('password_setup_completed_at')
-            ->whereNotIn('id', array_filter([
-                $application->applicant_user_id,
-                $application->adviser_user_id,
-            ]))
             ->whereDoesntHave('endorsements', fn (Builder $endorsements) => $endorsements
                 ->where('research_application_id', $application->id))
             ->whereDoesntHave('reviewerConflicts', fn (Builder $conflicts) => $conflicts
                 ->where('research_application_id', $application->id)
-                ->whereNull('cleared_at'))
-            ->where(function (Builder $classifications) use ($reviewType): void {
-                $expected = (string) $reviewType->reviewerClassification();
-
-                $classifications
-                    ->whereJsonContains('reviewer_classifications', $expected)
-                    // The fallback keeps an Adviser eligible during a rolling deployment before
-                    // the additive migration has normalized every legacy classification value.
-                    ->orWhereRaw('LOWER(reviewer_classification) = ?', [mb_strtolower($expected)]);
-            });
+                ->whereNull('cleared_at'));
     }
 
     /**

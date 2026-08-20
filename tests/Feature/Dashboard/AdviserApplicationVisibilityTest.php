@@ -150,8 +150,7 @@ class AdviserApplicationVisibilityTest extends TestCase
 
         $this->actingAs($adviser)
             ->get(route('adviser.applications.index', [
-                'semester' => '1st Semester',
-                'academic_year' => '2026-2027',
+                'academic_term_id' => $firstTerm->id,
             ]))
             ->assertOk()
             ->assertSee('First Term Assigned Study')

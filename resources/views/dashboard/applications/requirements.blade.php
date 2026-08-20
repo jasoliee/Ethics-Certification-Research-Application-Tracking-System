@@ -42,24 +42,10 @@
             </div>
         @endif
 
-        {{-- Upload All submits every selected requirement without reloading or clearing untouched file inputs. --}}
         <section class="application-requirement-container" aria-label="Document requirements">
             @if ($canUpload && $requirementSummary['items']->isNotEmpty())
                 <div class="application-requirement-toolbar">
                     <div><h2>Document Requirements</h2><p>PDF, JPG, JPEG, PNG, GIF, or WebP; up to 100 MB per file.</p></div>
-                    <div class="application-upload-all-controls">
-                        <button
-                            class="dashboard-primary-action"
-                            type="button"
-                            data-upload-all
-                            data-upload-all-url="{{ route('applicant.applications.documents.store-all', $application) }}"
-                            disabled
-                        >
-                            <x-dashboard.icon name="upload" size="18" />
-                            <span data-upload-all-label>Upload All</span>
-                        </button>
-                        <div class="application-upload-all-summary" role="status" aria-live="polite" data-upload-all-summary></div>
-                    </div>
                 </div>
             @endif
 

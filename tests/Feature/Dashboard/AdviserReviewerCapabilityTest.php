@@ -87,7 +87,7 @@ class AdviserReviewerCapabilityTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_eligibility_requires_entitlement_classification_capacity_and_no_relationship_conflict(): void
+    public function test_eligibility_ignores_legacy_classification_but_enforces_entitlement_and_relationship_conflicts(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
@@ -124,7 +124,7 @@ class AdviserReviewerCapabilityTest extends TestCase
             ->pluck('id');
 
         $this->assertTrue($ids->contains($eligible->id));
-        $this->assertFalse($ids->contains($wrongClassification->id));
+        $this->assertTrue($ids->contains($wrongClassification->id));
         $this->assertFalse($ids->contains($disabled->id));
         $this->assertFalse($ids->contains($conflicted->id));
         $this->assertFalse($ids->contains($endorser->id));

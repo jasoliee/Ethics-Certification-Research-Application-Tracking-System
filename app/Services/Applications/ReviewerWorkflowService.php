@@ -5,6 +5,7 @@ namespace App\Services\Applications;
 use App\Enums\AccountStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
@@ -44,6 +45,7 @@ class ReviewerWorkflowService
         private readonly OfficialReviewFormArtifactService $officialForms,
         private readonly ReviewSubmissionVersionService $submissionVersions,
         private readonly ReviewConsensusService $consensus,
+        private readonly ApprovedDecisionAutomationService $approvedDecisionAutomation,
     ) {}
 
     /** @param array<string, mixed> $payload */
@@ -264,7 +266,7 @@ class ReviewerWorkflowService
         try {
             // PDF writes cannot participate in the database transaction, so do not retry
             // automatically and remove every exact path if either artifact cannot commit.
-            return DB::transaction(function () use (
+            $savedSubmission = DB::transaction(function () use (
                 $actor,
                 $assignment,
                 $decision,
@@ -444,6 +446,16 @@ class ReviewerWorkflowService
 
             throw $exception;
         }
+
+        if ($submit) {
+            try {
+                $this->approvedDecisionAutomation->releaseWhenApproved($assignment->researchApplication()->firstOrFail());
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return $savedSubmission;
     }
 
     private function lockedAssignment(ReviewerAssignment $assignment): ReviewerAssignment
@@ -718,6 +730,17 @@ class ReviewerWorkflowService
 
         if (mb_strlen(trim((string) $decisionComment)) < 10) {
             $errors['decision_comment'] = 'Provide a final decision comment of at least 10 characters.';
+        }
+
+        if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
+            $hasActionableRevision = $assignment->comments()
+                ->where('category', ReviewCommentCategory::RequiredRevision->value)
+                ->whereRaw("TRIM(body) <> ''")
+                ->exists();
+
+            if (! $hasActionableRevision) {
+                $errors['comments'] = 'Add at least one actionable Required Revision comment before submitting a revision decision.';
+            }
         }
 
         $finalForms = $assignment->formSubmissions()

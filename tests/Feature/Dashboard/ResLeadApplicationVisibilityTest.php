@@ -237,10 +237,11 @@ class ResLeadApplicationVisibilityTest extends TestCase
             $css,
         );
         $this->assertStringContainsString('"search search status apply"', $css);
-        $this->assertStringContainsString('"review affiliation date clear"', $css);
+        $this->assertStringContainsString('"review affiliation term clear"', $css);
         $this->assertStringContainsString('"search search"', $css);
         $this->assertStringContainsString('"status review"', $css);
         $this->assertStringContainsString('"affiliation affiliation"', $css);
+        $this->assertStringContainsString('"term term"', $css);
         $this->assertStringContainsString('"date date"', $css);
         $this->assertStringNotContainsString('res-filter-applicant-type', $css);
         $this->assertStringNotContainsString('res-filter-research-type', $css);

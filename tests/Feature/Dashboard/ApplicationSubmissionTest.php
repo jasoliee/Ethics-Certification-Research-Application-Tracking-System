@@ -396,6 +396,7 @@ class ApplicationSubmissionTest extends TestCase
                 'adviser_user_id' => $adviser->id,
                 'abstract' => 'A complete abstract for limit verification.',
                 'target_participants' => 'Adult students who provide informed consent.',
+                'certificate_recipients' => [$applicant->name],
                 'expected_start_date' => '2026-08-01',
                 'expected_end_date' => '2027-05-31',
             ])

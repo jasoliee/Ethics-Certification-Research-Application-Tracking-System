@@ -199,96 +199,17 @@ function initializeApplicationTools(shell) {
         });
     };
 
-    // Keep worksheet selection and form content inside the collapsed worksheet workflow panel.
-    const reviewerInlineFormHost = shell.querySelector('[data-reviewer-inline-forms]');
     const reviewerWorksheetAccordion = shell.querySelector('[data-reviewer-worksheet-accordion]');
-    const reviewerInlineForms = [...shell.querySelectorAll('[data-reviewer-form-dialog]')];
-    const reviewerInlineOrigins = new Map();
-    const reviewerInlinePristineState = new Map();
+    shell.querySelectorAll('[data-reviewer-form-dialog]').forEach((dialog) => {
+        const formType = dialog.dataset.reviewerFormDialog;
 
-    const reviewerInlineFormState = (panel) => {
-        const form = panel?.querySelector('[data-reviewer-worksheet-form]');
-
-        return form ? new URLSearchParams(new FormData(form)).toString() : '';
-    };
-
-    const hideReviewerInlineForm = (panel, { restoreFocus = true } = {}) => {
-        const form = panel?.querySelector('[data-reviewer-worksheet-form]');
-        const feedback = form?.querySelector('[data-reviewer-form-feedback]');
-        const pristine = reviewerInlinePristineState.get(panel) ?? reviewerInlineFormState(panel);
-        const hasChanges = reviewerInlineFormState(panel) !== pristine;
-
-        if (form?.getAttribute('aria-busy') === 'true') {
-            if (feedback) {
-                feedback.textContent = 'Wait for the worksheet draft to finish saving before returning to the worksheet list.';
-            }
-            form?.focus();
-
-            return false;
-        }
-
-        if (hasChanges && ! window.confirm('Discard unsaved worksheet changes?')) {
-            form?.focus();
-
-            return false;
-        }
-
-        if (hasChanges) {
-            form.reset();
-            form.dispatchEvent(new CustomEvent('reviewer:form-reset'));
-            reviewerInlinePristineState.set(panel, reviewerInlineFormState(panel));
-        }
-
-        panel.hidden = true;
-        if (restoreFocus) {
-            reviewerInlineOrigins.get(panel)?.focus();
-        }
-
-        return true;
-    };
-
-    if (reviewerInlineFormHost && reviewerInlineForms.length > 0) {
-        reviewerInlineForms.forEach((panel) => {
-            reviewerInlineFormHost.append(panel);
-            const form = panel.querySelector('[data-reviewer-worksheet-form]');
-            form?.addEventListener('reviewer:form-saved', () => {
-                reviewerInlinePristineState.set(panel, reviewerInlineFormState(panel));
-            });
-            panel.querySelectorAll('[data-reviewer-form-close]').forEach((button) => {
-                button.addEventListener('click', () => hideReviewerInlineForm(panel));
-            });
+        modalConfigurations.push({
+            dialog,
+            openSelector: `[data-reviewer-form-open="${formType}"]`,
+            closeSelector: '[data-reviewer-form-close]',
+            reviewerWorksheet: true,
         });
-
-        shell.querySelectorAll('[data-reviewer-form-open]').forEach((button) => {
-            button.addEventListener('click', () => {
-                const panel = reviewerInlineForms.find(
-                    (candidate) => candidate.dataset.reviewerFormDialog === button.dataset.reviewerFormOpen,
-                );
-                if (! panel) {
-                    return;
-                }
-
-                for (const candidate of reviewerInlineForms) {
-                    if (candidate !== panel && ! candidate.hidden && ! hideReviewerInlineForm(candidate, { restoreFocus: false })) {
-                        return;
-                    }
-                }
-                reviewerWorksheetAccordion.open = true;
-                reviewerInlineOrigins.set(panel, button);
-                reviewerInlinePristineState.set(panel, reviewerInlineFormState(panel));
-                panel.hidden = false;
-                panel.querySelector('.reviewer-inline-form')?.focus();
-            });
-        });
-
-        const openOnLoad = reviewerInlineForms.find((panel) => panel.hasAttribute('data-open-on-load'));
-        if (openOnLoad) {
-            reviewerWorksheetAccordion.open = true;
-            reviewerInlinePristineState.set(openOnLoad, reviewerInlineFormState(openOnLoad));
-            openOnLoad.hidden = false;
-            requestAnimationFrame(() => openOnLoad.querySelector('.reviewer-inline-form')?.focus());
-        }
-    }
+    });
 
     // Certification queue rows keep their forms server-rendered while opening one focused record at a time.
     shell.querySelectorAll('[data-certificate-application-dialog]').forEach((dialog) => {
@@ -424,6 +345,10 @@ function initializeApplicationTools(shell) {
         });
 
         trackedForm?.addEventListener('reviewer:form-saved', refreshPristineFormState);
+        trackedForm?.addEventListener('reviewer:form-completed', () => {
+            refreshPristineFormState();
+            closeDialog();
+        });
 
         // Server validation reopens the relevant decision form without losing entered remarks.
         if (dialog.hasAttribute('data-open-on-load')) {
@@ -462,7 +387,8 @@ function initializeApplicationTools(shell) {
 
         const formProgress = () => {
             const questions = [...form.querySelectorAll('[data-reviewer-form-question]')];
-            const consentQuestionsNotApplicable = consentDependent?.hidden === true;
+            const selectedConsent = consentGate?.querySelector('input[name="consent_required"]:checked')?.value;
+            const consentQuestionsNotApplicable = selectedConsent === '0';
 
             return {
                 answered: consentQuestionsNotApplicable
@@ -532,18 +458,20 @@ function initializeApplicationTools(shell) {
                 return;
             }
 
-            const consentIsNotRequired = consentGate.querySelector('input[name="consent_required"]:checked')?.value === '0';
+            const selectedConsent = consentGate.querySelector('input[name="consent_required"]:checked')?.value;
+            const consentIsRequired = selectedConsent === '1';
+            const consentIsNotRequired = selectedConsent === '0';
             const canWrite = consentGate.dataset.reviewerConsentWritable === 'true';
             consentExplanation.hidden = ! consentIsNotRequired;
             consentExplanationInput.disabled = ! consentIsNotRequired || ! canWrite || form.getAttribute('aria-busy') === 'true';
             consentExplanationInput.required = consentIsNotRequired && canWrite;
             if (consentDependent) {
-                consentDependent.hidden = consentIsNotRequired;
+                consentDependent.hidden = ! consentIsRequired;
                 consentDependent.querySelectorAll('input').forEach((input) => {
                     if (consentIsNotRequired && input.type === 'radio') {
                         input.checked = false;
                     }
-                    input.disabled = consentIsNotRequired || ! canWrite || form.getAttribute('aria-busy') === 'true';
+                    input.disabled = ! consentIsRequired || ! canWrite || form.getAttribute('aria-busy') === 'true';
                 });
             }
         };
@@ -641,7 +569,11 @@ function initializeApplicationTools(shell) {
                 worksheetControlsLocked = false;
                 syncConsentExplanation();
                 form.dispatchEvent(new CustomEvent('reviewer:form-saved'));
-                setFormFeedback(completed ? 'Worksheet completed without leaving this page.' : 'Progress saved.', 'success');
+                if (intent === 'submit' && completed) {
+                    form.dispatchEvent(new CustomEvent('reviewer:form-completed'));
+                } else {
+                    setFormFeedback('Progress saved.', 'success');
+                }
             } catch (error) {
                 setFormFeedback(error.message || 'The worksheet draft could not be saved. Check your connection and try again.', 'error');
             } finally {
@@ -661,7 +593,7 @@ function initializeApplicationTools(shell) {
         const selector = group.querySelector('[data-reviewer-history-version-select]');
         const panels = [...group.querySelectorAll('[data-reviewer-history-version-panel]')];
         const syncVersion = () => {
-            panels.forEach((panel) => {
+    panels.forEach((panel) => {
                 panel.hidden = panel.dataset.reviewerHistoryVersionPanel !== selector?.value;
             });
         };
@@ -1974,9 +1906,11 @@ function initializeApplicationTools(shell) {
         }
         syncUploadAll();
 
-        if (input.matches('[data-document-replace-file]') && input.files?.length) {
-            closeDocumentDialog();
-            form?.requestSubmit();
+        if (input.files?.length) {
+            if (input.matches('[data-document-replace-file]')) {
+                closeDocumentDialog();
+            }
+            uploadOne(form);
         }
     });
 
@@ -2074,6 +2008,53 @@ function initializeApplicationTools(shell) {
     });
     syncUploadAll();
 
+    shell.querySelectorAll('[data-revision-version-select]').forEach((selector) => {
+        const container = selector.closest('[data-revision-requirement]');
+        const panels = [...(container?.querySelectorAll('[data-revision-version-panel]') ?? [])];
+        const syncVersion = () => {
+            panels.forEach((panel) => {
+                panel.hidden = panel.dataset.revisionVersionPanel !== selector.value;
+            });
+            selector.dataset.tableTooltip = selector.selectedOptions[0]?.textContent?.trim() ?? '';
+        };
+        selector.addEventListener('change', syncVersion);
+        syncVersion();
+    });
+
+    shell.querySelectorAll('[data-applicant-review-worksheet]').forEach((worksheet) => {
+        const tabs = [...worksheet.querySelectorAll('[data-applicant-worksheet-tab]')];
+        const panels = [...worksheet.querySelectorAll('[data-applicant-worksheet-panel]')];
+        const activate = (type) => {
+            tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.applicantWorksheetTab === type)));
+            panels.forEach((panel) => {
+                panel.hidden = panel.dataset.applicantWorksheetPanel !== type;
+            });
+        };
+
+        tabs.forEach((tab) => tab.addEventListener('click', () => activate(tab.dataset.applicantWorksheetTab)));
+        panels.forEach((panel) => {
+            const selector = panel.querySelector('[data-applicant-worksheet-version]');
+            const frame = panel.querySelector('[data-applicant-worksheet-frame]');
+            const preview = panel.querySelector('[data-applicant-worksheet-preview-link]');
+            const download = panel.querySelector('[data-applicant-worksheet-download-link]');
+            const syncWorksheet = () => {
+                const option = selector?.selectedOptions[0];
+                if (! option) {
+                    return;
+                }
+                const previewUrl = new URL(option.dataset.previewUrl, window.location.origin);
+                const downloadUrl = new URL(option.dataset.downloadUrl, window.location.origin);
+                if (previewUrl.origin !== window.location.origin || downloadUrl.origin !== window.location.origin) {
+                    return;
+                }
+                frame?.setAttribute('src', previewUrl.href);
+                preview?.setAttribute('href', previewUrl.href);
+                download?.setAttribute('href', downloadUrl.href);
+            };
+            selector?.addEventListener('change', syncWorksheet);
+        });
+    });
+
     // Keep the ending-date boundary synchronized without replacing server-side validation.
     const expectedStartDate = shell.querySelector('#expected_start_date');
     const expectedEndDate = shell.querySelector('[data-expected-end-date]');
@@ -2084,6 +2065,134 @@ function initializeApplicationTools(shell) {
     };
     expectedStartDate?.addEventListener('change', syncExpectedDuration);
     syncExpectedDuration();
+
+    shell.querySelectorAll('[data-revision-upload-form]').forEach((form) => {
+        const input = form.querySelector('[data-revision-upload-input]');
+        const fileName = form.querySelector('[data-revision-file-name]');
+        const feedback = form.querySelector('[data-revision-upload-feedback]');
+
+        input?.addEventListener('change', async () => {
+            const file = input.files?.[0];
+            if (! file) {
+                return;
+            }
+
+            if (fileName) {
+                fileName.textContent = file.name;
+            }
+            if (feedback) {
+                feedback.textContent = 'Uploading...';
+                feedback.classList.remove('is-error');
+            }
+            const formData = new FormData(form);
+            input.disabled = true;
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (! response.ok) {
+                    const validationMessage = Object.values(payload.errors ?? {}).flat()[0];
+                    throw new Error(validationMessage ?? payload.message ?? 'The revised document could not be uploaded.');
+                }
+
+                if (feedback) {
+                    feedback.textContent = 'Upload complete.';
+                }
+                window.location.reload();
+            } catch (error) {
+                input.disabled = false;
+                input.value = '';
+                if (fileName) {
+                    fileName.textContent = 'Choose File';
+                }
+                if (feedback) {
+                    feedback.textContent = error.message || 'Upload failed. Check your connection and try again.';
+                    feedback.classList.add('is-error');
+                }
+            }
+        });
+    });
+
+    const recipientBuilder = shell.querySelector('[data-certificate-recipients]');
+    if (recipientBuilder) {
+        const input = recipientBuilder.querySelector('[data-certificate-recipient-input]');
+        const addButton = recipientBuilder.querySelector('[data-certificate-recipient-add]');
+        const list = recipientBuilder.querySelector('[data-certificate-recipient-list]');
+        const feedback = recipientBuilder.querySelector('[data-certificate-recipient-feedback]');
+        const normalized = (value) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+
+        const removeRecipient = (button) => {
+            button.closest('[data-certificate-recipient]')?.remove();
+            if (feedback) {
+                feedback.textContent = '';
+            }
+        };
+
+        recipientBuilder.querySelectorAll('[data-certificate-recipient-remove]').forEach((button) => {
+            button.addEventListener('click', () => removeRecipient(button));
+        });
+
+        const addRecipient = () => {
+            const name = input?.value.trim().replace(/\s+/g, ' ');
+            if (! name || ! list) {
+                if (feedback) {
+                    feedback.textContent = 'Enter a member name before selecting Add Name.';
+                    feedback.classList.add('is-error');
+                }
+                input?.focus();
+                return;
+            }
+
+            const duplicate = [...list.querySelectorAll('input[name="certificate_recipients[]"]')]
+                .some((field) => normalized(field.value) === normalized(name));
+            if (duplicate) {
+                if (feedback) {
+                    feedback.textContent = 'That name is already in the list.';
+                    feedback.classList.add('is-error');
+                }
+                input?.focus();
+                return;
+            }
+
+            const item = document.createElement('li');
+            item.dataset.certificateRecipient = '';
+            const label = document.createElement('span');
+            label.textContent = name;
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'certificate_recipients[]';
+            hidden.value = name;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.dataset.certificateRecipientRemove = '';
+            remove.setAttribute('aria-label', `Remove ${name}`);
+            remove.textContent = 'Remove';
+            remove.addEventListener('click', () => removeRecipient(remove));
+            item.append(label, hidden, remove);
+            list.append(item);
+            input.value = '';
+            if (feedback) {
+                feedback.textContent = `${name} added.`;
+                feedback.classList.remove('is-error');
+            }
+            input.focus();
+        };
+
+        addButton?.addEventListener('click', addRecipient);
+        input?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addRecipient();
+            }
+        });
+    }
 
     // Disable write commands after native validation passes to prevent accidental duplicate requests.
     shell.querySelectorAll('[data-application-submit-once]').forEach((form) => {
@@ -2304,6 +2413,18 @@ function initializeSettingsTools(shell) {
         pendingConfirmationForm = null;
         form.dataset.settingsConfirmationApproved = 'true';
         form.requestSubmit();
+    });
+
+    settings.querySelectorAll('[data-settings-file-control]').forEach((control) => {
+        const input = control.querySelector('input[type="file"]');
+        const label = control.querySelector('[data-settings-file-label]');
+        input?.addEventListener('change', () => {
+            const selected = input.files?.[0];
+            if (label) {
+                label.textContent = selected?.name ?? 'Choose File';
+            }
+            control.classList.toggle('has-file', Boolean(selected));
+        });
     });
 
     const passwordForm = settings.querySelector('[data-settings-password-form]');

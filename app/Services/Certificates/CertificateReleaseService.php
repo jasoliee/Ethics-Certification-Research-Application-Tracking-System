@@ -9,6 +9,7 @@ use App\Enums\CertificateVersionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
 use App\Models\Certificate;
+use App\Models\ApplicationCertificateRecipient;
 use App\Models\CertificateBackground;
 use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
@@ -36,19 +37,69 @@ class CertificateReleaseService
         ResearchApplication $application,
         bool $regenerate = false,
     ): array {
-        return $this->process($actor, $application, $regenerate, false);
+        return $this->processRecipients($actor, $application, $regenerate, false);
     }
 
     /** @return array{certificate: Certificate, action: string} */
     public function generatePending(User $actor, ResearchApplication $application): array
     {
-        return $this->process($actor, $application, false, true);
+        return $this->processRecipients($actor, $application, false, true);
+    }
+
+    /** @return array{certificate: Certificate, certificates: array<int, Certificate>, action: string} */
+    private function processRecipients(
+        User $actor,
+        ResearchApplication $application,
+        bool $regenerate,
+        bool $pendingOnly,
+    ): array {
+        Gate::forUser($actor)->authorize('releaseCertificate', $application);
+        $recipients = $application->certificateRecipients()->orderBy('sort_order')->orderBy('id')->get();
+        if ($recipients->isEmpty()) {
+            $name = \Illuminate\Support\Str::squish((string) ($application->applicant?->name ?: 'Applicant'));
+            $recipients = collect([$application->certificateRecipients()->create([
+                'recipient_name' => $name,
+                'normalized_name' => mb_strtolower($name),
+                'sort_order' => 1,
+            ])]);
+        }
+
+        $results = $recipients->map(
+            fn (ApplicationCertificateRecipient $recipient): array => $this->process(
+                $actor,
+                $application->refresh(),
+                $recipient,
+                $regenerate,
+                $pendingOnly,
+            ),
+        );
+        $action = $results->pluck('action')->first(
+            fn (string $action): bool => $action !== 'skipped',
+        ) ?? 'skipped';
+
+        if (! $pendingOnly && $action !== 'skipped') {
+            $application->applicant?->notify(new DashboardUpdateNotification([
+                'title' => 'Certificates released',
+                'message' => 'Your personalized ethics certificates are ready after you complete the required evaluation and claim them.',
+                'icon' => 'award',
+                'tone' => 'green',
+                'route' => 'applicant.revision-certificates.index',
+                'route_parameters' => ['application' => $application->id],
+            ]));
+        }
+
+        return [
+            'certificate' => $results->first()['certificate'],
+            'certificates' => $results->pluck('certificate')->all(),
+            'action' => $action,
+        ];
     }
 
     /** @return array{certificate: Certificate, action: string} */
     private function process(
         User $actor,
         ResearchApplication $application,
+        ApplicationCertificateRecipient $recipient,
         bool $regenerate,
         bool $pendingOnly,
     ): array {
@@ -63,6 +114,7 @@ class CertificateReleaseService
             $result = DB::transaction(function () use (
                 $actor,
                 $application,
+                $recipient,
                 $background,
                 $regenerate,
                 $pendingOnly,
@@ -77,6 +129,7 @@ class CertificateReleaseService
 
                 $certificate = Certificate::query()
                     ->where('research_application_id', $lockedApplication->id)
+                    ->where('application_certificate_recipient_id', $recipient->id)
                     ->lockForUpdate()
                     ->first();
                 $currentVersion = $certificate?->current_certificate_version_id
@@ -142,9 +195,13 @@ class CertificateReleaseService
                 if (! $certificate) {
                     $certificate = Certificate::create([
                         'research_application_id' => $lockedApplication->id,
+                        'application_certificate_recipient_id' => $recipient->id,
                         'applicant_user_id' => $lockedApplication->applicant_user_id,
+                        'recipient_name' => $recipient->recipient_name,
                         // The approved application code already follows the RES control-number pattern.
-                        'certificate_number' => $lockedApplication->application_code,
+                        'certificate_number' => (int) $recipient->sort_order === 1
+                            ? $lockedApplication->application_code
+                            : $lockedApplication->application_code.'-M'.str_pad((string) $recipient->sort_order, 2, '0', STR_PAD_LEFT),
                         'status' => CertificateStatus::PendingRelease->value,
                     ]);
                 }
@@ -156,7 +213,9 @@ class CertificateReleaseService
                 $versionNumber = $latestVersion + 1;
                 $releasedAt = now();
                 $issuedDate = \Carbon\CarbonImmutable::parse($releasedAt)->startOfDay();
-                $validUntil = $issuedDate->addYearNoOverflow();
+                $validUntil = $actor->certificate_valid_until
+                    ? \Carbon\CarbonImmutable::parse($actor->certificate_valid_until)
+                    : $issuedDate->addYearNoOverflow();
                 $fileData = $this->generator->renderAndStore(
                     $actor,
                     $lockedApplication,
@@ -164,6 +223,7 @@ class CertificateReleaseService
                     $background,
                     $versionNumber,
                     $releasedAt,
+                    validUntil: $validUntil,
                 );
                 $storedPath = $fileData['stored_file_path'];
 
@@ -234,7 +294,7 @@ class CertificateReleaseService
             }
 
             if (! $hadIssuedVersion) {
-                $this->recordGenerationFailure($actor, $application, $exception->failureCode);
+                $this->recordGenerationFailure($actor, $application, $recipient, $exception->failureCode);
             }
             report($exception);
 
@@ -256,17 +316,6 @@ class CertificateReleaseService
             throw ValidationException::withMessages([
                 'certificate' => 'The certificate release request could not be completed safely.',
             ])->errorBag('certificateRelease');
-        }
-
-        if (! $pendingOnly && $result['action'] !== 'skipped') {
-            $application->applicant?->notify(new DashboardUpdateNotification([
-                'title' => 'Certificate released',
-                'message' => 'Your generated ethics certificate is ready after you complete the required evaluation and claim it.',
-                'icon' => 'award',
-                'tone' => 'green',
-                'route' => 'applicant.revision-certificates.index',
-                'route_parameters' => ['application' => $application->id],
-            ]));
         }
 
         return $result;
@@ -395,6 +444,7 @@ class CertificateReleaseService
                     $releasedAt,
                     $issuedAt,
                     $releasedByUserId,
+                    $currentVersion->valid_until,
                 );
                 $storedPath = $fileData['stored_file_path'];
 
@@ -465,9 +515,10 @@ class CertificateReleaseService
     private function recordGenerationFailure(
         User $actor,
         ResearchApplication $application,
+        ApplicationCertificateRecipient $recipient,
         string $failureCode,
     ): void {
-        DB::transaction(function () use ($actor, $application, $failureCode): void {
+        DB::transaction(function () use ($actor, $application, $recipient, $failureCode): void {
             $locked = ResearchApplication::query()->whereKey($application->id)->lockForUpdate()->first();
             if (! $locked || ! $this->eligibility->isEligible($locked)) {
                 return;
@@ -475,6 +526,7 @@ class CertificateReleaseService
 
             $certificate = Certificate::query()
                 ->where('research_application_id', $locked->id)
+                ->where('application_certificate_recipient_id', $recipient->id)
                 ->lockForUpdate()
                 ->first();
             if ($certificate?->current_certificate_version_id) {
@@ -483,8 +535,12 @@ class CertificateReleaseService
 
             $certificate ??= Certificate::create([
                 'research_application_id' => $locked->id,
+                'application_certificate_recipient_id' => $recipient->id,
                 'applicant_user_id' => $locked->applicant_user_id,
-                'certificate_number' => $locked->application_code,
+                'recipient_name' => $recipient->recipient_name,
+                'certificate_number' => (int) $recipient->sort_order === 1
+                    ? $locked->application_code
+                    : $locked->application_code.'-M'.str_pad((string) $recipient->sort_order, 2, '0', STR_PAD_LEFT),
                 'status' => CertificateStatus::GenerationFailed->value,
             ]);
             $certificate->update([

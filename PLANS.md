@@ -1364,3 +1364,39 @@ Excluded:
 ### Approval Notes
 Approved by: User request
 Date: 2026-07-17
+# Plan: Complete August 20 ECRATS cross-viewport update
+
+Status: In progress on 2026-08-20.
+
+## Goal
+
+Implement the complete attached August 20 specification across reviewer eligibility, account creation/import, Full Board release, document/worksheet versions, certificate configuration and personalized output, Applicant and Reviewer workspaces, notifications, profile stability, secure previews, term filtering, responsive presentation, and required copy removal while preserving all historical and private records.
+
+## Authority And Safety
+
+- The attached August 20 prompt is the newest requirement and overrides older Reviewer-classification, certificate-validity, QR, upload, and release behavior.
+- Changes use additive or guarded forward migrations only. No database reset, broad rollback, record deletion, `.env` change, commit, push, deployment, tunnel, or external data transfer is authorized.
+- Legacy Reviewer classification columns remain historical compatibility data but will no longer control eligibility or current UI.
+- Private documents, worksheets, QR/signature assets, and certificates remain on authenticated same-origin routes with role/ownership checks and defensive response headers.
+
+## Implementation Batches
+
+1. Add safe schema support for certificate recipients, per-certificate QR/validity provenance, RES certificate configuration, and seven-day notification bin retention.
+2. Remove Reviewer classification from current validation, imports, profiles, filters, and assignment eligibility; add RES-controlled Reviewer capability/capacity to individual and workbook Adviser creation; preserve usernames during identity changes.
+3. Implement filtered/paginated notification inbox and bin with individual, selected, all, restore, unread/read, confirmation, and scheduled seven-day purge behavior.
+4. Implement automatic initial/revision uploads, exact document/worksheet business-version rules, revision status/navigation/panels, released worksheet access, Reviewer worksheet modals, consent gating, actionable revision-comment validation, and own-history privacy.
+5. Implement Certificate Configuration with signatory, signature, QR, fixed validity snapshot, personalized recipient certificates, corrected title/document layout, and fixed QR placement against the official PDF reference.
+6. Correct automatic Approved processing, application-level non-Approved release, Full Board conflict placement, Decision & Certificates filters/modal layout, version tables, and Review Monitoring workload/drill-down behavior.
+7. Add server-side term selection to affected dashboards, queues, monitoring, reviews, revisions, decisions, and reports without broadening role visibility.
+8. Remove the specified redundant subtext last, complete responsive/search/profile layout fixes, and update all implementation, feature, changelog, testing, visual-validation, plan, and known-issue records.
+
+## Verification
+
+- Add and run focused feature/unit tests for every changed server-side contract, then run the complete Laravel suite where feasible.
+- Run the guarded migration on the configured database, migration status, route listing, Blade compilation, Pint on changed PHP files, Vite production build, and `git diff --check`.
+- Start the local application and inspect authenticated desktop, tablet, and mobile surfaces with the available browser tooling.
+- Generate a representative personalized certificate, render it to PNG, and visually inspect title quoting, reviewed-document line break, validity, recipient, signatory, and QR placement.
+
+## Known Input Limitation
+
+- The checked-in official certificate PDF contains no QR area and the attachment includes no separate certificate reference image. The implementation will use a fixed non-overlapping lower-right placement on the official design and document the exact coordinates; generated output will be rendered and visually verified in this session.

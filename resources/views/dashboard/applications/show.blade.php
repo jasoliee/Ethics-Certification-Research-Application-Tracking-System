@@ -19,11 +19,14 @@
                 <span class="identity-eyebrow">{{ $application->application_code }}</span>
                 <h1>{{ $application->research_title }}</h1>
                 <div class="application-record-statuses">
-                    <x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" dot />
+                    <x-dashboard.status-badge :label="$application->statusLabel()" :tone="$application->application_status->tone()" dot />
                 </div>
             </div>
             <div class="application-record-actions">
                 <a class="dashboard-outline-action" href="{{ route($indexRoute) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to List</span></a>
+                @if ($role === \App\Enums\UserRole::Applicant && $application->application_status === \App\Enums\ApplicationStatus::RevisionWindowOpen)
+                    <a class="dashboard-outline-action" href="{{ route('applicant.revision-certificates.index', ['application' => $application->id]) }}"><x-dashboard.icon name="arrow-right" size="17" /><span>Go to Revision</span></a>
+                @endif
                 @if ($canEdit && ! $isReturnedApplicant)
                     <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
                 @endif
@@ -65,7 +68,6 @@
             <header class="application-panel-heading">
                 <div>
                     <h2>{{ $role === \App\Enums\UserRole::Applicant ? 'Application Information' : 'Application and Applicant Information' }}</h2>
-                    <p>Research, institutional, and authorized submission details.</p>
                 </div>
                 @if ($isReturnedApplicant && $canEdit)
                     <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>

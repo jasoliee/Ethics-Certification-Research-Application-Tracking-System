@@ -67,8 +67,8 @@ class TestingUserSeeder extends Seeder
                     // The compatibility review account is now an Adviser with supplementary access.
                     'department' => $reviewerEnabled ? 'Computer Studies' : null,
                     'position_title' => $reviewerEnabled ? 'Ethics Reviewer' : null,
-                    'reviewer_classification' => $reviewerEnabled ? 'Expedited' : null,
-                    'reviewer_classifications' => $reviewerEnabled ? ['Expedited'] : null,
+                    'reviewer_classification' => null,
+                    'reviewer_classifications' => null,
                     'reviewer_capacity' => $reviewerEnabled ? 6 : null,
                     'reviewer_enabled' => $reviewerEnabled,
                     'password' => Hash::make($user['password']),

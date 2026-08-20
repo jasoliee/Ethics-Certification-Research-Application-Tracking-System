@@ -54,7 +54,6 @@ class SafeSpreadsheet
         'institution' => 'EcratsInstitutionOptions',
         'department' => 'EcratsDepartmentOptions',
         'program' => 'EcratsProgramOptions',
-        'reviewer_classification' => 'EcratsReviewerClassificationOptions',
     ];
 
     /** Lists the minimum Open XML parts required before a generated workbook may be downloaded. */
@@ -319,7 +318,7 @@ class SafeSpreadsheet
         // Build exact references from the stable Options column order, omitting groups with no active values.
         $expectedRanges = [];
 
-        foreach (ProfileOptionField::cases() as $index => $field) {
+        foreach (ProfileOptionField::managedCases() as $index => $field) {
             $values = $options[$field->value] ?? [];
 
             if ($values === []) {
@@ -505,7 +504,7 @@ class SafeSpreadsheet
     {
         $normalized = [];
 
-        foreach (ProfileOptionField::cases() as $field) {
+        foreach (ProfileOptionField::managedCases() as $field) {
             $normalized[$field->value] = collect($options[$field->value] ?? [])
                 ->map(fn ($value): string => Str::squish((string) $value))
                 ->filter()
@@ -524,7 +523,7 @@ class SafeSpreadsheet
      */
     private function optionsWorksheet(array $options): array
     {
-        $fields = ProfileOptionField::cases();
+        $fields = ProfileOptionField::managedCases();
         $headerCells = '';
         $definedNames = [];
         $warnings = [];
@@ -626,7 +625,8 @@ class SafeSpreadsheet
                 'institution' => 48,
                 'department', 'position_title' => 36,
                 'program' => 46,
-                'reviewer_classification' => 30,
+                'reviewer_enabled' => 20,
+                'reviewer_capacity' => 20,
                 default => 20,
             };
             $column = $index + 1;
@@ -658,7 +658,7 @@ class SafeSpreadsheet
     /** @param array<string, mixed> $type @param array<string, array<int, string>> $options @param array<int, string> $warnings */
     private function instructionsWorksheet(array $type, array $options, array $warnings): string
     {
-        $acceptedValues = collect(ProfileOptionField::cases())
+        $acceptedValues = collect(ProfileOptionField::managedCases())
             ->map(fn (ProfileOptionField $field): string => $field->label().': '.(($options[$field->value] ?? []) === []
                 ? 'No active options configured'
                 : implode(', ', $options[$field->value])))

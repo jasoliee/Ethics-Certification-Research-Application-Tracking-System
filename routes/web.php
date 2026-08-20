@@ -58,6 +58,32 @@ Route::middleware('no-store')->group(function (): void {
         Route::post('/notifications/mark-all-read', [NotificationPageController::class, 'markAllRead'])
             ->middleware('throttle:notification-actions')
             ->name('notifications.mark-all-read');
+        Route::get('/notifications/bin', [NotificationPageController::class, 'bin'])
+            ->name('notifications.bin');
+        Route::post('/notifications/bulk', [NotificationPageController::class, 'bulk'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.bulk');
+        Route::post('/notifications/all', [NotificationPageController::class, 'updateAll'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.all');
+        Route::patch('/notifications/{notification}/read-status', [NotificationPageController::class, 'updateReadStatus'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.read-status');
+        Route::delete('/notifications/{notification}', [NotificationPageController::class, 'destroy'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.destroy');
+        Route::post('/notifications/bin/bulk', [NotificationPageController::class, 'bulkBin'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.bin.bulk');
+        Route::post('/notifications/bin/all', [NotificationPageController::class, 'updateAllBin'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.bin.all');
+        Route::patch('/notifications/bin/{notification}/restore', [NotificationPageController::class, 'restore'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.bin.restore');
+        Route::delete('/notifications/bin/{notification}', [NotificationPageController::class, 'forceDestroy'])
+            ->middleware('throttle:notification-actions')
+            ->name('notifications.bin.destroy');
         Route::post('/onboarding/complete', OnboardingController::class)
             ->middleware('throttle:onboarding')
             ->name('onboarding.complete');
@@ -117,6 +143,10 @@ Route::middleware('no-store')->group(function (): void {
                 Route::post('/revision-certificates/applications/{researchApplication}/certificate/claim', [ApplicantRevisionCertificateController::class, 'claim'])
                     ->middleware('throttle:certificate-workflow')
                     ->name('revision-certificates.certificate.claim');
+                Route::get('/revision-certificates/applications/{researchApplication}/reviewer-assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/preview', [ReviewFormArtifactController::class, 'applicantPreview'])
+                    ->name('revision-certificates.worksheets.preview');
+                Route::get('/revision-certificates/applications/{researchApplication}/reviewer-assignments/{reviewerAssignment}/forms/{reviewFormSubmission}/artifacts/{reviewFormArtifact}/download', [ReviewFormArtifactController::class, 'applicantDownload'])
+                    ->name('revision-certificates.worksheets.download');
                 Route::get('/revision-certificates/applications/{researchApplication}/certificates/{certificate}/versions/{certificateVersion}/preview', [ApplicantRevisionCertificateController::class, 'preview'])
                     ->name('revision-certificates.certificate.preview');
                 Route::get('/revision-certificates/applications/{researchApplication}/certificates/{certificate}/versions/{certificateVersion}/download', [ApplicantRevisionCertificateController::class, 'download'])
@@ -281,6 +311,10 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('applications.review-form-artifacts.download');
                 Route::get('/review-monitoring', ResReviewMonitoringController::class)
                     ->name('review-monitoring.index');
+                Route::get('/review-monitoring/reviewers/{reviewer}/assignments', [ResReviewMonitoringController::class, 'reviewerAssignments'])
+                    ->name('review-monitoring.reviewers.assignments');
+                Route::get('/review-monitoring/advisers/{adviser}/applications', [ResReviewMonitoringController::class, 'adviserApplications'])
+                    ->name('review-monitoring.advisers.applications');
                 Route::get('/certificates', [ResCertificationController::class, 'index'])
                     ->name('certificates.index');
                 Route::get('/certificates/applications/{researchApplication}/workspace', [ResCertificationController::class, 'workspace'])
@@ -349,6 +383,7 @@ Route::middleware('no-store')->group(function (): void {
                     Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
                     Route::put('/signatory', 'updateSignatory')->middleware('throttle:security-change')->name('signatory.update');
                     Route::get('/signatory/preview', 'previewSignatory')->name('signatory.preview');
+                    Route::get('/certificate-qr/preview', 'previewCertificateQr')->name('certificate-qr.preview');
                     Route::post('/profile-options', 'storeProfileOption')->middleware('throttle:account-option')->name('profile-options.store');
                     Route::put('/profile-options/{profileOption}', 'updateProfileOption')->middleware('throttle:account-option')->name('profile-options.update');
                     Route::patch('/profile-options/{profileOption}/status', 'changeProfileOptionStatus')->middleware('throttle:account-option')->name('profile-options.status');

@@ -1,15 +1,10 @@
 @extends('layouts.dashboard')
 
 @section('content')
-    @php
-        $semesterOptions = $termOptions->pluck('semester')->unique()->values();
-        $academicYearOptions = $termOptions->pluck('academic_year')->unique()->values();
-    @endphp
     <div class="dashboard-page application-workspace">
         {{-- Adviser heading and filter controls mirror the submitted-application hierarchy in the reference. --}}
         <header class="dashboard-page-heading">
             <h1>Submitted Applications</h1>
-            <p>View formally submitted applications assigned to you.</p>
         </header>
 
         {{-- GET filters remain bookmarkable and cannot escape the authenticated Adviser scope. --}}
@@ -29,20 +24,11 @@
                 </select>
             </div>
             <div class="application-field">
-                <label class="sr-only" for="adviser-semester">Semester</label>
-                <select id="adviser-semester" name="semester">
-                    <option value="">All semesters</option>
-                    @foreach ($semesterOptions as $semester)
-                        <option value="{{ $semester }}" @selected(($filters['semester'] ?? '') === $semester)>{{ $semester }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="application-field">
-                <label class="sr-only" for="adviser-academic-year">Academic Year</label>
-                <select id="adviser-academic-year" name="academic_year">
-                    <option value="">All academic years</option>
-                    @foreach ($academicYearOptions as $academicYear)
-                        <option value="{{ $academicYear }}" @selected(($filters['academic_year'] ?? '') === $academicYear)>{{ $academicYear }}</option>
+                <label class="sr-only" for="adviser-academic-term">Academic Term</label>
+                <select id="adviser-academic-term" name="academic_term_id">
+                    <option value="">All terms</option>
+                    @foreach ($termOptions as $term)
+                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                     @endforeach
                 </select>
             </div>

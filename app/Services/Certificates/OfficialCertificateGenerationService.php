@@ -54,12 +54,14 @@ class OfficialCertificateGenerationService
         mixed $releasedAt,
         mixed $generatedAt = null,
         ?int $releasedByUserId = null,
+        mixed $validUntil = null,
     ): array {
         $generatedAt ??= $releasedAt;
         $releasedByUserId ??= $actor->id;
         $templatePath = base_path('context_files/RES CERTIFIACTE.pdf');
         $this->assertVerifiedResource($templatePath, self::OFFICIAL_TEMPLATE_SHA256, 'official_template_invalid');
-        [$signaturePath, $signatoryName] = $this->signatory($actor);
+        [$signaturePath, $signatoryName, $signatureHash] = $this->signatory($actor);
+        $qr = $this->qrCode($actor);
 
         $disk = Storage::disk('local');
         if (! $disk->exists($background->stored_file_path)) {
@@ -81,7 +83,16 @@ class OfficialCertificateGenerationService
             $pdf = new Fpdi('P', 'mm', 'A4');
             $pdf->SetAutoPageBreak(false);
             $this->applyBackground($pdf, $background, $backgroundPath);
-            $this->drawCertificate($pdf, $application, $certificate, $signaturePath, $signatoryName, $generatedAt);
+            $this->drawCertificate(
+                $pdf,
+                $application,
+                $certificate,
+                $signaturePath,
+                $signatoryName,
+                $qr['path'] ?? null,
+                $generatedAt,
+                $validUntil,
+            );
             $bytes = $pdf->Output('S');
         } catch (CertificateGenerationException $exception) {
             throw $exception;
@@ -100,6 +111,7 @@ class OfficialCertificateGenerationService
         }
 
         $safeNumber = Str::slug($certificate->certificate_number, '-');
+        $safeRecipient = Str::slug($certificate->recipient_name ?: $application->applicant?->name ?: 'recipient', '-');
         $storedPath = "certificates/{$application->id}/{$safeNumber}-v{$version}-".Str::uuid().'.pdf';
         if (! $disk->put($storedPath, $bytes)) {
             throw new CertificateGenerationException(
@@ -120,7 +132,7 @@ class OfficialCertificateGenerationService
 
         return [
             'stored_file_path' => $storedPath,
-            'original_file_name' => "{$safeNumber}-certificate-v{$version}.pdf",
+            'original_file_name' => "{$safeNumber}-{$safeRecipient}-certificate-v{$version}.pdf",
             'mime_type' => 'application/pdf',
             'file_size_bytes' => $size,
             'sha256' => $hash,
@@ -131,6 +143,12 @@ class OfficialCertificateGenerationService
             'generator_version' => self::GENERATOR_VERSION,
             'generated_by_user_id' => $actor->id,
             'generated_at' => $generatedAt,
+            'signatory_name_snapshot' => $signatoryName,
+            'signature_sha256_snapshot' => $signatureHash,
+            'qr_code_path' => $qr['stored_path'] ?? null,
+            'qr_code_sha256' => $qr['sha256'] ?? null,
+            'qr_code_width' => $qr['width'] ?? null,
+            'qr_code_height' => $qr['height'] ?? null,
             'released_by_user_id' => $releasedByUserId,
             'released_at' => $releasedAt,
         ];
@@ -164,7 +182,9 @@ class OfficialCertificateGenerationService
         Certificate $certificate,
         string $signaturePath,
         string $signatoryName,
+        ?string $qrPath,
         mixed $issuedAt,
+        mixed $validUntil,
     ): void {
         $application->loadMissing([
             'applicant:id,name,first_name,middle_name,last_name,suffix,applicant_type,institution,department,program',
@@ -175,7 +195,7 @@ class OfficialCertificateGenerationService
             'decisionReleases' => fn ($releases) => $releases->latest('released_at'),
         ]);
 
-        $applicantName = Str::upper($application->applicant?->name ?: 'NAME NOT RECORDED');
+        $applicantName = Str::upper($certificate->recipient_name ?: $application->applicant?->name ?: 'NAME NOT RECORDED');
         $applicantType = Str::upper(
             ApplicantType::tryFrom((string) $application->applicant_type)?->label() ?? 'Applicant',
         );
@@ -187,19 +207,18 @@ class OfficialCertificateGenerationService
         $documentNames = $application->documents
             ->map(fn ($document): string => $document->requirement?->name ?: $document->original_file_name)
             ->filter()
+            ->reject(fn (string $name): bool => Str::lower(Str::squish($name)) === 'payment proof')
             ->unique()
             ->implode(', ');
-        $documentDates = $application->documents
-            ->pluck('uploaded_at')
-            ->filter()
-            ->sort()
-            ->last();
         $reviewedDocuments = $documentNames !== ''
-            ? $documentNames.($documentDates ? ' ('.$documentDates->format('F j, Y').')' : '')
+            ? $documentNames
             : 'No document list was recorded';
         $issuedDate = CarbonImmutable::parse($issuedAt);
+        $validityDate = $validUntil
+            ? CarbonImmutable::parse($validUntil)
+            : $issuedDate->addYearNoOverflow();
         $validity = 'From '.$issuedDate->format('F j, Y')
-            .' through '.$issuedDate->addYearNoOverflow()->format('F j, Y').'.';
+            .' through '.$validityDate->format('F j, Y').'.';
 
         $pdf->SetTextColor(0, 0, 0);
         $this->centeredText($pdf, 'Research Ethics Section', 43.8, 7.3, 10, 'I');
@@ -209,13 +228,13 @@ class OfficialCertificateGenerationService
 
         $this->centeredText($pdf, 'CERTIFICATE OF ETHICAL CLEARANCE', 68.5, 9, 18, 'B');
         $this->centeredText($pdf, 'This is to certify that the research proposal entitled:', 84.2, 6, 10);
-        $this->fitCenteredBlock($pdf, Str::upper($application->research_title), 94, 18, 13, 9, 'B');
+        $this->fitCenteredBlock($pdf, '"'.Str::upper($application->research_title).'"', 94, 18, 13, 9, 'B');
         $this->centeredText($pdf, 'submitted by', 120.5, 6, 10);
         $this->fitCenteredBlock($pdf, $applicantName, 131, 12, 15, 10, 'BU');
         $this->fitCenteredBlock($pdf, "{$applicantType}, {$institution}", 141, 9, 10, 8, 'I');
 
         $committeeText = "has been reviewed and granted ethical clearance by the KLD Research Ethics Board.\n"
-            ."The committee reviewed the following documents: {$reviewedDocuments}\n"
+            ."The committee reviewed the following documents:\n{$reviewedDocuments}\n"
             ."Type of Review Conducted: {$reviewType}\n"
             .'Date of Approval: '.$approvalDate->format('F j, Y')."\n"
             ."Validity Period: {$validity}";
@@ -247,6 +266,9 @@ class OfficialCertificateGenerationService
         );
 
         $pdf->Image($signaturePath, 89, 240, 30, 0, 'PNG');
+        if ($qrPath !== null) {
+            $pdf->Image($qrPath, 169, 237, 22, 22, 'PNG');
+        }
         $this->centeredText($pdf, Str::upper($signatoryName), 254.5, 6, 10, 'B');
         $this->centeredText($pdf, 'Coordinator, Research Ethics Section', 261, 6, 9, 'I');
     }
@@ -333,7 +355,7 @@ class OfficialCertificateGenerationService
         }
     }
 
-    /** @return array{0: string, 1: string} */
+    /** @return array{0: string, 1: string, 2: string} */
     private function signatory(User $actor): array
     {
         $name = Str::squish((string) ($actor->certificate_signatory_name ?: 'SARIAH R. VILLANUEVA'));
@@ -360,12 +382,42 @@ class OfficialCertificateGenerationService
                 );
             }
 
-            return [$path, $name];
+            return [$path, $name, $hash];
         }
 
         $path = base_path('resources/certificates/res-signatory-signature.png');
         $this->assertVerifiedResource($path, self::OFFICIAL_SIGNATURE_SHA256, 'official_signature_invalid');
 
-        return [$path, $name];
+        return [$path, $name, self::OFFICIAL_SIGNATURE_SHA256];
+    }
+
+    /** @return array{path: string, stored_path: string, sha256: string, width: int, height: int}|null */
+    private function qrCode(User $actor): ?array
+    {
+        if (blank($actor->certificate_qr_path)) {
+            return null;
+        }
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($actor->certificate_qr_path)) {
+            throw new CertificateGenerationException('The configured certificate QR image is unavailable.', 'configured_qr_missing');
+        }
+        $path = $disk->path($actor->certificate_qr_path);
+        $hash = hash_file('sha256', $path);
+        $dimensions = @getimagesize($path);
+        if (! is_string($hash)
+            || ! hash_equals((string) $actor->certificate_qr_sha256, $hash)
+            || ! is_array($dimensions)
+            || ($dimensions['mime'] ?? null) !== 'image/png') {
+            throw new CertificateGenerationException('The configured certificate QR image failed integrity verification.', 'configured_qr_invalid');
+        }
+
+        return [
+            'path' => $path,
+            'stored_path' => $actor->certificate_qr_path,
+            'sha256' => $hash,
+            'width' => (int) $dimensions[0],
+            'height' => (int) $dimensions[1],
+        ];
     }
 }

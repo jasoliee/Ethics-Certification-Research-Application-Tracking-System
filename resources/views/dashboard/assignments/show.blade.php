@@ -9,7 +9,6 @@
         <header class="dashboard-page-heading reviewer-assignment-detail-heading">
             <div>
                 <h1>Assigned Application</h1>
-                <p>Review the research record and its current supporting documents.</p>
             </div>
             <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.index') }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to Assignments</span></a>
         </header>
@@ -52,7 +51,7 @@
         @if ($canOpenWorkspace)
         <section class="application-panel">
             <header class="application-panel-heading">
-                <div><h2>Supporting Documents</h2><p>Current private versions attached to this assigned application.</p></div>
+                <div><h2>Supporting Documents</h2></div>
             </header>
             @if ($application->documents->isEmpty())
                 <x-dashboard.empty-state

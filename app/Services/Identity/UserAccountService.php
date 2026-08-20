@@ -7,7 +7,6 @@ use App\Enums\ApplicantType;
 use App\Enums\ProfileOptionField;
 use App\Enums\UserRole;
 use App\Models\User;
-use App\Notifications\UsernameChangedNotification;
 use App\Services\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +15,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class UserAccountService
 {
@@ -59,17 +57,19 @@ class UserAccountService
     {
         Gate::forUser($actor)->authorize('update', $subject);
         $normalized = $this->normalizeProfile($attributes);
-
-        if (($normalized['last_name'] ?? null) !== $subject->last_name
-            || ($normalized['institutional_identifier'] ?? null) !== $subject->institutional_identifier) {
-            throw ValidationException::withMessages([
-                'identity' => 'Use the confirmed identity correction action to change surname or institutional identifier.',
-            ]);
+        if ($subject->role === UserRole::Adviser) {
+            $normalized['reviewer_enabled'] ??= (bool) $subject->reviewer_enabled;
+            $normalized['reviewer_capacity'] ??= $subject->reviewer_capacity;
         }
 
         $validated = validator(
             $normalized,
-            $this->profileRules($subject, $subject->role, $subject->applicant_type),
+            $this->profileRules(
+                $subject,
+                $subject->role,
+                $subject->applicant_type,
+                reviewerEnabled: (bool) ($normalized['reviewer_enabled'] ?? $subject->reviewer_enabled),
+            ),
             $this->profileValidationMessages(),
         )->validate();
 
@@ -121,35 +121,20 @@ class UserAccountService
             throw ValidationException::withMessages(['identity' => 'Change the surname or institutional identifier before confirming.']);
         }
 
-        $previousUsername = $subject->username;
-        $updated = DB::transaction(function () use ($actor, $subject, $validated, $previousUsername): User {
-            $username = $this->usernameGenerator->generate(
-                $validated['institutional_identifier'],
-                $validated['last_name'],
-            );
+        return DB::transaction(function () use ($actor, $subject, $validated): User {
             $subject->forceFill([
                 'last_name' => $validated['last_name'],
                 'institutional_identifier' => $validated['institutional_identifier'],
-                'username' => $username,
                 'name' => User::formatName($subject->first_name, $subject->middle_name, $validated['last_name'], $subject->suffix),
             ])->save();
 
-            $this->auditLog->record($actor, 'user.username_regenerated', $subject, [
-                'previous_username' => $previousUsername,
-                'new_username' => $username,
+            $this->auditLog->record($actor, 'user.identity_corrected', $subject, [
+                'username_preserved' => $subject->username,
                 'result' => 'updated',
             ]);
 
             return $subject->refresh();
         });
-
-        try {
-            $updated->notify(new UsernameChangedNotification($updated->username));
-        } catch (Throwable) {
-            $this->auditLog->record($actor, 'user.username_notification_failed', $updated, ['result' => 'failed']);
-        }
-
-        return $updated;
     }
 
     public function changeStatus(User $actor, User $subject, AccountStatus|string $status): User
@@ -221,7 +206,13 @@ class UserAccountService
             ? ApplicantType::tryFrom((string) ($attributes['applicant_type'] ?? ''))
             : null;
         $rules = [
-            ...$this->profileRules(null, $targetRole, $applicantType, $checkDatabaseUniqueness),
+            ...$this->profileRules(
+                null,
+                $targetRole,
+                $applicantType,
+                $checkDatabaseUniqueness,
+                (bool) ($attributes['reviewer_enabled'] ?? false),
+            ),
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [
                 Rule::requiredIf($targetRole === UserRole::Applicant),
@@ -239,6 +230,7 @@ class UserAccountService
         ?UserRole $targetRole = null,
         ?ApplicantType $applicantType = null,
         bool $checkDatabaseUniqueness = true,
+        bool $reviewerEnabled = false,
     ): array {
         return [
             'first_name' => ['required', 'string', 'max:100'],
@@ -285,26 +277,13 @@ class UserAccountService
                 Rule::in($this->profileOptions->values(ProfileOptionField::YearLevel, $subject?->year_level)),
             ],
             'position_title' => ['nullable', 'string', 'max:150'],
-            'reviewer_classifications' => [
-                Rule::requiredIf(
-                    $targetRole === UserRole::Adviser
-                    && (bool) ($subject?->reviewer_enabled ?? false),
-                ),
+            'reviewer_enabled' => [
+                Rule::prohibitedIf($targetRole !== UserRole::Adviser),
                 'nullable',
-                'array',
-                'min:1',
-                'max:2',
-            ],
-            'reviewer_classifications.*' => [
-                'string',
-                'distinct',
-                Rule::in(['Expedited', 'Full Board']),
+                'boolean',
             ],
             'reviewer_capacity' => [
-                Rule::requiredIf(
-                    $targetRole === UserRole::Adviser
-                    && (bool) ($subject?->reviewer_enabled ?? false),
-                ),
+                Rule::requiredIf($targetRole === UserRole::Adviser && $reviewerEnabled),
                 'nullable',
                 'integer',
                 'between:1,30',
@@ -315,27 +294,23 @@ class UserAccountService
     /** @param array<string, mixed> $attributes @return array<string, mixed> */
     private function normalizeProfile(array $attributes): array
     {
-        foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'program', 'year_level', 'position_title', 'reviewer_classification'] as $field) {
+        foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'program', 'year_level', 'position_title'] as $field) {
             $attributes[$field] = filled($attributes[$field] ?? null)
                 ? Str::squish((string) $attributes[$field])
                 : null;
         }
 
-        if (array_key_exists('reviewer_classifications', $attributes)) {
-            $submitted = is_array($attributes['reviewer_classifications'])
-                ? $attributes['reviewer_classifications']
-                : [$attributes['reviewer_classifications']];
-            $attributes['reviewer_classifications'] = collect($submitted)
-                ->map(fn (mixed $classification): mixed => is_string($classification)
-                    ? Str::squish($classification)
-                    : $classification)
-                ->filter(fn (mixed $classification): bool => $classification !== null && $classification !== '')
-                ->values()
-                ->all();
+        if (array_key_exists('reviewer_enabled', $attributes) && is_string($attributes['reviewer_enabled'])) {
+            $normalizedReviewerEnabled = mb_strtolower(trim($attributes['reviewer_enabled']));
+            $attributes['reviewer_enabled'] = match ($normalizedReviewerEnabled) {
+                '1', 'true', 'yes', 'y' => true,
+                '0', 'false', 'no', 'n', '' => false,
+                default => $attributes['reviewer_enabled'],
+            };
         }
 
         // Canonicalize current labels, immutable IDs, and historical aliases before shared validation.
-        foreach (ProfileOptionField::cases() as $field) {
+        foreach (ProfileOptionField::managedCases() as $field) {
             $submitted = $attributes[$field->value] ?? null;
             $resolved = $this->profileOptions->resolve($field, is_int($submitted) || is_string($submitted) ? $submitted : null);
 
@@ -362,9 +337,7 @@ class UserAccountService
             'department.in' => $this->profileOptions->validationMessage(ProfileOptionField::Department),
             'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $this->profileOptions->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_classifications.required' => 'Select at least one Reviewer Classification while Reviewer access is shown.',
-            'reviewer_classifications.min' => 'Select at least one Reviewer Classification while Reviewer access is shown.',
-            'reviewer_classifications.*.in' => 'Reviewer Classification must be Expedited or Full Board.',
+            'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
             'reviewer_capacity.between' => 'Reviewer Capacity must be between 1 and 30.',
         ];
     }
@@ -428,7 +401,7 @@ class UserAccountService
             'program',
             'year_level',
             'position_title',
-            'reviewer_classifications',
+            'reviewer_enabled',
             'reviewer_capacity',
         ])->all();
 
@@ -440,14 +413,13 @@ class UserAccountService
         }
 
         if ($targetRole !== UserRole::Adviser) {
-            $values['reviewer_classifications'] = null;
-            $values['reviewer_classification'] = null;
+            $values['reviewer_enabled'] = false;
             $values['reviewer_capacity'] = null;
         } else {
-            $classifications = array_values($validated['reviewer_classifications'] ?? []);
-            $values['reviewer_classifications'] = $classifications ?: null;
-            // Keep the legacy scalar synchronized while older reports and exports are retired.
-            $values['reviewer_classification'] = $classifications[0] ?? null;
+            $values['reviewer_enabled'] = (bool) ($validated['reviewer_enabled'] ?? false);
+            $values['reviewer_capacity'] = $values['reviewer_enabled']
+                ? (int) $validated['reviewer_capacity']
+                : null;
         }
 
         return $values;

@@ -9,10 +9,24 @@ use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /** @extends Factory<ResearchApplication> */
 class ResearchApplicationFactory extends Factory
 {
+    public function configure(): static
+    {
+        return $this->afterCreating(function (ResearchApplication $application): void {
+            $recipientName = Str::squish($application->applicant()->value('name') ?? 'Applicant Name');
+
+            $application->certificateRecipients()->create([
+                'recipient_name' => $recipientName,
+                'normalized_name' => mb_strtolower($recipientName),
+                'sort_order' => 1,
+            ]);
+        });
+    }
+
     public function definition(): array
     {
         return [

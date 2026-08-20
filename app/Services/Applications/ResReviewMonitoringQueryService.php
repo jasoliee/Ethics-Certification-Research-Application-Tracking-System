@@ -4,7 +4,6 @@ namespace App\Services\Applications;
 
 use App\Enums\AccountStatus;
 use App\Enums\ApplicationStatus;
-use App\Enums\EndorsementStatus;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
@@ -34,7 +33,6 @@ class ResReviewMonitoringQueryService
      * @param  array{q?: string|null, review_type?: string|null, assignment_status?: string|null, deadline?: string|null, consensus?: string|null, adviser_q?: string|null, adviser_department?: string|null, adviser_workload?: string|null}  $filters
      * @return array{
      *     metrics: array{active_applications: int, active_assignments: int, completed_assignments: int, total_assignments: int, completion_rate: int, overdue_assignments: int, conflicted_applications: int},
-     *     applications: LengthAwarePaginator<int, ResearchApplication>,
      *     conflicts: Collection<int, ResearchApplication>,
      *     reviewerWorkloads: LengthAwarePaginator<int, User>,
      *     adviserWorkloads: LengthAwarePaginator<int, User>,
@@ -44,12 +42,14 @@ class ResReviewMonitoringQueryService
     public function dashboard(array $filters): array
     {
         return [
-            'metrics' => $this->metrics(),
-            'applications' => $this->applications($filters),
-            'conflicts' => $this->conflicts(),
-            'reviewerWorkloads' => $this->reviewerWorkloads(),
+            'metrics' => $this->metrics($filters),
+            'conflicts' => $this->conflicts($filters),
+            'reviewerWorkloads' => $this->reviewerWorkloads($filters),
             'adviserWorkloads' => $this->adviserWorkloads($filters),
             'adviserDepartments' => $this->adviserDepartments(),
+            'adviserInstitutions' => $this->adviserInstitutions(),
+            'reviewerDepartments' => $this->reviewerDepartments(),
+            'reviewerInstitutions' => $this->reviewerInstitutions(),
         ];
     }
 
@@ -64,16 +64,6 @@ class ResReviewMonitoringQueryService
      */
     private function adviserWorkloads(array $filters): LengthAwarePaginator
     {
-        $endorsedCount = '(SELECT COUNT(DISTINCT endorsements.research_application_id)'
-            .' FROM endorsements'
-            .' WHERE endorsements.adviser_user_id = users.id'
-            .' AND endorsements.endorsement_status = ?)';
-        $awaitingCount = '(SELECT COUNT(*)'
-            .' FROM research_applications'
-            .' WHERE research_applications.adviser_user_id = users.id'
-            .' AND research_applications.submitted_at IS NOT NULL'
-            .' AND research_applications.application_status = ?)';
-
         $query = $this->authorizedAdvisersQuery()
             ->select([
                 'id',
@@ -81,67 +71,24 @@ class ResReviewMonitoringQueryService
                 'role',
                 'position_title',
                 'department',
+                'institution',
                 'expected_endorsement_count',
             ])
             ->withCount([
                 'advisedApplications as awaiting_endorsement_count' => fn (Builder $applications) => $applications
                     ->whereNotNull('submitted_at')
-                    ->where('application_status', ApplicationStatus::SubmittedToAdviser->value),
-            ])
-            ->with([
-                'advisedApplications' => fn (Builder|Relation $applications) => $applications
-                    ->select([
-                        'id',
-                        'adviser_user_id',
-                        'application_code',
-                        'application_status',
-                        'submitted_at',
-                        'status_updated_at',
-                    ])
-                    ->whereNotNull('submitted_at')
-                    ->orderByDesc('status_updated_at')
-                    ->orderByDesc('id')
-                    ->limit(4),
+                    ->where('application_status', ApplicationStatus::SubmittedToAdviser->value)
+                    ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $applications) => $applications
+                        ->where('academic_term_id', (int) $filters['academic_term_id'])),
             ])
             ->when(filled($filters['adviser_q'] ?? null), function (Builder $advisers) use ($filters): void {
                 $search = trim((string) $filters['adviser_q']);
-
-                $advisers->where(function (Builder $matching) use ($search): void {
-                    $matching
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('position_title', 'like', "%{$search}%")
-                        ->orWhere('department', 'like', "%{$search}%");
-                });
+                $advisers->where('name', 'like', "%{$search}%");
             })
             ->when(filled($filters['adviser_department'] ?? null), fn (Builder $advisers) => $advisers
                 ->whereRaw('LOWER(department) = ?', [mb_strtolower(trim((string) $filters['adviser_department']))]))
-            ->when(($filters['adviser_workload'] ?? null) === 'awaiting_action', fn (Builder $advisers) => $advisers
-                ->whereHas('advisedApplications', fn (Builder $applications) => $applications
-                    ->whereNotNull('submitted_at')
-                    ->where('application_status', ApplicationStatus::SubmittedToAdviser->value)))
-            ->when(($filters['adviser_workload'] ?? null) === 'remaining_expected', fn (Builder $advisers) => $advisers
-                ->whereRaw(
-                    "COALESCE(users.expected_endorsement_count, 0) > {$endorsedCount}",
-                    [EndorsementStatus::Endorsed->value],
-                ))
-            ->when(($filters['adviser_workload'] ?? null) === 'not_received', fn (Builder $advisers) => $advisers
-                ->whereRaw(
-                    "COALESCE(users.expected_endorsement_count, 0) - {$endorsedCount} - {$awaitingCount} > 0",
-                    [
-                        EndorsementStatus::Endorsed->value,
-                        ApplicationStatus::SubmittedToAdviser->value,
-                    ],
-                ))
-            ->when(($filters['adviser_workload'] ?? null) === 'target_met', fn (Builder $advisers) => $advisers
-                ->where('expected_endorsement_count', '>', 0)
-                ->whereRaw(
-                    "users.expected_endorsement_count <= {$endorsedCount}",
-                    [EndorsementStatus::Endorsed->value],
-                ))
-            ->when(($filters['adviser_workload'] ?? null) === 'no_target', fn (Builder $advisers) => $advisers
-                ->where(fn (Builder $target) => $target
-                    ->whereNull('expected_endorsement_count')
-                    ->orWhere('expected_endorsement_count', '<=', 0)));
+            ->when(filled($filters['adviser_institution'] ?? null), fn (Builder $advisers) => $advisers
+                ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['adviser_institution']))]));
 
         $advisers = $query
             ->orderByDesc('awaiting_endorsement_count')
@@ -154,7 +101,10 @@ class ResReviewMonitoringQueryService
         $advisers->getCollection()->each(function (User $adviser): void {
             $adviser->setAttribute(
                 'endorsement_statistics',
-                $this->endorsementStatistics->for($adviser),
+                $this->endorsementStatistics->for(
+                    $adviser,
+                    filled($filters['academic_term_id'] ?? null) ? (int) $filters['academic_term_id'] : null,
+                ),
             );
         });
 
@@ -177,6 +127,36 @@ class ResReviewMonitoringQueryService
             ->values();
     }
 
+    /** @return Collection<int, string> */
+    private function adviserInstitutions(): Collection
+    {
+        return $this->staffFilterOptions($this->authorizedAdvisersQuery(), 'institution');
+    }
+
+    /** @return Collection<int, string> */
+    private function reviewerDepartments(): Collection
+    {
+        return $this->staffFilterOptions(User::query()->reviewerEnabled(), 'department');
+    }
+
+    /** @return Collection<int, string> */
+    private function reviewerInstitutions(): Collection
+    {
+        return $this->staffFilterOptions(User::query()->reviewerEnabled(), 'institution');
+    }
+
+    /** @return Collection<int, string> */
+    private function staffFilterOptions(Builder $query, string $column): Collection
+    {
+        return $query
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->orderBy($column)
+            ->pluck($column)
+            ->unique(fn (string $value): string => mb_strtolower(trim($value)))
+            ->values();
+    }
+
     private function authorizedAdvisersQuery(): Builder
     {
         return User::query()
@@ -185,117 +165,11 @@ class ResReviewMonitoringQueryService
     }
 
     /**
-     * Return application-level progress without loading Applicant or Reviewer identities.
-     *
-     * @param  array{q?: string|null, review_type?: string|null, assignment_status?: string|null, deadline?: string|null, consensus?: string|null}  $filters
-     * @return LengthAwarePaginator<int, ResearchApplication>
-     */
-    private function applications(array $filters): LengthAwarePaginator
-    {
-        $query = ResearchApplication::query()
-            ->select([
-                'id',
-                'application_code',
-                'research_title',
-                'review_type',
-                'application_status',
-                'current_revision_cycle',
-                'review_consensus_status',
-                'review_consensus_cycle',
-                'review_consensus_decision',
-                'review_conflicted_at',
-                'status_updated_at',
-            ])
-            ->whereHas('reviewerAssignments', fn (Builder $assignments) => $this->currentAssignments($assignments))
-            ->withCount([
-                'reviewerAssignments as current_assignments_count' => fn (Builder $assignments) => $this->currentAssignments($assignments),
-                'reviewerAssignments as submitted_assignments_count' => fn (Builder $assignments) => $this
-                    ->currentAssignments($assignments)
-                    ->where('assignment_status', ReviewerAssignmentStatus::DecisionSubmitted->value),
-                'reviewerAssignments as overdue_assignments_count' => fn (Builder $assignments) => $this
-                    ->currentAssignments($assignments)
-                    ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())
-                    ->whereNotNull('review_deadline_at')
-                    ->where('review_deadline_at', '<', now()),
-            ])
-            ->with([
-                'reviewerAssignments' => fn (Builder|Relation $assignments) => $this
-                    ->currentAssignments($assignments)
-                    ->select([
-                        'id',
-                        'research_application_id',
-                        'review_type',
-                        'review_cycle',
-                        'assignment_status',
-                        'assignment_sequence',
-                        'assigned_at',
-                        'review_deadline_at',
-                        'submitted_at',
-                    ])
-                    ->with([
-                        'reviewSubmission:id,reviewer_assignment_id,current_version_id,status,decision,submitted_at',
-                        'reviewSubmission.currentVersion:id,review_submission_id,decision,submitted_at',
-                    ])
-                    ->orderBy('assignment_sequence')
-                    ->orderBy('id'),
-            ]);
-
-        $query
-            ->when(filled($filters['q'] ?? null), function (Builder $applications) use ($filters): void {
-                $search = trim((string) $filters['q']);
-
-                $applications->where(function (Builder $matching) use ($search): void {
-                    $matching
-                        ->where('application_code', 'like', "%{$search}%")
-                        ->orWhere('research_title', 'like', "%{$search}%");
-                });
-            })
-            ->when(filled($filters['review_type'] ?? null), fn (Builder $applications) => $applications
-                ->where('review_type', $filters['review_type']))
-            ->when(filled($filters['consensus'] ?? null), fn (Builder $applications) => $applications
-                ->where('review_consensus_status', $filters['consensus']))
-            ->when(filled($filters['assignment_status'] ?? null), fn (Builder $applications) => $applications
-                ->whereHas('reviewerAssignments', function (Builder $assignments) use ($filters): void {
-                    $this->currentAssignments($assignments)
-                        ->where('assignment_status', $filters['assignment_status']);
-                }))
-            ->when(filled($filters['deadline'] ?? null), function (Builder $applications) use ($filters): void {
-                $applications->whereHas('reviewerAssignments', function (Builder $assignments) use ($filters): void {
-                    $this->currentAssignments($assignments)
-                        ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues());
-
-                    match ($filters['deadline']) {
-                        'overdue' => $assignments
-                            ->whereNotNull('review_deadline_at')
-                            ->where('review_deadline_at', '<', now()),
-                        'due_soon' => $assignments
-                            ->whereBetween('review_deadline_at', [now(), now()->addDays(3)]),
-                        'on_track' => $assignments
-                            ->where('review_deadline_at', '>', now()->addDays(3)),
-                        'no_deadline' => $assignments->whereNull('review_deadline_at'),
-                        default => null,
-                    };
-                });
-            });
-
-        return $query
-            ->orderByRaw(
-                'CASE WHEN review_consensus_status = ? THEN 0 ELSE 1 END',
-                [ReviewConsensusStatus::Conflicted->value],
-            )
-            ->orderByDesc('overdue_assignments_count')
-            ->orderByDesc('status_updated_at')
-            ->orderByDesc('id')
-            ->paginate(15, ['*'], 'monitoring_page')
-            ->withQueryString();
-    }
-
-    /**
      * Keep unresolved Full Board disagreement visible regardless of table filters.
      *
      * @return Collection<int, ResearchApplication>
      */
-    private function conflicts(): Collection
+    private function conflicts(array $filters): Collection
     {
         return ResearchApplication::query()
             ->select([
@@ -310,6 +184,8 @@ class ResReviewMonitoringQueryService
             ])
             ->where('review_type', ReviewType::FullBoard->value)
             ->where('review_consensus_status', ReviewConsensusStatus::Conflicted->value)
+            ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $applications) => $applications
+                ->where('academic_term_id', (int) $filters['academic_term_id']))
             ->whereHas('reviewerAssignments', fn (Builder $assignments) => $this->currentAssignments($assignments))
             ->with([
                 'reviewerAssignments' => fn (Builder|Relation $assignments) => $this
@@ -341,47 +217,67 @@ class ResReviewMonitoringQueryService
      *
      * @return LengthAwarePaginator<int, User>
      */
-    private function reviewerWorkloads(): LengthAwarePaginator
+    private function reviewerWorkloads(array $filters): LengthAwarePaginator
     {
-        return User::query()
+        $reviewers = User::query()
             ->reviewerEnabled()
             ->select([
                 'id',
                 'name',
                 'position_title',
                 'department',
-                'reviewer_classification',
-                'reviewer_classifications',
+                'institution',
                 'reviewer_capacity',
                 'reviewer_enabled',
             ])
-            ->withCount([
-                'reviewerAssignments as active_assignment_count' => fn (Builder $assignments) => $this
-                    ->currentAssignments($assignments)
-                    ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues()),
-                'reviewerAssignments as overdue_assignment_count' => fn (Builder $assignments) => $this
-                    ->currentAssignments($assignments)
-                    ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())
-                    ->whereNotNull('review_deadline_at')
-                    ->where('review_deadline_at', '<', now()),
-            ])
-            ->orderByRaw(
-                'CASE WHEN reviewer_capacity IS NOT NULL AND reviewer_capacity > 0 AND active_assignment_count >= reviewer_capacity THEN 0 ELSE 1 END',
-            )
-            ->orderByDesc('active_assignment_count')
+            ->when(filled($filters['reviewer_q'] ?? null), fn (Builder $query) => $query
+                ->where('name', 'like', '%'.trim((string) $filters['reviewer_q']).'%'))
+            ->when(filled($filters['reviewer_department'] ?? null), fn (Builder $query) => $query
+                ->whereRaw('LOWER(department) = ?', [mb_strtolower(trim((string) $filters['reviewer_department']))]))
+            ->when(filled($filters['reviewer_institution'] ?? null), fn (Builder $query) => $query
+                ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['reviewer_institution']))]))
             ->orderBy('name')
             ->orderBy('id')
             ->paginate(12, ['*'], 'reviewers_page')
             ->withQueryString();
+
+        $termId = filled($filters['academic_term_id'] ?? null) ? (int) $filters['academic_term_id'] : null;
+        $reviewers->getCollection()->each(function (User $reviewer) use ($termId): void {
+            $assignments = $reviewer->reviewerAssignments()
+                ->whereNull('superseded_at')
+                ->when($termId, fn (Builder $query) => $query
+                    ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                        ->where('academic_term_id', $termId)));
+            $reviewer->setAttribute('active_assignment_count', (clone $assignments)
+                ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())
+                ->distinct('research_application_id')
+                ->count('research_application_id'));
+            $reviewer->setAttribute('completed_application_count', (clone $assignments)
+                ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                    ->whereIn('application_status', [
+                        ApplicationStatus::ForCertificateRelease->value,
+                        ApplicationStatus::CertificateReleased->value,
+                    ])
+                    ->whereHas('decisionReleases', fn (Builder $releases) => $releases
+                        ->where('decision', 'approved')))
+                ->distinct('research_application_id')
+                ->count('research_application_id'));
+        });
+
+        return $reviewers;
     }
 
     /**
      * @return array{active_applications: int, active_assignments: int, completed_assignments: int, total_assignments: int, completion_rate: int, overdue_assignments: int, conflicted_applications: int}
      */
-    private function metrics(): array
+    private function metrics(array $filters): array
     {
         $current = ReviewerAssignment::query();
         $this->currentAssignments($current);
+        if (filled($filters['academic_term_id'] ?? null)) {
+            $current->whereHas('researchApplication', fn (Builder $applications) => $applications
+                ->where('academic_term_id', (int) $filters['academic_term_id']));
+        }
 
         $totalAssignments = (clone $current)->count();
         $completedAssignments = (clone $current)
@@ -407,6 +303,8 @@ class ResReviewMonitoringQueryService
             'conflicted_applications' => ResearchApplication::query()
                 ->where('review_type', ReviewType::FullBoard->value)
                 ->where('review_consensus_status', ReviewConsensusStatus::Conflicted->value)
+                ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $applications) => $applications
+                    ->where('academic_term_id', (int) $filters['academic_term_id']))
                 ->count(),
         ];
     }
