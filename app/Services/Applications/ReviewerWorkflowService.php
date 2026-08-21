@@ -3,10 +3,9 @@
 namespace App\Services\Applications;
 
 use App\Enums\AccountStatus;
-use App\Enums\ApplicationStage;
-use App\Enums\ApplicationStatus;
 use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
+use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewFormArtifactStatus;
@@ -356,6 +355,7 @@ class ReviewerWorkflowService
                         ->orderByDesc('artifact_version')
                         ->value('artifact_version');
                     $artifactVersion = ((int) $latestVersion) + 1;
+                    $businessVersion = ((int) $locked->review_cycle) + 1;
                     $context = [
                         ...(array) $form->finalized_context_snapshot,
                         'final_review' => $finalReview,
@@ -364,12 +364,13 @@ class ReviewerWorkflowService
                         $form->form_type,
                         (array) $form->finalized_payload_snapshot,
                         $context,
-                        $artifactVersion,
+                        $businessVersion,
                     );
                     $storedPaths[] = $artifactData['stored_file_path'];
                     $generatedArtifacts->push($form->artifacts()->create([
                         ...$artifactData,
                         'artifact_version' => $artifactVersion,
+                        'business_version' => $businessVersion,
                         'status' => ReviewFormArtifactStatus::Ready->value,
                         'generated_at' => $submittedAt,
                     ]));
@@ -405,9 +406,9 @@ class ReviewerWorkflowService
                     ->lockForUpdate()
                     ->firstOrFail();
                 $application = $this->consensus->evaluateLocked($application);
-                $allSubmitted = $application->review_consensus_status !== \App\Enums\ReviewConsensusStatus::AwaitingSubmissions;
+                $allSubmitted = $application->review_consensus_status !== ReviewConsensusStatus::AwaitingSubmissions;
 
-                if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus) {
+                if ($application->review_consensus_status === ReviewConsensusStatus::Consensus) {
                     $this->notifyResLeads(
                         'Reviewer consensus ready for decision release',
                         'All required current Reviewer submissions agree and are ready for RES release.',
@@ -420,6 +421,7 @@ class ReviewerWorkflowService
                     'decision' => $decision?->value,
                     'artifact_ids' => $generatedArtifacts->pluck('id')->all(),
                     'artifact_versions' => $generatedArtifacts->pluck('artifact_version')->all(),
+                    'artifact_business_versions' => $generatedArtifacts->pluck('business_version')->all(),
                     'review_submission_version_id' => $submissionVersion->id,
                     'review_submission_version' => $submissionVersion->version_number,
                     'all_reviewers_submitted' => $allSubmitted,

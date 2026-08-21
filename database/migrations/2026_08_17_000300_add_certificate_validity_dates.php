@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ return new class extends Migration
                 return;
             }
 
-            $issuedDate = \Carbon\CarbonImmutable::parse($issued)->startOfDay();
+            $issuedDate = CarbonImmutable::parse($issued)->startOfDay();
             DB::table('certificate_versions')->where('id', $version->id)->update([
                 'issued_date' => $issuedDate->toDateString(),
                 'valid_until' => $issuedDate->addYearNoOverflow()->toDateString(),

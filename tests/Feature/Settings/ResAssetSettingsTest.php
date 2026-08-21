@@ -118,11 +118,16 @@ class ResAssetSettingsTest extends TestCase
             null,
             true,
         );
+        $qrImage = UploadedFile::fake()->image('certificate-qr.png', 256, 256);
+        $qrBytes = file_get_contents($qrImage->getRealPath());
+        $this->assertIsString($qrBytes);
 
         $this->actingAs($resLead)
             ->put(route('res.settings.signatory.update'), [
                 'certificate_signatory_name' => 'Dr. Authorized Signatory',
+                'certificate_valid_until' => now()->addYear()->format('Y-m-d'),
                 'signature' => $signature,
+                'qr_image' => $qrImage,
             ])
             ->assertRedirect()
             ->assertSessionDoesntHaveErrors();
@@ -130,11 +135,25 @@ class ResAssetSettingsTest extends TestCase
         $resLead->refresh();
         $this->assertSame('Dr. Authorized Signatory', $resLead->certificate_signatory_name);
         $this->assertNotNull($resLead->certificate_signature_sha256);
+        $this->assertSame(hash('sha256', $qrBytes), $resLead->certificate_qr_sha256);
+        $this->assertSame(256, $resLead->certificate_qr_width);
+        $this->assertSame(256, $resLead->certificate_qr_height);
         Storage::disk('local')->assertExists($resLead->certificate_signature_path);
+        Storage::disk('local')->assertExists($resLead->certificate_qr_path);
         $this->actingAs($resLead)
             ->get(route('res.settings.signatory.preview'))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/png');
+        $this->actingAs($resLead)
+            ->get(route('res.settings.certificate-qr.preview'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('Cache-Control', 'max-age=0, must-revalidate, no-cache, no-store, private')
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Referrer-Policy', 'no-referrer');
+        $this->actingAs(User::factory()->create())
+            ->get(route('res.settings.certificate-qr.preview'))
+            ->assertRedirect(route('dashboard'));
         $this->assertSame(1, AuditLog::query()->where('action', 'settings.certificate_signatory_updated')->count());
 
         $opaqueImage = imagecreatetruecolor(200, 100);

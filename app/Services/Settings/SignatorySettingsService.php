@@ -23,8 +23,7 @@ class SignatorySettingsService
         ?UploadedFile $signature,
         ?string $validUntil = null,
         ?UploadedFile $qrImage = null,
-    ): User
-    {
+    ): User {
         abort_unless($actor->can('manageCertificateSignatory', $actor), 403);
         $asset = $signature ? $this->storeValidatedSignature($signature) : null;
         $qrAsset = $qrImage ? $this->storeValidatedQr($qrImage) : null;

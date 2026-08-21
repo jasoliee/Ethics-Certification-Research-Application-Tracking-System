@@ -53,7 +53,7 @@
             <section class="application-panel res-application-release-panel" aria-labelledby="application-release-title">
                 <header class="application-panel-heading"><div><h2 id="application-release-title">Application Decision</h2></div></header>
                 @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
-                    <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Conflicted Full Board decisions.</strong><span>Release is blocked until every current Reviewer has re-submitted the same decision.</span></div></div>
+                    <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
                 @elseif ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $application->review_consensus_decision !== \App\Enums\ReviewDecision::Approved)
                     <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
                         @csrf

@@ -4,7 +4,7 @@
     @php
         $application = $selectedApplication;
         $certificates = $application?->certificates ?? collect();
-        $certificate = $certificates->first() ?? $application?->certificate;
+        $certificate = $certificates->first();
         $currentCertificateVersion = $certificate?->currentVersion;
         $revisionPending = $activeRevision?->status === \App\Enums\ApplicationRevisionStatus::PendingUploads;
         $revisionSubmitted = $activeRevision?->status === \App\Enums\ApplicationRevisionStatus::UnderReview;

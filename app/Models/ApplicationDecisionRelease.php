@@ -15,6 +15,7 @@ class ApplicationDecisionRelease extends Model
         'source_review_type',
         'source_review_submission_id',
         'source_review_submission_version_id',
+        'source_review_submission_version_ids',
         'decision',
         'review_consensus_signature',
         'released_feedback_snapshot',
@@ -28,6 +29,7 @@ class ApplicationDecisionRelease extends Model
             'decision' => ReviewDecision::class,
             'review_cycle' => 'integer',
             'released_feedback_snapshot' => 'array',
+            'source_review_submission_version_ids' => 'array',
             'released_at' => 'datetime',
         ];
     }

@@ -890,6 +890,114 @@ class RoleDashboardTest extends TestCase
         $this->assertStringContainsString('rel="icon"', $login);
     }
 
+    public function test_dashboard_term_filter_is_server_scoped_for_every_role_and_preserves_ownership(): void
+    {
+        $historicalTerm = AcademicTerm::create([
+            'semester' => 'Historical Dashboard Term',
+            'academic_year' => '2025-2026',
+            'starts_at' => now()->subYear(),
+            'ends_at' => now()->subMonths(7),
+            'is_active' => false,
+        ]);
+        $currentTerm = AcademicTerm::create([
+            'semester' => 'Current Dashboard Term',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'APPLICANT-HISTORICAL-TERM',
+            'applicant_user_id' => $applicant->id,
+            'academic_term_id' => $historicalTerm->id,
+            'created_at' => now()->subMonth(),
+        ]);
+        ResearchApplication::factory()->create([
+            'application_code' => 'APPLICANT-CURRENT-TERM',
+            'applicant_user_id' => $applicant->id,
+            'academic_term_id' => $currentTerm->id,
+            'created_at' => now(),
+        ]);
+        $this->actingAs($applicant)
+            ->get(route('dashboard', ['academic_term_id' => $historicalTerm->id]))
+            ->assertOk()
+            ->assertSee('APPLICANT-HISTORICAL-TERM')
+            ->assertDontSee('APPLICANT-CURRENT-TERM');
+
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $otherAdviser = User::factory()->create(['role' => UserRole::Adviser]);
+        foreach ([
+            ['ADVISER-HISTORICAL-TERM', $adviser, $historicalTerm],
+            ['ADVISER-CURRENT-TERM', $adviser, $currentTerm],
+            ['ADVISER-FOREIGN-RECORD', $otherAdviser, $historicalTerm],
+        ] as [$code, $owner, $term]) {
+            ResearchApplication::factory()->create([
+                'application_code' => $code,
+                'adviser_user_id' => $owner->id,
+                'academic_term_id' => $term->id,
+                'application_status' => ApplicationStatus::SubmittedToAdviser,
+                'submitted_at' => now(),
+            ]);
+        }
+        $this->actingAs($adviser)
+            ->get(route('dashboard', ['academic_term_id' => $historicalTerm->id]))
+            ->assertOk()
+            ->assertSee('ADVISER-HISTORICAL-TERM')
+            ->assertDontSee('ADVISER-CURRENT-TERM')
+            ->assertDontSee('ADVISER-FOREIGN-RECORD');
+
+        $reviewer = User::factory()->reviewer()->create();
+        $otherReviewer = User::factory()->reviewer()->create();
+        foreach ([
+            ['REVIEWER-HISTORICAL-TERM', $reviewer, $historicalTerm],
+            ['REVIEWER-CURRENT-TERM', $reviewer, $currentTerm],
+            ['REVIEWER-FOREIGN-RECORD', $otherReviewer, $historicalTerm],
+        ] as [$code, $owner, $term]) {
+            $application = ResearchApplication::factory()->create([
+                'application_code' => $code,
+                'academic_term_id' => $term->id,
+                'application_status' => ApplicationStatus::UnderExpeditedReview,
+                'submitted_at' => now(),
+            ]);
+            ReviewerAssignment::factory()->create([
+                'research_application_id' => $application->id,
+                'reviewer_user_id' => $owner->id,
+                'assignment_status' => ReviewerAssignmentStatus::Pending,
+            ]);
+        }
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.dashboard', ['academic_term_id' => $historicalTerm->id]))
+            ->assertOk()
+            ->assertSee('REVIEWER-HISTORICAL-TERM')
+            ->assertDontSee('REVIEWER-CURRENT-TERM')
+            ->assertDontSee('REVIEWER-FOREIGN-RECORD');
+
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        foreach ([
+            ['RES-HISTORICAL-TERM', $historicalTerm],
+            ['RES-CURRENT-TERM', $currentTerm],
+        ] as [$code, $term]) {
+            ResearchApplication::factory()->create([
+                'application_code' => $code,
+                'academic_term_id' => $term->id,
+                'application_status' => ApplicationStatus::AdviserEndorsed,
+                'submitted_at' => now(),
+            ]);
+        }
+        $this->actingAs($resLead)
+            ->get(route('dashboard', ['academic_term_id' => $historicalTerm->id]))
+            ->assertOk()
+            ->assertSee('RES-HISTORICAL-TERM')
+            ->assertDontSee('RES-CURRENT-TERM');
+
+        $this->actingAs($resLead)
+            ->get(route('dashboard', ['academic_term_id' => 999999]))
+            ->assertRedirect()
+            ->assertSessionHasErrors('academic_term_id');
+    }
+
     public function test_role_dashboards_keep_database_query_counts_bounded(): void
     {
         foreach (UserRole::cases() as $role) {

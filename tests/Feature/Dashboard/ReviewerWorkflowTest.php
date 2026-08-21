@@ -193,7 +193,7 @@ class ReviewerWorkflowTest extends TestCase
 
     public function test_superseded_assignment_immediately_revokes_the_old_reviewer_workspace(): void
     {
-        [$reviewer, , , , $assignment] = $this->assignmentFixture();
+        [$reviewer, , , , $assignment, $document] = $this->assignmentFixture();
         $assignment->update([
             'superseded_at' => now(),
             'superseded_by_user_id' => User::factory()->create(['role' => UserRole::ResLead])->id,
@@ -701,6 +701,45 @@ class ReviewerWorkflowTest extends TestCase
         $audit = AuditLog::query()->where('action', 'review.decision_submitted')->firstOrFail();
         $this->assertArrayNotHasKey('decision_comment', $audit->metadata);
         $this->assertStringNotContainsString($decisionComment, json_encode($audit->metadata, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_revision_decision_requires_one_actionable_required_revision_comment_server_side(): void
+    {
+        $this->openReviewWindow();
+        [$reviewer, , , , $assignment, $document] = $this->assignmentFixture();
+        $this->finalizeForms($assignment);
+        $payload = [
+            'intent' => 'submit',
+            'decision' => ReviewDecision::MinorRevision->value,
+            'decision_comment' => 'A revision decision needs a concrete requested change.',
+        ];
+
+        $this->actingAs($reviewer)
+            ->post(route('reviewer.assignments.review.store', $assignment), $payload)
+            ->assertSessionHasErrorsIn('reviewDecision', ['comments']);
+
+        $this->actingAs($reviewer)
+            ->post(route('reviewer.assignments.comments.store', $assignment), [
+                'scope' => 'overall',
+                'category' => 'general',
+                'body' => 'This general observation must not unlock a revision decision.',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($reviewer)
+            ->post(route('reviewer.assignments.review.store', $assignment), $payload)
+            ->assertSessionHasErrorsIn('reviewDecision', ['comments']);
+
+        $this->actingAs($reviewer)
+            ->post(route('reviewer.assignments.comments.store', $assignment), [
+                'scope' => 'overall',
+                'category' => 'required_revision',
+                'body' => 'Clarify the participant recruitment safeguards before re-review.',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($reviewer)
+            ->postJson(route('reviewer.assignments.review.store', $assignment), $payload)
+            ->assertOk()
+            ->assertJsonPath('data.decision', ReviewDecision::MinorRevision->value);
     }
 
     public function test_informed_consent_no_clears_dependent_answers_and_yes_requires_them(): void

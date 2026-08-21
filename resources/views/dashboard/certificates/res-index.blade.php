@@ -151,9 +151,13 @@
                                 @php
                                     $rowNumber = ($applications->firstItem() ?? 1) + $loop->index;
                                     $state = $certificationStates[$application->id];
-                                    $certificate = $application->certificates->sortBy('id')->first();
-                                    $currentVersion = $certificate?->currentVersion;
-                                    $isReleased = $currentVersion !== null;
+                                    $recipientCount = $application->certificateRecipients->count();
+                                    $readyCertificates = $application->certificates->filter(
+                                        fn ($item) => in_array($item->status, [\App\Enums\CertificateStatus::Released, \App\Enums\CertificateStatus::Claimed], true)
+                                            && $item->currentVersion?->status === \App\Enums\CertificateVersionStatus::Ready,
+                                    );
+                                    $readyRecipientCount = $readyCertificates->pluck('application_certificate_recipient_id')->filter()->unique()->count();
+                                    $isReleased = $recipientCount > 0 && $readyRecipientCount === $recipientCount;
                                     $latestRelease = $application->decisionReleases->first();
                                     $isConflicted = $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted;
                                     $queueLabel = match (true) {
@@ -173,8 +177,8 @@
                                     $decisionLabel = $isConflicted ? 'Conflicted' : ($decision?->label() ?? 'Pending');
                                     $decisionTone = $isConflicted ? 'red' : ($decision?->tone() ?? 'orange');
                                     $claimLabel = match (true) {
-                                        $application->certificates->contains(fn ($item) => $item->status === \App\Enums\CertificateStatus::Claimed) => 'Claimed',
-                                        $application->certificates->contains(fn ($item) => $item->status === \App\Enums\CertificateStatus::Released) => 'Not claimed',
+                                        $isReleased && $readyCertificates->every(fn ($item) => $item->status === \App\Enums\CertificateStatus::Claimed) => 'Claimed',
+                                        $isReleased => 'Not claimed',
                                         default => 'Not available',
                                     };
                                     $claimTone = $claimLabel === 'Claimed' ? 'success' : 'neutral';
@@ -207,8 +211,13 @@
             @php
                 $state = $certificationStates[$application->id];
                 $certificates = $application->certificates->sortBy('id')->values();
-                $certificate = $certificates->first();
-                $currentVersion = $certificate?->currentVersion;
+                $recipientCount = $application->certificateRecipients->count();
+                $readyCertificates = $certificates->filter(
+                    fn ($item) => in_array($item->status, [\App\Enums\CertificateStatus::Released, \App\Enums\CertificateStatus::Claimed], true)
+                        && $item->currentVersion?->status === \App\Enums\CertificateVersionStatus::Ready,
+                );
+                $readyRecipientCount = $readyCertificates->pluck('application_certificate_recipient_id')->filter()->unique()->count();
+                $allRecipientCertificatesReady = $recipientCount > 0 && $readyRecipientCount === $recipientCount;
                 $cycle = max(0, ((int) $application->current_revision_cycle) - 1);
                 $cycleAssignments = $application->reviewerAssignments->where('review_cycle', $cycle);
                 $latestRelease = $application->decisionReleases->first();
@@ -239,7 +248,7 @@
                             <div><dt>Review State</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
                             <div><dt>Consensus</dt><dd><x-dashboard.status-badge :label="$application->review_consensus_status?->label() ?? 'Not evaluated'" :tone="$application->review_consensus_status?->tone() ?? 'neutral'" /></dd></div>
                             <div><dt>Decision</dt><dd><x-dashboard.status-badge :label="$decision?->label() ?? 'Pending'" :tone="$decision?->tone() ?? 'orange'" /></dd></div>
-                            <div><dt>Certificate</dt><dd><x-dashboard.status-badge :label="$currentVersion ? 'Version '.$currentVersion->certificate_version.' ready' : 'Not generated'" :tone="$currentVersion ? 'success' : 'neutral'" /></dd></div>
+                            <div><dt>Certificate</dt><dd><x-dashboard.status-badge :label="$allRecipientCertificatesReady ? $readyRecipientCount.' personalized '.Str::plural('certificate', $readyRecipientCount).' ready' : $readyRecipientCount.' of '.$recipientCount.' ready'" :tone="$allRecipientCertificatesReady ? 'success' : 'neutral'" /></dd></div>
                         </dl>
                     </section>
 
@@ -283,9 +292,11 @@
                                     </button>
                                 </form>
                             @endif
-                            @if ($currentVersion)
-                                <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.preview', [$certificate, $currentVersion]) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview Current PDF</span></a>
-                                <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.download', [$certificate, $currentVersion]) }}"><x-dashboard.icon name="download" size="17" /><span>Download</span></a>
+                            @foreach ($readyCertificates as $recipientCertificate)
+                                <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.preview', [$recipientCertificate, $recipientCertificate->currentVersion]) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview {{ $recipientCertificate->recipient_name }}</span></a>
+                                <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.download', [$recipientCertificate, $recipientCertificate->currentVersion]) }}"><x-dashboard.icon name="download" size="17" /><span>Download {{ $recipientCertificate->recipient_name }}</span></a>
+                            @endforeach
+                            @if ($readyCertificates->isNotEmpty())
                                 <details class="certificate-regenerate-confirmation">
                                     <summary class="dashboard-outline-action"><x-dashboard.icon name="refresh" size="17" /><span>Regenerate</span></summary>
                                     <div>
@@ -322,7 +333,11 @@
                                                     <td>{{ $version->valid_until?->format('M j, Y') ?? 'Not recorded' }}</td>
                                                     <td>Version {{ $version->background?->asset_version ?? 'n/a' }}</td>
                                                     <td><code title="{{ $version->sha256 }}">{{ Str::limit($version->sha256, 18) }}</code></td>
-                                                    <td><a href="{{ route('res.certificates.versions.preview', [$recipientCertificate, $version]) }}" target="_blank" rel="noopener">Preview</a></td>
+                                                    <td>
+                                                        <a href="{{ route('res.certificates.versions.preview', [$recipientCertificate, $version]) }}" target="_blank" rel="noopener">Preview</a>
+                                                        <span aria-hidden="true"> · </span>
+                                                        <a href="{{ route('res.certificates.versions.download', [$recipientCertificate, $version]) }}">Download</a>
+                                                    </td>
                                                 </tr>
                                             @endforeach
                                         @endforeach

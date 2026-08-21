@@ -2,6 +2,8 @@
 
 @section('content')
     <div class="dashboard-page dashboard-applicant-page">
+        <x-dashboard.academic-term-filter :term-options="$termOptions" :filters="$filters" />
+
         @if (! $activeApplication)
             <div class="dashboard-applicant-grid">
                 <section class="dashboard-focus-card">

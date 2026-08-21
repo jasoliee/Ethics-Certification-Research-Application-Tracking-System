@@ -34,23 +34,28 @@ class ApplicantCertificateService
                 ->firstOrFail();
             Gate::forUser($actor)->authorize('submitSurvey', $lockedApplication);
 
-            $certificate = Certificate::query()
+            $certificates = Certificate::query()
                 ->where('research_application_id', $lockedApplication->id)
                 ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value])
+                ->orderBy('id')
                 ->lockForUpdate()
-                ->first();
-            $version = $certificate?->current_certificate_version_id
-                ? CertificateVersion::query()
-                    ->whereKey($certificate->current_certificate_version_id)
-                    ->where('certificate_id', $certificate->id)
-                    ->lockForUpdate()
-                    ->first()
-                : null;
+                ->get();
+            $versions = CertificateVersion::query()
+                ->whereIn('id', $certificates->pluck('current_certificate_version_id')->filter())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+            $recipientCount = $lockedApplication->certificateRecipients()->count();
+            $allReleased = $recipientCount > 0
+                && $certificates->count() === $recipientCount
+                && $certificates->every(function (Certificate $certificate) use ($versions): bool {
+                    $version = $versions->get($certificate->current_certificate_version_id);
 
-            if (! $certificate
-                || ! in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
-                || ! $version
-                || $version->status !== CertificateVersionStatus::Ready) {
+                    return in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
+                        && $version?->status === CertificateVersionStatus::Ready;
+                });
+
+            if (! $allReleased) {
                 throw ValidationException::withMessages([
                     'survey' => 'The required evaluation becomes available after RES releases a generated certificate.',
                 ])->errorBag('certificateSurvey');
@@ -90,8 +95,9 @@ class ApplicantCertificateService
             // Evaluation answers are intentionally excluded from audit metadata.
             $this->auditLog->record($actor, 'certificate.survey_completed', $lockedApplication, [
                 'survey_response_id' => $response->id,
-                'certificate_id' => $certificate->id,
-                'certificate_version_id' => $version->id,
+                'certificate_ids' => $certificates->pluck('id')->all(),
+                'certificate_version_ids' => $versions->keys()->all(),
+                'recipient_count' => $certificates->count(),
                 'result' => 'completed',
             ]);
 
@@ -165,22 +171,24 @@ class ApplicantCertificateService
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
-            $claimable = $certificates->isNotEmpty() && $certificates->every(function (Certificate $certificate) use ($versions): bool {
-                $version = $versions->get($certificate->current_certificate_version_id);
+            $recipientCount = $lockedApplication->certificateRecipients()->count();
+            $claimable = $recipientCount > 0
+                && $certificates->count() === $recipientCount
+                && $certificates->every(function (Certificate $certificate) use ($versions): bool {
+                    $version = $versions->get($certificate->current_certificate_version_id);
 
-                return in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
-                    && $certificate->released_at
-                    && $certificate->released_by_user_id
-                    && $version?->status === CertificateVersionStatus::Ready;
-            });
+                    return in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
+                        && $certificate->released_at
+                        && $certificate->released_by_user_id
+                        && $version?->status === CertificateVersionStatus::Ready;
+                });
             if (! $claimable || ! $survey) {
                 throw ValidationException::withMessages([
                     'certificate' => 'These certificates are not claimable. Confirm RES release, successful generation, and survey completion.',
                 ])->errorBag('certificateClaim');
             }
 
-            $alreadyClaimed = $certificates->every(fn (Certificate $certificate): bool =>
-                $certificate->status === CertificateStatus::Claimed
+            $alreadyClaimed = $certificates->every(fn (Certificate $certificate): bool => $certificate->status === CertificateStatus::Claimed
                 && $certificate->claimed_certificate_version_id === $certificate->current_certificate_version_id
                 && $certificate->claimed_by_user_id === $actor->id
             );

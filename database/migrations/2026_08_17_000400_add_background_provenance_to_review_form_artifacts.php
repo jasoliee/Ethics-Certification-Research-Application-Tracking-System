@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::table('review_form_artifacts')->whereNotNull('certificate_background_id')->exists()) {
-            throw new \RuntimeException('Review worksheet background provenance exists and cannot be discarded safely.');
+            throw new RuntimeException('Review worksheet background provenance exists and cannot be discarded safely.');
         }
 
         Schema::table('review_form_artifacts', function (Blueprint $table): void {

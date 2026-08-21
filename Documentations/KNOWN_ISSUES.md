@@ -1,5 +1,11 @@
 # Known Issues and Pending Verification
 
+## August 21, 2026 Current Acceptance Blockers
+
+- Authenticated localhost desktop/tablet/mobile verification is pending. The approved in-app browser discovery returned no connected browser surface; no standalone browser automation or unrelated browser backend was substituted.
+- Pixel-level comparison of a representative generated certificate with the supplied `QR to Left.png` is pending. This machine lacks `pdftoppm`/`pdfinfo`, and the exact reference image is not available as a local file. Certificate content/provenance and fixed lower-left QR coordinates/dimensions pass automated checks, but real QR scanner readability is not yet verified.
+- The August 21 source and automated audit found no remaining DOOMSDAY functional defect. Rows whose acceptance depends on the two blockers above remain **Not yet verified** in `DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md`.
+
 ## Pending External Verification
 
 - Generated account templates pass automated ZIP, Open XML entry, worksheet, named-range, data-validation, PhpSpreadsheet reader, writer-resave, reopen, and HTTP binary checks. Manual Microsoft Excel verification is still pending and must confirm there is no corruption, repair, recovery, or removed-content warning.
@@ -17,7 +23,7 @@
 
 ## Product Scope Limitations
 
-- Official forms, asynchronous private comment CRUD/resolution with incremental history loading, initial decision submission, versioned private official-form PDF artifacts, explicit decision release, Applicant revisions/re-review, Exempted certificate eligibility, private certificate generation/release/claim, and non-destructive RES reassignment are implemented. Automated uploaded-content identity detection/redaction, automated side-by-side comparison, public QR verification, and production deployment remain outside this implementation slice.
+- Official forms, asynchronous private comment CRUD/resolution with incremental history loading, initial decision submission, versioned private official-form PDF artifacts, application-level decision release, Applicant revisions/re-review, Exempted certificate eligibility, private personalized certificate generation/release/claim, configurable QR provenance, and non-destructive RES reassignment are implemented. Automated uploaded-content identity detection/redaction, automated side-by-side comparison, public QR verification, and production deployment remain outside this implementation slice.
 - Hiding Applicant/Adviser database fields does not remove identities already typed inside uploaded documents. Reviewer document use therefore requires the approved operational anonymization procedure until a content-redaction feature is specified.
 - Student Researcher and Faculty Researcher dashboards use application workflow panels rather than the count-based summary cards used by Adviser, Reviewer, and RES Lead roles.
 
@@ -25,6 +31,6 @@ Record completed external checks in [Manual Visual Validation](MANUAL_VISUAL_VAL
 ## Applicant revision/certificate source limitations (August 11, 2026)
 
 - The continuation request cites RES Lead high-fidelity pages 106–108, but the supplied high-fidelity PDFs contain only 30 and 104 pages. The RES queue was implemented from written requirements and the established dashboard design system.
-- The supplied official certificate has no QR/public-verification area. Issued certificates therefore use authenticated private access; a public verification contract and QR placement require a separate approved design.
+- The August 21 certificate reference supplies an approved lower-left QR visual-placement contract. Configurable private QR assets and immutable placement provenance are implemented. A public verification destination/data contract is still intentionally absent, so issued certificates remain authenticated/private.
 - The source certificate's static artwork is preserved as a verified raster background. Dynamic text uses bundled PDF core fonts, so tiny glyph-level differences from the original authoring font can remain while layout and content zones are preserved.
 - Live Applicant/RES viewport acceptance remains pending because the August 11 in-app browser runtime exposed no controllable instance. Certificate PDF output itself was rendered and visually checked after correcting the official signature transparency extraction.

@@ -60,6 +60,16 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertDontSee($pending->applicant->name)
             ->assertSee($eligible->research_title)
             ->assertSee($pending->research_title);
+
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.certificate-metric-strip\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.certificate-metric-strip\s+article\s*\{[^}]*justify-content:\s*center;/s',
+            $css,
+        );
     }
 
     public function test_queue_filters_still_scope_the_table_while_metrics_remain_global(): void

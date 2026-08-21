@@ -35,7 +35,7 @@ class AdviserApplicationController extends Controller
             'status' => ['nullable', Rule::in($visibleStatuses->pluck('value')->all())],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $selectedStatus = $visibleStatuses->firstWhere('value', $filters['status'] ?? null);
 

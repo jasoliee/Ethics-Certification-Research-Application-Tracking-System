@@ -4,6 +4,7 @@ namespace App\Services\Applications;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
 use App\Enums\UserRole;
@@ -328,7 +329,7 @@ class ResScreeningWorkflowService
             $locked->update([
                 'application_status' => $nextStatus->value,
                 'current_stage' => ApplicationStage::EthicsReview->value,
-                'review_consensus_status' => \App\Enums\ReviewConsensusStatus::AwaitingSubmissions->value,
+                'review_consensus_status' => ReviewConsensusStatus::AwaitingSubmissions->value,
                 'review_consensus_cycle' => $reviewCycle,
                 'review_consensus_decision' => null,
                 'review_consensus_signature' => null,

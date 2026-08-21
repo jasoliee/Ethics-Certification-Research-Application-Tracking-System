@@ -34,7 +34,7 @@ class ApplicantApplicationController extends Controller
         ApplicationSubmissionWindow $submissionWindow,
     ): View {
         $filters = validator($request->query(), [
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ])->validate();
 
         // Paginate applicant-owned records and eager load Adviser identity for a bounded list query.

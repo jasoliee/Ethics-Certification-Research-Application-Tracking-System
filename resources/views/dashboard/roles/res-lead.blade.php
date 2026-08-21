@@ -6,6 +6,8 @@
             <h1>Welcome back, RES Lead/Admin!</h1>
         </header>
 
+        <x-dashboard.academic-term-filter :term-options="$termOptions" :filters="$filters" />
+
         {{-- RES Lead summary cards use the shared vertical card component without changing administrative counts. --}}
         <div class="dashboard-summary-grid dashboard-summary-grid-five" aria-label="Administrative application summary">
             <x-dashboard.summary-card label="For RES Screening" :count="$counts['for_screening']" icon="file-text" tone="orange" :href="route('res.applications.index')" />

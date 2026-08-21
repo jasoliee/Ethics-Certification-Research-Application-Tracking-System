@@ -55,7 +55,6 @@ class AcademicTermResolver
     public function filterOptions(): Collection
     {
         return AcademicTerm::query()
-            ->where('is_active', true)
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
             ->get(['id', 'semester', 'academic_year', 'starts_at', 'ends_at']);

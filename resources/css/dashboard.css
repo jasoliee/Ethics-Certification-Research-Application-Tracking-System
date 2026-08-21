@@ -2560,7 +2560,57 @@
         color: #b42318;
     }
 
+    .notification-confirmation-modal {
+        width: min(100%, 520px);
+    }
+
+    .notification-confirmation-modal [data-notification-confirm-message] {
+        max-width: 42ch;
+        overflow-wrap: anywhere;
+    }
+
+    .notification-confirmation-modal [data-notification-confirm-submit].is-danger {
+        border-color: #b42318;
+        background: #b42318;
+        color: #ffffff;
+    }
+
+    .dashboard-term-filter {
+        display: flex;
+        align-items: end;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding: 16px;
+        border: 1px solid #d9e3df;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    .dashboard-term-filter label {
+        display: grid;
+        flex: 1 1 288px;
+        gap: 6px;
+        max-width: 448px;
+        color: #17332a;
+        font-weight: 700;
+    }
+
+    .dashboard-term-filter select {
+        width: 100%;
+        min-width: 0;
+    }
+
     @media (max-width: 700px) {
+        .dashboard-term-filter {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .dashboard-term-filter label {
+            flex-basis: auto;
+            max-width: none;
+        }
+
         .notification-filter-bar,
         .notification-filter-field,
         .notification-filter-bar > .dashboard-primary-action,
@@ -3058,7 +3108,7 @@
 
     .certificate-metric-strip {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         overflow: hidden;
     }
 
@@ -3066,6 +3116,7 @@
         min-width: 0;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 14px;
         padding: 18px 20px;
         border-left: 1px solid #e3e9e5;
@@ -3579,6 +3630,10 @@
         padding: 18px;
     }
 
+    .res-application-release-panel > form > .dashboard-primary-action {
+        width: 100%;
+    }
+
     .certificate-version-table a,
     .certificate-background-table a,
     .certificate-background-table button {
@@ -3751,16 +3806,7 @@
 
 @media (max-width: 1100px) {
     .certificate-metric-strip {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .certificate-metric-strip article:nth-child(3) {
-        border-top: 1px solid #e3e9e5;
-        border-left: 0;
-    }
-
-    .certificate-metric-strip article:nth-child(4) {
-        border-top: 1px solid #e3e9e5;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .certificate-modal-status-grid {
@@ -4535,6 +4581,42 @@
 
     .identity-field label span {
         color: #dc2626;
+    }
+
+    .identity-field-label {
+        color: #27313d;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .identity-field .identity-confirm-check {
+        min-height: 42px;
+        align-items: center;
+        border: 1px solid #cfd9d3;
+        border-radius: 5px;
+        padding: 9px 11px;
+        background: #ffffff;
+    }
+
+    .identity-field .identity-confirm-check input[type="checkbox"] {
+        width: 17px;
+        min-width: 17px;
+        min-height: 17px;
+        height: 17px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .identity-reviewer-capability-field .identity-confirm-check span {
+        color: #475467;
+    }
+
+    .identity-field input[aria-disabled="true"] {
+        cursor: not-allowed;
+        background: #f3f5f4;
+        color: #667085;
     }
 
     .identity-field small {
@@ -8519,6 +8601,18 @@
     .application-heading-actions > *,
     .application-form-actions > * {
         min-height: 42px;
+    }
+
+    .application-record-actions.is-revision-actions {
+        min-width: 190px;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .application-record-actions.is-revision-actions > * {
+        width: 100%;
+        min-height: 42px;
+        justify-content: center;
     }
 
     .application-duration-fields {

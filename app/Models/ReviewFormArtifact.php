@@ -14,6 +14,7 @@ class ReviewFormArtifact extends Model
         'certificate_background_id',
         'background_sha256',
         'artifact_version',
+        'business_version',
         'status',
         'stored_file_path',
         'original_file_name',
@@ -31,6 +32,7 @@ class ReviewFormArtifact extends Model
     {
         return [
             'artifact_version' => 'integer',
+            'business_version' => 'integer',
             'status' => ReviewFormArtifactStatus::class,
             'file_size_bytes' => 'integer',
             'generated_at' => 'datetime',

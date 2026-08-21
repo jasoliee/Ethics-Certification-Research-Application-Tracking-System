@@ -40,6 +40,9 @@ class CertificationEligibilityService
         $certificates = $application->relationLoaded('certificates')
             ? $application->certificates
             : $application->certificates()->with('currentVersion')->get();
+        $recipientCount = $application->relationLoaded('certificateRecipients')
+            ? $application->certificateRecipients->count()
+            : $application->certificateRecipients()->count();
 
         if ($certificates->contains(fn ($certificate): bool => $certificate->status === CertificateStatus::GenerationFailed)) {
             return CertificationState::GenerationFailed;
@@ -49,12 +52,17 @@ class CertificationEligibilityService
             return CertificationState::PendingResRelease;
         }
 
-        if ($certificates->isNotEmpty() && $certificates->every(fn ($certificate): bool =>
-            in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
-            && $certificate->currentVersion?->status === CertificateVersionStatus::Ready
-        )) {
-            if ($certificates->every(fn ($certificate): bool =>
-                $certificate->status === CertificateStatus::Claimed
+        $releasedRecipientCount = $certificates
+            ->filter(fn ($certificate): bool => in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
+                && $certificate->currentVersion?->status === CertificateVersionStatus::Ready
+            )
+            ->pluck('application_certificate_recipient_id')
+            ->filter()
+            ->unique()
+            ->count();
+
+        if ($recipientCount > 0 && $releasedRecipientCount === $recipientCount) {
+            if ($certificates->every(fn ($certificate): bool => $certificate->status === CertificateStatus::Claimed
                 && $certificate->claimed_certificate_version_id === $certificate->current_certificate_version_id
             )) {
                 return CertificationState::Claimed;

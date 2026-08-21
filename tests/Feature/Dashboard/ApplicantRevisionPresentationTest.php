@@ -65,6 +65,13 @@ class ApplicantRevisionPresentationTest extends TestCase
             ->assertSee('data-revision-version-select', false)
             ->assertSee('data-revision-version-panel="'.$second->id.'"', false)
             ->assertSee('data-revision-version-panel="'.$first->id.'"', false)
+            ->assertSee('data-revision-upload-form', false)
+            ->assertSee('data-revision-upload-input', false)
+            ->assertSee('Choose File')
+            ->assertDontSee('Upload Version')
+            ->assertDontSee('Upload every required replacement before submitting.')
+            ->assertSee('revision-status-overview revision-major-disclosure', false)
+            ->assertSee('revision-feedback-panel revision-major-disclosure', false)
             ->assertSee('Version 2')
             ->assertSee('Version 1')
             ->assertSee('For Revision C1')
@@ -75,6 +82,16 @@ class ApplicantRevisionPresentationTest extends TestCase
             ->assertSee('id="revision-documents-title"', false)
             ->assertDontSee('id="certification-state-title"', false);
 
+        $this->assertSame(1, substr_count($response->getContent(), '<strong>Revision Submission</strong>'));
+        $this->assertSame(1, substr_count($response->getContent(), '<strong>Evaluation Form</strong>'));
+        $this->assertSame(1, substr_count($response->getContent(), '<strong>Certification</strong>'));
+        $javascript = (string) file_get_contents(resource_path('js/dashboard.js'));
+        $this->assertMatchesRegularExpression(
+            '/data-revision-upload-form.*?addEventListener\(\'change\'.*?fileName\.textContent\s*=\s*file\.name;.*?fetch\(form\.action.*?Upload complete\./s',
+            $javascript,
+        );
+        $this->assertStringContainsString('}, 500);', $javascript);
+
         $this->assertDoesNotMatchRegularExpression(
             '/<details[^>]*revision-requirement-disclosure[^>]*\sopen(?:\s|>)/',
             $response->getContent(),
@@ -82,6 +99,22 @@ class ApplicantRevisionPresentationTest extends TestCase
         $this->assertMatchesRegularExpression(
             '/data-revision-version-panel="'.preg_quote((string) $first->id, '/').'"[^>]*\shidden(?:\s|>)/',
             $response->getContent(),
+        );
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.show', $application))
+            ->assertOk()
+            ->assertSee('application-record-actions is-revision-actions', false)
+            ->assertSeeInOrder(['Back to List', 'Go to Revision'])
+            ->assertSee(route('applicant.revision-certificates.index', ['application' => $application->id]), false);
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.application-record-actions\.is-revision-actions\s*\{[^}]*flex-direction:\s*column;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.application-record-actions\.is-revision-actions\s*>\s*\*\s*\{[^}]*width:\s*100%;[^}]*min-height:\s*42px;/s',
+            $css,
         );
 
         $application->update(['current_revision_cycle' => 3]);
@@ -124,9 +157,17 @@ class ApplicantRevisionPresentationTest extends TestCase
             ReviewDecision::Approved,
         );
         $this->releaseComment($assignment, $release, $first, 'Approved feedback remains available before certificate claim.');
+        $recipient = $application->certificateRecipients()->firstOrCreate([
+            'normalized_name' => mb_strtolower($applicant->name),
+        ], [
+            'recipient_name' => $applicant->name,
+            'sort_order' => 1,
+        ]);
         $certificate = Certificate::create([
             'research_application_id' => $application->id,
+            'application_certificate_recipient_id' => $recipient->id,
             'applicant_user_id' => $applicant->id,
+            'recipient_name' => $recipient->recipient_name,
             'certificate_number' => $application->application_code,
             'status' => CertificateStatus::Released,
             'released_by_user_id' => $release->released_by_user_id,

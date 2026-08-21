@@ -17,7 +17,13 @@ use Throwable;
 
 class OfficialCertificateGenerationService
 {
-    public const GENERATOR_VERSION = 'official-res-certificate-v2';
+    public const GENERATOR_VERSION = 'official-res-certificate-v3';
+
+    public const QR_X_MM = 24.0;
+
+    public const QR_Y_MM = 237.0;
+
+    public const QR_SIZE_MM = 30.0;
 
     public const TEMPLATE_VERSION = 'RES-CERTIFICATE-2026-03';
 
@@ -267,7 +273,7 @@ class OfficialCertificateGenerationService
 
         $pdf->Image($signaturePath, 89, 240, 30, 0, 'PNG');
         if ($qrPath !== null) {
-            $pdf->Image($qrPath, 169, 237, 22, 22, 'PNG');
+            $pdf->Image($qrPath, self::QR_X_MM, self::QR_Y_MM, self::QR_SIZE_MM, self::QR_SIZE_MM, 'PNG');
         }
         $this->centeredText($pdf, Str::upper($signatoryName), 254.5, 6, 10, 'B');
         $this->centeredText($pdf, 'Coordinator, Research Ethics Section', 261, 6, 9, 'I');

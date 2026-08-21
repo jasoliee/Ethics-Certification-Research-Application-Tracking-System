@@ -42,7 +42,7 @@ class ResLeadApplicationController extends Controller
             'affiliation' => ['nullable', 'string', 'max:150'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
 
         $applicationsQuery = $this->visibleApplicationsQuery($visibleStatuses->pluck('value')->all());

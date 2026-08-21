@@ -12,8 +12,8 @@ use App\Enums\ReviewFormType;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\OfficialReviewFormGenerationException;
-use App\Models\DeadlineConfiguration;
 use App\Models\CertificateBackground;
+use App\Models\DeadlineConfiguration;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\ReviewFormArtifact;
@@ -39,6 +39,15 @@ class OfficialReviewFormArtifactTest extends TestCase
         DeadlineConfiguration::create([
             'deadline_key' => 'test-reviewer-submission',
             'title' => 'Open reviewer submission deadline',
+            'audience_role' => UserRole::Reviewer,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDay(),
+            'priority' => 10,
+            'is_active' => true,
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'test-reviewing-revision-period',
+            'title' => 'Open revision-review submission deadline',
             'audience_role' => UserRole::Reviewer,
             'starts_at' => now()->subDay(),
             'due_at' => now()->addDay(),
@@ -136,6 +145,7 @@ class OfficialReviewFormArtifactTest extends TestCase
             $bytes = Storage::disk('local')->get($artifact->stored_file_path);
             $this->assertSame(ReviewFormArtifactStatus::Ready, $artifact->status);
             $this->assertSame(1, $artifact->artifact_version);
+            $this->assertSame(1, $artifact->business_version);
             $this->assertSame(strlen($bytes), $artifact->file_size_bytes);
             $this->assertSame(hash('sha256', $bytes), $artifact->sha256);
             $this->assertSame(ReviewFormCatalog::TEMPLATE_SHA256, $artifact->template_sha256);
@@ -158,6 +168,53 @@ class OfficialReviewFormArtifactTest extends TestCase
                 $expectedPages,
                 $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)),
             );
+        }
+    }
+
+    public function test_worksheet_business_version_follows_review_cycle_while_internal_resubmissions_remain_immutable(): void
+    {
+        foreach ([0 => 1, 1 => 2, 2 => 3] as $reviewCycle => $businessVersion) {
+            [$reviewer, , , $application, $assignment] = $this->fixture();
+            if ($reviewCycle > 0) {
+                $application->update([
+                    'application_status' => ApplicationStatus::UnderReReview,
+                    'current_revision_cycle' => $reviewCycle + 1,
+                ]);
+                $assignment->update([
+                    'review_cycle' => $reviewCycle,
+                    'review_type' => 'revision_review',
+                    'assignment_status' => ReviewerAssignmentStatus::RevisionReview,
+                ]);
+            }
+            $this->finalizeForms($reviewer, $assignment, [], $reviewCycle * 2);
+            $this->submitReview($reviewer, $assignment, ReviewDecision::Disapproved);
+
+            $firstArtifacts = ReviewFormArtifact::query()
+                ->whereHas('formSubmission', fn ($forms) => $forms->where('reviewer_assignment_id', $assignment->id))
+                ->orderBy('id')
+                ->get();
+            $this->assertCount(2, $firstArtifacts);
+            $this->assertTrue($firstArtifacts->every(
+                fn (ReviewFormArtifact $artifact): bool => $artifact->artifact_version === 1
+                    && $artifact->business_version === $businessVersion,
+            ));
+
+            if ($reviewCycle === 2) {
+                $this->submitReview(
+                    $reviewer,
+                    $assignment,
+                    ReviewDecision::Disapproved,
+                    'A second immutable submission in the same review cycle.',
+                );
+                $allArtifacts = ReviewFormArtifact::query()
+                    ->whereHas('formSubmission', fn ($forms) => $forms->where('reviewer_assignment_id', $assignment->id))
+                    ->orderBy('artifact_version')
+                    ->orderBy('id')
+                    ->get();
+                $this->assertCount(4, $allArtifacts);
+                $this->assertSame([1, 1, 2, 2], $allArtifacts->pluck('artifact_version')->all());
+                $this->assertSame([3, 3, 3, 3], $allArtifacts->pluck('business_version')->all());
+            }
         }
     }
 
@@ -518,8 +575,12 @@ class OfficialReviewFormArtifactTest extends TestCase
     }
 
     /** @param array<string, array<string, mixed>> $payloads */
-    private function finalizeForms(User $reviewer, ReviewerAssignment $assignment, array $payloads = []): void
-    {
+    private function finalizeForms(
+        User $reviewer,
+        ReviewerAssignment $assignment,
+        array $payloads = [],
+        int $expectedExistingArtifactCount = 0,
+    ): void {
         foreach (ReviewFormType::cases() as $type) {
             $payload = $payloads[$type->value] ?? $this->finalPayload($type);
 
@@ -530,7 +591,7 @@ class OfficialReviewFormArtifactTest extends TestCase
                 ->assertJsonPath('data.artifact', null);
         }
 
-        $this->assertDatabaseCount('review_form_artifacts', 0);
+        $this->assertDatabaseCount('review_form_artifacts', $expectedExistingArtifactCount);
     }
 
     private function submitReview(

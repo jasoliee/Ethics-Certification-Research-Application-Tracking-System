@@ -7,9 +7,9 @@ use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\ReviewCommentCategory;
+use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\ApplicationDocument;
@@ -73,10 +73,20 @@ class ApplicationRevisionWorkflowService
             }
 
             $sourceReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
-            $sourceVersion = $this->consensus->assertReleaseableLocked($locked, $sourceSubmission);
+            $sourceVersions = $this->consensus->assertReleaseableVersionsLocked($locked, $sourceSubmission);
+            $sourceVersion = $sourceVersions->firstOrFail();
             $source = $sourceVersion->submission()->lockForUpdate()->firstOrFail();
             $decision = $sourceVersion->decision;
-            $feedbackSnapshot = collect((array) data_get($sourceVersion->payload_snapshot, 'comments', []));
+            $feedbackSnapshot = $sourceVersions->values()->flatMap(
+                fn ($version, int $reviewerIndex) => collect((array) data_get($version->payload_snapshot, 'comments', []))
+                    ->map(fn (array $comment): array => [
+                        ...$comment,
+                        'reviewer_sequence' => $reviewerIndex + 1,
+                        'reviewer_assignment_id' => $version->reviewer_assignment_id,
+                        'source_review_submission_id' => $version->review_submission_id,
+                        'source_review_submission_version_id' => $version->id,
+                    ]),
+            )->values();
             $commentIds = $feedbackSnapshot->pluck('id')->filter()->map(fn (mixed $id): int => (int) $id)->values();
             $documentIds = $feedbackSnapshot
                 ->where('category', ReviewCommentCategory::RequiredRevision->value)
@@ -114,6 +124,7 @@ class ApplicationRevisionWorkflowService
                 'source_review_type' => $sourceReviewType,
                 'source_review_submission_id' => $source->id,
                 'source_review_submission_version_id' => $sourceVersion->id,
+                'source_review_submission_version_ids' => $sourceVersions->pluck('id')->all(),
                 'decision' => $decision->value,
                 'review_consensus_signature' => $locked->review_consensus_signature,
                 'released_feedback_snapshot' => $feedbackSnapshot->values()->all(),
@@ -195,6 +206,7 @@ class ApplicationRevisionWorkflowService
                 'decision' => $decision->value,
                 'source_review_submission_id' => $source->id,
                 'source_review_submission_version_id' => $sourceVersion->id,
+                'source_review_submission_version_ids' => $sourceVersions->pluck('id')->all(),
                 'source_reviewer_assignment_id' => $source->reviewer_assignment_id,
                 'released_comment_count' => $feedbackSnapshot->count(),
                 'required_document_count' => $requiredDocuments->count(),
@@ -278,7 +290,7 @@ class ApplicationRevisionWorkflowService
                 ->with('replacementDocument')
                 ->lockForUpdate()
                 ->get();
-            $missing = $requirements->filter(function ($requirement) use ($lockedApplication, $lockedRevision): bool {
+            $missing = $requirements->filter(function ($requirement) use ($lockedApplication): bool {
                 $document = $requirement->replacementDocument;
 
                 return $requirement->is_required && (
@@ -364,7 +376,7 @@ class ApplicationRevisionWorkflowService
             $lockedApplication->update([
                 'application_status' => ApplicationStatus::UnderReReview->value,
                 'current_stage' => ApplicationStage::EthicsReview->value,
-                'review_consensus_status' => \App\Enums\ReviewConsensusStatus::AwaitingSubmissions->value,
+                'review_consensus_status' => ReviewConsensusStatus::AwaitingSubmissions->value,
                 'review_consensus_cycle' => (int) $lockedRevision->revision_number,
                 'review_consensus_decision' => null,
                 'review_consensus_signature' => null,

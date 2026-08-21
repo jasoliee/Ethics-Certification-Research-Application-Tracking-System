@@ -37,7 +37,7 @@ return new class extends Migration
             ->exists();
 
         if ($hasRoleSettings || $hasWorksheetBackgrounds) {
-            throw new \RuntimeException('Role settings or worksheet background provenance exists and cannot be discarded safely.');
+            throw new RuntimeException('Role settings or worksheet background provenance exists and cannot be discarded safely.');
         }
 
         Schema::table('certificate_backgrounds', function (Blueprint $table): void {

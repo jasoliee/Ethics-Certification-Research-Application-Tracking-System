@@ -12,9 +12,10 @@ use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
+use App\Models\AcademicTerm;
 use App\Models\ApplicantSurveyResponse;
-use App\Models\ApplicationDocument;
 use App\Models\ApplicationDecisionRelease;
+use App\Models\ApplicationDocument;
 use App\Models\Certificate;
 use App\Models\CertificateBackground;
 use App\Models\DocumentRequirement;
@@ -129,10 +130,15 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame(hash('sha256', $firstQrBytes), $firstVersion->qr_code_sha256);
         $this->assertSame(256, $firstVersion->qr_code_width);
         $this->assertSame(256, $firstVersion->qr_code_height);
+        $this->assertSame(OfficialCertificateGenerationService::GENERATOR_VERSION, $firstVersion->generator_version);
+        $this->assertSame(24.0, OfficialCertificateGenerationService::QR_X_MM);
+        $this->assertSame(237.0, OfficialCertificateGenerationService::QR_Y_MM);
+        $this->assertSame(30.0, OfficialCertificateGenerationService::QR_SIZE_MM);
         $this->assertSame('Dr. Second Signatory', $secondVersion->signatory_name_snapshot);
         $this->assertSame('2028-12-31', $secondVersion->valid_until->toDateString());
         $this->assertSame('settings/certificate-qr/qr-two.png', $secondVersion->qr_code_path);
         $this->assertSame(hash('sha256', $secondQrBytes), $secondVersion->qr_code_sha256);
+        $this->assertSame(OfficialCertificateGenerationService::GENERATOR_VERSION, $secondVersion->generator_version);
     }
 
     public function test_generated_pdf_quotes_the_title_lists_documents_on_the_next_line_and_excludes_payment_proof(): void
@@ -215,6 +221,67 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame('2024-02-29', $released['certificate']->issued_date->toDateString());
         $this->assertSame('2025-02-28', $released['certificate']->valid_until->toDateString());
         Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
+    }
+
+    public function test_partial_multi_recipient_release_is_never_reported_claimed_or_surveyable_and_bulk_recovers_it(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('GROUP-PARTIAL');
+        $application->certificateRecipients()->delete();
+        $application->certificateRecipients()->createMany([
+            ['recipient_name' => 'First Recipient', 'normalized_name' => 'first recipient', 'sort_order' => 1],
+            ['recipient_name' => 'Second Recipient', 'normalized_name' => 'second recipient', 'sort_order' => 2],
+        ]);
+        app(CertificateReleaseService::class)->release($resLead, $application->refresh());
+        $certificates = $application->certificates()->with('currentVersion')->orderBy('id')->get();
+        $this->assertCount(2, $certificates);
+
+        $firstVersionId = $certificates->first()->current_certificate_version_id;
+        $certificates->last()->update([
+            'status' => CertificateStatus::GenerationFailed->value,
+            'generation_failure_code' => 'simulated_partial_failure',
+        ]);
+
+        try {
+            app(ApplicantCertificateService::class)->submitSurvey($applicant, $application->refresh(), $this->surveyPayload());
+            $this->fail('A partial recipient release must not expose the survey.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('survey', $exception->errors());
+        }
+
+        $response = $this->actingAs($resLead)->get(route('res.certificates.index'));
+        $response->assertOk()->assertSee('GROUP-PARTIAL')->assertSee('Certificate Generation Failed');
+        $this->assertSame(1, $response->viewData('queueMetrics')['pending_certificate_release']);
+        $this->assertSame(0, $response->viewData('queueMetrics')['certificates_released']);
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index', ['claim' => 'unavailable']))
+            ->assertOk()
+            ->assertSee('GROUP-PARTIAL');
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index', ['claim' => 'claimed']))
+            ->assertOk()
+            ->assertDontSee('GROUP-PARTIAL');
+
+        $bulk = app(BulkReleaseService::class);
+        $this->assertSame(1, $bulk->eligibleCounts($resLead)['certificate']);
+        $summary = $bulk->release($resLead, BulkReleaseType::Certificate);
+        $this->assertSame(1, $summary['successfully_released']);
+
+        $recovered = $application->certificates()->with('currentVersion')->orderBy('id')->get();
+        $this->assertCount(2, $recovered);
+        $this->assertSame($firstVersionId, $recovered->first()->current_certificate_version_id);
+        $this->assertSame(1, $recovered->first()->versions()->count());
+        $this->assertSame(2, $recovered->last()->versions()->count());
+        $this->assertTrue($recovered->every(
+            fn (Certificate $certificate): bool => $certificate->status === CertificateStatus::Released
+                && $certificate->currentVersion->status === CertificateVersionStatus::Ready,
+        ));
+
+        $releasedResponse = $this->actingAs($resLead)->get(route('res.certificates.index'));
+        $this->assertSame(0, $releasedResponse->viewData('queueMetrics')['pending_certificate_release']);
+        $this->assertSame(1, $releasedResponse->viewData('queueMetrics')['certificates_released']);
+        $releasedResponse->assertSee('2 personalized certificates ready');
     }
 
     public function test_release_survey_claim_and_private_download_form_one_server_gated_sequence(): void
@@ -428,6 +495,59 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('res.reports.index'))
             ->assertRedirect(route('dashboard'));
+    }
+
+    public function test_res_report_filters_anonymous_aggregates_by_selected_historical_or_current_term(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $historicalTerm = AcademicTerm::create([
+            'semester' => 'Historical Report Term',
+            'academic_year' => '2025-2026',
+            'starts_at' => now()->subYear(),
+            'ends_at' => now()->subMonths(7),
+            'is_active' => false,
+        ]);
+        $currentTerm = AcademicTerm::create([
+            'semester' => 'Current Report Term',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonths(4),
+            'is_active' => true,
+        ]);
+
+        foreach ([[$historicalTerm, 1], [$currentTerm, 5]] as [$term, $rating]) {
+            $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+            $application = ResearchApplication::factory()->create([
+                'applicant_user_id' => $applicant->id,
+                'academic_term_id' => $term->id,
+            ]);
+            ApplicantSurveyResponse::create([
+                'research_application_id' => $application->id,
+                'applicant_user_id' => $applicant->id,
+                'questionnaire_version' => ApplicantSurveyCatalog::VERSION,
+                'ratings' => array_fill_keys(ApplicantSurveyCatalog::questionKeys(), $rating),
+                'positive_feedback' => '',
+                'improvement_feedback' => '',
+                'completed_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index', ['academic_term_id' => $historicalTerm->id]))
+            ->assertOk()
+            ->assertSee('Historical Report Term')
+            ->assertSee('1.00 / 5')
+            ->assertDontSee('5.00 / 5');
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index', ['academic_term_id' => $currentTerm->id]))
+            ->assertOk()
+            ->assertSee('5.00 / 5')
+            ->assertDontSee('1.00 / 5');
+
+        $allTerms = $this->actingAs($resLead)->get(route('res.reports.index'));
+        $allTerms->assertOk()->assertSee('3.00 / 5');
+        $this->assertSame(2, $allTerms->viewData('surveySummary')['response_count']);
     }
 
     public function test_background_activation_does_not_invoke_certificate_generation(): void

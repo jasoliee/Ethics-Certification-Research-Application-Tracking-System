@@ -112,7 +112,172 @@ export function initializeDashboard() {
     initializeManagedAccountTools(shell);
     initializeApplicationTools(shell);
     initializeSettingsTools(shell);
+    initializeNotificationTools(shell);
     initializeOnboardingGuide(shell);
+}
+
+function initializeNotificationTools(shell) {
+    const dialog = shell.querySelector('[data-notification-confirm-dialog]');
+
+    if (! dialog) {
+        return;
+    }
+
+    const panel = dialog.querySelector('[role="dialog"]');
+    const title = dialog.querySelector('[data-notification-confirm-title]');
+    const message = dialog.querySelector('[data-notification-confirm-message]');
+    const confirmButton = dialog.querySelector('[data-notification-confirm-submit]');
+    const confirmLabel = confirmButton?.querySelector('span');
+    const focusableSelector = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    let pendingForm = null;
+    let returnFocus = null;
+
+    const selectedActionConfiguration = (form) => {
+        const actionField = form.elements.namedItem('action');
+        const action = actionField instanceof HTMLSelectElement ? actionField.value : '';
+
+        if (form.dataset.notificationConfirmMode === 'inbox-selected') {
+            return action === 'delete' ? {
+                title: 'Move Selected Notifications to Bin',
+                message: 'Move the selected notifications to the Bin? You can restore them for seven days.',
+                action: 'Move Selected',
+                danger: false,
+            } : null;
+        }
+
+        if (form.dataset.notificationConfirmMode === 'bin-selected') {
+            if (action === 'restore') {
+                return {
+                    title: 'Restore Selected Notifications',
+                    message: 'Restore the selected notifications to the inbox?',
+                    action: 'Restore Selected',
+                    danger: false,
+                };
+            }
+
+            if (action === 'force_delete') {
+                return {
+                    title: 'Permanently Delete Selected Notifications',
+                    message: 'Permanently delete the selected notifications? This cannot be undone.',
+                    action: 'Delete Selected',
+                    danger: true,
+                };
+            }
+        }
+
+        return null;
+    };
+
+    const configurationFor = (form) => {
+        if (form.dataset.notificationConfirmMode) {
+            return selectedActionConfiguration(form);
+        }
+
+        return {
+            title: form.dataset.confirmTitle ?? 'Confirm Notification Action',
+            message: form.dataset.confirmMessage ?? 'Confirm this notification action.',
+            action: form.dataset.confirmAction ?? 'Confirm',
+            danger: Object.hasOwn(form.dataset, 'confirmDanger'),
+        };
+    };
+
+    const focusableElements = () => [...(panel?.querySelectorAll(focusableSelector) ?? [])]
+        .filter((element) => ! element.closest('[hidden]') && element.getAttribute('aria-hidden') !== 'true');
+
+    const closeDialog = () => {
+        if (confirmButton?.disabled) {
+            return;
+        }
+
+        dialog.hidden = true;
+        document.body.classList.remove('has-application-modal-open');
+        pendingForm = null;
+        returnFocus?.focus();
+    };
+
+    shell.querySelectorAll('form[data-notification-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (form.dataset.notificationConfirmationApproved === 'true') {
+                delete form.dataset.notificationConfirmationApproved;
+
+                return;
+            }
+
+            const configuration = configurationFor(form);
+            if (! configuration) {
+                return;
+            }
+
+            event.preventDefault();
+            if (! form.reportValidity()) {
+                return;
+            }
+
+            pendingForm = form;
+            returnFocus = event.submitter instanceof HTMLElement ? event.submitter : document.activeElement;
+            title.textContent = configuration.title;
+            message.textContent = configuration.message;
+            confirmLabel.textContent = configuration.action;
+            confirmButton.classList.toggle('is-danger', configuration.danger);
+            dialog.hidden = false;
+            document.body.classList.add('has-application-modal-open');
+            panel?.focus();
+        });
+    });
+
+    dialog.querySelectorAll('[data-notification-confirm-close]').forEach((button) => {
+        button.addEventListener('click', closeDialog);
+    });
+    dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) {
+            closeDialog();
+        }
+    });
+    dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDialog();
+
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const focusable = focusableElements();
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (! first || ! last) {
+            event.preventDefault();
+            panel?.focus();
+        } else if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+            event.preventDefault();
+            last.focus();
+        } else if (! event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
+    confirmButton?.addEventListener('click', () => {
+        const form = pendingForm;
+        if (! form) {
+            return;
+        }
+
+        confirmButton.disabled = true;
+        confirmButton.setAttribute('aria-disabled', 'true');
+        confirmLabel.textContent = 'Processing...';
+        form.dataset.notificationConfirmationApproved = 'true';
+        form.requestSubmit();
+    });
 }
 
 function initializeApplicationTools(shell) {
@@ -2610,6 +2775,20 @@ function initializeOnboardingGuide(shell) {
 }
 
 function initializeManagedAccountTools(shell) {
+    const reviewerToggle = shell.querySelector('[data-reviewer-capability-toggle]');
+    const reviewerCapacity = shell.querySelector('[data-reviewer-capacity]');
+    if (reviewerToggle && reviewerCapacity) {
+        const syncReviewerCapacity = () => {
+            const enabled = reviewerToggle.checked;
+            reviewerCapacity.required = enabled;
+            reviewerCapacity.disabled = ! enabled;
+            reviewerCapacity.setAttribute('aria-disabled', String(! enabled));
+        };
+
+        reviewerToggle.addEventListener('change', syncReviewerCapacity);
+        syncReviewerCapacity();
+    }
+
     // Account password controls stay hidden until input exists and clearly expose their current state.
     shell.querySelectorAll('[data-managed-password-toggle]').forEach((toggle) => {
         const wrapper = toggle.closest('.identity-password-wrap');

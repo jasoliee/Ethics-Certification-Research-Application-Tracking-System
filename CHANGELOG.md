@@ -4,6 +4,18 @@ All notable project changes should be documented here.
 
 ## Unreleased
 
+### 2026-08-21 DOOMSDAY audit and corrections
+
+- Completed a current-session requirement traceability audit rather than relying on the historical handoff.
+- Combined Full Board application releases now freeze and release all three current Reviewers' source versions, anonymous feedback, comments, and actionable requirements; split decisions remain blocked and Approved consensus prepares certificates automatically.
+- Added additive combined-release provenance and cycle-derived worksheet business versions without replacing immutable internal artifact history.
+- Fixed the MySQL notification-type `DISTINCT`/inherited-order failure, added reusable confirmations for inbox/Bin destructive actions, and guaranteed safe database-error pages without SQL or stack disclosure.
+- Removed legacy singular-certificate assumptions from queues, metrics, eligibility, bulk release, survey/claim and private certificate actions; every configured recipient receives an independent personalized certificate.
+- Completed server-side academic-term scoping across role dashboards, application/revision/review/certificate/monitoring surfaces and reports while retaining role/ownership limits.
+- Aligned Applicant revision, Adviser capability/capacity, Review Monitoring, Certificate Processing/configuration/QR, profile, private-preview, search-field and redundant-subtext contracts with focused regression coverage.
+- Applied only `2026_08_21_000000_preserve_combined_release_and_worksheet_business_versions` to local ECRATS MySQL. The final isolated SQLite suite passes 319 tests with 4,414 assertions; Pint, Composer validation, Blade compilation, route discovery and the Vite production build pass.
+- Authenticated desktop/tablet/mobile acceptance and pixel-level certificate/reference/QR readability checks remain pending because no in-app browser surface or Poppler renderer was available. See `Documentations/DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md`.
+
 ### 2026 Finale integration
 
 - Consolidated Reviewer work into an explicit, immediately enforced Adviser capability, preserving legacy Reviewer IDs/history and adding RES-managed Show/Hide Reviewer and identity reconciliation.

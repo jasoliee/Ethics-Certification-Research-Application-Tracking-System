@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-21
+
+### Corrected
+
+- Full Board application-level release now requires agreement from all three current submissions and freezes all three source-version IDs, anonymous feedback groups and actionable requirements. Approved consensus enters certificate preparation without a redundant manual decision-release action.
+- Review worksheet display versions are now business versions V1/V2/V3 from initial/C1/C2, independently of immutable internal artifact revision numbers.
+- Notification type filtering resets the relation's inherited `created_at` order before the MySQL-safe distinct type query. Inbox/Bin individual, selected and all destructive actions share one accessible confirmation dialog, and database failures never render SQL or stack traces to users.
+- All certificate consumers use the application's complete recipient certificate set for queue state, metrics, eligibility, generation, release, evaluation/claim and private preview/download.
+- Term selection or All now scopes role dashboards, lists, revisions, assignments, monitoring, drill-downs, certification and reports on the server without broadening role/ownership access.
+- Adviser Reviewer Capability/Capacity, Review Monitoring tables/drill-downs, Applicant revision controls, certificate queue/configuration/QR provenance, profile summaries, username stability, private previews, embedded search icons and required subtext removal were audited and covered by focused tests.
+- Draft cleanup retries a synchronized-filesystem directory walk once when the directory still exists, preventing an already-completed user discard from surfacing a transient `Lstat failed` error.
+
+### Database
+
+- Added and applied `2026_08_21_000000_preserve_combined_release_and_worksheet_business_versions.php`. It adds/backfills combined release provenance and worksheet business versions without deleting data and refuses rollback that would discard a combined provenance set.
+
+### Verification
+
+- Changed-area suite: 178 tests, 2,534 assertions, passed.
+- Final complete SQLite in-memory suite: 319 tests, 4,414 assertions, passed.
+- Repository-wide Pint, Composer validation, Blade compilation, route discovery and Vite production build passed.
+- Authenticated browser viewport/interaction acceptance and pixel-level certificate/reference/QR readability remain pending because no browser surface and no Poppler renderer were available. Details are in `DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md` and `DOOMSDAY_IMPLEMENTATION_STATUS_2026-08-21.md`.
+
 ## 2026-08-17
 
 ### Added

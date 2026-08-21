@@ -15,9 +15,18 @@ use Illuminate\View\View;
 
 class ResReportController extends Controller
 {
-    public function index(Request $request, ApplicantSurveyReportService $surveyReports): View
-    {
+    public function index(
+        Request $request,
+        ApplicantSurveyReportService $surveyReports,
+        AcademicTermResolver $terms,
+    ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $request->validate([
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
+        ]);
+        $academicTermId = filled($filters['academic_term_id'] ?? null)
+            ? (int) $filters['academic_term_id']
+            : null;
 
         return view('dashboard.reports.res-index', [
             'pageTitle' => 'Reports',
@@ -25,7 +34,9 @@ class ResReportController extends Controller
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Reports'],
             ],
-            'surveySummary' => $surveyReports->summary(),
+            'surveySummary' => $surveyReports->summary($academicTermId),
+            'filters' => $filters,
+            'termOptions' => $terms->filterOptions(),
         ]);
     }
 

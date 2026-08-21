@@ -265,7 +265,7 @@
                                     <td>{{ $assignmentRecord->reviewer?->name ?? 'Archived reviewer' }}</td>
                                     <td>#{{ $assignmentRecord->assignment_sequence }}<small>{{ $assignmentRecord->isCurrent() ? 'Current' : 'Superseded record' }}</small></td>
                                     <td>{{ $artifact->generated_at?->format('M j, Y g:i A') ?? 'Not recorded' }}</td>
-                                    <td>v{{ $artifact->artifact_version }}<small>SHA-256 {{ Str::upper(Str::substr($artifact->sha256, 0, 12)) }}...</small></td>
+                                    <td>V{{ $artifact->business_version ?? (((int) $assignmentRecord->review_cycle) + 1) }}<small>Internal artifact {{ $artifact->artifact_version }} · SHA-256 {{ Str::upper(Str::substr($artifact->sha256, 0, 12)) }}...</small></td>
                                     <td class="res-document-actions">
                                         <a
                                             class="dashboard-outline-action res-document-action"

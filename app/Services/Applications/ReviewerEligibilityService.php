@@ -68,7 +68,7 @@ class ReviewerEligibilityService
     }
 
     /**
-     * Return the bounded Department filter catalog from accounts eligible for the saved review classification.
+     * Return the bounded Department filter catalog from eligible reviewer-enabled Adviser accounts.
      *
      * @return Collection<int, string>
      */

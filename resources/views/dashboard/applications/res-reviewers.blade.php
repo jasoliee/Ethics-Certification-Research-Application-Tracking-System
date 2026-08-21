@@ -110,7 +110,7 @@
                                 image="no-applications"
                                 alt="No eligible reviewers"
                                 title="No eligible reviewers found"
-                                message="No active reviewer matches the saved classification and current filter."
+                                message="No active reviewer-enabled Adviser matches the current filters and eligibility rules."
                             />
                         @else
                             <x-dashboard.overflow label="Eligible reviewer candidates" wide>

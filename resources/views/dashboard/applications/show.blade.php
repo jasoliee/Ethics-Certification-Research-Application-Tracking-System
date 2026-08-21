@@ -22,7 +22,11 @@
                     <x-dashboard.status-badge :label="$application->statusLabel()" :tone="$application->application_status->tone()" dot />
                 </div>
             </div>
-            <div class="application-record-actions">
+            <div @class([
+                'application-record-actions',
+                'is-revision-actions' => $role === \App\Enums\UserRole::Applicant
+                    && $application->application_status === \App\Enums\ApplicationStatus::RevisionWindowOpen,
+            ])>
                 <a class="dashboard-outline-action" href="{{ route($indexRoute) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to List</span></a>
                 @if ($role === \App\Enums\UserRole::Applicant && $application->application_status === \App\Enums\ApplicationStatus::RevisionWindowOpen)
                     <a class="dashboard-outline-action" href="{{ route('applicant.revision-certificates.index', ['application' => $application->id]) }}"><x-dashboard.icon name="arrow-right" size="17" /><span>Go to Revision</span></a>

@@ -6,6 +6,7 @@ use App\Http\Middleware\PreventBrowserHistory;
 use App\Http\Middleware\RedirectAuthenticatedUser;
 use App\Http\Middleware\ShareDashboardContext;
 use App\Services\AuditLogService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +29,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => 'The requested ECRATS data is temporarily unavailable. Please try again.',
+                ], 500);
+            }
+
+            // Never render SQL text, connection details, bindings, or debug traces to a browser.
+            return response()->view('errors.database', status: 500);
+        });
         $exceptions->render(function (AccessDeniedHttpException $exception, Request $request) {
             try {
                 // Route identity is sufficient for investigation; payloads may contain secrets or files.

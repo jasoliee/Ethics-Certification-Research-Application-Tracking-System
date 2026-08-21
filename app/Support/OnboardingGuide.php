@@ -38,7 +38,7 @@ class OnboardingGuide
                 'Coordinate screening, reviewer assignments, result release, account administration, and audit-ready records.',
                 [
                     ['title' => 'Screen applications', 'description' => 'Verify endorsed applications and classify the approved review pathway.'],
-                    ['title' => 'Manage reviewers', 'description' => 'Assign qualified reviewers while checking classification, capacity, and conflicts.'],
+                    ['title' => 'Manage reviewers', 'description' => 'Assign qualified reviewer-enabled Advisers while checking capacity and conflicts.'],
                     ['title' => 'Release official outcomes', 'description' => 'Monitor completed reviews and release only authorized decisions and documents.'],
                     ['title' => 'Administer accounts', 'description' => 'Create non-RES accounts, monitor setup delivery, and use controlled status or archive actions.'],
                 ],

@@ -8,17 +8,19 @@ use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
 use App\Enums\UserRole;
 use App\Exceptions\CertificateGenerationException;
-use App\Models\Certificate;
 use App\Models\ApplicationCertificateRecipient;
+use App\Models\Certificate;
 use App\Models\CertificateBackground;
 use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
 use App\Services\AuditLogService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -56,7 +58,7 @@ class CertificateReleaseService
         Gate::forUser($actor)->authorize('releaseCertificate', $application);
         $recipients = $application->certificateRecipients()->orderBy('sort_order')->orderBy('id')->get();
         if ($recipients->isEmpty()) {
-            $name = \Illuminate\Support\Str::squish((string) ($application->applicant?->name ?: 'Applicant'));
+            $name = Str::squish((string) ($application->applicant?->name ?: 'Applicant'));
             $recipients = collect([$application->certificateRecipients()->create([
                 'recipient_name' => $name,
                 'normalized_name' => mb_strtolower($name),
@@ -212,9 +214,9 @@ class CertificateReleaseService
                     ->max('certificate_version');
                 $versionNumber = $latestVersion + 1;
                 $releasedAt = now();
-                $issuedDate = \Carbon\CarbonImmutable::parse($releasedAt)->startOfDay();
+                $issuedDate = CarbonImmutable::parse($releasedAt)->startOfDay();
                 $validUntil = $actor->certificate_valid_until
-                    ? \Carbon\CarbonImmutable::parse($actor->certificate_valid_until)
+                    ? CarbonImmutable::parse($actor->certificate_valid_until)
                     : $issuedDate->addYearNoOverflow();
                 $fileData = $this->generator->renderAndStore(
                     $actor,

@@ -1,6 +1,20 @@
 # Features and Functionality
 
-This file is the current implemented-feature catalog for ECRATS as of August 3, 2026. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface, and relevant automated coverage. Later ethics-review stages remain listed separately so dashboard placeholders are not mistaken for complete workflows.
+This file began as the August 3 feature catalog and retains that historical detail below. The August 21 section is the current superseding contract for changed review, revision, certificate, notification and academic-term behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+
+## Current August 21 Contract
+
+- Adviser is the primary interactive role and Reviewer is an RES-controlled capability. Application classification determines one Expedited Reviewer, three distinct Full Board Reviewers or the authorized Exempted path. Historical Reviewer classification values are not current eligibility controls.
+- RES-controlled individual and bulk Adviser creation support conditional Reviewer capability/capacity. Position/Designation is not required solely to create an Adviser.
+- Current Full Board consensus is application-level. Split decisions remain blocked; a releasable non-Approved result freezes all three source versions/feedback groups through one action, while Approved consensus prepares one personalized pending certificate per configured recipient automatically.
+- Applicant document business versions increment only for actual reviewed replacements. Official worksheet business versions are initial V1, C1 V2 and C2 V3; internal file/artifact revisions remain immutable and independently versioned.
+- Certificate Configuration owns future-output signatory/signature, validity and QR settings. Each version snapshots the active background, signatory, validity and fixed lower-left QR provenance; previously generated/released files are never rewritten.
+- Applicant Revision and Certificates has one ownership-scoped selector, exactly three progress stages, collapsible status/feedback/certification, automatic single-document replacement upload, anonymous combined feedback and protected document/worksheet histories.
+- Review Monitoring provides filtered reviewer-enabled Adviser workload and endorsed-only Adviser workload tables with secure scoped drill-downs. The retired assignment-progress panel is absent.
+- Notifications provide date/type/read filters, owner-scoped individual/selected/all actions, 20-row pagination, a seven-day Bin and accessible destructive confirmations. Database errors render safely without SQL or stack disclosure.
+- Relevant role dashboards, lists, queues, revisions, assignments, monitoring/drill-downs, certificates and reports accept one validated academic term or All after role/ownership scoping.
+- Private documents, official worksheets, settings assets and certificates use authenticated nested same-origin preview/download routes and defensive no-store/framing/content headers.
+- The complete current-session status and pending browser/PDF acceptance are in `DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md`.
 
 ## Authentication and Account Access
 

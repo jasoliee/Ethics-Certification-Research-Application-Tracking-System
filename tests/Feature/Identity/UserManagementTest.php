@@ -173,6 +173,43 @@ class UserManagementTest extends TestCase
         $this->assertContains('Position / Designation', $adviserType['optional_headers']);
     }
 
+    public function test_adviser_creation_exposes_and_enforces_reviewer_capability_capacity_conditionally(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.users.create', ['mode' => 'individual', 'account_type' => 'adviser']))
+            ->assertOk()
+            ->assertSee('Reviewer Capability')
+            ->assertSee('name="reviewer_enabled"', false)
+            ->assertSee('data-reviewer-capability-toggle', false)
+            ->assertSee('Reviewer Capacity')
+            ->assertSee('data-reviewer-capacity', false)
+            ->assertDontSee('Reviewer Classification');
+
+        $payload = $this->reviewerPayload([
+            'email' => 'conditional.reviewer@ecrats.test',
+            'institutional_identifier' => 'KLD-EMP-CONDITIONAL',
+            'role' => UserRole::Adviser->value,
+            'reviewer_enabled' => '1',
+            'reviewer_capacity' => null,
+            'position_title' => null,
+        ]);
+        $this->actingAs($resLead)
+            ->post(route('res.users.store'), $payload)
+            ->assertSessionHasErrors('reviewer_capacity');
+        $this->assertDatabaseMissing('users', ['email' => 'conditional.reviewer@ecrats.test']);
+
+        $this->actingAs($resLead)
+            ->post(route('res.users.store'), [...$payload, 'reviewer_capacity' => 8])
+            ->assertSessionDoesntHaveErrors();
+        $created = User::query()->where('email', 'conditional.reviewer@ecrats.test')->firstOrFail();
+        $this->assertTrue($created->reviewer_enabled);
+        $this->assertSame(8, $created->reviewer_capacity);
+        $this->assertNull($created->position_title);
+    }
+
     public function test_res_lead_can_deactivate_and_reactivate_an_individual_account(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -507,6 +544,53 @@ class UserManagementTest extends TestCase
         $this->actingAs($resLead)->post(route('res.users.import.confirm'), ['import_token' => $token])
             ->assertSessionHasErrors('import_token');
         $this->assertSame(1, User::where('email', 'excel.student@school.edu')->count());
+    }
+
+    public function test_adviser_bulk_import_matches_individual_reviewer_capability_validation(): void
+    {
+        Notification::fake();
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $invalidPath = $this->templatePath($resLead, 'adviser');
+        $invalidRow = $this->adviserRow(
+            email: 'bulk.invalid.reviewer@ecrats.test',
+            identifier: 'KLD-EMP-BULK-INVALID',
+            reviewerEnabled: 'Yes',
+            reviewerCapacity: '',
+        );
+        $this->replaceSpreadsheetRow($invalidPath, 3, $invalidRow);
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'adviser',
+            'accounts_file' => $this->uploadedWorkbook($invalidPath, 'invalid-adviser-capacity.xlsx'),
+        ])->assertOk()
+            ->assertSee('Excel Row 3')
+            ->assertSee('Reviewer Capacity')
+            ->assertSee('required when Reviewer capability is enabled');
+
+        $validPath = $this->templatePath($resLead, 'adviser');
+        $this->replaceSpreadsheetRow($validPath, 3, $this->adviserRow(
+            email: 'bulk.valid.reviewer@ecrats.test',
+            identifier: 'KLD-EMP-BULK-VALID',
+            reviewerEnabled: 'Yes',
+            reviewerCapacity: '9',
+        ));
+        $this->actingAs($resLead)->post(route('res.users.import.store'), [
+            'account_type' => 'adviser',
+            'accounts_file' => $this->uploadedWorkbook($validPath, 'valid-adviser-capacity.xlsx'),
+        ])->assertOk()
+            ->assertSee('Import Preview')
+            ->assertSee('bulk.valid.reviewer@ecrats.test');
+
+        $token = $this->previewTokenFor($resLead);
+        $this->actingAs($resLead)
+            ->post(route('res.users.import.confirm'), ['import_token' => $token])
+            ->assertRedirect(route('res.users.index'));
+
+        $created = User::query()->where('email', 'bulk.valid.reviewer@ecrats.test')->firstOrFail();
+        $this->assertSame(UserRole::Adviser, $created->role);
+        $this->assertTrue($created->reviewer_enabled);
+        $this->assertSame(9, $created->reviewer_capacity);
     }
 
     public function test_phone_numbers_require_exactly_eleven_digits_and_bulk_import_accepts_alphanumeric_student_ids(): void
@@ -1673,6 +1757,29 @@ class UserManagementTest extends TestCase
             'Institute of Engineering',
             '',
             '',
+        ];
+    }
+
+    /** @return array<int, string> */
+    private function adviserRow(
+        string $email,
+        string $identifier,
+        string $reviewerEnabled,
+        string $reviewerCapacity,
+    ): array {
+        return [
+            'Bulk',
+            '',
+            'Adviser',
+            '',
+            $email,
+            $identifier,
+            '09171234567',
+            'Institute of Engineering',
+            'Computer Studies',
+            '',
+            $reviewerEnabled,
+            $reviewerCapacity,
         ];
     }
 

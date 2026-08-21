@@ -7,6 +7,8 @@
             <p>Open authorized operational records and ethics-review reporting tools.</p>
         </header>
 
+        <x-dashboard.academic-term-filter :term-options="$termOptions" :filters="$filters" />
+
         <section class="application-panel">
             <header class="application-panel-heading">
                 <div><h2>Audit Log</h2><p>Workflow, release, certificate, account, and access events with authorized filters and pagination.</p></div>

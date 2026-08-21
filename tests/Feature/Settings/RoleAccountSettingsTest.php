@@ -26,6 +26,11 @@ class RoleAccountSettingsTest extends TestCase
             'applicant_type' => ApplicantType::Student,
             'first_name' => 'Before',
             'last_name' => 'Researcher',
+            'institutional_identifier' => 'KLD-STU-STABLE-01',
+            'username' => 'stable.researcher',
+            'phone_number' => '09170001111',
+            'institution' => 'Institute of Computing and Digital Innovation',
+            'department' => 'Computer Studies',
             'year_level' => $yearLevel,
         ]);
 
@@ -40,7 +45,7 @@ class RoleAccountSettingsTest extends TestCase
             ->put(route('applicant.settings.profile.update'), [
                 'first_name' => 'Updated',
                 'middle_name' => 'A',
-                'last_name' => 'Researcher',
+                'last_name' => 'Changed',
                 'suffix' => null,
                 'phone_number' => '09171234567',
                 'institution' => $applicant->institution,
@@ -50,12 +55,16 @@ class RoleAccountSettingsTest extends TestCase
                 'role' => UserRole::ResLead->value,
                 'reviewer_enabled' => true,
                 'reviewer_capacity' => 30,
+                'institutional_identifier' => 'FORGED-STUDENT-ID',
+                'username' => 'forged.username',
             ])
             ->assertRedirect()
             ->assertSessionDoesntHaveErrors();
 
         $applicant->refresh();
-        $this->assertSame('Updated A Researcher', $applicant->name);
+        $this->assertSame('Updated A Changed', $applicant->name);
+        $this->assertSame('stable.researcher', $applicant->username);
+        $this->assertSame('KLD-STU-STABLE-01', $applicant->institutional_identifier);
         $this->assertSame(UserRole::Applicant, $applicant->role);
         $this->assertFalse($applicant->reviewer_enabled);
         $this->assertNull($applicant->reviewer_capacity);
@@ -67,8 +76,11 @@ class RoleAccountSettingsTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.profile.show'))
             ->assertOk()
-            ->assertSee('Updated A Researcher')
+            ->assertSee('Updated A Changed')
             ->assertSee($applicant->institutional_identifier)
+            ->assertSee('09171234567')
+            ->assertSee($applicant->institution)
+            ->assertSee($applicant->department)
             ->assertSee('Edit Permitted Fields');
     }
 
@@ -107,6 +119,13 @@ class RoleAccountSettingsTest extends TestCase
             ->assertSee('Endorsement Overview')
             ->assertSee('Reviewer Capability')
             ->assertSee('These eligibility fields are read-only');
+        $this->actingAs($adviser)
+            ->get(route('adviser.profile.show'))
+            ->assertOk()
+            ->assertSee('09181234567')
+            ->assertSee($adviser->institution)
+            ->assertSee($adviser->department)
+            ->assertSee('Senior Research Adviser');
     }
 
     public function test_email_and_password_changes_require_current_password_and_are_audited(): void

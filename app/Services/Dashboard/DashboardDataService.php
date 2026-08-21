@@ -32,7 +32,7 @@ class DashboardDataService
     ) {}
 
     /** @return array<string, mixed> */
-    public function applicant(User $user): array
+    public function applicant(User $user, ?int $academicTermId = null): array
     {
         // Select the newest non-archived applicant-owned application across current and historical term links.
         $activeApplicationQuery = ResearchApplication::query()
@@ -54,6 +54,7 @@ class DashboardDataService
                 'updated_at',
             ])
             ->where('applicant_user_id', $user->id)
+            ->when($academicTermId !== null, fn (Builder $query) => $query->where('academic_term_id', $academicTermId))
             ->where('application_status', '!=', ApplicationStatus::Archived->value);
         $activeApplication = $activeApplicationQuery
             ->with(['adviser:id,name', 'academicTerm:id,semester,academic_year'])
@@ -72,7 +73,7 @@ class DashboardDataService
                     ApplicationStatus::ResultReleasedMinorRevision,
                     ApplicationStatus::ResultReleasedMajorRevision,
                     ApplicationStatus::RevisionWindowOpen,
-                ], true) => $this->nextDeadline(UserRole::Applicant, ['revision-period']),
+                ], true) => $this->nextDeadline(UserRole::Applicant, ['revision-period'], $academicTermId),
             ! $activeApplication || ! $activeApplication->isFormallySubmitted() => $this->submissionWindow
                 ->dashboardPayload($submissionWindow),
             default => null,
@@ -92,11 +93,12 @@ class DashboardDataService
     }
 
     /** @return array<string, mixed> */
-    public function adviser(User $user): array
+    public function adviser(User $user, ?int $academicTermId = null): array
     {
         // Adviser dashboards exclude drafts, incomplete records, archived records, and other Advisers' assignments.
         $base = ResearchApplication::query()
             ->where('adviser_user_id', $user->id)
+            ->when($academicTermId !== null, fn (Builder $query) => $query->where('academic_term_id', $academicTermId))
             ->whereNotNull('submitted_at')
             ->whereNotIn('application_status', [
                 ApplicationStatus::Draft->value,
@@ -126,13 +128,13 @@ class DashboardDataService
                 ->latest('id')
                 ->limit(5)
                 ->get(),
-            'deadline' => $this->nextDeadline(UserRole::Adviser, ['adviser-endorsement']),
-            ...$this->timelineData(),
+            'deadline' => $this->nextDeadline(UserRole::Adviser, ['adviser-endorsement'], $academicTermId),
+            ...$this->timelineData(academicTermId: $academicTermId),
         ];
     }
 
     /** @return array<string, mixed> */
-    public function reviewer(User $user): array
+    public function reviewer(User $user, ?int $academicTermId = null): array
     {
         // Current assignment history, not academic-term cache state, is authoritative for Reviewer visibility.
         $base = ReviewerAssignment::query()
@@ -141,6 +143,7 @@ class DashboardDataService
             ->where('reviewer_user_id', $user->id)
             ->where('assignment_status', '!=', ReviewerAssignmentStatus::Superseded->value)
             ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                ->when($academicTermId !== null, fn (Builder $query) => $query->where('academic_term_id', $academicTermId))
                 ->where('application_status', '!=', ApplicationStatus::Archived->value));
         $statusCounts = $this->groupedCounts($base, 'assignment_status');
 
@@ -171,15 +174,17 @@ class DashboardDataService
                 $statusCounts->get(ReviewerAssignmentStatus::RevisionReview->value, 0) > 0
                     ? ['reviewing-revision-period']
                     : ['reviewer-submission'],
+                $academicTermId,
             ),
-            ...$this->timelineData(),
+            ...$this->timelineData(academicTermId: $academicTermId),
         ];
     }
 
     /** @return array<string, mixed> */
-    public function resLead(): array
+    public function resLead(?int $academicTermId = null): array
     {
-        $base = ResearchApplication::query();
+        $base = ResearchApplication::query()
+            ->when($academicTermId !== null, fn (Builder $query) => $query->where('academic_term_id', $academicTermId));
         $underReview = ApplicationStatus::values(ApplicationStatus::underReview());
         $administrativeStatuses = [
             ApplicationStatus::AdviserEndorsed->value,
@@ -213,17 +218,20 @@ class DashboardDataService
                 ->latest('id')
                 ->limit(5)
                 ->get(),
-            'deadlines' => $this->availableDeadlines(UserRole::ResLead)
+            'deadlines' => $this->availableDeadlines(UserRole::ResLead, academicTermId: $academicTermId)
                 ->take(5)
                 ->map(fn (DeadlineConfiguration $deadline): array => $this->configuredDeadlinePayload($deadline)),
-            ...$this->timelineData(),
+            ...$this->timelineData(academicTermId: $academicTermId),
         ];
     }
 
     /** @return array<string, mixed>|null */
-    private function nextDeadline(UserRole $role, ?array $processKeys = null): ?array
-    {
-        $deadline = $this->availableDeadlines($role, $processKeys)->first();
+    private function nextDeadline(
+        UserRole $role,
+        ?array $processKeys = null,
+        ?int $academicTermId = null,
+    ): ?array {
+        $deadline = $this->availableDeadlines($role, $processKeys, $academicTermId)->first();
 
         return $deadline ? $this->configuredDeadlinePayload($deadline) : null;
     }
@@ -232,8 +240,11 @@ class DashboardDataService
      * @param  array<int, string>|null  $processKeys
      * @return Collection<int, DeadlineConfiguration>
      */
-    private function availableDeadlines(UserRole $role, ?array $processKeys = null): Collection
-    {
+    private function availableDeadlines(
+        UserRole $role,
+        ?array $processKeys = null,
+        ?int $academicTermId = null,
+    ): Collection {
         $query = DeadlineConfiguration::query()
             ->where('is_active', true)
             ->where('deadline_key', 'not like', '%result-release')
@@ -250,9 +261,11 @@ class DashboardDataService
             });
         }
 
-        $currentTerm = $this->terms->current();
+        $currentTerm = $academicTermId === null ? $this->terms->current() : null;
 
-        if ($currentTerm) {
+        if ($academicTermId !== null) {
+            $query->where('academic_term_id', $academicTermId);
+        } elseif ($currentTerm) {
             $query->where('academic_term_id', $currentTerm->id);
         } elseif ($this->terms->hasConfiguredTerms()) {
             $query->whereRaw('1 = 0');
@@ -310,6 +323,7 @@ class DashboardDataService
     private function timelineData(
         ?ResearchApplication $application = null,
         bool $applicationScoped = false,
+        ?int $academicTermId = null,
     ): array {
         // Applicants without an application receive the explicit unavailable timeline state.
         if ($applicationScoped && ! $application) {
@@ -323,9 +337,11 @@ class DashboardDataService
         $eventsQuery = TimelineCalendarEvent::query()
             ->select(['milestone_key', 'label', 'term_label', 'starts_at', 'ends_at', 'sort_order'])
             ->where('is_active', true);
-        $currentTerm = $this->terms->current();
+        $currentTerm = $academicTermId === null ? $this->terms->current() : null;
 
-        if ($currentTerm) {
+        if ($academicTermId !== null) {
+            $eventsQuery->where('academic_term_id', $academicTermId);
+        } elseif ($currentTerm) {
             $eventsQuery->where('academic_term_id', $currentTerm->id);
         } elseif ($this->terms->hasConfiguredTerms()) {
             return ['timeline' => collect(), 'termLabel' => AcademicTermResolver::FALLBACK_LABEL];
@@ -354,9 +370,11 @@ class DashboardDataService
                     ];
                 },
             ),
-            'termLabel' => $currentTerm?->label()
-                ?? $events->first()?->term_label
-                ?? AcademicTermResolver::FALLBACK_LABEL,
+            'termLabel' => $academicTermId !== null
+                ? ($events->first()?->term_label ?? AcademicTermResolver::FALLBACK_LABEL)
+                : ($currentTerm?->label()
+                    ?? $events->first()?->term_label
+                    ?? AcademicTermResolver::FALLBACK_LABEL),
         ];
     }
 

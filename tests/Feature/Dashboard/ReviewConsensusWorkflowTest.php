@@ -10,6 +10,9 @@ use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
+use App\Models\ApplicationDocument;
+use App\Models\DeadlineConfiguration;
+use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
@@ -27,6 +30,111 @@ use Tests\TestCase;
 class ReviewConsensusWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_one_full_board_release_includes_all_three_feedback_sets_and_actionable_requirements(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $application = ResearchApplication::factory()->create([
+            'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease,
+            'current_stage' => ApplicationStage::DecisionRelease,
+            'review_type' => 'full_board',
+            'current_revision_cycle' => 1,
+            'submitted_at' => now()->subWeek(),
+        ]);
+        DeadlineConfiguration::create([
+            'deadline_key' => 'test-revision-period',
+            'title' => 'Applicant revision period',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addWeek(),
+            'priority' => 10,
+            'is_active' => true,
+        ]);
+
+        $comments = collect(range(1, 3))->map(function (int $sequence) use ($application) {
+            $reviewer = User::factory()->reviewer()->create();
+            $assignment = ReviewerAssignment::factory()->create([
+                'research_application_id' => $application->id,
+                'reviewer_user_id' => $reviewer->id,
+                'review_type' => 'initial_review',
+                'review_cycle' => 0,
+                'assignment_sequence' => $sequence,
+                'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+                'submitted_at' => now()->subDay(),
+            ]);
+            $requirement = DocumentRequirement::create([
+                'code' => 'FULL-BOARD-'.$sequence,
+                'name' => 'Full Board Requirement '.$sequence,
+                'is_mandatory' => true,
+                'sort_order' => $sequence,
+                'is_active' => true,
+            ]);
+            $document = ApplicationDocument::create([
+                'research_application_id' => $application->id,
+                'document_requirement_id' => $requirement->id,
+                'uploaded_by_user_id' => $application->applicant_user_id,
+                'original_file_name' => "reviewed-{$sequence}.pdf",
+                'stored_file_path' => "applications/tests/{$application->id}/reviewed-{$sequence}.pdf",
+                'mime_type' => 'application/pdf',
+                'file_size_bytes' => 100,
+                'file_sha256' => str_repeat((string) $sequence, 64),
+                'document_version' => 1,
+                'validation_status' => 'completed',
+                'is_current' => true,
+                'uploaded_at' => now()->subDays(2),
+            ]);
+            $comment = $assignment->comments()->create([
+                'application_document_id' => $document->id,
+                'scope' => 'document',
+                'category' => 'required_revision',
+                'body' => "FULL-BOARD-ACTIONABLE-FEEDBACK-{$sequence}",
+                'status' => 'open',
+            ]);
+            $assignment->reviewSubmission()->create([
+                'status' => ReviewSubmissionStatus::Submitted,
+                'decision' => ReviewDecision::MinorRevision,
+                'decision_comment' => "Reviewer {$sequence} requires revision.",
+                'submitted_at' => now()->subDay(),
+            ]);
+
+            return $comment;
+        });
+
+        $evaluated = app(ReviewConsensusService::class)->evaluate($application);
+        $this->assertSame(ReviewConsensusStatus::Consensus, $evaluated->review_consensus_status);
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.workspace', $application))
+            ->assertOk()
+            ->assertSeeInOrder(['Supporting Documents', 'Application Decision', 'Release Decision', 'Reviewer 1']);
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.res-application-release-panel\s*>\s*form\s*>\s*\.dashboard-primary-action\s*\{[^}]*width:\s*100%;/s',
+            $css,
+        );
+
+        $release = app(ApplicationRevisionWorkflowService::class)->releaseDecision(
+            $resLead,
+            $application->refresh(),
+        );
+
+        $this->assertCount(3, $release->source_review_submission_version_ids);
+        $this->assertCount(3, $release->released_feedback_snapshot);
+        $this->assertSame([1, 2, 3], collect($release->released_feedback_snapshot)->pluck('reviewer_sequence')->all());
+        $this->assertSame(3, $release->releasedComments()->count());
+        $this->assertSame(3, $application->revisions()->firstOrFail()->requirements()->count());
+        $comments->each(fn ($comment) => $this->assertSame($release->id, $comment->refresh()->application_decision_release_id));
+
+        $response = $this->actingAs($application->applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertSee('Reviewer 1')
+            ->assertSee('Reviewer 2')
+            ->assertSee('Reviewer 3');
+        foreach (range(1, 3) as $sequence) {
+            $response->assertSee("FULL-BOARD-ACTIONABLE-FEEDBACK-{$sequence}");
+        }
+    }
 
     public function test_full_board_conflict_blocks_every_release_path_until_an_immutable_resubmission_restores_consensus(): void
     {
@@ -76,6 +184,12 @@ class ReviewConsensusWorkflowTest extends TestCase
             ->assertSee('is-review-conflicted', false)
             ->assertSee('Decision release blocked.')
             ->assertDontSee($application->applicant->name);
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.workspace', $application))
+            ->assertOk()
+            ->assertSeeInOrder(['Supporting Documents', 'Application Decision', 'Decision release blocked.', 'Reviewer 1'])
+            ->assertSee('The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.')
+            ->assertDontSee('Release Decision');
 
         try {
             app(ApplicationRevisionWorkflowService::class)->releaseDecision(
@@ -116,6 +230,11 @@ class ReviewConsensusWorkflowTest extends TestCase
         $this->assertSame(ReviewDecision::Disapproved, $firstVersion->refresh()->decision);
         $this->assertSame(ReviewConsensusStatus::Consensus, $resolved->review_consensus_status);
         $this->assertSame(ReviewDecision::Approved, $resolved->review_consensus_decision);
+
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.workspace', $application))
+            ->assertOk()
+            ->assertDontSee('Release Decision');
 
         $release = app(ApplicationRevisionWorkflowService::class)->releaseDecision(
             $resLead,

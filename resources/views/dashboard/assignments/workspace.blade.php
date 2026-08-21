@@ -280,7 +280,7 @@
                                                             $artifact = $worksheetVersion['artifact'];
                                                         @endphp
                                                         <span>
-                                                            <strong>Version {{ $worksheetVersion['submission']->version_number }}</strong>
+                                                            <strong>Version {{ $artifact->business_version ?? (((int) $assignment->review_cycle) + 1) }}</strong>
                                                             <time datetime="{{ $worksheetVersion['submission']->submitted_at?->toIso8601String() }}">{{ $worksheetVersion['submission']->submitted_at?->format('M j, Y g:i A') }}</time>
                                                             <a href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $artifact->formSubmission, $artifact]) }}" target="_blank" rel="noopener">Preview</a>
                                                             <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $artifact->formSubmission, $artifact]) }}">Download</a>

@@ -158,7 +158,11 @@ class NotificationPageController extends Controller
             ? $this->trashedOwned($request->user())
             : $request->user()->notifications()->getQuery();
         $types = $typesQuery
+            // User::notifications() is newest-first. MySQL rejects that inherited
+            // created_at ordering when a DISTINCT projection selects only type.
+            ->reorder()
             ->whereNotNull('type')
+            ->select('type')
             ->distinct()
             ->orderBy('type')
             ->pluck('type')

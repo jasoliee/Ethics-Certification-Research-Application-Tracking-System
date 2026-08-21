@@ -8,10 +8,14 @@ Run from the repository root in PowerShell:
 composer install
 npm.cmd install
 php -m | Select-String zip
-php artisan migrate
 npm.cmd run build
+$env:DB_CONNECTION = 'sqlite'
+$env:DB_DATABASE = ':memory:'
 php artisan test
+Remove-Item Env:DB_CONNECTION, Env:DB_DATABASE
 ```
+
+Never point automated tests at local ECRATS MySQL. Inspect `php artisan migrate:status` first and run `php artisan migrate --no-interaction` only as a separately reviewed forward-migration step; never use `migrate:fresh`, `db:wipe`, broad rollback or a destructive reset.
 
 For populated dashboard states:
 
@@ -29,10 +33,23 @@ composer validate --strict
 composer check-platform-reqs
 php artisan route:list --except-vendor
 php artisan migrate:status
+$env:DB_CONNECTION = 'sqlite'
+$env:DB_DATABASE = ':memory:'
 php artisan test
+Remove-Item Env:DB_CONNECTION, Env:DB_DATABASE
 vendor\bin\pint --test
 npm.cmd run build
 ```
+
+## August 21, 2026 DOOMSDAY Verification
+
+- Changed-area serialized SQLite run: 178 tests, 2,534 assertions, passed.
+- Final complete SQLite in-memory run after formatting and the filesystem-race repair: 319 tests, 4,414 assertions, passed.
+- The draft-discard regression also passed three consecutive isolated repetitions.
+- The only pending migration was `2026_08_21_000000_preserve_combined_release_and_worksheet_business_versions`; it was applied to local ECRATS MySQL as batch 5 after a read-only status/count preflight. Post-checks found no missing release provenance, no missing worksheet business version and no cycle/version mismatch.
+- Repository-wide Pint, Composer validation, Blade compilation, route discovery and the Vite production build passed.
+- The prohibited-subtext scan found none of the 35 exact strings in Blade templates.
+- Authenticated desktop/tablet/mobile validation was not performed because the in-app browser reported no connected browser surface. Pixel-level certificate comparison was not performed because Poppler is unavailable and the exact reference image is not present as a local file. Do not treat automated source/render tests as substitutes; see `MANUAL_VISUAL_VALIDATION.md`.
 
 ## August 10, 2026 Continuation Verification
 

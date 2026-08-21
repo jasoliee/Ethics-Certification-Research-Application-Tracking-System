@@ -7,11 +7,8 @@ use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
 use App\Enums\ReviewConsensusStatus;
-use App\Enums\ReviewerAssignmentStatus;
-use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
-use App\Models\ReviewerAssignment;
 use App\Models\ReviewSubmission;
 use App\Models\User;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
@@ -196,11 +193,18 @@ class BulkReleaseService
 
     private function certificateAlreadyReleased(ResearchApplication $application): bool
     {
-        $certificate = $application->certificate;
+        $certificates = $application->relationLoaded('certificates')
+            ? $application->certificates
+            : $application->certificates()->with('currentVersion')->get();
+        $recipientCount = $application->relationLoaded('certificateRecipients')
+            ? $application->certificateRecipients->count()
+            : $application->certificateRecipients()->count();
 
-        return $certificate !== null
-            && in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
-            && $certificate->currentVersion?->status === CertificateVersionStatus::Ready;
+        return $recipientCount > 0
+            && $certificates->count() === $recipientCount
+            && $certificates->every(fn ($certificate): bool => in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true)
+                && $certificate->currentVersion?->status === CertificateVersionStatus::Ready
+            );
     }
 
     private function decisionAlreadyReleased(ResearchApplication $application): bool
@@ -238,7 +242,7 @@ class BulkReleaseService
                     ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
                     ApplicationStatus::CertificateReleased->value,
-                ])->orWhereHas('certificate')
+                ])->orWhereHas('certificates')
                     ->orWhereHas('decisionReleases');
             });
     }
@@ -247,8 +251,9 @@ class BulkReleaseService
     private function eligibilityRelations(): array
     {
         return [
-            'certificate.currentVersion',
-            'decisionReleases:id,research_application_id,review_cycle',
+            'certificateRecipients:id,research_application_id,sort_order',
+            'certificates.currentVersion',
+            'decisionReleases:id,research_application_id,review_cycle,decision',
             'reviewerAssignments' => fn ($assignments) => $assignments
                 ->current()
                 ->with('reviewSubmission'),

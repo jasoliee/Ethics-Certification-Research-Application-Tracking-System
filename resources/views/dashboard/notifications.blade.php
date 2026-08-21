@@ -42,12 +42,12 @@
         @if ($notifications->isNotEmpty())
             <div class="notification-all-actions" aria-label="All notification actions">
                 @if ($binMode)
-                    <form method="POST" action="{{ route('notifications.bin.all') }}" onsubmit="return confirm('Restore every notification in the Bin?')">
+                    <form method="POST" action="{{ route('notifications.bin.all') }}" data-notification-confirm data-confirm-title="Restore All Notifications" data-confirm-message="Restore every notification currently in the Bin?" data-confirm-action="Restore All">
                         @csrf
                         <input type="hidden" name="action" value="restore">
                         <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="refresh" size="17" />Restore All</button>
                     </form>
-                    <form method="POST" action="{{ route('notifications.bin.all') }}" onsubmit="return confirm('Permanently delete every notification in the Bin? This cannot be undone.')">
+                    <form method="POST" action="{{ route('notifications.bin.all') }}" data-notification-confirm data-confirm-title="Permanently Delete All" data-confirm-message="Permanently delete every notification in the Bin? This cannot be undone." data-confirm-action="Delete All" data-confirm-danger>
                         @csrf
                         <input type="hidden" name="action" value="force_delete">
                         <button class="dashboard-outline-action is-danger" type="submit"><x-dashboard.icon name="trash" size="17" />Delete All</button>
@@ -60,7 +60,7 @@
                             <button class="dashboard-outline-action" type="submit"><x-dashboard.icon :name="$icon" size="17" />{{ $label }}</button>
                         </form>
                     @endforeach
-                    <form method="POST" action="{{ route('notifications.all') }}" onsubmit="return confirm('Move every notification to the Bin?')">
+                    <form method="POST" action="{{ route('notifications.all') }}" data-notification-confirm data-confirm-title="Move All Notifications to Bin" data-confirm-message="Move every notification to the Bin? You can restore them for seven days." data-confirm-action="Move All">
                         @csrf
                         <input type="hidden" name="action" value="delete">
                         <button class="dashboard-outline-action is-danger" type="submit"><x-dashboard.icon name="trash" size="17" />Delete All</button>
@@ -68,7 +68,7 @@
                 @endif
             </div>
 
-            <form id="notification-bulk-form" class="notification-bulk-bar" method="POST" action="{{ $binMode ? route('notifications.bin.bulk') : route('notifications.bulk') }}" @if ($binMode) onsubmit="if (this.elements.action.value === 'force_delete') return confirm('Permanently delete the selected notifications? This cannot be undone.');" @endif>
+            <form id="notification-bulk-form" class="notification-bulk-bar" method="POST" action="{{ $binMode ? route('notifications.bin.bulk') : route('notifications.bulk') }}" data-notification-confirm data-notification-confirm-mode="{{ $binMode ? 'bin-selected' : 'inbox-selected' }}">
                 @csrf
                 <label for="notification-bulk-action">Selected</label>
                 <select id="notification-bulk-action" name="action" required>
@@ -104,12 +104,12 @@
                     </div>
                     <div class="notification-row-actions">
                         @if ($binMode)
-                            <form method="POST" action="{{ route('notifications.bin.restore', $notification->id) }}">
+                            <form method="POST" action="{{ route('notifications.bin.restore', $notification->id) }}" data-notification-confirm data-confirm-title="Restore Notification" data-confirm-message="Restore this notification to the inbox?" data-confirm-action="Restore">
                                 @csrf
                                 @method('PATCH')
                                 <button class="dashboard-icon-button" type="submit" aria-label="Restore notification" title="Restore"><x-dashboard.icon name="refresh" size="18" /></button>
                             </form>
-                            <form method="POST" action="{{ route('notifications.bin.destroy', $notification->id) }}" onsubmit="return confirm('Permanently delete this notification? This cannot be undone.')">
+                            <form method="POST" action="{{ route('notifications.bin.destroy', $notification->id) }}" data-notification-confirm data-confirm-title="Permanently Delete Notification" data-confirm-message="Permanently delete this notification? This cannot be undone." data-confirm-action="Delete" data-confirm-danger>
                                 @csrf
                                 @method('DELETE')
                                 <button class="dashboard-icon-button is-danger" type="submit" aria-label="Permanently delete notification" title="Delete permanently"><x-dashboard.icon name="trash" size="18" /></button>
@@ -121,7 +121,7 @@
                                 <input type="hidden" name="action" value="{{ $notification->read_at === null ? 'mark_read' : 'mark_unread' }}">
                                 <button class="dashboard-icon-button" type="submit" aria-label="Mark notification as {{ $notification->read_at === null ? 'read' : 'unread' }}" title="Mark {{ $notification->read_at === null ? 'read' : 'unread' }}"><x-dashboard.icon :name="$notification->read_at === null ? 'mail-open' : 'mail'" size="18" /></button>
                             </form>
-                            <form method="POST" action="{{ route('notifications.destroy', $notification) }}" onsubmit="return confirm('Move this notification to the Bin?')">
+                            <form method="POST" action="{{ route('notifications.destroy', $notification) }}" data-notification-confirm data-confirm-title="Move Notification to Bin" data-confirm-message="Move this notification to the Bin? You can restore it for seven days." data-confirm-action="Move to Bin">
                                 @csrf
                                 @method('DELETE')
                                 <button class="dashboard-icon-button is-danger" type="submit" aria-label="Move notification to Bin" title="Move to Bin"><x-dashboard.icon name="trash" size="18" /></button>
@@ -136,5 +136,22 @@
         </section>
 
         <x-dashboard.pagination :paginator="$notifications" label="Notification pages" />
+
+        <section class="application-modal-backdrop" data-notification-confirm-dialog hidden>
+            <div class="application-modal notification-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="notification-confirm-title" aria-describedby="notification-confirm-message" tabindex="-1">
+                <button class="application-modal-close" type="button" aria-label="Cancel notification action" data-notification-confirm-close><x-dashboard.icon name="x" size="20" /></button>
+                <header class="application-modal-heading">
+                    <span class="application-modal-icon"><x-dashboard.icon name="alert-triangle" size="24" /></span>
+                    <div>
+                        <h2 id="notification-confirm-title" data-notification-confirm-title>Confirm Notification Action</h2>
+                        <p id="notification-confirm-message" data-notification-confirm-message>Confirm this notification action.</p>
+                    </div>
+                </header>
+                <div class="application-modal-actions">
+                    <button class="dashboard-outline-action" type="button" data-notification-confirm-close>Cancel</button>
+                    <button class="dashboard-primary-action" type="button" data-notification-confirm-submit><span>Confirm</span></button>
+                </div>
+            </div>
+        </section>
     </div>
 @endsection

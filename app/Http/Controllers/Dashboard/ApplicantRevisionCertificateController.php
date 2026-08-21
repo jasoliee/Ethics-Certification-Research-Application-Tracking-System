@@ -37,11 +37,10 @@ class ApplicantRevisionCertificateController extends Controller
         Request $request,
         CertificationEligibilityService $eligibility,
         AcademicTermResolver $terms,
-    ): View
-    {
+    ): View {
         $filters = $request->validate([
             'application' => ['nullable', 'integer'],
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $query = ResearchApplication::query()
             ->where('applicant_user_id', $request->user()->id)
@@ -58,7 +57,7 @@ class ApplicantRevisionCertificateController extends Controller
                     ApplicationStatus::UnderReReview->value,
                     ApplicationStatus::Exempted->value,
                     ApplicationStatus::CertificateReleased->value,
-                ])->orWhereHas('revisions')->orWhereHas('certificate');
+                ])->orWhereHas('revisions')->orWhereHas('certificates');
             });
         $terms->applyFilters($query, $filters);
         $applications = (clone $query)
@@ -123,7 +122,6 @@ class ApplicantRevisionCertificateController extends Controller
                 ->orderBy('document_requirement_id')
                 ->orderByDesc('document_version')
                 ->orderByDesc('id'),
-            'certificate.currentVersion.background:id,asset_version,source_kind',
             'certificates' => fn ($certificates) => $certificates
                 ->with('currentVersion.background:id,asset_version,source_kind')
                 ->orderBy('id'),
@@ -196,7 +194,8 @@ class ApplicantRevisionCertificateController extends Controller
                             'artifact' => $artifact,
                             'assignment' => $assignment,
                             'reviewer_label' => 'Reviewer '.($reviewerIndex + 1),
-                            'version_number' => $version->version_number,
+                            'version_number' => $artifact->business_version ?? (((int) $assignment->review_cycle) + 1),
+                            'internal_version_number' => $version->version_number,
                         ]),
                 ),
             )->values();

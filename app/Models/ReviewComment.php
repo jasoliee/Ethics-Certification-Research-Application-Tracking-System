@@ -5,8 +5,8 @@ namespace App\Models;
 use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ReviewComment extends Model
 {

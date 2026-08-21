@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
-use App\Enums\ApplicationRevisionStatus;
 use App\Enums\RequirementStatus;
 use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
@@ -12,8 +12,8 @@ use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
-use App\Models\ApplicationDocument;
 use App\Models\ApplicationDecisionRelease;
+use App\Models\ApplicationDocument;
 use App\Models\ApplicationRevision;
 use App\Models\DeadlineConfiguration;
 use App\Models\DocumentRequirement;

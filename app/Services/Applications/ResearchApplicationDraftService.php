@@ -186,6 +186,20 @@ class ResearchApplicationDraftService
             return $locked->id;
         }, 3);
 
-        Storage::disk('local')->deleteDirectory("applications/{$applicationId}");
+        $disk = Storage::disk('local');
+        $directory = "applications/{$applicationId}";
+
+        try {
+            $disk->deleteDirectory($directory);
+        } catch (\RuntimeException) {
+            // A synchronized/local filesystem can make a child disappear while
+            // Flysystem is walking the directory. Treat an already-removed
+            // directory as success; otherwise retry once and surface failure.
+            clearstatcache(true);
+
+            if ($disk->directoryExists($directory)) {
+                $disk->deleteDirectory($directory);
+            }
+        }
     }
 }

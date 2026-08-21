@@ -60,9 +60,56 @@ Date:
 
 ## Active Plans
 
+## Plan: Complete DOOMSDAY requirement audit and safe corrections
+
+Status: Source implementation and automated/database verification completed on 2026-08-21; authenticated responsive and certificate pixel/reference acceptance remain pending external runtime availability.
+
+### Goal
+Audit every requirement in `D:\Downloads\DOOMSDAY-INPUT.txt` against current ECRATS code, isolated tests, local database behavior and authenticated localhost UI, repair every verified gap without destructive data handling, and maintain an evidence-backed row-by-row ledger.
+
+### Source Documents
+- Direct user instructions and `D:\Downloads\SAFETY NET.txt` are the controlling safety authority.
+- `D:\Downloads\DOOMSDAY-INPUT.txt` is the complete product/acceptance authority.
+- Supplied screenshots, including `QR to Left.png`, are visual references only.
+- `D:\Downloads\DOOMSDAY-HANDOFF.txt` is historical context and is never completion evidence.
+
+### Scope
+Included:
+- Reviewer capability/eligibility, Adviser individual/bulk account fields, Full Board release, versioning, certificate content/configuration/recipients, monitoring, Applicant revision, Reviewer workspace, profiles, secure previews, notification workflows, subtext removal and term filtering.
+- Additive schema/provenance, focused/full tests, local MySQL migration verification, static/build checks, documentation and localhost browser/PDF acceptance when the approved runtimes are available.
+
+Excluded:
+- Internet/external services, third-party viewers, `.env` changes, destructive database commands, unrelated cleanup, deployment, tunnel, commit and push.
+
+### Implementation Approach
+- Backend: retain role/ownership scopes, row locks, nested policies, immutable evidence and private-file routes; aggregate plural/current-cycle data rather than using legacy singular records.
+- Frontend: reuse shared panels, tables, dialogs, search wrappers, responsive breakpoints and accessible focus/confirmation patterns.
+- Database: add only combined release provenance and worksheet business versions, with safe backfills and a rollback guard.
+- Verification: run serialized PHPUnit processes against SQLite memory, then check the real migration state/backfill without testing destructively against MySQL.
+
+### Completion Evidence
+- `Documentations/DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md` maps every requirement area to current-session status/evidence.
+- `Documentations/DOOMSDAY_IMPLEMENTATION_STATUS_2026-08-21.md` records implementation, migration behavior, checks and pending manual acceptance.
+- The final complete suite passes 319 tests with 4,414 assertions. Pint, Composer validation, Blade compilation, route discovery and the Vite production build pass.
+- The additive August 21 migration is applied as local batch 5; all existing inspected rows were retained and backfilled.
+
+### Remaining Acceptance
+- Connect an authenticated in-app browser and run desktop/tablet/mobile viewport, focus, modal, upload, filter, empty/populated and native private-preview checks.
+- Provide the exact certificate reference as a local file and a PDF rasterizer, then render/compare and scan a real configured QR.
+- These are recorded as **Not yet verified** and must not be converted to Pass from source/tests alone.
+
+### Risks and Rollback
+- Combined release and artifact history must never be flattened or overwritten. The migration is additive and refuses a down migration that would discard combined provenance.
+- Issued certificate binaries and their background/signatory/validity/QR snapshots remain immutable. New settings apply only to later generation.
+- If a remaining manual check fails, correct the smallest scoped source area and rerun its focused tests plus the complete suite before sign-off.
+
+### Approval Notes
+Approved by: user request in this conversation.
+Date: 2026-08-21.
+
 ## Plan: 2026 Finale production hardening and consolidated Adviser review access
 
-Status: Implementation integrated on 2026-08-17; final local acceptance is in progress.
+Status: Historical August 17 integration checkpoint; superseded for current completion/migration evidence by the August 21 DOOMSDAY plan above.
 
 ### Goal
 Implement `THE FINALE (3).txt` as the current product contract, beginning with the mandatory Adviser/Reviewer account consolidation and then completing the specified account, import, application, review, decision/certificate, settings, monitoring, profile, and evaluation corrections without losing existing records or weakening private-file and blind-review controls.

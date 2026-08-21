@@ -6,6 +6,8 @@
             <h1>Reviewer Dashboard</h1>
         </header>
 
+        <x-dashboard.academic-term-filter :term-options="$termOptions" :filters="$filters" />
+
         {{-- Reviewer summary cards keep assignment counts distinct while sharing the centered card layout. --}}
         <div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Assigned review summary">
             <x-dashboard.summary-card label="Pending Reviews" :count="$counts['pending']" icon="file-search" tone="orange" :href="route('reviewer.reviews.index', ['tab' => 'assigned'])" />

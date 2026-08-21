@@ -198,6 +198,46 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertSame(ApplicantType::Faculty->value, $facultyApplication->applicant_type);
     }
 
+    public function test_application_collects_one_unique_certificate_recipient_at_a_time_and_persists_the_order(): void
+    {
+        $applicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
+            'name' => 'John S. Doe',
+        ]);
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.create'))
+            ->assertOk()
+            ->assertSee('Enter the name of each member one at a time.')
+            ->assertSee('data-certificate-recipient-add', false)
+            ->assertSee('data-certificate-recipient-list', false)
+            ->assertSee('Add Name');
+
+        $names = ['John S. Doe', 'Maria L. Cruz', 'Paolo R. Santos'];
+        $this->actingAs($applicant)
+            ->post(route('applicant.applications.store'), [
+                ...$this->applicationPayload($adviser),
+                'certificate_recipients' => $names,
+            ])
+            ->assertRedirect();
+        $application = ResearchApplication::query()->where('applicant_user_id', $applicant->id)->firstOrFail();
+        $this->assertSame($names, $application->certificateRecipients()->orderBy('sort_order')->pluck('recipient_name')->all());
+
+        $otherApplicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'applicant_type' => ApplicantType::Student,
+        ]);
+        $this->actingAs($otherApplicant)
+            ->post(route('applicant.applications.store'), [
+                ...$this->applicationPayload($adviser),
+                'certificate_recipients' => ['Duplicate A. Name', ' duplicate a. name '],
+            ])
+            ->assertSessionHasErrors(['certificate_recipients.0', 'certificate_recipients.1']);
+        $this->assertDatabaseMissing('research_applications', ['applicant_user_id' => $otherApplicant->id]);
+    }
+
     public function test_student_advisers_are_department_scoped_while_faculty_advisers_are_not(): void
     {
         $student = User::factory()->create([
@@ -351,8 +391,19 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertSee('data-final-submit-open', false)
             ->assertSee('data-final-submit-dialog', false)
             ->assertSee('data-requirement-readiness', false)
+            ->assertSee('data-application-upload-form', false)
+            ->assertSee('data-requirement-file', false)
+            ->assertSee('Choose File')
+            ->assertDontSee('data-upload-all', false)
+            ->assertDontSee('Upload All')
             ->assertSee('up to 100 MB per file')
             ->assertSee('Confirm Submission');
+
+        $javascript = (string) file_get_contents(resource_path('js/dashboard.js'));
+        $this->assertMatchesRegularExpression(
+            '/if\s*\(input\.files\?\.length\)\s*\{.*?uploadOne\(form\);/s',
+            $javascript,
+        );
     }
 
     public function test_requested_application_action_groups_remain_horizontal_at_narrow_widths(): void

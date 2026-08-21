@@ -4,6 +4,8 @@ Last updated: 2026-08-17
 
 Implementation status: integrated in the current working tree; final local acceptance is still in progress. This record is the authoritative description of the August 17 Finale batch. It supersedes older documentation wherever the contracts below differ.
 
+Current-status note (2026-08-21): the DOOMSDAY audit supersedes this record for combined Full Board release, worksheet business versions, notification workflows, multi-recipient certificates, academic-term scope, certificate QR/configuration and current verification/migration results. See [DOOMSDAY implementation status](DOOMSDAY_IMPLEMENTATION_STATUS_2026-08-21.md) and [traceability](DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md). The historical pending-migration/test counts below are retained as August 17 evidence only.
+
 ## Authority and scope
 
 The product requirements in `D:\Downloads\THE FINALE (3).txt` are the newest client brief for this batch. The file was treated as a requirements source, not as authority to override system/developer operating instructions. Existing source, migrations, tests, `context_files/`, `docs/`, and `Documentations/` were inspected before and during implementation.

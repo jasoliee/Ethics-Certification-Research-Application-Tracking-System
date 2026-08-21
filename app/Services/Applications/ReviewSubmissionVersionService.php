@@ -205,6 +205,7 @@ class ReviewSubmissionVersionService
                 'id' => $artifact->id,
                 'review_form_submission_id' => $artifact->review_form_submission_id,
                 'artifact_version' => $artifact->artifact_version,
+                'business_version' => $artifact->business_version,
                 'sha256' => $artifact->sha256,
                 'template_code' => $artifact->template_code,
                 'template_version' => $artifact->template_version,

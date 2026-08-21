@@ -147,3 +147,32 @@ The browser runtime exposed no controllable instance for this correction. At a w
 The Applicant Certification panel now displays evaluation validation failures in context and beside the affected feedback fields. Both feedback fields require at least five characters in the browser, matching the existing server rule; a successful evaluation retains the explicit claim step.
 
 Live acceptance remains pending because no controllable browser instance was available. With a released, unclaimed certificate, submit fewer than five characters in either feedback field and verify the panel keeps the entered values and explains the minimum. Then submit valid ratings and feedback, verify `Certificate ready to claim` and the Claim action appear immediately, claim once, and verify preview/download target the claimed certificate version. The HTTP regression test covers the same invalid-evaluation, valid-evaluation, visible-claim, successful-claim, and persisted-version sequence.
+
+## August 21 DOOMSDAY acceptance matrix
+
+The August 11 references to a five-step Applicant rail and the older four-card certificate summary are historical. The current contract is exactly three Applicant steps and three RES certificate hero cards.
+
+No authenticated run is recorded for this continuation. Browser discovery against localhost returned no connected in-app browser surface, so source/CSS inspection, Blade compilation, rendered-response assertions and the production build are supporting evidence only. Repeat the following at 1440x900, 1024x768, 768x1024 and 390x844 when a browser surface is connected.
+
+| Area | Required live acceptance | Result | Current evidence |
+| --- | --- | --- | --- |
+| Adviser creation | Reviewer Capability and Reviewer Capacity align, stay contained, expose accessible focus, and capacity enables/requires only when capability is selected; Position remains optional. | Pending | Individual/bulk server and rendered-source tests pass. |
+| Decision & Certificates | Three cards fill/center evenly; search icon remains inside-left; Status/Decision/Claim/term filters work; selected modal summaries/actions and Version History are centered; no page overflow. | Pending | Controller/filter/queue/render tests and responsive CSS source pass. |
+| Full Board workspace | Exact conflict block appears below Open Workspace; non-conflicted non-Approved has one full-width application Release Decision in the required order; Approved has no redundant action. | Pending | Combined release/order/copy tests pass. |
+| Review Monitoring | Reviewer/adviser tables, filters, populated/empty states, internal scrolling and secure drill-downs stay usable; old assignment-progress panel is absent. | Pending | Monitoring authorization/query/render tests pass. |
+| Applicant initial upload | Choosing one file starts only that requirement upload; loading/success/validation/retry states are readable; no Upload/Upload All controls appear. | Pending | JS/Blade and server upload tests pass. |
+| Applicant revision | Selector is centered; exactly three steps; six-cell status, feedback/revision headers and collapsibles align; three anonymous Full Board columns stack; file names/dates/tooltips/source actions do not overflow; automatic replacement upload works. | Pending | Workflow/presentation/version/ownership tests pass. |
+| Reviewer worksheet | Start/Continue/Edit opens the correct modal; Yes reveals consent 1-15, No retains explanation path; async success closes only that modal and preserves other panel content/focus. | Pending | Server/JS/render tests pass. |
+| Notifications | Inbox/Bin filters, checkboxes, pagination and individual/selected/all controls align; destructive confirmation traps/restores focus and works by pointer/Escape/keyboard; no controls clip. | Pending | Nine focused query/action/modal/safe-error tests pass. |
+| Profile and searches | Profile inputs/select menus stay in their panels; summary values are real; every icon-bearing search input keeps its icon inside-left and centered. | Pending | Profile tests plus complete Blade/CSS search inventory pass. |
+| Private previews | Authorized PDF/image opens inline/same-origin and in a new tab; Download works; another user is denied; no storage path, third-party viewer or browser framing error appears. | Pending | Nested policy and defensive-header tests pass. |
+| Personalized certificates | Every configured recipient has a distinct preview/download and complete survey/claim state; queue/bulk metrics do not collapse to the first certificate. | Pending | Multi-recipient workflow/eligibility/queue tests pass. |
+
+### Certificate reference check
+
+A local QA certificate was generated and `pdftotext -layout` confirmed the quoted title, next-line qualifying document list, Payment Proof exclusion, identity, review type, dates, validity and signatory. Pixel comparison is still Pending because `pdftoppm`/`pdfinfo` are not installed and the exact `QR to Left.png` is not available as a local file. When available:
+
+1. Render the final PDF at 150 DPI and confirm one A4 page with no clipping/overlap.
+2. Compare the active QR against the lower-left reference area; confirm the configured fixed 30 mm square and surrounding whitespace.
+3. Scan the real configured QR from the PDF and a print-size rendering. The August 21 QA placement marker is not a semantic QR payload and is not readability evidence.
+4. Confirm the certificate version retains the QR hash/path/dimensions, background, signatory and validity that were active at generation time after settings change.

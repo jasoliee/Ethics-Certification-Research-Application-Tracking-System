@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Dashboard;
 use App\Enums\ApplicationStatus;
 use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
-use App\Enums\ReviewDecision;
+use App\Enums\CertificateVersionStatus;
 use App\Enums\ReviewConsensusStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\ReleaseApplicationDecisionRequest;
@@ -42,7 +43,7 @@ class ResCertificationController extends Controller
             'status' => ['nullable', Rule::enum(ApplicationStatus::class)],
             'decision' => ['nullable', Rule::enum(ReviewDecision::class)],
             'claim' => ['nullable', Rule::in(['claimed', 'unclaimed', 'unavailable'])],
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $relevantApplications = ResearchApplication::query()
             ->where(function (Builder $query): void {
@@ -52,7 +53,7 @@ class ResCertificationController extends Controller
                     ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
                     ApplicationStatus::CertificateReleased->value,
-                ])->orWhereHas('certificate');
+                ])->orWhereHas('certificates');
             });
         $terms->applyFilters($relevantApplications, $filters);
         (clone $relevantApplications)
@@ -68,16 +69,15 @@ class ResCertificationController extends Controller
                     ApplicationStatus::ResultReleasedAccepted->value,
                     ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
+                    ApplicationStatus::CertificateReleased->value,
                 ])
-                ->whereDoesntHave('certificate', fn (Builder $certificates) => $certificates
-                    ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value]))
+                ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
                 ->count(),
             'certificates_released' => (clone $relevantApplications)
-                ->whereHas('certificate', fn (Builder $certificates) => $certificates
-                    ->whereIn('status', [
-                        CertificateStatus::Released->value,
-                        CertificateStatus::Claimed->value,
-                    ]))
+                ->whereHas('certificateRecipients')
+                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
                 ->count(),
         ];
         $applications = (clone $relevantApplications)
@@ -96,15 +96,20 @@ class ResCertificationController extends Controller
                     ->orWhereHas('decisionReleases', fn (Builder $releases) => $releases->where('decision', $decision)));
             })
             ->when(($filters['claim'] ?? null) === 'claimed', fn (Builder $query) => $query
-                ->whereHas('certificates', fn (Builder $certificates) => $certificates
-                    ->where('status', CertificateStatus::Claimed->value)))
+                ->whereHas('certificateRecipients')
+                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->claimedCertificate($certificates))))
             ->when(($filters['claim'] ?? null) === 'unclaimed', fn (Builder $query) => $query
+                ->whereHas('certificateRecipients')
+                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
                 ->whereHas('certificates', fn (Builder $certificates) => $certificates
                     ->where('status', CertificateStatus::Released->value)))
             ->when(($filters['claim'] ?? null) === 'unavailable', fn (Builder $query) => $query
-                ->whereDoesntHave('certificates', fn (Builder $certificates) => $certificates
-                    ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value])))
+                ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates))))
             ->with([
+                'certificateRecipients:id,research_application_id,sort_order',
                 'certificates.recipient:id,recipient_name',
                 'certificates.currentVersion:id,certificate_id,certificate_version,status,generated_at,issued_date,valid_until,certificate_background_id',
                 'certificates.versions' => fn ($versions) => $versions
@@ -124,7 +129,7 @@ class ResCertificationController extends Controller
                     ->orderBy('review_cycle')
                     ->orderBy('id'),
             ])
-            ->orderByRaw("CASE WHEN review_consensus_status = ? THEN 0 ELSE 1 END", [ReviewConsensusStatus::Conflicted->value])
+            ->orderByRaw('CASE WHEN review_consensus_status = ? THEN 0 ELSE 1 END', [ReviewConsensusStatus::Conflicted->value])
             ->latest('status_updated_at')
             ->latest('id')
             ->paginate(15)
@@ -133,6 +138,7 @@ class ResCertificationController extends Controller
         $states = $applications->getCollection()->mapWithKeys(
             fn (ResearchApplication $application): array => [$application->id => $eligibility->state($application)],
         );
+
         return view('dashboard.certificates.res-index', [
             'pageTitle' => 'Decision & Certificates',
             'applications' => $applications,
@@ -165,8 +171,7 @@ class ResCertificationController extends Controller
         Request $request,
         ResearchApplication $researchApplication,
         ReviewConsensusService $consensus,
-    ): View
-    {
+    ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $researchApplication = $consensus->evaluate($researchApplication);
         $cycle = max(0, ((int) $researchApplication->current_revision_cycle) - 1);
@@ -282,5 +287,21 @@ class ResCertificationController extends Controller
             'Referrer-Policy' => 'no-referrer',
             'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
         ];
+    }
+
+    private function releasedCertificate(Builder $query): Builder
+    {
+        return $query
+            ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value])
+            ->whereHas('currentVersion', fn (Builder $versions) => $versions
+                ->where('status', CertificateVersionStatus::Ready->value));
+    }
+
+    private function claimedCertificate(Builder $query): Builder
+    {
+        return $query
+            ->where('status', CertificateStatus::Claimed->value)
+            ->whereHas('currentVersion', fn (Builder $versions) => $versions
+                ->where('status', CertificateVersionStatus::Ready->value));
     }
 }

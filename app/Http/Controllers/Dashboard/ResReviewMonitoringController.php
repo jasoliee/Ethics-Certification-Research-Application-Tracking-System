@@ -31,7 +31,7 @@ class ResReviewMonitoringController extends Controller
             'adviser_q' => ['nullable', 'string', 'max:150'],
             'adviser_department' => ['nullable', 'string', 'max:150'],
             'adviser_institution' => ['nullable', 'string', 'max:150'],
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $filters['reviewer_q'] = trim((string) ($filters['reviewer_q'] ?? ''));
         $filters['adviser_q'] = trim((string) ($filters['adviser_q'] ?? ''));
@@ -138,7 +138,7 @@ class ResReviewMonitoringController extends Controller
     private function termFilters(Request $request): array
     {
         return $request->validate([
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')->where('is_active', true)],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
     }
 }

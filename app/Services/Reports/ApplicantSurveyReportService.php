@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\ApplicantSurveyResponse;
 use App\Support\ApplicantSurveyCatalog;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Produces anonymous aggregates without loading applicant identities or comments.
@@ -18,7 +19,7 @@ class ApplicantSurveyReportService
      *     sections: array<string, array{title: string, average: float|null, questions: array<string, array{label: string, average: float|null, response_count: int}>}>
      * }
      */
-    public function summary(): array
+    public function summary(?int $academicTermId = null): array
     {
         $questionSums = array_fill_keys(ApplicantSurveyCatalog::questionKeys(), 0);
         $questionCounts = array_fill_keys(ApplicantSurveyCatalog::questionKeys(), 0);
@@ -27,6 +28,9 @@ class ApplicantSurveyReportService
         ApplicantSurveyResponse::query()
             ->select(['id', 'ratings'])
             ->where('questionnaire_version', ApplicantSurveyCatalog::VERSION)
+            ->when($academicTermId !== null, fn (Builder $query) => $query
+                ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                    ->where('academic_term_id', $academicTermId)))
             ->lazyById(500)
             ->each(function (ApplicantSurveyResponse $response) use (&$questionSums, &$questionCounts, &$responseCount): void {
                 $ratings = is_array($response->ratings) ? $response->ratings : [];
@@ -83,6 +87,9 @@ class ApplicantSurveyReportService
             'response_count' => $responseCount,
             'legacy_response_count' => ApplicantSurveyResponse::query()
                 ->where('questionnaire_version', '<>', ApplicantSurveyCatalog::VERSION)
+                ->when($academicTermId !== null, fn (Builder $query) => $query
+                    ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                        ->where('academic_term_id', $academicTermId)))
                 ->count(),
             'overall_average' => $overallCount > 0 ? round($overallSum / $overallCount, 2) : null,
             'sections' => $sections,

@@ -6,9 +6,9 @@ use App\Enums\AccountStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\ReviewConsensusStatus;
+use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\ReviewType;
-use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
@@ -68,8 +68,7 @@ class ReviewConsensusService
         $ready = $requiredCount > 0
             && $assignments->count() === $requiredCount
             && $assignments->pluck('reviewer_user_id')->unique()->count() === $requiredCount
-            && $assignments->every(fn (ReviewerAssignment $assignment): bool =>
-                $assignment->assignment_status === ReviewerAssignmentStatus::DecisionSubmitted
+            && $assignments->every(fn (ReviewerAssignment $assignment): bool => $assignment->assignment_status === ReviewerAssignmentStatus::DecisionSubmitted
                 && $assignment->reviewSubmission?->status === ReviewSubmissionStatus::Submitted
                 && $assignment->reviewSubmission?->currentVersion?->decision !== null
                 && ! $assignment->reviewSubmission?->has_unsubmitted_changes
@@ -121,14 +120,25 @@ class ReviewConsensusService
         return $application->refresh();
     }
 
-    /**
-     * Revalidate the exact current cycle and return the immutable source version.
-     * The caller must already hold the application lock.
-     */
+    /** Revalidate the current cycle and return its first immutable version for legacy callers. */
     public function assertReleaseableLocked(
         ResearchApplication $application,
         ?ReviewSubmission $requestedSource = null,
     ): ReviewSubmissionVersion {
+        return $this->assertReleaseableVersionsLocked($application, $requestedSource)->firstOrFail();
+    }
+
+    /**
+     * Revalidate the exact current cycle and return every immutable source version
+     * participating in the persisted consensus signature. The caller must already
+     * hold the application lock.
+     *
+     * @return Collection<int, ReviewSubmissionVersion>
+     */
+    public function assertReleaseableVersionsLocked(
+        ResearchApplication $application,
+        ?ReviewSubmission $requestedSource = null,
+    ): Collection {
         $application = $this->evaluateLocked($application);
 
         if ($application->review_consensus_status === ReviewConsensusStatus::Conflicted) {
@@ -153,18 +163,27 @@ class ReviewConsensusService
             ->orderBy('id')
             ->lockForUpdate()
             ->get();
-        $source = $requestedSource
-            ? $assignments->first(fn (ReviewerAssignment $assignment): bool => $assignment->reviewSubmission?->id === $requestedSource->id)?->reviewSubmission
-            : $assignments->first()?->reviewSubmission;
-
-        if (! $source?->currentVersion
-            || $source->currentVersion->decision?->value !== $application->review_consensus_decision?->value) {
+        if ($requestedSource && ! $assignments->contains(
+            fn (ReviewerAssignment $assignment): bool => $assignment->reviewSubmission?->id === $requestedSource->id,
+        )) {
             throw ValidationException::withMessages([
                 'review_submission_id' => 'Select a current submitted Reviewer decision from this consensus cycle.',
             ])->errorBag('decisionRelease');
         }
 
-        return $source->currentVersion;
+        $versions = $assignments
+            ->map(fn (ReviewerAssignment $assignment): ?ReviewSubmissionVersion => $assignment->reviewSubmission?->currentVersion)
+            ->filter();
+        if ($versions->count() !== $assignments->count()
+            || $versions->contains(
+                fn (ReviewSubmissionVersion $version): bool => $version->decision?->value !== $application->review_consensus_decision?->value,
+            )) {
+            throw ValidationException::withMessages([
+                'review_submission_id' => 'The current Reviewer evidence no longer matches the validated application consensus.',
+            ])->errorBag('decisionRelease');
+        }
+
+        return $versions->values();
     }
 
     /** @param Collection<int, ReviewerAssignment> $assignments */
