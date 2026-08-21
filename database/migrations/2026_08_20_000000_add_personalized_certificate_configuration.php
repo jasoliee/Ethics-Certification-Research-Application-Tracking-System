@@ -75,12 +75,17 @@ return new class extends Migration
 
         $this->backfillRecipients();
 
+        // MySQL uses the legacy unique index to enforce the application foreign key.
+        // Create its non-unique replacement before removing the uniqueness constraint.
+        Schema::table('certificates', function (Blueprint $table): void {
+            if (! Schema::hasIndex('certificates', 'certificates_research_application_index')) {
+                $table->index('research_application_id', 'certificates_research_application_index');
+            }
+        });
+
         Schema::table('certificates', function (Blueprint $table): void {
             if (Schema::hasIndex('certificates', self::APPLICATION_CERTIFICATE_UNIQUE)) {
                 $table->dropUnique(self::APPLICATION_CERTIFICATE_UNIQUE);
-            }
-            if (! Schema::hasIndex('certificates', 'certificates_research_application_index')) {
-                $table->index('research_application_id', 'certificates_research_application_index');
             }
             if (! Schema::hasIndex('certificates', 'certificates_recipient_unique')) {
                 $table->unique('application_certificate_recipient_id', 'certificates_recipient_unique');
@@ -104,11 +109,11 @@ return new class extends Migration
             if (Schema::hasIndex('certificates', 'certificates_recipient_unique')) {
                 $table->dropUnique('certificates_recipient_unique');
             }
-            if (Schema::hasIndex('certificates', 'certificates_research_application_index')) {
-                $table->dropIndex('certificates_research_application_index');
-            }
             if (! Schema::hasIndex('certificates', self::APPLICATION_CERTIFICATE_UNIQUE)) {
                 $table->unique('research_application_id', self::APPLICATION_CERTIFICATE_UNIQUE);
+            }
+            if (Schema::hasIndex('certificates', 'certificates_research_application_index')) {
+                $table->dropIndex('certificates_research_application_index');
             }
             if (Schema::hasColumn('certificates', 'application_certificate_recipient_id')) {
                 $table->dropForeign('certificates_recipient_fk');
