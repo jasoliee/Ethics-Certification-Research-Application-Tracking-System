@@ -120,7 +120,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         }
     }
 
-    public function test_applicant_application_list_filters_by_one_academic_term_or_all_terms(): void
+    public function test_applicant_application_list_has_no_term_filter_and_shows_all_owned_terms(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $firstTerm = AcademicTerm::create([
@@ -154,8 +154,9 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Visible First Term Study')
-            ->assertDontSee('Hidden Second Term Study')
-            ->assertViewHas('applications', fn ($applications): bool => $applications->total() === 1);
+            ->assertSee('Hidden Second Term Study')
+            ->assertDontSee('name="academic_term_id"', false)
+            ->assertViewHas('applications', fn ($applications): bool => $applications->total() === 2);
     }
 
     public function test_information_validation_preserves_student_and_faculty_differences_and_adviser_eligibility(): void
@@ -561,19 +562,18 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ['document' => $this->pdfUpload('proposal-revised.pdf', 24)],
         )->assertRedirect();
 
-        // Assert replacements inside one revision cycle retain version 1 while preserving private history.
+        // Assert replacements before formal submission remain Version 1 and erase the obsolete draft.
         $documents = ApplicationDocument::query()->orderBy('id')->get();
-        $this->assertCount(2, $documents);
-        $this->assertFalse($documents[0]->is_current);
-        $this->assertTrue($documents[1]->is_current);
+        $this->assertCount(1, $documents);
+        $this->assertTrue($documents[0]->is_current);
         $this->assertSame(1, $documents[0]->document_version);
-        $this->assertSame(1, $documents[1]->document_version);
-        $this->assertSame(RequirementStatus::Completed, $documents[1]->validation_status);
+        $this->assertSame(RequirementStatus::Completed, $documents[0]->validation_status);
+        $this->assertDatabaseMissing('application_documents', ['id' => $first->id]);
+        Storage::disk('local')->assertMissing($first->stored_file_path);
         Storage::disk('local')->assertExists($documents[0]->stored_file_path);
-        Storage::disk('local')->assertExists($documents[1]->stored_file_path);
-        $this->assertStringNotContainsString('proposal-revised.pdf', $documents[1]->stored_file_path);
-        $this->assertSame(1, $this->auditCount('application.requirement_uploaded', $documents[0]));
-        $this->assertSame(1, $this->auditCount('application.requirement_replaced', $documents[1]));
+        $this->assertStringNotContainsString('proposal-revised.pdf', $documents[0]->stored_file_path);
+        $this->assertSame(1, $this->auditCount('application.requirement_uploaded', $first));
+        $this->assertSame(1, $this->auditCount('application.requirement_replaced', $documents[0]));
 
         // A cycle counter alone does not advance a document that was not reviewed and replaced.
         $application->update(['current_revision_cycle' => 2]);
@@ -613,7 +613,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         )->assertSessionHasErrors('document');
 
         // Assert rejected type, size, and category attempts never created another document record.
-        $this->assertSame(3, ApplicationDocument::count());
+        $this->assertSame(1, ApplicationDocument::count());
     }
 
     public function test_private_document_upload_accepts_the_one_hundred_megabyte_boundary(): void
@@ -652,9 +652,18 @@ class ApplicantApplicationWorkflowTest extends TestCase
             $this->signedUpload('figure.webp', 'image/webp', 'RIFF'.pack('V', 4).'WEBPVP8 '),
         ];
 
-        foreach ($allowedFiles as $file) {
+        foreach ($allowedFiles as $index => $file) {
+            $uploadRequirement = $index === 0 ? $requirement : DocumentRequirement::create([
+                'code' => "ALLOWED-FORMAT-{$index}",
+                'name' => "Allowed Format {$index}",
+                'description' => 'Format validation fixture.',
+                'is_mandatory' => true,
+                'research_types' => [ResearchType::Thesis->value],
+                'sort_order' => $index + 1,
+                'is_active' => true,
+            ]);
             $this->actingAs($applicant)->post(
-                route('applicant.applications.documents.store', [$application, $requirement]),
+                route('applicant.applications.documents.store', [$application, $uploadRequirement]),
                 ['document' => $file],
             )->assertRedirect()->assertSessionDoesntHaveErrors();
         }
@@ -747,7 +756,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertSame(2, ApplicationDocument::query()->count());
     }
 
-    public function test_current_document_removal_updates_the_checklist_without_deleting_private_history(): void
+    public function test_unsubmitted_document_removal_updates_the_checklist_and_erases_private_draft(): void
     {
         Storage::fake('local');
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
@@ -769,8 +778,8 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->delete(route('applicant.applications.documents.destroy', [$application, $document]))
             ->assertRedirect();
 
-        $this->assertFalse($document->refresh()->is_current);
-        Storage::disk('local')->assertExists($document->stored_file_path);
+        $this->assertDatabaseMissing('application_documents', ['id' => $document->id]);
+        Storage::disk('local')->assertMissing($document->stored_file_path);
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'application.requirement_removed',
             'subject_id' => $document->id,
@@ -781,6 +790,36 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertSee('0 of 1 mandatory requirements completed')
             ->assertSee('Missing')
             ->assertDontSee('remove-me.pdf');
+    }
+
+    public function test_formally_submitted_document_removal_detaches_but_preserves_immutable_history(): void
+    {
+        Storage::fake('local');
+        $applicant = User::factory()->create(['role' => UserRole::Applicant]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant,
+            'draft_owner_user_id' => $applicant,
+            'research_type' => ResearchType::Thesis,
+        ]);
+        $requirement = $this->requirement();
+        $this->actingAs($applicant)->post(
+            route('applicant.applications.documents.store', [$application, $requirement]),
+            ['document' => $this->pdfUpload('submitted-history.pdf', 10)],
+        )->assertRedirect();
+        $document = ApplicationDocument::firstOrFail();
+        $document->update(['formally_submitted_at' => now()->subMinute()]);
+
+        $this->actingAs($applicant)
+            ->delete(route('applicant.applications.documents.destroy', [$application, $document]))
+            ->assertRedirect();
+
+        $this->assertFalse($document->refresh()->is_current);
+        $this->assertNotNull($document->formally_submitted_at);
+        Storage::disk('local')->assertExists($document->stored_file_path);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'application.requirement_removed',
+            'subject_id' => $document->id,
+        ]);
     }
 
     public function test_document_workspace_uses_the_filename_modal_and_authorized_office_fallback(): void

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\DatabaseNotification;
 use App\Models\User;
+use App\Services\Settings\AcademicTermResolver;
 use App\Support\RoleHome;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +17,8 @@ use Illuminate\View\View;
 
 class NotificationPageController extends Controller
 {
+    public function __construct(private readonly AcademicTermResolver $terms) {}
+
     public function index(Request $request): View
     {
         return $this->render($request, false);
@@ -149,6 +152,7 @@ class NotificationPageController extends Controller
             'date' => ['nullable', 'date_format:Y-m-d'],
             'type' => ['nullable', 'string', 'max:255'],
             'read_status' => ['nullable', Rule::in(['read', 'unread'])],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ])->validate();
         $query = $binMode
             ? $this->trashedOwned($request->user())
@@ -178,6 +182,7 @@ class NotificationPageController extends Controller
             'filters' => $filters,
             'notificationTypes' => $types,
             'binMode' => $binMode,
+            'termOptions' => $this->terms->filterOptions(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => RoleHome::routeNameFor($request->user()->role)],
                 ['label' => $binMode ? 'Notification Bin' : 'Notifications'],
@@ -191,6 +196,7 @@ class NotificationPageController extends Controller
         $query
             ->when(filled($filters['date'] ?? null), fn (Builder $items) => $items->whereDate('created_at', $filters['date']))
             ->when(filled($filters['type'] ?? null), fn (Builder $items) => $items->where('type', $filters['type']))
+            ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $items) => $items->where('data->academic_term_id', (int) $filters['academic_term_id']))
             ->when(($filters['read_status'] ?? null) === 'read', fn (Builder $items) => $items->whereNotNull('read_at'))
             ->when(($filters['read_status'] ?? null) === 'unread', fn (Builder $items) => $items->whereNull('read_at'));
     }

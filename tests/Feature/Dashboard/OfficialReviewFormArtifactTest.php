@@ -20,8 +20,10 @@ use App\Models\ReviewFormArtifact;
 use App\Models\ReviewFormSubmission;
 use App\Models\User;
 use App\Services\Applications\OfficialReviewFormArtifactService;
+use App\Services\Settings\WorksheetSignatorySettingsService;
 use App\Support\ReviewFormCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -168,6 +170,34 @@ class OfficialReviewFormArtifactTest extends TestCase
                 $expectedPages,
                 $parser->setSourceFile(Storage::disk('local')->path($artifact->stored_file_path)),
             );
+        }
+    }
+
+    public function test_finalized_worksheets_snapshot_and_render_the_verified_reviewer_signatory(): void
+    {
+        [$reviewer, , , , $assignment] = $this->fixture();
+        app(WorksheetSignatorySettingsService::class)->update(
+            $reviewer,
+            'Dr. Immutable Worksheet Signatory',
+            UploadedFile::fake()->image('worksheet-signature.png', 500, 120),
+        );
+        $reviewer->refresh();
+        $this->finalizeForms($reviewer, $assignment);
+        $this->submitReview($reviewer, $assignment, ReviewDecision::Approved);
+
+        $forms = $assignment->formSubmissions()->with('artifacts')->get();
+        $this->assertCount(2, $forms);
+        foreach ($forms as $form) {
+            $context = $form->finalized_context_snapshot;
+            $this->assertSame('Dr. Immutable Worksheet Signatory', $context['worksheet_signatory_name']);
+            $this->assertSame($reviewer->worksheet_signature_path, $context['worksheet_signature_path']);
+            $this->assertSame($reviewer->worksheet_signature_sha256, $context['worksheet_signature_sha256']);
+            $this->assertSame(500, $context['worksheet_signature_width']);
+            $this->assertSame(120, $context['worksheet_signature_height']);
+            $this->assertCount(1, $form->artifacts);
+            $artifact = $form->artifacts->first();
+            $this->assertSame(ReviewFormArtifactStatus::Ready, $artifact->status);
+            Storage::disk('local')->assertExists($artifact->stored_file_path);
         }
     }
 

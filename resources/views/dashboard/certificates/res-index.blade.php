@@ -27,7 +27,7 @@
         @if ($summary = session('bulk_certificate_summary'))
             <section class="application-panel certificate-bulk-summary" aria-labelledby="bulk-summary-title">
                 <header class="application-panel-heading">
-                    <div><h2 id="bulk-summary-title">Bulk Release Result</h2><p>{{ \App\Enums\BulkReleaseType::from($summary['release_type'])->label() }} records were revalidated and processed independently.</p></div>
+                    <div><h2 id="bulk-summary-title">Bulk Release Result</h2></div>
                 </header>
                 <dl>
                     <div><dt>Eligible</dt><dd>{{ $summary['eligible'] }}</dd></div>
@@ -50,21 +50,30 @@
         @endforeach
 
         <section class="application-panel certificate-metric-strip" aria-label="Certificate queue summary">
-            <article>
+            <a href="#certificate-queue-title">
                 <span class="certificate-metric-icon is-orange"><x-dashboard.icon name="clock" size="25" /></span>
                 <div><strong>{{ $queueMetrics['pending_decision_release'] }}</strong><span>Pending Decision Release</span></div>
-            </article>
-            <article>
+            </a>
+            <a href="#certificate-queue-title">
                 <span class="certificate-metric-icon is-blue"><x-dashboard.icon name="award" size="25" /></span>
                 <div><strong>{{ $queueMetrics['pending_certificate_release'] }}</strong><span>Pending Certificate Release</span></div>
-            </article>
-            <article>
+            </a>
+            <a href="#certificate-queue-title">
                 <span class="certificate-metric-icon is-green"><x-dashboard.icon name="check" size="25" /></span>
                 <div><strong>{{ $queueMetrics['certificates_released'] }}</strong><span>Certificates Released</span></div>
-            </article>
+            </a>
         </section>
 
         <form class="application-panel certificate-queue-filters" method="GET" action="{{ route('res.certificates.index') }}">
+            <div class="application-field">
+                <label for="certificate-academic-term">Academic Term</label>
+                <select id="certificate-academic-term" name="academic_term_id">
+                    <option value="">All</option>
+                    @foreach ($termOptions as $term)
+                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="application-field application-search-field certificate-filter-search">
                 <label for="certificate-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -95,15 +104,6 @@
                     <option value="claimed" @selected(($filters['claim'] ?? '') === 'claimed')>Claimed</option>
                     <option value="unclaimed" @selected(($filters['claim'] ?? '') === 'unclaimed')>Not claimed</option>
                     <option value="unavailable" @selected(($filters['claim'] ?? '') === 'unavailable')>Not available</option>
-                </select>
-            </div>
-            <div class="application-field">
-                <label for="certificate-academic-term">Academic Term</label>
-                <select id="certificate-academic-term" name="academic_term_id">
-                    <option value="">All</option>
-                    @foreach ($termOptions as $term)
-                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
-                    @endforeach
                 </select>
             </div>
             <div class="certificate-filter-actions">
@@ -195,7 +195,7 @@
                                     <td class="certificate-updated-cell certificate-queue-centered"><span>{{ $application->status_updated_at?->format('M j, Y') }}</span><small>{{ $application->status_updated_at?->format('g:i A') }}</small></td>
                                     <td class="dashboard-table-action certificate-queue-centered">
                                         <button class="dashboard-outline-action certificate-row-action" type="button" data-certificate-application-open="{{ $application->id }}">
-                                            {{ $isReleased ? 'View Details' : 'Review & Release' }}
+                                            View
                                         </button>
                                     </td>
                                 </tr>
@@ -212,11 +212,11 @@
                 $state = $certificationStates[$application->id];
                 $certificates = $application->certificates->sortBy('id')->values();
                 $recipientCount = $application->certificateRecipients->count();
-                $readyCertificates = $certificates->filter(
-                    fn ($item) => in_array($item->status, [\App\Enums\CertificateStatus::Released, \App\Enums\CertificateStatus::Claimed], true)
+                $previewableCertificates = $certificates->filter(
+                    fn ($item) => in_array($item->status, [\App\Enums\CertificateStatus::PendingRelease, \App\Enums\CertificateStatus::Released, \App\Enums\CertificateStatus::Claimed], true)
                         && $item->currentVersion?->status === \App\Enums\CertificateVersionStatus::Ready,
                 );
-                $readyRecipientCount = $readyCertificates->pluck('application_certificate_recipient_id')->filter()->unique()->count();
+                $readyRecipientCount = $previewableCertificates->pluck('application_certificate_recipient_id')->filter()->unique()->count();
                 $allRecipientCertificatesReady = $recipientCount > 0 && $readyRecipientCount === $recipientCount;
                 $cycle = max(0, ((int) $application->current_revision_cycle) - 1);
                 $cycleAssignments = $application->reviewerAssignments->where('review_cycle', $cycle);
@@ -292,11 +292,14 @@
                                     </button>
                                 </form>
                             @endif
-                            @foreach ($readyCertificates as $recipientCertificate)
+                            @if ($previewableCertificates->isNotEmpty())
+                                <a class="dashboard-outline-action" href="{{ route('res.certificates.applications.preview-all', $application) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview All Certificate</span></a>
+                            @endif
+                            @foreach ($previewableCertificates as $recipientCertificate)
                                 <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.preview', [$recipientCertificate, $recipientCertificate->currentVersion]) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview {{ $recipientCertificate->recipient_name }}</span></a>
                                 <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.download', [$recipientCertificate, $recipientCertificate->currentVersion]) }}"><x-dashboard.icon name="download" size="17" /><span>Download {{ $recipientCertificate->recipient_name }}</span></a>
                             @endforeach
-                            @if ($readyCertificates->isNotEmpty())
+                            @if ($previewableCertificates->isNotEmpty())
                                 <details class="certificate-regenerate-confirmation">
                                     <summary class="dashboard-outline-action"><x-dashboard.icon name="refresh" size="17" /><span>Regenerate</span></summary>
                                     <div>
@@ -377,7 +380,6 @@
                             <span><strong>Both Certificate and Decision</strong><small>{{ $bulkEligibleCounts['both'] }} eligible {{ Str::plural('record', $bulkEligibleCounts['both']) }}</small></span>
                         </label>
                     </fieldset>
-                    <div class="certificate-bulk-confirmation-copy"><x-dashboard.icon name="circle-help" size="19" /><p>Eligibility is checked again at confirmation. Existing releases are skipped, duplicates and duplicate notifications are prevented, and one failed record does not undo successful records.</p></div>
                     <div class="application-modal-actions">
                         <button class="dashboard-outline-action" type="button" data-certificate-bulk-close>Cancel</button>
                         <button class="dashboard-primary-action" type="submit">Confirm Bulk Release</button>

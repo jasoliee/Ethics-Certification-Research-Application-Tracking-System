@@ -21,13 +21,11 @@ use App\Services\Applications\ApplicationDocumentService;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
 use App\Services\Certificates\ApplicantCertificateService;
 use App\Services\Certificates\CertificationEligibilityService;
-use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -36,11 +34,9 @@ class ApplicantRevisionCertificateController extends Controller
     public function index(
         Request $request,
         CertificationEligibilityService $eligibility,
-        AcademicTermResolver $terms,
     ): View {
         $filters = $request->validate([
             'application' => ['nullable', 'integer'],
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $query = ResearchApplication::query()
             ->where('applicant_user_id', $request->user()->id)
@@ -59,7 +55,6 @@ class ApplicantRevisionCertificateController extends Controller
                     ApplicationStatus::CertificateReleased->value,
                 ])->orWhereHas('revisions')->orWhereHas('certificates');
             });
-        $terms->applyFilters($query, $filters);
         $applications = (clone $query)
             ->select(['id', 'academic_term_id', 'application_code', 'research_title', 'application_status', 'current_stage', 'status_updated_at'])
             ->latest('status_updated_at')
@@ -77,7 +72,6 @@ class ApplicantRevisionCertificateController extends Controller
             'applications' => $applications,
             'selectedApplication' => $selected,
             'filters' => $filters,
-            'termOptions' => $terms->filterOptions(),
             'latestRelease' => null,
             'activeRevision' => null,
             'releasedReviewerGroups' => collect(),
@@ -146,7 +140,15 @@ class ApplicantRevisionCertificateController extends Controller
             ])
             ->values();
         $releasedReviewerGroups = $reviewerGroups($releasedComments);
-        $documentVersions = $selected->documents->groupBy('document_requirement_id');
+        $documentVersions = $selected->documents
+            ->groupBy('document_requirement_id')
+            ->map(fn ($versions) => $versions
+                ->groupBy('document_version')
+                ->map(fn ($physicalVersions) => $physicalVersions
+                    ->sortByDesc(fn ($document): string => ($document->is_current ? '1' : '0').str_pad((string) $document->id, 12, '0', STR_PAD_LEFT))
+                    ->first())
+                ->sortByDesc('document_version')
+                ->values());
         $requirementFeedbackGroups = $documentVersions
             ->map(function ($versions, $requirementId) use ($releasedComments, $reviewerGroups): array {
                 $comments = $releasedComments->filter(
@@ -198,7 +200,10 @@ class ApplicantRevisionCertificateController extends Controller
                             'internal_version_number' => $version->version_number,
                         ]),
                 ),
-            )->values();
+            )
+                ->groupBy(fn (array $entry): string => $entry['assignment']->id.'-'.$entry['version_number'])
+                ->map(fn ($duplicates) => $duplicates->sortByDesc(fn (array $entry): int => $entry['artifact']->id)->first())
+                ->values();
 
             return ['type' => $type, 'artifacts' => $artifacts];
         })->filter(fn (array $group): bool => $group['artifacts']->isNotEmpty())->values();

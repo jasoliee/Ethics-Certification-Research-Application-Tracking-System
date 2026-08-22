@@ -1,5 +1,7 @@
 # DOOMSDAY Requirements Traceability - 2026-08-21
 
+> Historical checkpoint. The current consolidated ledger is [ENDGAME and DOOMSDAY Requirements Traceability - 2026-08-22](ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md).
+
 This is the current-session audit ledger for `D:\Downloads\DOOMSDAY-INPUT.txt`. Direct user instructions and `SAFETY NET.txt` take precedence. `DOOMSDAY-HANDOFF.txt` was used only as historical context and never as completion evidence.
 
 Status meanings:

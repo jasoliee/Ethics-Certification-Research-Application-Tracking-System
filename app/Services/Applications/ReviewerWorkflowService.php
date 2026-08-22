@@ -536,6 +536,11 @@ class ReviewerWorkflowService
             'assignment_sequence' => $assignment->assignment_sequence,
             'reviewer_user_id' => $actor->id,
             'reviewer_name' => $actor->name,
+            'worksheet_signatory_name' => $actor->worksheet_signatory_name ?: $actor->name,
+            'worksheet_signature_path' => $actor->worksheet_signature_path,
+            'worksheet_signature_sha256' => $actor->worksheet_signature_sha256,
+            'worksheet_signature_width' => $actor->worksheet_signature_width,
+            'worksheet_signature_height' => $actor->worksheet_signature_height,
             'primary_reviewer_label' => 'Not designated in ECRATS',
             'received_at' => $assignment->assigned_at?->toIso8601String(),
             'received_date' => $assignment->assigned_at?->format('m/d/y') ?? 'Not recorded',
@@ -836,6 +841,7 @@ class ReviewerWorkflowService
                     'tone' => 'blue',
                     'route' => 'res.applications.show',
                     'route_parameters' => ['researchApplication' => $application->id],
+                    'academic_term_id' => $application->academic_term_id,
                 ]));
             }, 100);
     }

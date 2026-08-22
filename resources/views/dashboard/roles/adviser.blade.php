@@ -6,7 +6,6 @@
             <h1>Welcome back, Adviser!</h1>
         </header>
 
-        <x-dashboard.academic-term-filter :term-options="$termOptions" :filters="$filters" />
 
         {{-- Adviser summary cards keep role-scoped application counts in the shared centered layout. --}}
         <div class="dashboard-summary-grid dashboard-summary-grid-three" aria-label="Advised application summary">

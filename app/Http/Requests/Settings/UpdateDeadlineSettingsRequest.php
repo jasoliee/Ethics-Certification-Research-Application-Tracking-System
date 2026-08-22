@@ -33,10 +33,11 @@ class UpdateDeadlineSettingsRequest extends FormRequest
             $rules["processes.{$key}.due_at"] = [
                 'required',
                 'date_format:Y-m-d\TH:i',
+                'after_or_equal:now',
             ];
             $rules["processes.{$key}.is_open"] = ['required', 'boolean'];
             $rules["processes.{$key}.override_changed"] = ['required', 'boolean'];
-            $rules["processes.{$key}.starts_at"] = ['required', 'date_format:Y-m-d\TH:i'];
+            $rules["processes.{$key}.starts_at"] = ['required', 'date_format:Y-m-d\TH:i', 'after_or_equal:now'];
             $rules["processes.{$key}.due_at"][] = "after_or_equal:processes.{$key}.starts_at";
         }
 
@@ -49,6 +50,7 @@ class UpdateDeadlineSettingsRequest extends FormRequest
         return [
             'term_ends_on.after_or_equal' => 'The semester ending date must be on or after its starting date.',
             'processes.*.due_at.after_or_equal' => 'Each process deadline must be on or after its opening time.',
+            'processes.*.starts_at.after_or_equal' => 'Process opening dates and times cannot be in the past.',
         ];
     }
 }

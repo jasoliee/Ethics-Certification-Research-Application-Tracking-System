@@ -58,15 +58,21 @@ class TestingUserSeeder extends Seeder
                 [
                     'name' => $user['name'],
                     'first_name' => $user['first_name'],
-                    'middle_name' => null,
+                    'middle_name' => 'R.',
                     'last_name' => $user['last_name'],
                     'suffix' => null,
                     'email' => $user['email'],
                     'institutional_identifier' => $user['institutional_identifier'],
-                    'institution' => 'Kolehiyo ng Lungsod ng Dasmarinas',
+                    'institution' => 'Institute of Computing and Digital Innovation',
+                    'phone_number' => '09170000001',
                     // The compatibility review account is now an Adviser with supplementary access.
-                    'department' => $reviewerEnabled ? 'Computer Studies' : null,
-                    'position_title' => $reviewerEnabled ? 'Ethics Reviewer' : null,
+                    'department' => 'Computer Studies',
+                    'program' => 'Bachelor of Science in Computer Science',
+                    'year_level' => $user['role'] === UserRole::Applicant ? 'First Year' : null,
+                    'position_title' => $user['role'] === UserRole::Adviser
+                        ? ($reviewerEnabled ? 'Ethics Reviewer' : 'Research Adviser')
+                        : 'Student Researcher',
+                    'expected_endorsement_count' => $user['role'] === UserRole::Adviser ? 6 : null,
                     'reviewer_classification' => $reviewerEnabled ? 'Expedited' : null,
                     'reviewer_classifications' => $reviewerEnabled ? ['Expedited'] : null,
                     'reviewer_capacity' => $reviewerEnabled ? 6 : null,

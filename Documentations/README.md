@@ -29,12 +29,16 @@ This folder documents the implemented ECRATS system contract and clearly identif
 23. [Testing guide](TESTING_GUIDE.md)
 24. [Manual visual validation](MANUAL_VISUAL_VALIDATION.md)
 25. [Known issues and pending verification](KNOWN_ISSUES.md)
-26. [August 21, 2026 DOOMSDAY requirements traceability](DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md)
-27. [August 21, 2026 DOOMSDAY implementation status](DOOMSDAY_IMPLEMENTATION_STATUS_2026-08-21.md)
-28. [August 17, 2026 Finale implementation record](THE_FINALE_IMPLEMENTATION_2026-08-17.md)
-29. [Role settings and managed assets](ROLE_SETTINGS_AND_ASSET_MANAGEMENT_2026-08-17.md)
-30. [August 10, 2026 historical implementation status](IMPLEMENTATION_STATUS_2026-08-10.md)
-31. [Changelog](CHANGELOG.md)
+26. [August 22, 2026 ENDGAME and DOOMSDAY requirements traceability](ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md)
+27. [August 22, 2026 ENDGAME implementation status](ENDGAME_IMPLEMENTATION_STATUS_2026-08-22.md)
+28. [ENDGAME changed-file inventory](ENDGAME_CHANGED_FILES_2026-08-22.md)
+29. [RES operational reports](RES_OPERATIONAL_REPORTS.md)
+30. [August 21, 2026 historical DOOMSDAY requirements traceability](DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md)
+31. [August 21, 2026 historical DOOMSDAY implementation status](DOOMSDAY_IMPLEMENTATION_STATUS_2026-08-21.md)
+32. [August 17, 2026 Finale implementation record](THE_FINALE_IMPLEMENTATION_2026-08-17.md)
+33. [Role settings and managed assets](ROLE_SETTINGS_AND_ASSET_MANAGEMENT_2026-08-17.md)
+34. [August 10, 2026 historical implementation status](IMPLEMENTATION_STATUS_2026-08-10.md)
+35. [Changelog](CHANGELOG.md)
 
 ## Interface References
 
@@ -51,6 +55,6 @@ This folder documents the implemented ECRATS system contract and clearly identif
 
 ## Scope
 
-The documented implementation includes authenticated account setup/onboarding; role-scoped account administration; structurally flexible but bounded `.xlsx` preview/confirmation; private Applicant documents; Adviser endorsement; RES screening; Adviser-owned Reviewer entitlement; current-cycle assignment/reassignment; versioned private Reviewer evidence; application-level Full Board consensus/release; requirement/version Applicant revisions; personalized multi-recipient certificates; immutable validity/signatory/background/QR configuration; release/evaluation/claim; role Profile/Security & Privacy; anonymous survey aggregates; Adviser/Reviewer monitoring; term-scoped dashboards/reports; notification inbox/Bin workflows; deadlines; and audit records. `DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md` is authoritative for the August 21 audit. Uploaded-document content redaction, automated side-by-side comparison, public QR verification, production acceptance, connected-browser acceptance, certificate pixel/reference acceptance, and manual Microsoft Excel acceptance remain explicitly incomplete or pending.
+The documented implementation includes authenticated account setup/onboarding; role-scoped account administration; structurally flexible but bounded `.xlsx` preview/confirmation; private Applicant documents and submitted-version retention; Adviser endorsement; RES screening with safe drafts; Adviser-owned Reviewer entitlement; current-cycle assignment/reassignment; versioned private Reviewer evidence and worksheet signatory snapshots; application-level Full Board consensus/release; requirement/version Applicant revisions; personalized multi-recipient certificates; immutable validity/signatory/background/default-or-replacement QR configuration; release/evaluation/claim; role Profile/Security & Privacy; anonymous survey aggregates; Adviser/Reviewer monitoring; current-term dashboards; full RES operational reports; notification inbox/Bin workflows; deadlines; and audit records. `ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md` is authoritative for the current audit. Uploaded-document content redaction, production acceptance, connected-browser/native-preview acceptance, certificate pixel/reference and independent QR-scanner acceptance, and manual Microsoft Excel acceptance remain explicitly incomplete or pending.
 
 Keep these files synchronized whenever dashboard routes, role rules, data queries, or shared components change.

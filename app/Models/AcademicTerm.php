@@ -44,6 +44,20 @@ class AcademicTerm extends Model
         return "{$this->semester}, A.Y. {$this->academic_year}";
     }
 
+    public function isCurrent(?Carbon $at = null): bool
+    {
+        $at ??= now();
+
+        return $this->is_active
+            && $this->starts_at?->lessThanOrEqualTo($at)
+            && $this->ends_at?->greaterThanOrEqualTo($at);
+    }
+
+    public function filterLabel(?Carbon $at = null): string
+    {
+        return ($this->isCurrent($at) ? 'Current - ' : '').$this->label();
+    }
+
     public function deadlineConfigurations(): HasMany
     {
         return $this->hasMany(DeadlineConfiguration::class);

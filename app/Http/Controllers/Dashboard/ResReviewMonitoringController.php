@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Enums\ApplicationStatus;
 use App\Enums\EndorsementStatus;
+use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ResearchApplication;
@@ -55,7 +57,13 @@ class ResReviewMonitoringController extends Controller
     ): View {
         abort_unless($request->user()?->role === UserRole::ResLead, 403);
         abort_unless($reviewer->role === UserRole::Adviser, 404);
-        $filters = $this->termFilters($request);
+        $filters = $request->validate([
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
+            'review_type' => ['nullable', Rule::in(['expedited', 'full_board', 'revision_review'])],
+            'assignment_status' => ['nullable', Rule::enum(ReviewerAssignmentStatus::class)],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
 
         $assignments = $reviewer->reviewerAssignments()
             ->whereNull('superseded_at')
@@ -72,6 +80,10 @@ class ResReviewMonitoringController extends Controller
             ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $assignments) => $assignments
                 ->whereHas('researchApplication', fn (Builder $applications) => $applications
                     ->where('academic_term_id', (int) $filters['academic_term_id'])))
+            ->when(filled($filters['review_type'] ?? null), fn (Builder $query) => $query->where('review_type', $filters['review_type']))
+            ->when(filled($filters['assignment_status'] ?? null), fn (Builder $query) => $query->where('assignment_status', $filters['assignment_status']))
+            ->when(filled($filters['date_from'] ?? null), fn (Builder $query) => $query->whereDate('assigned_at', '>=', $filters['date_from']))
+            ->when(filled($filters['date_to'] ?? null), fn (Builder $query) => $query->whereDate('assigned_at', '<=', $filters['date_to']))
             ->latest('assigned_at')
             ->latest('id')
             ->paginate(20)
@@ -98,7 +110,13 @@ class ResReviewMonitoringController extends Controller
     ): View {
         abort_unless($request->user()?->role === UserRole::ResLead, 403);
         abort_unless($adviser->role === UserRole::Adviser, 404);
-        $filters = $this->termFilters($request);
+        $filters = $request->validate([
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
+            'review_type' => ['nullable', Rule::in(['expedited', 'full_board'])],
+            'application_status' => ['nullable', Rule::enum(ApplicationStatus::class)],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
 
         $applications = ResearchApplication::query()
             ->select([
@@ -107,6 +125,7 @@ class ResReviewMonitoringController extends Controller
                 'application_code',
                 'research_title',
                 'application_status',
+                'review_type',
                 'status_updated_at',
             ])
             ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
@@ -114,6 +133,10 @@ class ResReviewMonitoringController extends Controller
                 ->where('endorsement_status', EndorsementStatus::Endorsed->value))
             ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $query) => $query
                 ->where('academic_term_id', (int) $filters['academic_term_id']))
+            ->when(filled($filters['review_type'] ?? null), fn (Builder $query) => $query->where('review_type', $filters['review_type']))
+            ->when(filled($filters['application_status'] ?? null), fn (Builder $query) => $query->where('application_status', $filters['application_status']))
+            ->when(filled($filters['date_from'] ?? null), fn (Builder $query) => $query->whereDate('status_updated_at', '>=', $filters['date_from']))
+            ->when(filled($filters['date_to'] ?? null), fn (Builder $query) => $query->whereDate('status_updated_at', '<=', $filters['date_to']))
             ->with('academicTerm:id,semester,academic_year')
             ->latest('status_updated_at')
             ->latest('id')
@@ -131,14 +154,6 @@ class ResReviewMonitoringController extends Controller
                 ['label' => 'Review Monitoring', 'route' => 'res.review-monitoring.index'],
                 ['label' => $adviser->name],
             ],
-        ]);
-    }
-
-    /** @return array{academic_term_id?: int|null} */
-    private function termFilters(Request $request): array
-    {
-        return $request->validate([
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
     }
 }

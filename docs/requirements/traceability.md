@@ -2,6 +2,8 @@
 
 This file maps implementation areas to the current source documents. Update it when requirements change.
 
+The complete current row-by-row acceptance ledger is `Documentations/ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md`. It supersedes the August 21 ledger for current behavior while retaining the older file as historical evidence.
+
 | Area | Primary source | Supporting source | Implementation notes |
 | --- | --- | --- | --- |
 | Account management | July 20, 2026 account-management requirements | High Fidelity (5), pages 1-8, and supervisor CSV note | Separate names and institutional ID, generated username, role-limited creation, search/filter/pagination, CSV import, status control, reset links, and audit logs. Newer written rules override editable Date Joined, direct password editing, and RES/Admin creation shown in the mockup. |
@@ -17,7 +19,7 @@ This file maps implementation areas to the current source documents. Update it w
 | Feedback | Consolidated project documentation | System design flow 18 | Feedback can unlock certificate eligibility. |
 | Certificates and QR | Consolidated project documentation plus team/client addition | Certificate sample and system design flows 19 to 20 | Control number and QR access include public-safe verification plus protected full certificate access. |
 | Notifications and Regala | Consolidated project documentation | System design flows 14 and 21 | Use neutral wording before official release. |
-| Reports and monitoring | Consolidated project documentation | System design flow 23 | Include adviser expected counts and reviewer capacity. |
+| Reports and monitoring | August 22, 2026 ENDGAME requirements | System design flow 23 | RES-only validated operational reporting includes term/date/profile/workflow filters, eight cards, pipeline/trend/distribution/turnaround/workload/certificate aggregates, action/follow-up/data-quality tables, accessible equivalents, privacy limits, and fixed aggregate query counts. |
 | Audit logging | Consolidated project documentation | ERD module 10 and system design flow 25 | Log major workflow and configuration actions. |
 
 ## Confirmed Additions from Team/Client Communication

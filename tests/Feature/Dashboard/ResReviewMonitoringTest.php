@@ -227,7 +227,7 @@ class ResReviewMonitoringTest extends TestCase
             ->assertSee('Current Number of Applications')
             ->assertSee('Successfully Completed Applications')
             ->assertSee('Remaining Applications to Be Reviewed')
-            ->assertSee('View Assignments')
+            ->assertSee('>View</a>', false)
             ->assertDontSee('Reviewer classifications')
             ->assertDontSee('DRAFT CONFIDENTIAL CAPACITY COMMENT');
 
@@ -314,7 +314,7 @@ class ResReviewMonitoringTest extends TestCase
             ->assertSee('data-awaiting="1"', false)
             ->assertSee('data-remaining="4"', false)
             ->assertSee('data-not-received="3"', false)
-            ->assertSee('View Applications')
+            ->assertSee('>View</a>', false)
             ->assertSee(route('res.review-monitoring.advisers.applications', $adviser), false)
             ->assertDontSee('RES-UNENDORSED-SAFE-002')
             ->assertDontSee('Private Unendorsed Applicant')

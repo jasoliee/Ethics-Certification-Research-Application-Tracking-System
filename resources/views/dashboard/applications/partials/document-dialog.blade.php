@@ -22,7 +22,7 @@
         </div>
         {{-- Preview elements receive only a secure controller URL and never a private storage path. --}}
         <div class="application-document-preview" data-document-preview>
-            <iframe title="Secure document preview" sandbox="allow-downloads" data-document-frame hidden></iframe>
+            <iframe title="Secure document preview" data-document-frame hidden></iframe>
             <img alt="Secure document preview" data-document-image hidden>
             <div class="application-document-fallback" data-document-fallback hidden>
                 <x-dashboard.icon name="download" size="34" />

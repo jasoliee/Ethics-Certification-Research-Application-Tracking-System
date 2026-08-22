@@ -176,3 +176,33 @@ A local QA certificate was generated and `pdftotext -layout` confirmed the quote
 2. Compare the active QR against the lower-left reference area; confirm the configured fixed 30 mm square and surrounding whitespace.
 3. Scan the real configured QR from the PDF and a print-size rendering. The August 21 QA placement marker is not a semantic QR payload and is not readability evidence.
 4. Confirm the certificate version retains the QR hash/path/dimensions, background, signatory and validity that were active at generation time after settings change.
+
+## August 22 ENDGAME acceptance matrix
+
+No authenticated browser result is recorded for this continuation. The approved in-app browser returned zero available sessions on the final retry. The supplied certificate PDF was available and inspected, but installed local tools could not rasterize PDF pages or independently decode a QR. Keep every row below Pending until it is executed in the actual authenticated application.
+
+Run at 1440x900, 1024x768, 768x1024, and 390x844 for RES Lead, Applicant, Adviser, and Reviewer. Record browser/version, account/fixture, result, console output, overflow measurements, and screenshot evidence without transmitting private data.
+
+| Area | Required live acceptance | Result | Automated/source evidence |
+| --- | --- | --- | --- |
+| RES Settings | Equal full-width tabs; contained Profile; Deadline native controls/hover/order; Dropdown row hover; Background Reset/Preview alignment; two-column Certificate controls; three stacked Security panels and centered confirmations. | Pending | Settings validation/render tests, exact-copy checks, and responsive CSS pass. |
+| Current dashboards | No term filter on any role dashboard; current-term counts/timeline/deadlines only; Applicant timeline appears without an application. | Pending | Cross-role current-term/query-ignore tests pass. |
+| Screening and assignment | Four collapsibles work by keyboard/pointer; draft changes restore after navigation; Current Load centers; assignment confirmation and redirect match the contract. | Pending | Draft authorization/restore/cleanup and assignment tests pass. |
+| Monitoring and drill-downs | Workload/filter tables stay full-width; `View` links work; long title ellipsis reveals a nearby tooltip after 0.5 seconds; no page-level overflow. | Pending | Server filters/nested authorization, column, tooltip-hook, and overflow-boundary tests pass. |
+| Applicant upload and draft | Page-leave draft saves; Choose File/uploading-dot/success/error/replace states are responsive; never-submitted replacement disappears while submitted history remains. | Pending | Autosave/upload/retention/version tests pass. |
+| Applicant revision | Selector/status/three steps/panel controls align; replacement filename opens embedded preview with Download/Replace; no arrows or separate replacement link; confirmation works. | Pending | Presentation, route/header, version, and workflow tests pass. |
+| Reviewer workspace/settings | Long summary values align; exact actionable warning displays; final confirmation is centered; worksheet name/signature configuration previews and generated worksheet appearance are correct. | Pending | Settings/artifact/actionable-decision tests pass. |
+| Notifications and Bin | Exact order/labels/styles, term filter, left selected controls, enlarged icons, reusable confirmation focus/escape, pagination, restore/delete/purge all work without clipping. | Pending | MySQL query shape, owner/action/term/purge/safe-error tests pass. |
+| Decision & Certificates | Hero filters, queue View, long-title modal, Reviewer collapsibles, eye-only document actions, Release All/result alignment, and Preview All/Release controls remain bounded. | Pending | Metrics/filter/privacy/release/plural preview tests pass. |
+| Private previews | Authorized PDF/image iframe and new tab render without browser block; Download works; Office fallback remains same-origin; cross-owner request is denied. | Pending | Nested policy and defensive response-header tests pass. |
+| RES Reports | All filters/cards/tables reflect the selected real data; controls and accessible equivalents remain usable; wide tables scroll internally; empty states render at every width. | Pending | Operational aggregate/filter/auth/privacy/query-count tests pass. |
+| Long values and hover/focus | Long titles/dropdown values never overlap; ellipsis/full-value affordances, filter/collapsible hover, focus visibility, and modal focus restoration work. | Pending | Shared CSS/JS and rendered contracts pass. |
+
+### Certificate and QR manual acceptance
+
+The current fallback is a deterministic 296x296 QR PNG for `https://kld.edu.ph/ovprii.php`; it is no longer a placement-only marker. A representative ECRATS certificate PDF was generated locally. Source constants use x=24 mm, y=237 mm, and a fixed 30 mm square; the supplied reference PDF places its QR in the same lower-left region.
+
+1. Rasterize the supplied reference and the current ECRATS PDF at the same DPI; compare QR location, square size, whitespace, signature separation, footer/border clearance, title/list wrapping, and page bounds.
+2. Scan the fallback QR from the PDF and from a print-size raster; verify the exact destination string.
+3. Configure a replacement QR, generate a new certificate, scan it, then restore/change settings and confirm the prior certificate/version still uses its original QR hash/dimensions/configuration.
+4. Generate a multi-recipient application and confirm Preview All has exactly one readable page per recipient.

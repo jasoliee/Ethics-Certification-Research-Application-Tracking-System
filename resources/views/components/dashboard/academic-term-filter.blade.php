@@ -11,7 +11,7 @@
             <option value="">All terms</option>
             @foreach ($termOptions as $term)
                 <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>
-                    {{ $term->label() }}
+                    {{ $term->filterLabel() }}
                 </option>
             @endforeach
         </select>

@@ -26,6 +26,7 @@ use App\Notifications\DashboardUpdateNotification;
 use App\Services\Certificates\ApplicantCertificateService;
 use App\Services\Certificates\BulkReleaseService;
 use App\Services\Certificates\CertificateReleaseService;
+use App\Services\Certificates\DefaultCertificateQrService;
 use App\Services\Certificates\OfficialCertificateGenerationService;
 use App\Support\ApplicantSurveyCatalog;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -34,6 +35,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -213,6 +216,18 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame(ApplicationStatus::ForCertificateRelease, $application->refresh()->application_status);
         Notification::assertNothingSentTo($applicant);
 
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index'))
+            ->assertOk()
+            ->assertSee('Release Generated Certificate')
+            ->assertSee('Preview All Certificate');
+        $pendingPreview = $this->actingAs($resLead)
+            ->get(route('res.certificates.applications.preview-all', $application))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+        $pendingParser = new Fpdi;
+        $this->assertSame(1, $pendingParser->setSourceFile(StreamReader::createByString($pendingPreview->getContent())));
+
         $this->travelTo('2024-03-01 09:00:00');
         $released = app(CertificateReleaseService::class)->release($resLead, $application->refresh());
         $this->assertSame('released', $released['action']);
@@ -221,6 +236,58 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame('2024-02-29', $released['certificate']->issued_date->toDateString());
         $this->assertSame('2025-02-28', $released['certificate']->valid_until->toDateString());
         Notification::assertSentToTimes($applicant, DashboardUpdateNotification::class, 1);
+    }
+
+    public function test_offline_qr_fallback_is_snapshotted_and_res_can_preview_every_recipient_in_one_pdf(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $resLead, $application] = $this->approvedApplication('FALLBACK-ALL');
+        $names = ['First Certificate Recipient', 'Second Certificate Recipient', 'Third Certificate Recipient'];
+        $application->certificateRecipients()->delete();
+        $application->certificateRecipients()->createMany(collect($names)->map(
+            fn (string $name, int $index): array => [
+                'recipient_name' => $name,
+                'normalized_name' => mb_strtolower($name),
+                'sort_order' => $index + 1,
+            ],
+        )->all());
+
+        app(CertificateReleaseService::class)->release($resLead, $application->refresh());
+        $certificates = $application->certificates()->with('currentVersion')->orderBy('id')->get();
+        $this->assertCount(3, $certificates);
+        foreach ($certificates as $certificate) {
+            $version = $certificate->currentVersion;
+            $this->assertSame(DefaultCertificateQrService::STORED_PATH, $version->qr_code_path);
+            $this->assertSame(296, $version->qr_code_width);
+            $this->assertSame(296, $version->qr_code_height);
+            $this->assertSame(
+                hash_file('sha256', Storage::disk('local')->path(DefaultCertificateQrService::STORED_PATH)),
+                $version->qr_code_sha256,
+            );
+        }
+
+        $response = $this->actingAs($resLead)
+            ->get(route('res.certificates.applications.preview-all', $application))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $parser = new Fpdi;
+        $this->assertSame(3, $parser->setSourceFile(StreamReader::createByString($response->getContent())));
+
+        $unauthorized = $this->actingAs($applicant)
+            ->get(route('res.certificates.applications.preview-all', $application));
+        $unauthorized->status() === 403
+            ? $unauthorized->assertForbidden()
+            : $unauthorized->assertRedirect(route('dashboard'));
+
+        $tampered = $certificates->first()->currentVersion;
+        Storage::disk('local')->put($tampered->stored_file_path, 'tampered certificate');
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.applications.preview-all', $application))
+            ->assertNotFound();
     }
 
     public function test_partial_multi_recipient_release_is_never_reported_claimed_or_surveyable_and_bulk_recovers_it(): void
@@ -481,12 +548,12 @@ class CertificateReleaseWorkflowTest extends TestCase
             ->get(route('res.reports.index'))
             ->assertOk()
             ->assertSee('Applicant Feedback Summary')
-            ->assertSee('completed response')
+            ->assertSee('1 response')
             ->assertSee('Section 1 – System Experience')
             ->assertSee('Section 2 – Ethics Review Process')
             ->assertSee('3.00 / 5')
             ->assertSee('The system was easy to navigate and use.')
-            ->assertSee('1 earlier questionnaire response')
+            ->assertSee('1 preserved earlier-questionnaire response excluded')
             ->assertDontSee('Private suggestion that must never appear')
             ->assertDontSee('Legacy private positive feedback')
             ->assertDontSee('Legacy private improvement feedback')

@@ -10,14 +10,17 @@ use App\Enums\ReviewType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\AssignApplicationReviewersRequest;
 use App\Http\Requests\ResLead\ClassifyResearchApplicationRequest;
+use App\Http\Requests\ResLead\SaveScreeningDraftRequest;
 use App\Http\Requests\ResLead\UpdateResearchApplicationScreeningRequest;
 use App\Models\ResearchApplication;
 use App\Models\ReviewFormArtifact;
 use App\Services\Applications\ApplicationRequirementService;
 use App\Services\Applications\ResScreeningWorkflowService;
 use App\Services\Applications\ReviewerEligibilityService;
+use App\Services\Applications\WorkflowDraftService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -130,6 +133,7 @@ class ResLeadApplicationController extends Controller
         Request $request,
         ResearchApplication $researchApplication,
         ApplicationRequirementService $requirements,
+        WorkflowDraftService $drafts,
     ): View {
         Gate::authorize('view', $researchApplication);
         $application = $this->loadResApplication($researchApplication);
@@ -156,12 +160,31 @@ class ResLeadApplicationController extends Controller
             // Edit mode is explicit so saved details remain the default read-only presentation.
             'canUpdateScreening' => $canUpdateScreening,
             'editingScreening' => $canUpdateScreening && $request->boolean('edit_screening'),
+            'screeningDraft' => $drafts->screeningPayload($request->user(), $application),
             'canAssignReviewers' => $request->user()->can('assignReviewers', $application),
             'reviewTypes' => ReviewType::cases(),
             'breadcrumbs' => [
                 ['label' => 'Applications', 'route' => 'res.applications.index'],
                 ['label' => $application->application_code],
             ],
+        ]);
+    }
+
+    /** Persist incomplete screening work without crossing the formal classification boundary. */
+    public function saveScreeningDraft(
+        SaveScreeningDraftRequest $request,
+        ResearchApplication $researchApplication,
+        WorkflowDraftService $drafts,
+    ): JsonResponse {
+        $draft = $drafts->saveScreening(
+            $request->user(),
+            $researchApplication,
+            $request->validated(),
+        );
+
+        return response()->json([
+            'message' => 'Screening draft saved.',
+            'saved_at' => $draft->updated_at?->toIso8601String(),
         ]);
     }
 
@@ -273,7 +296,7 @@ class ResLeadApplicationController extends Controller
         );
 
         return redirect()
-            ->route('res.applications.reviewers.index', $researchApplication)
+            ->route('res.applications.show', $researchApplication)
             ->with('status', 'Reviewers successfully assigned.');
     }
 

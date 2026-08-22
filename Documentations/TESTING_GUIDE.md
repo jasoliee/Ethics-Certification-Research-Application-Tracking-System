@@ -41,6 +41,15 @@ vendor\bin\pint --test
 npm.cmd run build
 ```
 
+## August 22, 2026 ENDGAME Verification
+
+- Final repaired dashboard/static slice: 4 tests, 73 assertions, passed.
+- Final complete SQLite in-memory suite: 329 tests, 4,545 assertions, passed.
+- The sole pending migration, `2026_08_22_000000_add_submission_and_worksheet_settings`, was reviewed as additive and applied to local ECRATS MySQL as batch 6. Post-status reports every migration Ran. No test targeted MySQL.
+- Repository-wide Pint, Vite production build, Blade cache, 172-route discovery, and `git diff --check` passed. Vite emitted only its optional Fontaine optimization notice.
+- Representative certificate PDF generation and text extraction passed. Source constants place the QR at x=24 mm/y=237 mm as a fixed 30 mm square in the supplied lower-left reference zone.
+- Authenticated browser/native-preview checks were not performed because the approved in-app browser reported zero sessions. Pixel comparison and independent QR decode were not performed because no PDF rasterizer or QR decoder is installed. These remain Pending in `MANUAL_VISUAL_VALIDATION.md` and must not be inferred from automated tests.
+
 ## August 21, 2026 DOOMSDAY Verification
 
 - Changed-area serialized SQLite run: 178 tests, 2,534 assertions, passed.

@@ -97,6 +97,7 @@ class ResScreeningWorkflowService
             ]);
 
             $this->notifyApplicantOfWorkflowUpdate($locked, $reviewType === ReviewType::Exempted);
+            WorkflowDraftService::clearScreening($actor, $locked);
 
             return $screening->refresh();
         }, 3);
@@ -167,13 +168,14 @@ class ResScreeningWorkflowService
                     ? ApplicationStage::DecisionRelease
                     : ApplicationStage::ResScreening;
 
-                User::query()->whereKey($supersededReviewerIds)->get()->each(function (User $reviewer): void {
+                User::query()->whereKey($supersededReviewerIds)->get()->each(function (User $reviewer) use ($locked): void {
                     $reviewer->notify(new DashboardUpdateNotification([
                         'title' => 'Ethics review assignment updated',
                         'message' => 'A previously assigned application is no longer in your active review queue.',
                         'icon' => 'clipboard',
                         'tone' => 'blue',
                         'route' => 'reviewer.assignments.index',
+                        'academic_term_id' => $locked->academic_term_id,
                     ]));
                 });
             }
@@ -193,6 +195,7 @@ class ResScreeningWorkflowService
             ]);
 
             $this->notifyApplicantOfScreeningCorrection($locked);
+            WorkflowDraftService::clearScreening($actor, $locked);
 
             return $screening->refresh();
         }, 3);
@@ -357,17 +360,19 @@ class ResScreeningWorkflowService
                     'tone' => 'blue',
                     'route' => 'reviewer.assignments.show',
                     'route_parameters' => ['reviewerAssignment' => $assignment->id],
+                    'academic_term_id' => $locked->academic_term_id,
                 ]));
             }
 
             User::query()->whereKey($supersededAssignments->pluck('reviewer_user_id'))->get()
-                ->each(function (User $reviewer): void {
+                ->each(function (User $reviewer) use ($locked): void {
                     $reviewer->notify(new DashboardUpdateNotification([
                         'title' => 'Ethics review assignment updated',
                         'message' => 'A previously assigned application is no longer in your active review queue.',
                         'icon' => 'clipboard',
                         'tone' => 'blue',
                         'route' => 'reviewer.assignments.index',
+                        'academic_term_id' => $locked->academic_term_id,
                     ]));
                 });
 
@@ -399,6 +404,7 @@ class ResScreeningWorkflowService
             'tone' => 'blue',
             'route' => 'applicant.applications.show',
             'route_parameters' => ['researchApplication' => $application->id],
+            'academic_term_id' => $application->academic_term_id,
         ]));
     }
 
@@ -420,6 +426,7 @@ class ResScreeningWorkflowService
             'tone' => 'blue',
             'route' => 'applicant.applications.show',
             'route_parameters' => ['researchApplication' => $application->id],
+            'academic_term_id' => $application->academic_term_id,
         ]));
     }
 }

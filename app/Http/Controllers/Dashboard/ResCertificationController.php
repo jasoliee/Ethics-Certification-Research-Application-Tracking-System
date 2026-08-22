@@ -23,9 +23,11 @@ use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResCertificationController extends Controller
@@ -254,6 +256,42 @@ class ResCertificationController extends Controller
         CertificateVersion $certificateVersion,
     ): StreamedResponse {
         return $this->certificateResponse($request, $certificate, $certificateVersion, 'attachment');
+    }
+
+    public function previewAllCertificates(Request $request, ResearchApplication $researchApplication): Response
+    {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $researchApplication->load(['certificates.currentVersion']);
+        $certificates = $researchApplication->certificates->filter(
+            fn (Certificate $certificate): bool => in_array($certificate->status, [CertificateStatus::PendingRelease, CertificateStatus::Released, CertificateStatus::Claimed], true)
+                && $certificate->currentVersion?->status === CertificateVersionStatus::Ready,
+        );
+        abort_if($certificates->isEmpty(), 404);
+
+        $disk = Storage::disk('local');
+        $pdf = new Fpdi('P', 'mm', 'A4');
+        $pdf->SetAutoPageBreak(false);
+        foreach ($certificates as $certificate) {
+            $version = $certificate->currentVersion;
+            abort_unless($disk->exists($version->stored_file_path), 404);
+            $actualHash = hash_file('sha256', $disk->path($version->stored_file_path));
+            abort_unless(is_string($actualHash) && hash_equals($version->sha256, $actualHash), 404);
+            $pages = $pdf->setSourceFile($disk->path($version->stored_file_path));
+            for ($page = 1; $page <= $pages; $page++) {
+                $template = $pdf->importPage($page);
+                $size = $pdf->getTemplateSize($template);
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($template);
+            }
+        }
+        $bytes = $pdf->Output('S');
+        abort_unless(is_string($bytes) && str_starts_with($bytes, '%PDF-'), 500);
+        $fileName = $researchApplication->application_code.'-all-certificates.pdf';
+
+        return response($bytes, 200, [
+            ...$this->privateHeaders('application/pdf'),
+            'Content-Disposition' => 'inline; filename="'.$fileName.'"',
+        ]);
     }
 
     private function certificateResponse(

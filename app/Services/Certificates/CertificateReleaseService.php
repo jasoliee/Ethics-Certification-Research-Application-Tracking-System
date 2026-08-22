@@ -87,6 +87,7 @@ class CertificateReleaseService
                 'tone' => 'green',
                 'route' => 'applicant.revision-certificates.index',
                 'route_parameters' => ['application' => $application->id],
+                'academic_term_id' => $application->academic_term_id,
             ]));
         }
 

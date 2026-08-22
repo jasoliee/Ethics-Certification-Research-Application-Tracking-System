@@ -88,7 +88,9 @@ class DashboardDataService
             'completedRequirementCount' => $requirementSummary['completed_count'],
             'deadline' => $applicantDeadline,
             'submissionWindow' => $submissionWindow,
-            ...$this->timelineData($activeApplication, true),
+            ...($activeApplication
+                ? $this->timelineData($activeApplication, true)
+                : $this->timelineData(academicTermId: $academicTermId)),
         ];
     }
 

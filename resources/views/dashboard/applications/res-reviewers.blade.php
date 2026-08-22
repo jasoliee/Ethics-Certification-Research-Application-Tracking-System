@@ -115,7 +115,7 @@
                         @else
                             <x-dashboard.overflow label="Eligible reviewer candidates" wide>
                                 <table class="dashboard-table res-reviewer-table">
-                                <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th>Position</th><th>Department</th><th>Institution</th><th>Current Load</th></tr></thead>
+                                <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th>Position</th><th>Department</th><th>Institution</th><th class="res-reviewer-load-cell">Current Load</th></tr></thead>
                                 <tbody>
                                     @foreach ($candidates as $candidate)
                                         @php
@@ -149,7 +149,7 @@
                                             <td>{{ $candidate->position_title ?: 'Not specified' }}</td>
                                             <td>{{ $candidate->department ?: 'Not specified' }}</td>
                                             <td>{{ $candidate->institution ?: 'Not specified' }}</td>
-                                            <td>
+                                            <td class="res-reviewer-load-cell">
                                                 <strong>{{ $activeLoad }} / {{ $capacity }}</strong>
                                                 @unless ($available)
                                                     <small class="res-reviewer-capacity-note">Capacity reached</small>
@@ -197,7 +197,6 @@
                         <span class="application-modal-icon"><x-dashboard.icon name="users" size="24" /></span>
                         <div>
                             <h2 id="reviewer-assignment-title">Confirm Reviewer Set</h2>
-                            <p>Review the selected set before saving this workflow transition.</p>
                         </div>
                     </header>
                     <dl class="res-confirmation-details">

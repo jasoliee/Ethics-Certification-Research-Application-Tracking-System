@@ -54,10 +54,14 @@ class AcademicTermResolver
      */
     public function filterOptions(): Collection
     {
+        $now = now();
+
         return AcademicTerm::query()
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
-            ->get(['id', 'semester', 'academic_year', 'starts_at', 'ends_at']);
+            ->get(['id', 'semester', 'academic_year', 'starts_at', 'ends_at', 'is_active'])
+            ->sortByDesc(fn (AcademicTerm $term): bool => $term->isCurrent($now))
+            ->values();
     }
 
     /**

@@ -24,6 +24,7 @@ class ApplicationDocument extends Model
         'validation_status',
         'is_current',
         'uploaded_at',
+        'formally_submitted_at',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class ApplicationDocument extends Model
             'validation_status' => RequirementStatus::class,
             'is_current' => 'boolean',
             'uploaded_at' => 'datetime',
+            'formally_submitted_at' => 'datetime',
         ];
     }
 

@@ -106,7 +106,8 @@ class ReviewConsensusWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.certificates.workspace', $application))
             ->assertOk()
-            ->assertSeeInOrder(['Supporting Documents', 'Application Decision', 'Release Decision', 'Reviewer 1']);
+            ->assertSeeInOrder(['Supporting Documents', 'Release Decision', 'Reviewer 1'])
+            ->assertDontSee('Application Decision');
         $css = (string) file_get_contents(resource_path('css/dashboard.css'));
         $this->assertMatchesRegularExpression(
             '/\.res-application-release-panel\s*>\s*form\s*>\s*\.dashboard-primary-action\s*\{[^}]*width:\s*100%;/s',
@@ -187,7 +188,8 @@ class ReviewConsensusWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.certificates.workspace', $application))
             ->assertOk()
-            ->assertSeeInOrder(['Supporting Documents', 'Application Decision', 'Decision release blocked.', 'Reviewer 1'])
+            ->assertSeeInOrder(['Supporting Documents', 'Decision release blocked.', 'Reviewer 1'])
+            ->assertDontSee('Application Decision')
             ->assertSee('The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.')
             ->assertDontSee('Release Decision');
 

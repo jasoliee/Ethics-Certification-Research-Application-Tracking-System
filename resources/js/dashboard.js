@@ -539,6 +539,8 @@ function initializeApplicationTools(shell) {
         let draftSaveInFlight = false;
         let worksheetControlsLocked = false;
         const worksheetControlStates = new Map();
+        const worksheetState = () => new URLSearchParams(new FormData(form)).toString();
+        let savedWorksheetState = worksheetState();
 
         const setFormFeedback = (message = '', state = '') => {
             if (! feedback) {
@@ -729,6 +731,7 @@ function initializeApplicationTools(shell) {
                     decisionForm.dataset.completedReviewerForms = String(completedCount);
                 }
                 preserveSavedFormDefaults();
+                savedWorksheetState = worksheetState();
                 form.removeAttribute('aria-busy');
                 setWorksheetControlsLocked(false);
                 worksheetControlsLocked = false;
@@ -750,6 +753,18 @@ function initializeApplicationTools(shell) {
                 }
                 syncConsentExplanation();
             }
+        });
+
+        window.addEventListener('pagehide', () => {
+            if (draftSaveInFlight || worksheetState() === savedWorksheetState) return;
+            const formData = new FormData(form);
+            formData.set('intent', 'draft');
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                keepalive: true,
+            }).catch(() => {});
         });
     });
 
@@ -1744,12 +1759,21 @@ function initializeApplicationTools(shell) {
         let returnFocus = null;
         let finalSubmissionInFlight = false;
         let finalSubmissionSucceeded = false;
+        let decisionDraftDirty = false;
 
         const selectedDecisionLabel = () => decisionField?.selectedOptions?.[0]?.textContent?.trim() ?? '';
 
         const setDecisionFeedback = (message = '') => {
             if (formFeedback) {
-                formFeedback.textContent = message;
+                if (message === 'Add at least one actionable Required Revision comment before submitting a revision decision.') {
+                    formFeedback.replaceChildren(
+                        document.createTextNode('Add at least one actionable '),
+                        Object.assign(document.createElement('strong'), {textContent: 'Required Revision comment'}),
+                        document.createTextNode(' before submitting a revision decision.'),
+                    );
+                } else {
+                    formFeedback.textContent = message;
+                }
                 formFeedback.classList.toggle('is-error', Boolean(message));
             }
         };
@@ -1847,6 +1871,7 @@ function initializeApplicationTools(shell) {
         };
 
         reviewerDecisionForm.addEventListener('input', (event) => {
+            decisionDraftDirty = true;
             if (event.target === decisionField || event.target === commentField) {
                 event.target.removeAttribute('aria-invalid');
                 setDecisionFeedback();
@@ -1854,6 +1879,7 @@ function initializeApplicationTools(shell) {
         });
 
         reviewerDecisionForm.addEventListener('change', (event) => {
+            decisionDraftDirty = true;
             if (event.target === decisionField) {
                 decisionField.removeAttribute('aria-invalid');
                 setDecisionFeedback();
@@ -1861,6 +1887,9 @@ function initializeApplicationTools(shell) {
         });
 
         reviewerDecisionForm.addEventListener('submit', (event) => {
+            if (event.submitter?.value === 'draft') {
+                decisionDraftDirty = false;
+            }
             if (event.submitter?.value !== 'submit') {
                 return;
             }
@@ -1869,6 +1898,18 @@ function initializeApplicationTools(shell) {
             if (! finalSubmissionInFlight) {
                 openSubmitDialog(event.submitter);
             }
+        });
+
+        window.addEventListener('pagehide', () => {
+            if (! decisionDraftDirty || finalSubmissionInFlight || finalSubmissionSucceeded) return;
+            const formData = new FormData(reviewerDecisionForm);
+            formData.set('intent', 'draft');
+            fetch(reviewerDecisionForm.action, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                keepalive: true,
+            }).catch(() => {});
         });
 
         cancelButtons.forEach((button) => {
@@ -1995,6 +2036,17 @@ function initializeApplicationTools(shell) {
         });
     }
 
+    const uploadProgress = (render) => {
+        let dots = 0;
+        render('Uploading');
+        const timer = window.setInterval(() => {
+            dots = (dots % 3) + 1;
+            render(`Uploading${'.'.repeat(dots)}`);
+        }, 360);
+
+        return () => window.clearInterval(timer);
+    };
+
     const uploadOne = async (form) => {
         const input = form.querySelector('[data-requirement-file]');
         const requirementId = form.dataset.requirementId;
@@ -2005,7 +2057,7 @@ function initializeApplicationTools(shell) {
 
         const button = form.querySelector('button[type="submit"]');
         button?.setAttribute('disabled', 'disabled');
-        setRequirementFeedback(requirementId, 'Uploading...');
+        const stopProgress = uploadProgress((label) => setRequirementFeedback(requirementId, label));
 
         try {
             const response = await fetch(form.action, {
@@ -2029,11 +2081,12 @@ function initializeApplicationTools(shell) {
 
             replaceRequirementRow(requirementId, payload.row_html);
             updateRequirementProgress(payload.progress);
-            setRequirementFeedback(requirementId, payload.message ?? 'Document uploaded.');
+            setRequirementFeedback(requirementId, '');
             refreshCompletedRequirements(payload.progress);
         } catch {
             setRequirementFeedback(requirementId, 'Upload failed. Check your connection and try again.', true);
         } finally {
+            stopProgress();
             button?.removeAttribute('disabled');
             syncUploadAll();
         }
@@ -2122,13 +2175,14 @@ function initializeApplicationTools(shell) {
         }
         selectedInputs.forEach((input) => {
             formData.append(`documents[${input.dataset.requirementId}]`, input.files[0]);
-            setRequirementFeedback(input.dataset.requirementId, 'Uploading...');
+            setRequirementFeedback(input.dataset.requirementId, 'Uploading');
         });
 
         uploadAll.disabled = true;
-        if (uploadAllLabel) {
-            uploadAllLabel.textContent = 'Uploading...';
-        }
+        const stopBulkProgress = uploadProgress((label) => {
+            if (uploadAllLabel) uploadAllLabel.textContent = label;
+            selectedInputs.forEach((input) => setRequirementFeedback(input.dataset.requirementId, label));
+        });
         uploadAllSummary.textContent = '';
 
         try {
@@ -2151,7 +2205,7 @@ function initializeApplicationTools(shell) {
 
             Object.entries(payload.successes ?? {}).forEach(([requirementId, result]) => {
                 replaceRequirementRow(requirementId, result.row_html);
-                setRequirementFeedback(requirementId, result.message ?? 'Document uploaded.');
+                setRequirementFeedback(requirementId, '');
             });
             Object.entries(payload.errors ?? {}).forEach(([requirementId, message]) => {
                 setRequirementFeedback(requirementId, message, true);
@@ -2159,12 +2213,13 @@ function initializeApplicationTools(shell) {
             updateRequirementProgress(payload.progress);
             const hasErrors = Object.keys(payload.errors ?? {}).length > 0;
             uploadAllSummary.classList.toggle('is-error', hasErrors);
-            uploadAllSummary.textContent = payload.message ?? 'Selected documents processed.';
+            uploadAllSummary.textContent = hasErrors ? (payload.message ?? 'Some documents were not uploaded.') : '';
             refreshCompletedRequirements(payload.progress, hasErrors);
         } catch {
             uploadAllSummary.classList.add('is-error');
             uploadAllSummary.textContent = 'Upload failed. Check your connection and try again.';
         } finally {
+            stopBulkProgress();
             if (uploadAllLabel) {
                 uploadAllLabel.textContent = defaultUploadAllLabel;
             }
@@ -2231,6 +2286,104 @@ function initializeApplicationTools(shell) {
     expectedStartDate?.addEventListener('change', syncExpectedDuration);
     syncExpectedDuration();
 
+    shell.querySelectorAll('.application-form-section').forEach((section) => {
+        const heading = section.querySelector('.application-form-section-heading');
+        const body = section.querySelector('.application-form-section-body');
+        if (! heading || ! body) return;
+        heading.tabIndex = 0;
+        heading.setAttribute('role', 'button');
+        heading.setAttribute('aria-expanded', 'true');
+        const toggle = () => {
+            body.hidden = ! body.hidden;
+            heading.setAttribute('aria-expanded', String(! body.hidden));
+            section.classList.toggle('is-collapsed', body.hidden);
+        };
+        heading.addEventListener('click', toggle);
+        heading.addEventListener('keydown', (event) => {
+            if (! ['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            toggle();
+        });
+    });
+
+    shell.querySelectorAll('[data-collapsible-panel]').forEach((panel) => {
+        const heading = panel.firstElementChild;
+        if (! heading || heading.dataset.collapsibleReady === 'true') return;
+        const content = [...panel.children].slice(1);
+        heading.dataset.collapsibleReady = 'true';
+        heading.tabIndex = 0;
+        heading.setAttribute('role', 'button');
+        heading.setAttribute('aria-expanded', 'true');
+        const toggle = () => {
+            const expanded = heading.getAttribute('aria-expanded') === 'true';
+            heading.setAttribute('aria-expanded', String(! expanded));
+            content.forEach((element) => { element.hidden = expanded; });
+            panel.classList.toggle('is-collapsed', expanded);
+        };
+        heading.addEventListener('click', toggle);
+        heading.addEventListener('keydown', (event) => {
+            if (! ['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            toggle();
+        });
+    });
+
+    shell.querySelectorAll('form[data-auto-save-draft]').forEach((form) => {
+        let dirty = false;
+        let timer = null;
+        const save = (keepalive = false) => {
+            if (! dirty || ! form.checkValidity()) return;
+            dirty = false;
+            window.clearTimeout(timer);
+            fetch(form.action, {
+                method: form.method || 'POST',
+                body: new FormData(form),
+                headers: {'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin',
+                keepalive,
+            }).catch(() => { dirty = true; });
+        };
+        form.addEventListener('input', () => {
+            dirty = true;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => save(false), 900);
+        });
+        form.addEventListener('submit', () => {
+            dirty = false;
+            window.clearTimeout(timer);
+        });
+        window.addEventListener('pagehide', () => save(true));
+    });
+
+    shell.querySelectorAll('form[data-partial-auto-save-draft]').forEach((form) => {
+        let dirty = false;
+        let timer = null;
+        const save = (keepalive = false) => {
+            if (! dirty) return;
+            dirty = false;
+            window.clearTimeout(timer);
+            fetch(form.dataset.partialAutoSaveDraft, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin',
+                keepalive,
+            }).then((response) => {
+                if (! response.ok) dirty = true;
+            }).catch(() => { dirty = true; });
+        };
+        form.addEventListener('input', () => {
+            dirty = true;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => save(false), 900);
+        });
+        form.addEventListener('submit', () => {
+            dirty = false;
+            window.clearTimeout(timer);
+        });
+        window.addEventListener('pagehide', () => save(true));
+    });
+
     shell.querySelectorAll('[data-revision-upload-form]').forEach((form) => {
         const input = form.querySelector('[data-revision-upload-input]');
         const fileName = form.querySelector('[data-revision-file-name]');
@@ -2245,10 +2398,10 @@ function initializeApplicationTools(shell) {
             if (fileName) {
                 fileName.textContent = file.name;
             }
-            if (feedback) {
-                feedback.textContent = 'Uploading...';
-                feedback.classList.remove('is-error');
-            }
+            const stopProgress = uploadProgress((label) => {
+                if (feedback) feedback.textContent = label;
+            });
+            feedback?.classList.remove('is-error');
             const formData = new FormData(form);
             input.disabled = true;
 
@@ -2267,9 +2420,7 @@ function initializeApplicationTools(shell) {
                     throw new Error(validationMessage ?? payload.message ?? 'The revised document could not be uploaded.');
                 }
 
-                if (feedback) {
-                    feedback.textContent = 'Upload complete.';
-                }
+                if (feedback) feedback.textContent = '';
                 window.location.reload();
             } catch (error) {
                 input.disabled = false;
@@ -2281,6 +2432,8 @@ function initializeApplicationTools(shell) {
                     feedback.textContent = error.message || 'Upload failed. Check your connection and try again.';
                     feedback.classList.add('is-error');
                 }
+            } finally {
+                stopProgress();
             }
         });
     });

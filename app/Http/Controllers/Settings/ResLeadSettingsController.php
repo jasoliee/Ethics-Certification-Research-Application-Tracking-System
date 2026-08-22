@@ -18,6 +18,7 @@ use App\Http\Requests\Settings\UploadManagedBackgroundRequest;
 use App\Models\CertificateBackground;
 use App\Models\ProfileOption;
 use App\Services\Certificates\CertificateBackgroundService;
+use App\Services\Certificates\DefaultCertificateQrService;
 use App\Services\Identity\ProfileOptionCatalog;
 use App\Services\Settings\AcademicTermResolver;
 use App\Services\Settings\DeadlineConfigurationService;
@@ -183,18 +184,22 @@ class ResLeadSettingsController extends Controller
         );
     }
 
-    public function previewCertificateQr(Request $request): StreamedResponse
+    public function previewCertificateQr(Request $request, DefaultCertificateQrService $defaultQr): StreamedResponse
     {
         abort_unless($request->user()->can('manageCertificateSignatory', $request->user()), 403);
         $user = $request->user();
         $disk = Storage::disk('local');
-        abort_unless(filled($user->certificate_qr_path) && $disk->exists($user->certificate_qr_path), 404);
-        $actualHash = hash_file('sha256', $disk->path($user->certificate_qr_path));
+        $configuredPath = filled($user->certificate_qr_path) ? $user->certificate_qr_path : null;
+        $asset = $configuredPath === null ? $defaultQr->asset() : null;
+        $path = $configuredPath ?? $asset['stored_path'];
+        $expectedHash = $configuredPath === null ? $asset['sha256'] : $user->certificate_qr_sha256;
+        abort_unless($disk->exists($path), 404);
+        $actualHash = hash_file('sha256', $disk->path($path));
         abort_unless(is_string($actualHash)
-            && hash_equals((string) $user->certificate_qr_sha256, $actualHash), 404);
+            && hash_equals((string) $expectedHash, $actualHash), 404);
 
         return $disk->response(
-            $user->certificate_qr_path,
+            $path,
             'certificate-qr.png',
             $this->privateHeaders('image/png'),
             'inline',

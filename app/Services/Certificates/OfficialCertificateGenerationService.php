@@ -17,6 +17,8 @@ use Throwable;
 
 class OfficialCertificateGenerationService
 {
+    public function __construct(private readonly DefaultCertificateQrService $defaultQr) {}
+
     public const GENERATOR_VERSION = 'official-res-certificate-v3';
 
     public const QR_X_MM = 24.0;
@@ -401,7 +403,7 @@ class OfficialCertificateGenerationService
     private function qrCode(User $actor): ?array
     {
         if (blank($actor->certificate_qr_path)) {
-            return null;
+            return $this->defaultQr->asset();
         }
 
         $disk = Storage::disk('local');

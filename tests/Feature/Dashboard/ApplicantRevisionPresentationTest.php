@@ -87,7 +87,7 @@ class ApplicantRevisionPresentationTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), '<strong>Certification</strong>'));
         $javascript = (string) file_get_contents(resource_path('js/dashboard.js'));
         $this->assertMatchesRegularExpression(
-            '/data-revision-upload-form.*?addEventListener\(\'change\'.*?fileName\.textContent\s*=\s*file\.name;.*?fetch\(form\.action.*?Upload complete\./s',
+            '/const uploadProgress.*?render\(\'Uploading\'\).*?setInterval.*?fetch\(form\.action.*?replaceRequirementRow.*?setRequirementFeedback\(requirementId, \'\'\)/s',
             $javascript,
         );
         $this->assertStringContainsString('}, 500);', $javascript);

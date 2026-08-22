@@ -173,7 +173,7 @@ class RoleDashboardTest extends TestCase
     public function test_applicant_dashboard_selects_the_newest_record_by_creation_not_a_later_edit(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
-        AcademicTerm::create([
+        $currentTerm = AcademicTerm::create([
             'semester' => 'Current Semester',
             'academic_year' => '2026-2027',
             'starts_at' => now()->subMonth(),
@@ -183,6 +183,7 @@ class RoleDashboardTest extends TestCase
         ResearchApplication::factory()->create([
             'application_code' => 'OLDER-EDITED-LATER',
             'applicant_user_id' => $applicant,
+            'academic_term_id' => $currentTerm,
             'research_title' => 'Older Application Edited Later',
             'created_at' => now()->subDays(4),
             'updated_at' => now(),
@@ -190,6 +191,7 @@ class RoleDashboardTest extends TestCase
         ResearchApplication::factory()->create([
             'application_code' => 'NEWEST-CREATED',
             'applicant_user_id' => $applicant,
+            'academic_term_id' => $currentTerm,
             'research_title' => 'Newest Created Application',
             'created_at' => now()->subDays(2),
             'updated_at' => now()->subDays(2),
@@ -204,7 +206,7 @@ class RoleDashboardTest extends TestCase
             ->assertDontSee('Older Application Edited Later');
     }
 
-    public function test_applicant_timeline_uses_canonical_keys_and_the_applications_term(): void
+    public function test_applicant_timeline_uses_canonical_keys_and_the_current_term_even_with_a_historical_application(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
         $applicationTerm = AcademicTerm::create([
@@ -263,17 +265,11 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee($applicationTerm->label())
-            ->assertSeeInOrder([
-                'Historical Submission Window',
-                'Endorsement Period',
-                'Historical RES Screening Window',
-                'Reviewing Period',
-                'Revision Period',
-                'Reviewing of Revision Period',
-            ])
-            ->assertSee('Not scheduled')
-            ->assertDontSee('Wrong Current-Term Screening');
+            ->assertSee($currentTerm->label())
+            ->assertSee('Wrong Current-Term Screening')
+            ->assertSee(now()->format('M j, Y').' - '.now()->addDay()->format('M j, Y'))
+            ->assertDontSee('Historical Submission Window')
+            ->assertDontSee('Historical RES Screening Window');
     }
 
     public function test_applicant_deadline_alert_uses_active_term_dates_and_manual_availability(): void
@@ -352,7 +348,7 @@ class RoleDashboardTest extends TestCase
             ->assertDontSee('OTHER-001');
     }
 
-    public function test_adviser_and_res_dashboards_keep_relevant_applications_visible_across_term_links(): void
+    public function test_adviser_and_res_dashboards_exclude_applications_without_the_current_term_link(): void
     {
         AcademicTerm::create([
             'semester' => 'Current Semester',
@@ -380,14 +376,14 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($adviser)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('aria-label="Pending: 1"', false)
-            ->assertSee('UNLINKED-ADVISER-APP');
+            ->assertSee('aria-label="Pending: 0"', false)
+            ->assertDontSee('UNLINKED-ADVISER-APP');
 
         $this->actingAs($resLead)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('aria-label="For RES Screening: 1"', false)
-            ->assertSee('UNLINKED-RES-APP');
+            ->assertSee('aria-label="For RES Screening: 0"', false)
+            ->assertDontSee('UNLINKED-RES-APP');
     }
 
     public function test_role_dashboards_select_their_configured_process_deadlines(): void
@@ -890,7 +886,7 @@ class RoleDashboardTest extends TestCase
         $this->assertStringContainsString('rel="icon"', $login);
     }
 
-    public function test_dashboard_term_filter_is_server_scoped_for_every_role_and_preserves_ownership(): void
+    public function test_dashboard_term_query_is_ignored_and_every_role_remains_current_term_and_owner_scoped(): void
     {
         $historicalTerm = AcademicTerm::create([
             'semester' => 'Historical Dashboard Term',
@@ -923,8 +919,8 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('dashboard', ['academic_term_id' => $historicalTerm->id]))
             ->assertOk()
-            ->assertSee('APPLICANT-HISTORICAL-TERM')
-            ->assertDontSee('APPLICANT-CURRENT-TERM');
+            ->assertSee('APPLICANT-CURRENT-TERM')
+            ->assertDontSee('APPLICANT-HISTORICAL-TERM');
 
         $adviser = User::factory()->create(['role' => UserRole::Adviser]);
         $otherAdviser = User::factory()->create(['role' => UserRole::Adviser]);
@@ -944,8 +940,8 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($adviser)
             ->get(route('dashboard', ['academic_term_id' => $historicalTerm->id]))
             ->assertOk()
-            ->assertSee('ADVISER-HISTORICAL-TERM')
-            ->assertDontSee('ADVISER-CURRENT-TERM')
+            ->assertSee('ADVISER-CURRENT-TERM')
+            ->assertDontSee('ADVISER-HISTORICAL-TERM')
             ->assertDontSee('ADVISER-FOREIGN-RECORD');
 
         $reviewer = User::factory()->reviewer()->create();
@@ -970,8 +966,8 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($reviewer)
             ->get(route('reviewer.dashboard', ['academic_term_id' => $historicalTerm->id]))
             ->assertOk()
-            ->assertSee('REVIEWER-HISTORICAL-TERM')
-            ->assertDontSee('REVIEWER-CURRENT-TERM')
+            ->assertSee('REVIEWER-CURRENT-TERM')
+            ->assertDontSee('REVIEWER-HISTORICAL-TERM')
             ->assertDontSee('REVIEWER-FOREIGN-RECORD');
 
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -989,13 +985,14 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('dashboard', ['academic_term_id' => $historicalTerm->id]))
             ->assertOk()
-            ->assertSee('RES-HISTORICAL-TERM')
-            ->assertDontSee('RES-CURRENT-TERM');
+            ->assertSee('RES-CURRENT-TERM')
+            ->assertDontSee('RES-HISTORICAL-TERM');
 
         $this->actingAs($resLead)
             ->get(route('dashboard', ['academic_term_id' => 999999]))
-            ->assertRedirect()
-            ->assertSessionHasErrors('academic_term_id');
+            ->assertOk()
+            ->assertSee('RES-CURRENT-TERM')
+            ->assertDontSee('RES-HISTORICAL-TERM');
     }
 
     public function test_role_dashboards_keep_database_query_counts_bounded(): void

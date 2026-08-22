@@ -120,6 +120,55 @@ class ResLeadScreeningWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_incomplete_screening_work_is_saved_for_its_res_owner_and_cleared_after_formal_classification(): void
+    {
+        [$resLead, $applicant, , $application] = $this->readyApplication();
+
+        $this->actingAs($resLead)
+            ->postJson(route('res.applications.classification.draft', $application), [
+                'review_type' => ReviewType::FullBoard->value,
+                'classification_reason' => 'Still reviewing risk.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Screening draft saved.');
+
+        $this->assertDatabaseHas('workflow_drafts', [
+            'user_id' => $resLead->id,
+            'research_application_id' => $application->id,
+            'workflow' => 'res_screening',
+        ]);
+        $this->actingAs($resLead)
+            ->get(route('res.applications.show', $application))
+            ->assertOk()
+            ->assertSee('Still reviewing risk.')
+            ->assertSee('data-partial-auto-save-draft', false);
+
+        $this->actingAs($applicant)
+            ->postJson(route('res.applications.classification.draft', $application), [
+                'review_type' => ReviewType::Exempted->value,
+            ])
+            ->assertRedirect(route('dashboard'));
+        $this->assertDatabaseCount('workflow_drafts', 1);
+
+        $this->actingAs($resLead)
+            ->post(
+                route('res.applications.classification.store', $application),
+                $this->classificationPayload(ReviewType::Expedited),
+            )
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('workflow_drafts', [
+            'user_id' => $resLead->id,
+            'research_application_id' => $application->id,
+            'workflow' => 'res_screening',
+        ]);
+        $audit = AuditLog::query()
+            ->where('action', 'application.res_screening_draft_saved')
+            ->firstOrFail();
+        $this->assertSame(['review_type', 'classification_reason'], $audit->metadata['fields_present']);
+        $this->assertArrayNotHasKey('payload', $audit->metadata);
+    }
+
     public function test_expedited_assignment_requires_exactly_one_eligible_reviewer_and_is_idempotent(): void
     {
         [$resLead, $applicant, , $application] = $this->classifiedApplication(ReviewType::Expedited);
@@ -130,7 +179,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
                 'reviewer_ids' => [$reviewer->id],
                 'confirm_assignment' => '1',
             ])
-            ->assertRedirect(route('res.applications.reviewers.index', $application))
+            ->assertRedirect(route('res.applications.show', $application))
             ->assertSessionHasNoErrors();
 
         $application->refresh();

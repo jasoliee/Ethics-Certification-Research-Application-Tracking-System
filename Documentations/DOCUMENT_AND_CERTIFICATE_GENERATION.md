@@ -1,5 +1,15 @@
 # Document and Certificate Generation
 
+## August 22 superseding certificate and worksheet contract
+
+When RES has not configured a replacement certificate QR, ECRATS uses the private deterministic 296x296 PNG produced for the exact payload `https://kld.edu.ph/ovprii.php`. A configured private replacement remains supported. Each generated certificate version snapshots QR storage path, SHA-256, dimensions, configuration payload, generator version, background and signatory provenance, so later settings changes affect future output only.
+
+The QR renders as a fixed 30 mm square at x=24 mm/y=237 mm in the lower-left reference zone. The signature zone begins farther right and generation tests assert both regions do not overlap. Certificate generation remains private and recipient-specific; Preview All composes every ready recipient PDF after nested authorization and integrity validation, with one page per recipient.
+
+Reviewer Settings now owns worksheet printed-name and private signature configuration. Overall review submission snapshots the configured name/signature path/hash/dimensions into immutable artifacts. The renderer supports wrapped study titles and places the signature above a centered, enlarged name and review date without continuation-page overlap. Worksheet business labels remain V1/V2/V3 for initial/C1/C2 independently of append-only internal artifact versions.
+
+Independent scanner readability and pixel/raster side-by-side comparison remain manual acceptance items because the current machine has no QR decoder or PDF rasterizer. Source/generation/provenance tests do not replace those checks.
+
 ## Current State
 
 The official source reference `context_files/OVPRII.docx` was inspected and its maintained background image was extracted without resizing to:
@@ -30,7 +40,7 @@ The styled final-review dialog does not generate documents on the client. It pos
 
 The certificate path is implemented from the separately supplied `context_files/RES CERTIFIACTE.pdf`, not from the OVPRII background. It uses integrity-checked official artwork and signature resources, immutable private PDF versions, policy-protected streams, application-code control numbers, explicit RES release, post-release evaluation, and explicit Applicant claim. Generation/release audit events include provenance and file hashes without private answers or paths.
 
-The remaining certificate limitation is public QR/control-number verification: the supplied official certificate has no QR area and no approved public metadata contract. No QR is added until both are approved. See `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md` for the complete mapping and operational checks.
+The historical paragraph above predates the approved August 21/22 lower-left QR contract and is superseded by the August 22 section. The configured/default QR is now rendered; the full certificate file remains protected through authenticated routes. See `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md` and `ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md` for current operational checks.
 ## Official RES certificate pipeline (August 11, 2026)
 
 Certificates are now generated as private, immutable PDF versions from the supplied `context_files/RES CERTIFIACTE.pdf` design and verified derived resources. Eligibility, generation success, explicit RES release, Applicant evaluation, and explicit claim are separate server-enforced states. An activated background affects future generations only; existing version records preserve their template/background hashes. Full field mapping, integrity hashes, failure behavior, and operational checks are in `Documentations/APPLICANT_REVISION_AND_CERTIFICATION.md`.

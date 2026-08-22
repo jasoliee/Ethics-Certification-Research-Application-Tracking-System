@@ -1,5 +1,7 @@
 # DOOMSDAY Implementation Status - 2026-08-21
 
+> Historical checkpoint. The current status is [ENDGAME Implementation Status - 2026-08-22](ENDGAME_IMPLEMENTATION_STATUS_2026-08-22.md).
+
 This record covers the complete `DOOMSDAY-INPUT.txt` audit and supersedes the August 17 document only for the requirements changed or reverified here. The row-by-row authority is [DOOMSDAY Requirements Traceability](DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md).
 
 ## Outcome

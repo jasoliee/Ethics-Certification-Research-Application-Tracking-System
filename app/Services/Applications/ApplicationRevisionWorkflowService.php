@@ -234,6 +234,7 @@ class ApplicationRevisionWorkflowService
                 'tone' => 'blue',
                 'route' => 'applicant.revision-certificates.index',
                 'route_parameters' => ['application' => $application->id],
+                'academic_term_id' => $application->academic_term_id,
             ]));
         }
 
@@ -373,6 +374,10 @@ class ApplicationRevisionWorkflowService
                 'submitted_by_user_id' => $actor->id,
                 'submitted_at' => $submittedAt,
             ]);
+            ApplicationDocument::query()
+                ->whereIn('id', $requirements->pluck('replacement_application_document_id')->filter())
+                ->whereNull('formally_submitted_at')
+                ->update(['formally_submitted_at' => $submittedAt]);
             $lockedApplication->update([
                 'application_status' => ApplicationStatus::UnderReReview->value,
                 'current_stage' => ApplicationStage::EthicsReview->value,
@@ -401,7 +406,7 @@ class ApplicationRevisionWorkflowService
             ->where('role', UserRole::Adviser->value)
             ->where('reviewer_enabled', true)
             ->where('account_status', AccountStatus::Active->value)
-            ->each(function (User $reviewer): void {
+            ->each(function (User $reviewer) use ($submitted): void {
                 $reviewer->notify(new DashboardUpdateNotification([
                     'title' => 'Revision ready for re-review',
                     'message' => 'A revised application assigned to you is ready for review.',
@@ -409,6 +414,7 @@ class ApplicationRevisionWorkflowService
                     'tone' => 'blue',
                     'route' => 'reviewer.reviews.index',
                     'route_parameters' => ['tab' => 'revision'],
+                    'academic_term_id' => $submitted->researchApplication?->academic_term_id,
                 ]));
             });
 

@@ -263,6 +263,8 @@ Route::middleware('no-store')->group(function (): void {
                     Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
                     Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');
                     Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
+                    Route::put('/worksheet-signatory', 'updateWorksheetSignatory')->middleware('throttle:security-change')->name('worksheet-signatory.update');
+                    Route::get('/worksheet-signature/preview', 'previewWorksheetSignature')->name('worksheet-signature.preview');
                 });
             });
 
@@ -291,6 +293,9 @@ Route::middleware('no-store')->group(function (): void {
                 Route::post('/applications/{researchApplication}/classification', [ResLeadApplicationController::class, 'classify'])
                     ->middleware('throttle:res-workflow')
                     ->name('applications.classification.store');
+                Route::post('/applications/{researchApplication}/classification/draft', [ResLeadApplicationController::class, 'saveScreeningDraft'])
+                    ->middleware('throttle:res-workflow')
+                    ->name('applications.classification.draft');
                 // Screening corrections use a separate idempotent route and the same bounded write throttle.
                 Route::put('/applications/{researchApplication}/classification', [ResLeadApplicationController::class, 'updateScreening'])
                     ->middleware('throttle:res-workflow')
@@ -335,6 +340,8 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('certificates.versions.preview');
                 Route::get('/certificates/{certificate}/versions/{certificateVersion}/download', [ResCertificationController::class, 'downloadCertificate'])
                     ->name('certificates.versions.download');
+                Route::get('/certificates/applications/{researchApplication}/preview-all', [ResCertificationController::class, 'previewAllCertificates'])
+                    ->name('certificates.applications.preview-all');
                 Route::controller(ResReportController::class)->prefix('reports')->name('reports.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');

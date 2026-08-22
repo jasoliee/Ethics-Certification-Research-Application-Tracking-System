@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-22
+
+### Added
+
+- Persisted, authorized screening drafts and page-leave application draft saving without bypassing final workflow validation.
+- Reviewer Worksheet Configuration with private signature preview and immutable generated-artifact snapshots.
+- Deterministic offline default certificate QR metadata and plural-recipient Preview All PDF composition.
+- Full RES operational Reports page and focused authorization/filter/aggregate/query-count coverage.
+
+### Corrected
+
+- Draft document replacement now deletes only never-formally-submitted rows/private bytes; initial/C1/C2 submitted versions remain the maximum retained business history.
+- Settings, dashboard current-term scope, monitoring/drill-down filters, notifications/Bin layout, Applicant revision controls, certificate queue/workspace, private embedded previews, and long-value/responsive boundaries now follow the ENDGAME contracts.
+- Generated worksheets support multiline titles and place the signature above a centered larger name/date without third-page overlap.
+- Recipient-aware report and certificate states no longer treat a partial certificate set as fully released.
+
+### Database and verification
+
+- Added and applied `2026_08_22_000000_add_submission_and_worksheet_settings.php` as safe additive batch 6. It introduces formal-submission metadata, nullable worksheet settings, and an owner/application/workflow draft table; no existing record is deleted.
+- Final complete SQLite in-memory suite: 329 tests, 4,545 assertions, passed.
+- Pint, Vite production build, Blade cache, 172-route discovery, migration status, and whitespace checks passed.
+- Browser/native-preview, pixel/raster certificate comparison, and independent QR scanning remain pending for the documented local-tooling reasons.
+
 ## 2026-08-21
 
 ### Corrected

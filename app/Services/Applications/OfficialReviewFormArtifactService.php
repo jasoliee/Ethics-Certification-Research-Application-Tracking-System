@@ -192,7 +192,9 @@ class OfficialReviewFormArtifactService
         $rightX = $isProtocol ? 150.0 : 145.0;
         $rightWidth = $isProtocol ? 42.0 : 47.0;
 
-        $this->writeFittedLine($pdf, $leftX, 72.2, 124.0, (string) ($context['research_title'] ?? ''), 7.5, 5.0);
+        $pdf->SetFont('Helvetica', 'B', 5.5);
+        $pdf->SetXY($leftX, 69.2);
+        $pdf->MultiCell(124.0, 3.1, $this->pdfText(Str::limit(trim((string) ($context['research_title'] ?? '')), 210, '...')), 0, 'L');
         $this->writeFittedLine($pdf, $leftX, 82.2, $leftWidth, (string) ($context['application_code'] ?? ''), 6.5, 4.5);
         $this->writeFittedLine($pdf, $rightX, 82.2, $rightWidth, (string) ($context['review_classification'] ?? ''), 6.5, 4.5);
 
@@ -331,16 +333,16 @@ class OfficialReviewFormArtifactService
             );
         }
 
-        $signatureY = $isProtocol ? 245.0 : 200.7;
-        $pdf->SetFont('Helvetica', 'B', 6.5);
-        $this->writeSingleLine(
-            $pdf,
-            25.0,
-            $signatureY,
-            110.0,
-            'Electronically attested: '.(string) ($context['reviewer_name'] ?? ''),
-        );
-        $this->writeSingleLine($pdf, 145.0, $signatureY, 40.0, (string) ($context['review_date'] ?? ''));
+        $signatureY = $isProtocol ? 244.0 : 201.0;
+        $signaturePath = $this->verifiedWorksheetSignature($context);
+        if ($signaturePath !== null) {
+            $pdf->Image($signaturePath, 55.0, $signatureY - 10.0, 42.0, 8.0, 'PNG');
+        }
+        $pdf->SetFont('Helvetica', 'B', 7.5);
+        $pdf->SetXY(25.0, $signatureY);
+        $pdf->Cell(110.0, 4.0, $this->pdfText((string) ($context['worksheet_signatory_name'] ?? $context['reviewer_name'] ?? '')), 0, 0, 'C');
+        $pdf->SetXY(145.0, $signatureY);
+        $pdf->Cell(40.0, 4.0, $this->pdfText((string) ($context['review_date'] ?? '')), 0, 0, 'C');
     }
 
     /**
@@ -565,5 +567,32 @@ class OfficialReviewFormArtifactService
         $converted = iconv('UTF-8', 'Windows-1252//TRANSLIT//IGNORE', $value);
 
         return is_string($converted) ? $converted : Str::ascii($value);
+    }
+
+    /** @param array<string, mixed> $context */
+    private function verifiedWorksheetSignature(array $context): ?string
+    {
+        $storedPath = trim((string) ($context['worksheet_signature_path'] ?? ''));
+        if ($storedPath === '') {
+            return null;
+        }
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($storedPath)) {
+            throw new OfficialReviewFormGenerationException('The configured Reviewer signature is unavailable.');
+        }
+        $path = $disk->path($storedPath);
+        $hash = hash_file('sha256', $path);
+        $dimensions = @getimagesize($path);
+        if (! is_string($hash)
+            || ! hash_equals((string) ($context['worksheet_signature_sha256'] ?? ''), $hash)
+            || ! is_array($dimensions)
+            || ($dimensions['mime'] ?? null) !== 'image/png'
+            || (int) $dimensions[0] !== (int) ($context['worksheet_signature_width'] ?? 0)
+            || (int) $dimensions[1] !== (int) ($context['worksheet_signature_height'] ?? 0)) {
+            throw new OfficialReviewFormGenerationException('The configured Reviewer signature failed integrity verification.');
+        }
+
+        return $path;
     }
 }

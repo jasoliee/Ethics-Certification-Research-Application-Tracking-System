@@ -19,7 +19,8 @@ class ApplicantSurveyReportService
      *     sections: array<string, array{title: string, average: float|null, questions: array<string, array{label: string, average: float|null, response_count: int}>}>
      * }
      */
-    public function summary(?int $academicTermId = null): array
+    /** @param array<string, mixed> $filters */
+    public function summary(array $filters = []): array
     {
         $questionSums = array_fill_keys(ApplicantSurveyCatalog::questionKeys(), 0);
         $questionCounts = array_fill_keys(ApplicantSurveyCatalog::questionKeys(), 0);
@@ -28,9 +29,7 @@ class ApplicantSurveyReportService
         ApplicantSurveyResponse::query()
             ->select(['id', 'ratings'])
             ->where('questionnaire_version', ApplicantSurveyCatalog::VERSION)
-            ->when($academicTermId !== null, fn (Builder $query) => $query
-                ->whereHas('researchApplication', fn (Builder $applications) => $applications
-                    ->where('academic_term_id', $academicTermId)))
+            ->whereHas('researchApplication', fn (Builder $applications) => $this->applyApplicationFilters($applications, $filters))
             ->lazyById(500)
             ->each(function (ApplicantSurveyResponse $response) use (&$questionSums, &$questionCounts, &$responseCount): void {
                 $ratings = is_array($response->ratings) ? $response->ratings : [];
@@ -87,12 +86,34 @@ class ApplicantSurveyReportService
             'response_count' => $responseCount,
             'legacy_response_count' => ApplicantSurveyResponse::query()
                 ->where('questionnaire_version', '<>', ApplicantSurveyCatalog::VERSION)
-                ->when($academicTermId !== null, fn (Builder $query) => $query
-                    ->whereHas('researchApplication', fn (Builder $applications) => $applications
-                        ->where('academic_term_id', $academicTermId)))
+                ->whereHas('researchApplication', fn (Builder $applications) => $this->applyApplicationFilters($applications, $filters))
                 ->count(),
             'overall_average' => $overallCount > 0 ? round($overallSum / $overallCount, 2) : null,
             'sections' => $sections,
         ];
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function applyApplicationFilters(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $applications) => $applications
+                ->where('academic_term_id', (int) $filters['academic_term_id']))
+            ->when(filled($filters['date_from'] ?? null), fn (Builder $applications) => $applications
+                ->whereDate('submitted_at', '>=', $filters['date_from']))
+            ->when(filled($filters['date_to'] ?? null), fn (Builder $applications) => $applications
+                ->whereDate('submitted_at', '<=', $filters['date_to']))
+            ->when(filled($filters['research_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('research_type', $filters['research_type']))
+            ->when(filled($filters['applicant_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('applicant_type', $filters['applicant_type']))
+            ->when(filled($filters['review_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('review_type', $filters['review_type']))
+            ->when(filled($filters['department'] ?? null), fn (Builder $applications) => $applications
+                ->where('department', $filters['department']))
+            ->when(filled($filters['institution'] ?? null), fn (Builder $applications) => $applications
+                ->where('institution', $filters['institution']))
+            ->when(filled($filters['application_status'] ?? null), fn (Builder $applications) => $applications
+                ->where('application_status', $filters['application_status']));
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Enums\UserRole;
+use App\Models\AcademicTerm;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,10 +93,11 @@ class DashboardNotificationTest extends TestCase
             ->get(route('applicant.notifications.index', ['read_status' => 'unread']))
             ->assertOk()
             ->assertSee('Owned notification')
-            ->assertSee('Mark Read')
-            ->assertSee('Mark Unread')
+            ->assertSee('Mark all as Read')
+            ->assertSee('Mark all as Unread')
             ->assertSee('Delete All')
-            ->assertSee('Action')
+            ->assertSee('Selected Notification')
+            ->assertSee('Choose Action')
             ->assertSee('data-notification-confirm-dialog', false)
             ->assertSee('data-notification-confirm-mode="inbox-selected"', false)
             ->assertDontSee('onsubmit="return confirm(', false);
@@ -149,6 +151,42 @@ class DashboardNotificationTest extends TestCase
         $orderClause = strtolower(substr($typeQuery['query'], strripos(strtolower($typeQuery['query']), 'order by')));
         $this->assertStringContainsString('type', $orderClause);
         $this->assertStringNotContainsString('created_at', $orderClause);
+    }
+
+    public function test_notification_term_filter_is_owner_scoped_and_lists_the_current_term_first(): void
+    {
+        $owner = User::factory()->create(['role' => UserRole::Applicant]);
+        $historical = AcademicTerm::create([
+            'semester' => 'Historical Term',
+            'academic_year' => '2025-2026',
+            'starts_at' => now()->subYear(),
+            'ends_at' => now()->subMonths(6),
+            'is_active' => false,
+        ]);
+        $current = AcademicTerm::create([
+            'semester' => 'Active Term',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'is_active' => true,
+        ]);
+        foreach ([[$historical, 'Historical notice'], [$current, 'Current notice']] as [$term, $title]) {
+            $owner->notify(new DashboardUpdateNotification([
+                'title' => $title,
+                'message' => 'Term-scoped workflow update.',
+                'academic_term_id' => $term->id,
+            ]));
+        }
+
+        $response = $this->actingAs($owner)->get(route('applicant.notifications.index', [
+            'academic_term_id' => $current->id,
+        ]));
+
+        $response->assertOk()
+            ->assertSee('Current notice')
+            ->assertSeeInOrder(['Current - Active Term, A.Y. 2026-2027', 'Historical Term, A.Y. 2025-2026']);
+        $this->assertSame(1, $response->viewData('notifications')->total());
+        $this->assertSame('Current notice', $response->viewData('notifications')->first()->data['title']);
     }
 
     public function test_notification_filters_and_pagination_are_owner_scoped_at_twenty_rows(): void

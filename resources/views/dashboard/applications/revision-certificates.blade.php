@@ -58,23 +58,14 @@
                 <div>
                     <strong>Application</strong>
                 </div>
-                <form class="revision-term-filter" method="GET" action="{{ route('applicant.revision-certificates.index') }}">
-                    <label for="revision-academic-term">Academic Term</label>
-                    <select id="revision-academic-term" name="academic_term_id" onchange="this.form.submit()">
-                        <option value="">All</option>
-                        @foreach ($termOptions as $term)
-                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
-                        @endforeach
-                    </select>
-                </form>
                 <div class="revision-application-tabs">
                     @foreach ($applications as $item)
                         <a
-                            href="{{ route('applicant.revision-certificates.index', ['application' => $item->id, 'academic_term_id' => $filters['academic_term_id'] ?? null]) }}"
+                            href="{{ route('applicant.revision-certificates.index', ['application' => $item->id]) }}"
                             @if ($application?->is($item)) aria-current="page" @endif
                         >
                             <strong>{{ $item->application_code }}</strong>
-                            <span>{{ Str::limit($item->research_title, 46) }}</span>
+                            <span>{{ $item->research_title }}</span>
                         </a>
                     @endforeach
                 </div>
@@ -272,15 +263,15 @@
                     </details>
 
                     @unless ($finalApproved)
-                    <section class="application-panel revision-documents-panel" aria-labelledby="revision-documents-title">
-                        <header class="application-panel-heading">
+                    <details class="application-panel revision-documents-panel" open>
+                        <summary class="application-panel-heading">
                             <div>
                                 <h2 id="revision-documents-title">Revision Submission</h2>
                             </div>
                             @if ($activeRevision)
                                 <x-dashboard.status-badge :label="$activeRevision->status->label()" :tone="$revisionPending ? 'orange' : 'blue'" />
                             @endif
-                        </header>
+                        </summary>
 
                         @if ($revisionPending)
                             <div class="revision-deadline-notice" role="status">
@@ -302,15 +293,12 @@
                                                 @endif
                                             </span>
                                             @if ($replacement)
-                                                <small class="revision-upload-complete">Ready: version {{ $replacement->document_version }} uploaded {{ $replacement->uploaded_at?->format('M j, Y g:i A') }}</small>
+                                                <button class="revision-upload-complete application-document-title" type="button" data-document-open data-document-name="{{ $replacement->original_file_name }}" data-document-type="{{ $replacement->fileTypeLabel() }}" data-document-meta="Version {{ $replacement->document_version }} uploaded {{ $replacement->uploaded_at?->format('M j, Y g:i A') }}" data-document-preview-kind="{{ $replacement->previewKind() }}" data-document-preview-url="{{ route('applicant.applications.documents.preview', [$application, $replacement]) }}" data-document-download-url="{{ route('applicant.applications.documents.download', [$application, $replacement]) }}" data-document-replace-input="revision_document_{{ $revisionRequirement->id }}">{{ $replacement->original_file_name }}</button>
                                             @else
                                                 <small class="revision-upload-required">Replacement required before submission</small>
                                             @endif
                                         </div>
                                         <div class="revision-requirement-actions">
-                                            @if ($replacement)
-                                                <a href="{{ route('applicant.applications.documents.preview', [$application, $replacement]) }}" target="_blank" rel="noopener">View replacement</a>
-                                            @endif
                                             <form
                                                 method="POST"
                                                 action="{{ route('applicant.revision-certificates.revisions.documents.store', [$application, $activeRevision, $revisionRequirement]) }}"
@@ -321,7 +309,7 @@
                                                 <label class="dashboard-outline-action revision-file-control">
                                                     <x-dashboard.icon name="upload" size="16" />
                                                     <span data-revision-file-name>Choose File</span>
-                                                    <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" required data-revision-upload-input>
+                                                    <input id="revision_document_{{ $revisionRequirement->id }}" type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" required data-revision-upload-input>
                                                 </label>
                                                 <span class="application-upload-feedback" role="status" aria-live="polite" data-revision-upload-feedback></span>
                                             </form>
@@ -333,7 +321,7 @@
                                 $revisionReady = $activeRevision->requirements->isNotEmpty()
                                     && $activeRevision->requirements->every(fn ($requirement) => $requirement->replacement_application_document_id !== null);
                             @endphp
-                            <form method="POST" action="{{ route('applicant.revision-certificates.revisions.submit', [$application, $activeRevision]) }}" data-disable-on-submit>
+                            <form method="POST" action="{{ route('applicant.revision-certificates.revisions.submit', [$application, $activeRevision]) }}" data-disable-on-submit data-notification-confirm data-confirm-title="Submit Revision for Re-review" data-confirm-message="Submit all selected Version {{ $activeRevision->revision_number + 1 }} documents to the authorized Reviewer set? Files cannot be replaced after submission." data-confirm-action="Submit Revision">
                                 @csrf
                                 <button class="dashboard-primary-action" type="submit" @disabled(! $revisionReady)>
                                     <x-dashboard.icon name="send" size="17" />
@@ -356,7 +344,7 @@
                             <p class="revision-empty-state">No Applicant revision submission is currently open.</p>
                         @endif
 
-                    </section>
+                    </details>
                     @endunless
                 </main>
 
@@ -466,5 +454,7 @@
                 @endif
             </div>
         @endif
+        @include('dashboard.applications.partials.document-dialog')
+        <section class="application-modal-backdrop" data-notification-confirm-dialog hidden><div class="application-modal notification-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="revision-confirm-title" aria-describedby="revision-confirm-message" tabindex="-1"><button class="application-modal-close" type="button" aria-label="Cancel revision submission" data-notification-confirm-close><x-dashboard.icon name="x" size="20" /></button><header class="application-modal-heading"><span class="application-modal-icon"><x-dashboard.icon name="send" size="24" /></span><div><h2 id="revision-confirm-title" data-notification-confirm-title>Submit Revision for Re-review</h2><p id="revision-confirm-message" data-notification-confirm-message>Confirm this revision submission.</p></div></header><div class="application-modal-actions"><button class="dashboard-outline-action" type="button" data-notification-confirm-close>Cancel</button><button class="dashboard-primary-action" type="button" data-notification-confirm-submit><span>Submit Revision</span></button></div></div></section>
     </div>
 @endsection

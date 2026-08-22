@@ -30,6 +30,7 @@
             method="POST"
             action="{{ $isEditing ? route('applicant.applications.update', $application) : route('applicant.applications.store') }}"
             data-application-submit-once
+            data-auto-save-draft
         >
             @csrf
             @if ($isEditing) @method('PUT') @endif

@@ -5,7 +5,6 @@
 
     <div>
         <h3>Editable Profile Information</h3>
-        <p>Your role, account status, institutional identifier, and Reviewer eligibility are controlled by authorized RES workflows.</p>
     </div>
 
     <div class="identity-form-grid">

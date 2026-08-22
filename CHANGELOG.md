@@ -4,6 +4,17 @@ All notable project changes should be documented here.
 
 ## Unreleased
 
+### 2026-08-22 ENDGAME completion audit
+
+- Added safe automatic screening drafts, page-leave application draft saving, and formal-submission provenance so never-submitted replaced uploads are removed while the submitted V1/V2/V3 history remains immutable.
+- Added Reviewer worksheet signatory/signature configuration and corrected generated worksheet title, signature, name, review-date, and continuation-page layout.
+- Added an offline deterministic 296x296 default certificate QR for `https://kld.edu.ph/ovprii.php`, immutable fallback/replacement provenance, fixed 30 mm lower-left placement, and plural-recipient Preview All output.
+- Completed the RES operational Reports dashboard with all required server filters, eight summary cards, workflow/trend/distribution/turnaround/workload/certificate aggregates, management tables, accessible equivalents, empty states, and fixed aggregate query counts.
+- Refined Settings, current-term dashboards, screening/assignment, monitoring/drill-downs, Applicant upload/revision, notifications/Bin, certificate queue/workspace, secure previews, long-value containment, hover/focus, and responsive source contracts.
+- Added and applied only `2026_08_22_000000_add_submission_and_worksheet_settings` to local ECRATS MySQL as additive batch 6.
+- Final SQLite in-memory suite passes 329 tests and 4,545 assertions. Pint, Vite production build, Blade cache, 172-route discovery, and `git diff --check` pass.
+- Authenticated browser/native-preview, pixel-level certificate comparison, and independent QR scan remain pending because no approved browser session, PDF rasterizer, or QR decoder is available. See `Documentations/ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md`.
+
 ### 2026-08-21 DOOMSDAY audit and corrections
 
 - Completed a current-session requirement traceability audit rather than relying on the historical handoff.

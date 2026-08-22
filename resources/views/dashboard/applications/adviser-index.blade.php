@@ -9,6 +9,15 @@
 
         {{-- GET filters remain bookmarkable and cannot escape the authenticated Adviser scope. --}}
         <form class="application-filter-bar application-filter-bar-wide" method="GET" action="{{ route('adviser.applications.index') }}">
+            <div class="application-field">
+                <label class="sr-only" for="adviser-academic-term">Academic Term</label>
+                <select id="adviser-academic-term" name="academic_term_id">
+                    <option value="">All terms</option>
+                    @foreach ($termOptions as $term)
+                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="application-field application-search-field">
                 <label class="sr-only" for="q">Search applications</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -20,15 +29,6 @@
                     <option value="">All statuses</option>
                     @foreach ($statuses as $status)
                         <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>{{ $status->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="application-field">
-                <label class="sr-only" for="adviser-academic-term">Academic Term</label>
-                <select id="adviser-academic-term" name="academic_term_id">
-                    <option value="">All terms</option>
-                    @foreach ($termOptions as $term)
-                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                     @endforeach
                 </select>
             </div>

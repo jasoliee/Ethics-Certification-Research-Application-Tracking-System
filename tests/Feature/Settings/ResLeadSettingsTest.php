@@ -120,7 +120,7 @@ class ResLeadSettingsTest extends TestCase
         ]);
     }
 
-    public function test_deadline_configuration_accepts_expired_ranges_and_leaves_them_automatic(): void
+    public function test_deadline_configuration_rejects_expired_process_ranges(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $processKey = DeadlineProcessCatalog::keys()[0];
@@ -138,13 +138,13 @@ class ResLeadSettingsTest extends TestCase
                 ->from(route('res.settings.index'))
                 ->put(route('res.settings.deadlines.update'), $payload)
                 ->assertRedirect()
-                ->assertSessionDoesntHaveErrors();
+                ->assertSessionHasErrors([
+                    "processes.{$processKey}.starts_at",
+                    "processes.{$processKey}.due_at",
+                ]);
         }
 
-        $this->assertNull(DeadlineConfiguration::query()
-            ->where('deadline_key', 'like', "%{$processKey}")
-            ->firstOrFail()
-            ->manual_status);
+        $this->assertSame(0, DeadlineConfiguration::query()->count());
     }
 
     public function test_deadline_configuration_accepts_a_past_term_start_date(): void
@@ -172,8 +172,8 @@ class ResLeadSettingsTest extends TestCase
             ->getContent();
         preg_match('/<input id="term_starts_on"[^>]*>/', $newTermHtml, $newStartInput);
         preg_match('/<input id="term_ends_on"[^>]*>/', $newTermHtml, $newEndInput);
-        $this->assertStringContainsString('min="'.now()->toDateString().'"', $newStartInput[0]);
-        $this->assertStringContainsString('min="'.now()->toDateString().'"', $newEndInput[0]);
+        $this->assertStringNotContainsString(' min=', $newStartInput[0]);
+        $this->assertStringNotContainsString(' min=', $newEndInput[0]);
 
         $historicalStart = now()->subYear()->startOfDay();
         AcademicTerm::create([

@@ -12,6 +12,15 @@
 
         {{-- Queue filters mirror the approved screening fields and remain outside the table overflow region. --}}
         <form class="application-filter-bar application-filter-bar-res" method="GET" action="{{ route('res.applications.index') }}">
+            <div class="application-field res-filter-term">
+                <label for="res-academic-term">Academic Term</label>
+                <select id="res-academic-term" name="academic_term_id">
+                    <option value="">All</option>
+                    @foreach ($termOptions as $term)
+                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="application-field application-search-field res-filter-search">
                 <label for="res-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -44,16 +53,6 @@
                     <option value="">All institutes / programs</option>
                     @foreach ($affiliations as $affiliation)
                         <option value="{{ $affiliation }}" @selected(($filters['affiliation'] ?? '') === $affiliation)>{{ $affiliation }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="application-field res-filter-term">
-                <label for="res-academic-term">Academic Term</label>
-                <select id="res-academic-term" name="academic_term_id">
-                    <option value="">All</option>
-                    @foreach ($termOptions as $term)
-                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                     @endforeach
                 </select>
             </div>

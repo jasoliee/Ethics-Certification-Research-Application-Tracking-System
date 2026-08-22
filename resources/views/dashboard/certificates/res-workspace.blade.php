@@ -38,7 +38,7 @@
                                     <td>v{{ $document->document_version }}</td>
                                     <td>{{ $document->uploaded_at?->format('M j, Y') ?? 'Not recorded' }}</td>
                                     <td class="res-document-actions">
-                                        <button class="dashboard-outline-action" type="button" data-document-open data-document-name="{{ $document->original_file_name }}" data-document-type="{{ $document->fileTypeLabel() }}" data-document-meta="{{ $document->requirement?->name ?? 'Supporting Document' }}" data-document-preview-kind="{{ $document->previewKind() }}" data-document-preview-url="{{ route('res.applications.documents.preview', [$application, $document]) }}" data-document-download-url="{{ route('res.applications.documents.download', [$application, $document]) }}"><x-dashboard.icon name="eye" size="16" /><span>Open</span></button>
+                                        <button class="dashboard-outline-action" type="button" aria-label="Preview {{ $document->original_file_name }}" data-document-open data-document-name="{{ $document->original_file_name }}" data-document-type="{{ $document->fileTypeLabel() }}" data-document-meta="{{ $document->requirement?->name ?? 'Supporting Document' }}" data-document-preview-kind="{{ $document->previewKind() }}" data-document-preview-url="{{ route('res.applications.documents.preview', [$application, $document]) }}" data-document-download-url="{{ route('res.applications.documents.download', [$application, $document]) }}"><x-dashboard.icon name="eye" size="16" /><span class="sr-only">Preview</span></button>
                                         <a class="dashboard-icon-action" href="{{ route('res.applications.documents.download', [$application, $document]) }}" aria-label="Download {{ $document->original_file_name }}"><x-dashboard.icon name="download" size="16" /></a>
                                     </td>
                                 </tr>
@@ -50,8 +50,7 @@
         </section>
 
         @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
-            <section class="application-panel res-application-release-panel" aria-labelledby="application-release-title">
-                <header class="application-panel-heading"><div><h2 id="application-release-title">Application Decision</h2></div></header>
+            <section class="application-panel res-application-release-panel" aria-label="Decision release action">
                 @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
                     <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
                 @elseif ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $application->review_consensus_decision !== \App\Enums\ReviewDecision::Approved)
@@ -69,11 +68,12 @@
                     $submittedVersion = $assignment->reviewSubmission?->currentVersion;
                     $snapshotComments = collect(data_get($submittedVersion?->payload_snapshot, 'comments', []));
                 @endphp
-                <section class="application-panel res-readonly-review-card">
-                    <header class="application-panel-heading">
+                <details class="application-panel res-readonly-review-card" @if($application->reviewerAssignments->count() === 1) open @endif>
+                    <summary class="application-panel-heading">
+                        <span class="res-readonly-reviewer-name">{{ $assignment->reviewer?->name ?? 'Reviewer identity unavailable' }}</span>
                         <div><h2>Reviewer {{ $loop->iteration }}</h2><p>Submitted {{ $submittedVersion?->submitted_at?->format('M j, Y g:i A') ?? 'Not submitted' }}@if ($submittedVersion) · Version {{ $submittedVersion->version_number }}@endif</p></div>
                         <x-dashboard.status-badge :label="$submittedVersion?->decision?->label() ?? 'Pending'" :tone="$submittedVersion?->decision?->tone() ?? 'neutral'" />
-                    </header>
+                    </summary>
 
                     <div class="res-readonly-review-section"><h3>Decision Comment</h3><p>{{ $submittedVersion?->decision_comment ?: 'No decision comment recorded.' }}</p></div>
                     <div class="res-readonly-review-section"><h3>Review Comments</h3>
@@ -100,7 +100,7 @@
                         @endforelse
                     </div>
 
-                </section>
+                </details>
             @empty
                 <section class="application-panel"><p class="reviewer-empty-copy">No current submitted Reviewer records are available.</p></section>
             @endforelse

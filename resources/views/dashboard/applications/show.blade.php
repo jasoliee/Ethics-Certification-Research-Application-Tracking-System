@@ -269,7 +269,7 @@
                 data-adviser-endorse-dialog
                 @if ($errors->adviserEndorse->any()) data-open-on-load @else hidden @endif
             >
-                <div class="application-modal application-decision-modal" role="dialog" aria-modal="true" aria-labelledby="adviser-endorse-title" tabindex="-1">
+                <div class="application-modal application-decision-modal adviser-endorsement-modal" role="dialog" aria-modal="true" aria-labelledby="adviser-endorse-title" tabindex="-1">
                     <button class="application-modal-close" type="button" aria-label="Close endorsement form" data-adviser-endorse-close>
                         <x-dashboard.icon name="x" size="20" />
                     </button>

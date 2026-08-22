@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Enums\ApplicantType;
+use App\Enums\ApplicationStatus;
+use App\Enums\ResearchType;
+use App\Enums\ReviewType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Services\Reports\ApplicantSurveyReportService;
+use App\Services\Reports\OperationalReportService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,15 +24,21 @@ class ResReportController extends Controller
     public function index(
         Request $request,
         ApplicantSurveyReportService $surveyReports,
+        OperationalReportService $operationalReports,
         AcademicTermResolver $terms,
     ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $request->validate([
             'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'research_type' => ['nullable', Rule::enum(ResearchType::class)],
+            'applicant_type' => ['nullable', Rule::enum(ApplicantType::class)],
+            'review_type' => ['nullable', Rule::enum(ReviewType::class)],
+            'department' => ['nullable', 'string', 'max:150'],
+            'institution' => ['nullable', 'string', 'max:150'],
+            'application_status' => ['nullable', Rule::enum(ApplicationStatus::class)],
         ]);
-        $academicTermId = filled($filters['academic_term_id'] ?? null)
-            ? (int) $filters['academic_term_id']
-            : null;
 
         return view('dashboard.reports.res-index', [
             'pageTitle' => 'Reports',
@@ -34,9 +46,16 @@ class ResReportController extends Controller
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Reports'],
             ],
-            'surveySummary' => $surveyReports->summary($academicTermId),
+            'surveySummary' => $surveyReports->summary($filters),
+            'report' => $operationalReports->report($filters),
             'filters' => $filters,
             'termOptions' => $terms->filterOptions(),
+            'researchTypes' => ResearchType::cases(),
+            'applicantTypes' => ApplicantType::cases(),
+            'reviewTypes' => ReviewType::cases(),
+            'applicationStatuses' => ApplicationStatus::cases(),
+            'departments' => ResearchApplication::query()->whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department'),
+            'institutions' => ResearchApplication::query()->whereNotNull('institution')->where('institution', '<>', '')->distinct()->orderBy('institution')->pluck('institution'),
         ]);
     }
 

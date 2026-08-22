@@ -60,6 +60,28 @@ Date:
 
 ## Active Plans
 
+## Plan: ENDGAME manual-QA corrections and operational reports
+
+Status: Source, test, build, and additive local-migration work completed on 2026-08-22. Authenticated viewport/native-preview and certificate raster/scanner acceptance remain pending because the approved local tooling is unavailable.
+
+### Goal
+Reaudit the full DOOMSDAY contract plus `D:\Downloads\ENDGAME.txt`, correct every verified ECRATS gap, add management-grade RES reporting, preserve formal evidence and local data, and maintain a status/evidence row for every requirement.
+
+### Scope and safety
+- Included: Settings, dashboards, screening drafts/assignment, monitoring/drill-downs, Applicant drafts/uploads/revision/retention, Reviewer worksheets, notifications, plural certificates/default QR, secure previews, current-term behavior, Reports, tests, safe forward migration, and documentation.
+- Excluded: internet/external services, third-party analytics/viewers, unrelated files/databases, `.env`, destructive database commands, deployment/tunnels, commit, and push.
+
+### Completion evidence
+- `Documentations/ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md` is the row-by-row ledger.
+- `Documentations/ENDGAME_IMPLEMENTATION_STATUS_2026-08-22.md` records implementation, migration, verification, and remaining acceptance.
+- Final SQLite suite: 329 tests, 4,545 assertions, passed.
+- Pint, production build, Blade cache, 172 routes, migration status, and diff checks passed.
+- Additive migration `2026_08_22_000000_add_submission_and_worksheet_settings` is local batch 6.
+
+### Remaining acceptance
+- Connect an authenticated in-app browser and execute the cross-role desktop/tablet/mobile checklist, including native private previews.
+- Rasterize/compare a representative certificate and independently scan the default and configured QR assets using approved local tools.
+
 ## Plan: Complete DOOMSDAY requirement audit and safe corrections
 
 Status: Source implementation and automated/database verification completed on 2026-08-21; authenticated responsive and certificate pixel/reference acceptance remain pending external runtime availability.

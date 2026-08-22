@@ -124,6 +124,7 @@ class AdviserEndorsementService
                     'tone' => $isEndorsed ? 'green' : 'red',
                     'route' => 'applicant.applications.show',
                     'route_parameters' => ['researchApplication' => $locked->id],
+                    'academic_term_id' => $locked->academic_term_id,
                 ]));
             }
 
@@ -141,6 +142,7 @@ class AdviserEndorsementService
                             'tone' => 'orange',
                             'route' => 'res.applications.show',
                             'route_parameters' => ['researchApplication' => $locked->id],
+                            'academic_term_id' => $locked->academic_term_id,
                         ]));
                     }, 100);
             }

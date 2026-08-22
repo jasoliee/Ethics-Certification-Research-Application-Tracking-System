@@ -1,10 +1,11 @@
 # Known Issues and Pending Verification
 
-## August 21, 2026 Current Acceptance Blockers
+## August 22, 2026 Current Acceptance Blockers
 
-- Authenticated localhost desktop/tablet/mobile verification is pending. The approved in-app browser discovery returned no connected browser surface; no standalone browser automation or unrelated browser backend was substituted.
-- Pixel-level comparison of a representative generated certificate with the supplied `QR to Left.png` is pending. This machine lacks `pdftoppm`/`pdfinfo`, and the exact reference image is not available as a local file. Certificate content/provenance and fixed lower-left QR coordinates/dimensions pass automated checks, but real QR scanner readability is not yet verified.
-- The August 21 source and automated audit found no remaining DOOMSDAY functional defect. Rows whose acceptance depends on the two blockers above remain **Not yet verified** in `DOOMSDAY_REQUIREMENTS_TRACEABILITY_2026-08-21.md`.
+- Authenticated localhost desktop/tablet/mobile verification is pending. The approved in-app browser discovery returned zero browser sessions on both attempts; no standalone or external browser backend was substituted. This blocks live pointer/keyboard, long-value, upload-progress, modal, responsive-overflow, and populated/empty-state acceptance.
+- Native private PDF/image iframe, Open in New Tab, Download, and Office fallback behavior remains pending in a real authenticated browser. Nested policies and defensive response-header tests pass, but tests are not a native-viewer result.
+- The supplied certificate PDF is available and its lower-left QR reference zone was inspected. A representative ECRATS PDF was generated and text/source coordinates pass, but pixel-level side-by-side comparison is pending because no installed PDF rasterizer can render either PDF. Independent default/replacement QR scanning is also pending because no approved local QR decoder/scanner is installed.
+- The August 22 source and automated audit found no remaining known functional defect. Every browser/visual/scanner-dependent row remains **Not yet verified** in `ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md`.
 
 ## Pending External Verification
 

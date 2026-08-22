@@ -6,7 +6,6 @@
             <h1>Welcome back, RES Lead/Admin!</h1>
         </header>
 
-        <x-dashboard.academic-term-filter :term-options="$termOptions" :filters="$filters" />
 
         {{-- RES Lead summary cards use the shared vertical card component without changing administrative counts. --}}
         <div class="dashboard-summary-grid dashboard-summary-grid-five" aria-label="Administrative application summary">
@@ -49,18 +48,7 @@
         <div class="dashboard-lower-grid">
             <x-dashboard.section title="Deadline Alerts">
                 @if ($deadlines->isNotEmpty())
-                    <div class="dashboard-deadline-list">
-                        <span class="dashboard-deadline-icon"><x-dashboard.icon name="calendar" size="43" /></span>
-                        <div>
-                            <strong>{{ $deadlines->count() }} active cycle {{ Str::plural('deadline', $deadlines->count()) }}</strong>
-                            <ul>
-                                @foreach ($deadlines as $item)
-                                    <li><span>{{ $item['title'] }}</span><time>{{ $item['due_at']->format('M j, Y') }}</time></li>
-                                @endforeach
-                            </ul>
-                            <a href="{{ route('res.settings.index') }}">View All Alerts <x-dashboard.icon name="arrow-right" size="17" /></a>
-                        </div>
-                    </div>
+                    <div class="dashboard-deadline-alert-stack">@foreach ($deadlines as $item)<x-dashboard.deadline-alert :deadline="$item" />@endforeach</div>
                 @else
                     <x-dashboard.empty-state
                         image="no-deadlines"

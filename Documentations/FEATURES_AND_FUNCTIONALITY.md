@@ -1,6 +1,16 @@
 # Features and Functionality
 
-This file began as the August 3 feature catalog and retains that historical detail below. The August 21 section is the current superseding contract for changed review, revision, certificate, notification and academic-term behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+This file began as the August 3 feature catalog and retains that historical detail below. The August 22 section is the current superseding contract for changed review, revision, certificate, notification, reporting, draft, retention, and academic-term behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+
+## Current August 22 Contract
+
+- Current-term dashboards have no user-selectable term filter; remaining list/report filters put the active term first and label it `Current` while preserving role/ownership scope.
+- Application and screening draft changes are persisted through authorized, validated same-origin routes without advancing final workflow state. Screening drafts are owner/application/workflow scoped and cleared only after the locked final classification transition.
+- Never-formally-submitted replaced Applicant uploads are removed from private storage and history. Formally submitted initial/C1/C2 evidence remains immutable, authorized, and capped at business V1/V2/V3 per requirement.
+- Reviewer Settings owns the worksheet printed name and private signature. Generated worksheets snapshot those values, support multiline study titles, and place a centered larger date/name with the signature above the name.
+- Certificate generation has an offline default QR for the exact KLD OVPRII destination whenever no replacement is configured. Every generated version snapshots QR path/hash/dimensions/configuration and retains fixed 30 mm lower-left placement.
+- The RES Reports page provides all required filters, eight operational cards, pipeline/trend/distribution/turnaround/workload/certificate aggregates, action/follow-up/data-quality tables, accessible equivalents, empty states, and fixed aggregate query counts.
+- The full current evidence and outstanding connected-browser/raster/scanner acceptance are in `ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md`.
 
 ## Current August 21 Contract
 

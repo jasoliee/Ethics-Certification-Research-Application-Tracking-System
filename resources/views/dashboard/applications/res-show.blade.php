@@ -63,7 +63,7 @@
 
         {{-- The overview mirrors the high-fidelity scan order while showing only fields persisted by ECRATS. --}}
         <div class="res-screening-overview-grid">
-            <section class="res-workflow-panel res-requirement-panel">
+            <section class="res-workflow-panel res-requirement-panel" data-collapsible-panel>
                 <header class="res-workflow-panel-heading res-workflow-panel-heading-split">
                     <div><x-dashboard.icon name="clipboard" size="21" /><h2>Requirement Checklist</h2></div>
                     <x-dashboard.status-badge
@@ -121,7 +121,7 @@
                 </x-dashboard.overflow>
             </section>
 
-            <section class="res-workflow-panel res-overview-panel">
+            <section class="res-workflow-panel res-overview-panel" data-collapsible-panel>
                 <header class="res-workflow-panel-heading">
                     <x-dashboard.icon name="file-text" size="21" />
                     <h2>Application Details</h2>
@@ -137,7 +137,7 @@
                 </dl>
             </section>
 
-            <section class="res-workflow-panel res-research-panel">
+            <section class="res-workflow-panel res-research-panel" data-collapsible-panel>
                 <header class="res-workflow-panel-heading">
                     <x-dashboard.icon name="file-search" size="21" />
                     <h2>Research Information</h2>
@@ -158,12 +158,13 @@
                 method="POST"
                 action="{{ $isEditingScreening ? route('res.applications.classification.update', $application) : route('res.applications.classification.store', $application) }}"
                 data-application-submit-once
+                data-partial-auto-save-draft="{{ route('res.applications.classification.draft', $application) }}"
                 @if ($isEditingScreening) data-confirm-screening-update @endif
             >
                 @csrf
                 @if ($isEditingScreening) @method('PUT') @endif
 
-                <section class="res-workflow-panel res-classification-panel">
+                <section class="res-workflow-panel res-classification-panel" data-collapsible-panel>
                     <header class="res-workflow-panel-heading">
                         <x-dashboard.icon name="award" size="21" />
                         <h2>Review Type Classification</h2>
@@ -175,7 +176,7 @@
                                 <legend>Select Review Type</legend>
                                 @foreach ($reviewTypes as $reviewType)
                                     <label>
-                                        <input name="review_type" type="radio" value="{{ $reviewType->value }}" @checked(old('review_type', $isEditingScreening ? $screening->review_type->value : '') === $reviewType->value) required>
+                                        <input name="review_type" type="radio" value="{{ $reviewType->value }}" @checked(old('review_type', $screeningDraft['review_type'] ?? ($isEditingScreening ? $screening->review_type->value : '')) === $reviewType->value) required>
                                         <span class="res-review-type-copy">
                                             <strong>{{ $reviewType->label() }}</strong>
                                             <small>{{ match ($reviewType) {
@@ -192,7 +193,7 @@
 
                         <div class="application-field res-classification-reason">
                             <label for="classification_reason">Reason / Basis for Classification</label>
-                            <textarea id="classification_reason" name="classification_reason" rows="8" minlength="15" maxlength="2000" required>{{ old('classification_reason', $isEditingScreening ? $screening->classification_reason : '') }}</textarea>
+                            <textarea id="classification_reason" name="classification_reason" rows="8" minlength="15" maxlength="2000" required>{{ old('classification_reason', $screeningDraft['classification_reason'] ?? ($isEditingScreening ? $screening->classification_reason : '')) }}</textarea>
                             @error('classification_reason', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
                         </div>
                     </div>
@@ -215,7 +216,7 @@
         @elseif ($screening)
             {{-- Saved classifications remain readable by default; authorized corrections open through explicit edit mode. --}}
             <div class="res-screening-decision-layout is-readonly">
-                <section class="res-workflow-panel res-classification-panel">
+                <section class="res-workflow-panel res-classification-panel" data-collapsible-panel>
                     <header class="res-workflow-panel-heading"><x-dashboard.icon name="award" size="21" /><h2>Screening and Classification</h2></header>
                     <dl class="res-screening-summary">
                         <div><dt>Review Type</dt><dd><x-dashboard.status-badge :label="$savedReviewType->label()" tone="success" /></dd></div>

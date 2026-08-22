@@ -6,6 +6,7 @@ use App\Enums\AccountStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
+use App\Models\ApplicationDocument;
 use App\Models\ResearchApplication;
 use App\Models\User;
 use App\Notifications\DashboardUpdateNotification;
@@ -79,6 +80,11 @@ class ResearchApplicationSubmissionService
                 'submitted_at' => $locked->submitted_at ?? now(),
                 'status_updated_at' => now(),
             ]);
+            ApplicationDocument::query()
+                ->where('research_application_id', $locked->id)
+                ->where('is_current', true)
+                ->whereNull('formally_submitted_at')
+                ->update(['formally_submitted_at' => $locked->submitted_at]);
 
             $this->auditLog->record($actor, 'application.submitted', $locked, [
                 'result' => 'submitted_to_adviser',
@@ -92,6 +98,7 @@ class ResearchApplicationSubmissionService
                 'tone' => 'orange',
                 'route' => 'adviser.applications.show',
                 'route_parameters' => ['researchApplication' => $locked->id],
+                'academic_term_id' => $locked->academic_term_id,
             ]));
 
             $this->auditLog->record($actor, 'application.adviser_notified', $locked, [

@@ -158,6 +158,15 @@
             </div>
 
             <form class="review-monitoring-adviser-filters" method="GET" action="{{ route('res.review-monitoring.index') }}">
+                <div class="application-field">
+                    <label for="monitoring-reviewer-term">Academic Term</label>
+                    <select id="monitoring-reviewer-term" name="academic_term_id">
+                        <option value="">All</option>
+                        @foreach ($termOptions as $term)
+                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div class="application-field application-search-field review-monitoring-filter-search">
                     <label for="monitoring-reviewer-q">Name</label>
                     <span><x-dashboard.icon name="search" size="18" /></span>
@@ -178,15 +187,6 @@
                         <option value="">All institutions</option>
                         @foreach ($reviewerInstitutions as $institution)
                             <option value="{{ $institution }}" @selected(($filters['reviewer_institution'] ?? '') === $institution)>{{ $institution }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="application-field">
-                    <label for="monitoring-reviewer-term">Academic Term</label>
-                    <select id="monitoring-reviewer-term" name="academic_term_id">
-                        <option value="">All</option>
-                        @foreach ($termOptions as $term)
-                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -218,7 +218,7 @@
                                     <td><strong class="review-monitoring-stat-value">{{ $activeLoad }}</strong></td>
                                     <td><strong class="review-monitoring-stat-value tone-green">{{ $completed }}</strong></td>
                                     <td><strong class="review-monitoring-stat-value tone-violet">{{ $remaining }}</strong></td>
-                                    <td><a class="dashboard-outline-action" href="{{ route('res.review-monitoring.reviewers.assignments', ['reviewer' => $reviewer, 'academic_term_id' => $filters['academic_term_id'] ?? null]) }}">View Assignments</a></td>
+                                    <td><a class="identity-view-link" href="{{ route('res.review-monitoring.reviewers.assignments', ['reviewer' => $reviewer, 'academic_term_id' => $filters['academic_term_id'] ?? null]) }}">View</a></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -237,6 +237,15 @@
             </div>
 
             <form class="review-monitoring-adviser-filters" method="GET" action="{{ route('res.review-monitoring.index') }}">
+                <div class="application-field">
+                    <label for="monitoring-adviser-term">Academic Term</label>
+                    <select id="monitoring-adviser-term" name="academic_term_id">
+                        <option value="">All</option>
+                        @foreach ($termOptions as $term)
+                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div class="application-field application-search-field review-monitoring-filter-search">
                     <label for="monitoring-adviser-q">Name</label>
                     <span><x-dashboard.icon name="search" size="18" /></span>
@@ -264,16 +273,6 @@
                         <option value="">All institutions</option>
                         @foreach ($adviserInstitutions as $institution)
                             <option value="{{ $institution }}" @selected(($filters['adviser_institution'] ?? '') === $institution)>{{ $institution }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="application-field">
-                    <label for="monitoring-adviser-term">Academic Term</label>
-                    <select id="monitoring-adviser-term" name="academic_term_id">
-                        <option value="">All</option>
-                        @foreach ($termOptions as $term)
-                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -354,7 +353,7 @@
                                         />
                                     </td>
                                     <td>
-                                        <a class="dashboard-outline-action" href="{{ route('res.review-monitoring.advisers.applications', ['adviser' => $adviser, 'academic_term_id' => $filters['academic_term_id'] ?? null]) }}">View Applications</a>
+                                        <a class="identity-view-link" href="{{ route('res.review-monitoring.advisers.applications', ['adviser' => $adviser, 'academic_term_id' => $filters['academic_term_id'] ?? null]) }}">View</a>
                                     </td>
                                 </tr>
                             @endforeach

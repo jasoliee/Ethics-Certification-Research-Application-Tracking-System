@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Services\Dashboard\DashboardDataService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -18,12 +17,7 @@ class DashboardController extends Controller
         AcademicTermResolver $terms,
     ): View {
         $user = $request->user();
-        $filters = $request->validate([
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
-        ]);
-        $academicTermId = filled($filters['academic_term_id'] ?? null)
-            ? (int) $filters['academic_term_id']
-            : null;
+        $academicTermId = $terms->current()?->id;
 
         // The canonical dashboard URL resolves the authenticated user's role-specific data and view.
         [$view, $data] = match ($user->role) {
@@ -35,8 +29,6 @@ class DashboardController extends Controller
 
         return view($view, [
             ...$data,
-            'filters' => $filters,
-            'termOptions' => $terms->filterOptions(),
             'pageTitle' => 'Dashboard',
             'breadcrumbs' => [],
         ]);
@@ -48,17 +40,10 @@ class DashboardController extends Controller
         DashboardDataService $dashboard,
         AcademicTermResolver $terms,
     ): View {
-        $filters = $request->validate([
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
-        ]);
-        $academicTermId = filled($filters['academic_term_id'] ?? null)
-            ? (int) $filters['academic_term_id']
-            : null;
+        $academicTermId = $terms->current()?->id;
 
         return view('dashboard.roles.reviewer', [
             ...$dashboard->reviewer($request->user(), $academicTermId),
-            'filters' => $filters,
-            'termOptions' => $terms->filterOptions(),
             'pageTitle' => 'Reviewer Dashboard',
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],

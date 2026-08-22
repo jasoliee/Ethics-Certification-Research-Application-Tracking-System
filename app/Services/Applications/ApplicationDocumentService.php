@@ -86,9 +86,10 @@ class ApplicationDocumentService
             ]);
         }
 
+        $obsoletePaths = [];
         try {
             // Lock the application and current version rows so rapid replacements receive stable versions.
-            return DB::transaction(function () use (
+            $document = DB::transaction(function () use (
                 $actor,
                 $application,
                 $requirement,
@@ -96,6 +97,7 @@ class ApplicationDocumentService
                 $storedPath,
                 $mimeType,
                 $fileHash,
+                &$obsoletePaths,
             ): ApplicationDocument {
                 $lockedApplication = ResearchApplication::query()
                     ->whereKey($application->id)
@@ -112,9 +114,17 @@ class ApplicationDocumentService
                 // Initial-submission replacements remain Version 1 until a reviewed revision requires a new version.
                 $documentVersion = max(1, (int) ($current?->document_version ?? 1));
 
-                // Retain previous private files and database history while moving the current pointer atomically.
+                // Files replaced before the formal submission boundary are drafts, not
+                // business history. Remove those obsolete bytes and rows once the new
+                // verified upload is committed; submitted artifacts remain immutable.
+                $obsoleteDrafts = $currentDocuments->filter(
+                    fn (ApplicationDocument $item): bool => $item->formally_submitted_at === null,
+                );
+                $obsoletePaths = $obsoleteDrafts->pluck('stored_file_path')->filter()->all();
+                ApplicationDocument::query()->whereIn('id', $obsoleteDrafts->pluck('id'))->delete();
+
                 ApplicationDocument::query()
-                    ->whereIn('id', $currentDocuments->pluck('id'))
+                    ->whereIn('id', $currentDocuments->pluck('id')->diff($obsoleteDrafts->pluck('id')))
                     ->where('is_current', true)
                     ->update(['is_current' => false]);
 
@@ -155,6 +165,10 @@ class ApplicationDocumentService
 
                 return $document->load('requirement');
             }, 3);
+
+            Storage::disk('local')->delete($obsoletePaths);
+
+            return $document;
         } catch (Throwable $exception) {
             // Remove only the uncommitted new private file; previously stored versions remain untouched.
             Storage::disk('local')->delete($storedPath);
@@ -201,8 +215,9 @@ class ApplicationDocumentService
             ])->errorBag('revisionUpload');
         }
 
+        $obsoletePaths = [];
         try {
-            return DB::transaction(function () use (
+            $document = DB::transaction(function () use (
                 $actor,
                 $application,
                 $revision,
@@ -211,6 +226,7 @@ class ApplicationDocumentService
                 $mimeType,
                 $fileHash,
                 $storedPath,
+                &$obsoletePaths,
             ): ApplicationDocument {
                 $lockedApplication = ResearchApplication::query()
                     ->whereKey($application->id)
@@ -263,6 +279,12 @@ class ApplicationDocumentService
                     ? (int) $existingRevisionReplacement->document_version
                     : max(1, (int) $documents->max('document_version')) + 1;
 
+                if ($targetVersion > 3) {
+                    throw ValidationException::withMessages([
+                        'document' => 'The maximum business document version (Version 3) has been reached.',
+                    ])->errorBag('revisionUpload');
+                }
+
                 if ($current
                     && (int) $current->document_version === $targetVersion
                     && hash_equals((string) $current->file_sha256, $fileHash)) {
@@ -272,6 +294,14 @@ class ApplicationDocumentService
                     ]);
 
                     return $current->load('requirement');
+                }
+
+                if ($existingRevisionReplacement && $existingRevisionReplacement->formally_submitted_at === null) {
+                    $obsoletePaths[] = $existingRevisionReplacement->stored_file_path;
+                    ApplicationDocument::query()->whereKey($existingRevisionReplacement->id)->delete();
+                    $documents = $documents->reject(
+                        fn (ApplicationDocument $item): bool => $item->id === $existingRevisionReplacement->id,
+                    );
                 }
 
                 ApplicationDocument::query()
@@ -310,6 +340,10 @@ class ApplicationDocumentService
 
                 return $document->load('requirement');
             }, 3);
+
+            Storage::disk('local')->delete($obsoletePaths);
+
+            return $document;
         } catch (Throwable $exception) {
             Storage::disk('local')->delete($storedPath);
 
@@ -328,7 +362,8 @@ class ApplicationDocumentService
         $this->assertBelongsTo($application, $document);
         Gate::forUser($actor)->authorize('upload', $application);
 
-        DB::transaction(function () use ($actor, $application, $document): void {
+        $obsoletePath = null;
+        DB::transaction(function () use ($actor, $application, $document, &$obsoletePath): void {
             $lockedApplication = ResearchApplication::query()
                 ->whereKey($application->id)
                 ->lockForUpdate()
@@ -347,7 +382,12 @@ class ApplicationDocumentService
                 ]);
             }
 
-            $lockedDocument->update(['is_current' => false]);
+            $deleteDraft = $lockedDocument->formally_submitted_at === null;
+            if ($deleteDraft) {
+                $obsoletePath = $lockedDocument->stored_file_path;
+            } else {
+                $lockedDocument->update(['is_current' => false]);
+            }
             $lockedApplication->update([
                 'current_stage' => ApplicationStage::DocumentSubmission->value,
                 'status_updated_at' => now(),
@@ -357,9 +397,17 @@ class ApplicationDocumentService
                 'application_id' => $lockedApplication->id,
                 'requirement_code' => $lockedDocument->requirement?->code,
                 'document_version' => $lockedDocument->document_version,
-                'result' => 'detached',
+                'result' => $deleteDraft ? 'deleted_unsubmitted_draft' : 'detached',
             ]);
+
+            if ($deleteDraft) {
+                $lockedDocument->delete();
+            }
         }, 3);
+
+        if ($obsoletePath !== null) {
+            Storage::disk('local')->delete($obsoletePath);
+        }
     }
 
     /**

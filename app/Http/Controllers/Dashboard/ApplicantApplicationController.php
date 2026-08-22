@@ -12,11 +12,9 @@ use App\Services\Applications\ApplicationInformationService;
 use App\Services\Applications\ApplicationSubmissionLimit;
 use App\Services\Applications\ApplicationSubmissionWindow;
 use App\Services\Applications\ResearchApplicationDraftService;
-use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -29,14 +27,9 @@ class ApplicantApplicationController extends Controller
      */
     public function index(
         Request $request,
-        AcademicTermResolver $terms,
         ApplicationSubmissionLimit $submissionLimit,
         ApplicationSubmissionWindow $submissionWindow,
     ): View {
-        $filters = validator($request->query(), [
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
-        ])->validate();
-
         // Paginate applicant-owned records and eager load Adviser identity for a bounded list query.
         $applicationsQuery = ResearchApplication::query()
             ->select([
@@ -53,7 +46,6 @@ class ApplicantApplicationController extends Controller
             ])
             ->where('applicant_user_id', $request->user()->id)
             ->where('application_status', '!=', ApplicationStatus::Archived->value);
-        $terms->applyFilters($applicationsQuery, $filters);
         $applications = $applicationsQuery
             ->with('adviser:id,name')
             ->latest('updated_at')
@@ -66,8 +58,6 @@ class ApplicantApplicationController extends Controller
         return view('dashboard.applications.applicant-index', [
             'pageTitle' => 'Application',
             'applications' => $applications,
-            'filters' => $filters,
-            'termOptions' => $terms->filterOptions(),
             'editableApplication' => $editableApplication,
             'submissionLimit' => $limitStatus,
             'submissionWindow' => $submissionWindow->status(),

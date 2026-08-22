@@ -1,7 +1,6 @@
 @extends('layouts.dashboard')
 
 @section('content')
-    @php($hasTermFilter = filled($filters['academic_term_id'] ?? null))
     <div class="dashboard-page application-workspace">
         {{-- The applicant list heading keeps the primary create action reachable at every viewport. --}}
         <header class="dashboard-page-heading-row">
@@ -41,30 +40,14 @@
             <div class="identity-validation-summary" role="alert"><strong>{{ $message }}</strong></div>
         @enderror
 
-        @if ($termOptions->isNotEmpty())
-            <form class="application-filter-bar application-term-filter" method="GET" action="{{ route('applicant.applications.index') }}">
-                <div class="application-field">
-                    <label for="applicant-academic-term">Academic Term</label>
-                    <select id="applicant-academic-term" name="academic_term_id">
-                        <option value="">All terms</option>
-                        @foreach ($termOptions as $term)
-                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->label() }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button class="dashboard-primary-action" type="submit">Apply Filters</button>
-                <a class="dashboard-outline-action" href="{{ route('applicant.applications.index') }}">Clear</a>
-            </form>
-        @endif
-
         @if ($applications->isEmpty())
             {{-- The first-time state leads to the same idempotent draft form used by the dashboard actions. --}}
             <section class="application-empty-panel">
                 <x-dashboard.empty-state
                     image="no-applications"
                     alt="Empty application workspace"
-                    :title="$hasTermFilter ? 'No applications found' : 'No application yet'"
-                    :message="$hasTermFilter ? 'No application records match the selected academic term.' : 'Start an application to enter your research information and complete its document requirements.'"
+                    title="No application yet"
+                    message="Start an application to enter your research information and complete its document requirements."
                     :action-label="$canStartApplication ? ($editableApplication ? 'Resume Application' : 'Start Application') : null"
                     :action-href="$canStartApplication ? route('applicant.applications.create') : null"
                 />

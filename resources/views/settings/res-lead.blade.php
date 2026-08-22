@@ -43,14 +43,13 @@
             : null;
         $termStartsOn = old('term_starts_on', $configuredTerm?->starts_at?->format('Y-m-d'));
         $termEndsOn = old('term_ends_on', $configuredTerm?->ends_at?->format('Y-m-d'));
-        $termStartMinimum = $configuredTerm ? null : $minimumDate;
-        $termEndMinimum = $termStartsOn ?: $termStartMinimum;
+        $termStartMinimum = null;
+        $termEndMinimum = $termStartsOn;
     @endphp
 
     <div class="dashboard-page res-settings-page" data-settings-tabs data-settings-active-tab="{{ $initialTab }}">
         <header class="dashboard-page-heading">
             <h1>Settings</h1>
-            <p>Manage your RES Lead profile, active-term schedule, and account security.</p>
         </header>
 
         <nav class="settings-tabs" role="tablist" aria-label="Settings sections">
@@ -118,7 +117,7 @@
             @if ($initialTab !== 'certificate') hidden @endif
         >
             <section class="settings-section" aria-labelledby="certificate-configuration-title">
-                <div class="settings-section-heading">
+                <div class="settings-section-heading settings-certificate-heading">
                     <span><x-dashboard.icon name="award" size="23" /></span>
                     <div><h2 id="certificate-configuration-title">Certificate Configuration</h2></div>
                 </div>
@@ -163,9 +162,8 @@
                             </label>
                             @error('qr_image')<span class="settings-field-error">{{ $message }}</span>@enderror
                             @error('qr_image', 'signatory')<span class="settings-field-error">{{ $message }}</span>@enderror
-                            @if ($settingsUser->certificate_qr_path)
-                                <img class="settings-qr-preview" src="{{ route('res.settings.certificate-qr.preview') }}" alt="Current certificate QR code">
-                            @endif
+                            <img class="settings-qr-preview" src="{{ route('res.settings.certificate-qr.preview') }}" alt="Current certificate QR code">
+                            @unless($settingsUser->certificate_qr_path)<small>Official fallback: {{ \App\Services\Certificates\DefaultCertificateQrService::URL }}</small>@endunless
                         </div>
                     </div>
                     <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>Save Certificate Configuration</span></button>
@@ -259,7 +257,7 @@
             <section class="settings-section" aria-labelledby="background-management-title">
                 <div class="settings-section-heading">
                     <span><x-dashboard.icon name="image" size="23" /></span>
-                    <div><h2 id="background-management-title">Background Management</h2><p>Certificate and Review Worksheet assets are versioned independently. Activating one changes future output only.</p></div>
+                    <div><h2 id="background-management-title">Background Management</h2></div>
                 </div>
 
                 @if ($errors->getBag('certificateBackground')->any() || $errors->has('background') || $errors->has('background_type'))
@@ -283,7 +281,10 @@
                         <section class="settings-background-card" aria-labelledby="{{ $backgroundType }}-background-title">
                             <header>
                                 <div><h3 id="{{ $backgroundType }}-background-title">{{ $backgroundLabel }}</h3><p>{{ $activeBackground?->original_file_name ?: 'No active asset' }}</p></div>
-                                @if ($activeBackground)<a class="dashboard-outline-action" href="{{ route('res.settings.backgrounds.preview', $activeBackground) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview</span></a>@endif
+                                <div class="settings-background-header-actions">
+                                    @if ($activeBackground)<a class="dashboard-outline-action" href="{{ route('res.settings.backgrounds.preview', $activeBackground) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview</span></a>@endif
+                                    <form method="POST" action="{{ route('res.settings.backgrounds.reset') }}">@csrf<input type="hidden" name="settings_tab" value="backgrounds"><input type="hidden" name="background_type" value="{{ $backgroundType }}"><button class="dashboard-outline-action settings-reset-action" type="submit"><x-dashboard.icon name="refresh" size="17" /><span>Reset to Default</span></button></form>
+                                </div>
                             </header>
 
                             <form class="settings-background-upload" method="POST" action="{{ route('res.settings.backgrounds.store') }}" enctype="multipart/form-data">
@@ -297,12 +298,12 @@
                                 <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="upload" size="17" /><span>Validate and Activate</span></button>
                             </form>
 
-                            <form method="POST" action="{{ route('res.settings.backgrounds.reset') }}">
+                            @if(false)<form method="POST" action="{{ route('res.settings.backgrounds.reset') }}">
                                 @csrf
                                 <input type="hidden" name="settings_tab" value="backgrounds">
                                 <input type="hidden" name="background_type" value="{{ $backgroundType }}">
                                 <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="refresh" size="17" /><span>Reset to Official Default</span></button>
-                            </form>
+                            </form>@endif
 
                             <div class="dashboard-overflow-region settings-background-history" role="region" aria-label="{{ $backgroundLabel }} history" tabindex="0">
                                 <table class="dashboard-table">
@@ -420,7 +421,7 @@
                                     <th>Phase</th>
                                     <th>Description</th>
                                     <th>Open</th>
-                                    <th>Deadline / Release Date</th>
+                                    <th>Deadline</th>
                                     <th>Availability</th>
                                 </tr>
                             </thead>
@@ -446,6 +447,7 @@
                                                     id="{{ $key }}_starts_at"
                                                     name="processes[{{ $key }}][starts_at]"
                                                     type="datetime-local"
+                                                    min="{{ $minimumDeadline }}"
                                                     value="{{ old("processes.{$key}.starts_at", $configuration?->starts_at?->format('Y-m-d\TH:i')) }}"
                                                     data-deadline-start
                                                     required
@@ -459,6 +461,7 @@
                                                     id="{{ $key }}_due_at"
                                                     name="processes[{{ $key }}][due_at]"
                                                     type="datetime-local"
+                                                    min="{{ $minimumDeadline }}"
                                                     value="{{ old("processes.{$key}.due_at", $configuration?->due_at?->format('Y-m-d\TH:i')) }}"
                                                     data-deadline-end
                                                     required
@@ -510,11 +513,11 @@
                     <span><x-dashboard.icon name="lock" size="23" /></span>
                     <div>
                         <h2 id="security-settings-title">Security and Privacy</h2>
-                        <p>Manage the username and password used to access your RES Lead account.</p>
                     </div>
                 </div>
 
-                <div class="settings-account-grid">
+                @include('settings.partials.security-forms')
+                @if(false)<div class="settings-account-grid">
                     <form
                         class="settings-account-form settings-username-form"
                         method="POST"
@@ -625,7 +628,7 @@
                             <span>Change Password</span>
                         </button>
                     </form>
-                </div>
+                </div>@endif
             </section>
         </section>
 
