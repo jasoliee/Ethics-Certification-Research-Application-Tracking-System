@@ -1,12 +1,14 @@
 # Known Issues and Pending Verification
 
-## Critical local database incident — 2026-08-23
+## Recovered local database incident — 2026-08-23
 
-- Local `ecrats_db` was destructively reset when a test retry relied on `--env=testing` instead of explicit process-level SQLite variables. Key ECRATS tables now contain zero rows, and migration status stops at the July 29 migration set.
-- MySQL row-format binary logs `binlog.000001` through `binlog.000006` are available. The first destructive transaction in 000006 begins at position 32686 (Query at 32765). Recovery appears possible but remains unattempted and requires explicit authorization.
-- Do not run the app, tests, migrations, seeders, cleanup, or MySQL log rotation. Recover into a separate database and validate it before any proposed live replacement.
+- Local `ecrats_db` was destructively reset when a test retry relied on `--env=testing` instead of explicit process-level SQLite variables.
+- Under explicit user restoration authorization, copied row-format binary logs were replayed through the pre-drop boundary into the isolated `ecrats_recovery_20260823`, validated, exported, and restored to a recreated live `ecrats_db`.
+- Live and recovery now match across 40 table names, every row count, and table checksums; all 45 migrations are Ran, `CHECK TABLE` passes, tested orphan counts are zero, and referenced private artifacts exist with matching stored hashes.
+- The isolated recovery database, copied binlogs, damaged-state dump, verified recovery dump, and helpers are deliberately retained. They must not be deleted or replayed without explicit user direction.
+- The critical remaining operational risk is test isolation: never rely on `--env=testing` or `phpunit.xml` alone. Explicitly force and preflight process-only SQLite `:memory:` before any future authorized test, and run tests serially.
 - Final combined-certificate and RES-workspace changes are implemented but unverified. The full INFINITY SAGA audit, final suites/build/checks, authenticated browser run, private-preview checks, and raster/QR acceptance are incomplete.
-- Full details: `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`.
+- Full details: `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` and `MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md`.
 
 ## August 22, 2026 Current Acceptance Blockers
 

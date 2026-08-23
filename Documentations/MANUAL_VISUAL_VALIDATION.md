@@ -2,7 +2,7 @@
 
 ## 2026-08-23 stop status
 
-No authenticated browser validation was completed for the INFINITY SAGA continuation because browser discovery returned zero connected sessions. Do not begin a new visual pass until the local database is recovered and validated. Generated worksheet PDFs passed structural text extraction, but the attempted local Edge raster was blank gray; worksheet/certificate visual comparison, QR readability, private same-origin preview/download, and desktop/tablet/mobile acceptance remain **Not yet verified**. See `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`.
+No authenticated browser validation was completed for the INFINITY SAGA continuation because browser discovery returned zero connected sessions. The local database was restored and validated on 2026-08-23, but the user's stop instruction still prohibits a new browser pass. Generated worksheet PDFs passed structural text extraction, but the attempted local Edge raster was blank gray; worksheet/certificate visual comparison, QR readability, private same-origin preview/download, and desktop/tablet/mobile acceptance remain **Not yet verified**. See `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` and `MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md`.
 
 Use this checklist in a working browser and record evidence. Use `Pass`, `Fail`, or `Pending` in Result. Microsoft Excel checks require the desktop application; browser spreadsheet previews are not equivalent.
 

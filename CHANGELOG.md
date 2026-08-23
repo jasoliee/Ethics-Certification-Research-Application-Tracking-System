@@ -8,8 +8,8 @@ All notable project changes should be documented here.
 
 - Implemented focused RES Requirements Configuration and Reviewer Worksheet Configuration/generated-form corrections with earlier passing focused coverage; final cross-module acceptance remains incomplete.
 - Added but did not successfully verify combined RES Preview/Download All certificate actions and real-reviewer/date presentation in the read-only release workspace.
-- A test retry that was not explicitly forced with process-level SQLite variables connected to local MySQL and destructively reset ECRATS. Current key tables are empty and only the early migration set remains. Binary logs are available; no recovery was attempted after the user stop instruction.
-- All feature/testing/build/browser work is stopped. See `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` before any continuation.
+- A test retry that was not explicitly forced with process-level SQLite variables connected to local MySQL and destructively reset ECRATS. Under explicit user restoration authorization, copied binary logs were replayed to the pre-drop boundary in an isolated database, fully validated, and restored to live `ecrats_db`. Live and recovery now match across 40 tables, row counts, and checksums; 45 migrations are Ran, integrity checks pass, and referenced private artifacts match their stored hashes. Recovery evidence and a verified fallback database are retained.
+- All feature/testing/build/browser work remains stopped. See `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` and `Documentations/MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md` before any continuation.
 
 ### 2026-08-22 ENDGAME completion audit
 

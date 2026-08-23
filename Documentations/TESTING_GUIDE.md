@@ -2,9 +2,9 @@
 
 ## Critical isolation warning — 2026-08-23
 
-Do not run any test until the local ECRATS database incident documented in `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` is recovered or explicitly accepted by the user. On this machine, `php artisan test --env=testing` and the `phpunit.xml` defaults did **not** reliably prevent a MySQL connection; `RefreshDatabase` destructively reset `ecrats_db`.
+The local ECRATS database incident documented in `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` was successfully restored and validated on 2026-08-23. This does **not** make the prior test command safe. On this machine, `php artisan test --env=testing` and the `phpunit.xml` defaults did **not** reliably prevent a MySQL connection; `RefreshDatabase` destructively reset `ecrats_db`.
 
-For any future authorized test run, set `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, and empty `DB_URL` as explicit process-only PowerShell variables, then verify the resolved connection from inside that same process before the first test can use `RefreshDatabase`. Run test processes serially. Never use MySQL for PHPUnit and never infer safety from `--env=testing` alone.
+For any future authorized test run, set `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, and empty `DB_URL` as explicit process-only PowerShell variables, then verify the resolved connection from inside that same process before the first test can use `RefreshDatabase`. Run test processes serially. Never use MySQL for PHPUnit and never infer safety from `--env=testing` alone. The current user stop instruction still prohibits a new test pass.
 
 ## Setup
 
@@ -17,8 +17,9 @@ php -m | Select-String zip
 npm.cmd run build
 $env:DB_CONNECTION = 'sqlite'
 $env:DB_DATABASE = ':memory:'
+$env:DB_URL = ''
 php artisan test
-Remove-Item Env:DB_CONNECTION, Env:DB_DATABASE
+Remove-Item Env:DB_CONNECTION, Env:DB_DATABASE, Env:DB_URL
 ```
 
 Never point automated tests at local ECRATS MySQL. Inspect `php artisan migrate:status` first and run `php artisan migrate --no-interaction` only as a separately reviewed forward-migration step; never use `migrate:fresh`, `db:wipe`, broad rollback or a destructive reset.

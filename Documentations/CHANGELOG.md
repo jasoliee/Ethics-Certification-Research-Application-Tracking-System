@@ -5,8 +5,8 @@
 - Added RES Requirements Configuration and shared Reviewer Worksheet Configuration; earlier focused settings/artifact coverage passed.
 - Adjusted generated worksheet signatory/title/continuation layout and selected notification, assignment, revision, reviewer-decision, and settings presentation contracts.
 - Implemented combined RES certificate Preview/Download All and real-reviewer/date workspace summaries, but these final edits are not yet verified.
-- **Database incident:** an inadequately isolated test retry targeted local MySQL and removed ECRATS data. Current key-table counts are zero; migrations after July 29 are pending. Binary logs remain available and contain the pre-drop boundary. No recovery has been attempted.
-- The user stopped new work. `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` is the authoritative continuation ledger.
+- **Database incident and recovery:** an inadequately isolated test retry targeted local MySQL and removed ECRATS data. With explicit user authorization, copied binary logs were replayed through the pre-drop boundary into `ecrats_recovery_20260823`, validated, exported, and restored to live `ecrats_db`. Live and recovery match across 40 tables, row counts, and checksums; all 45 migrations are Ran, integrity checks pass, and referenced private artifacts match their hashes. Recovery evidence and the fallback database are retained.
+- The user stopped new feature/testing/build/browser work. `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` is the authoritative continuation ledger; `MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md` is the recovery evidence record.
 
 ## 2026-08-22
 

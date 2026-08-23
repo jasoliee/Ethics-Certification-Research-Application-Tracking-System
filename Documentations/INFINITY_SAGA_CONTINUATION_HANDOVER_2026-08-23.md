@@ -4,21 +4,30 @@
 
 The user stopped all new implementation, migration, testing, build, and browser-validation work on 2026-08-23. This document records the exact continuation state. Do not treat this ledger, prior handovers, or the presence of code as acceptance evidence. Direct user instructions and `D:\Downloads\SAFETY NET.txt` remain controlling; `D:\Downloads\INFINITY_SAGA.txt` is the current product brief and must still be audited row by row.
 
-No commit, push, deployment, `.env` change, rollback, cleanup, or intentional ECRATS data upload occurred. The working tree is deliberately left dirty. Do not discard or overwrite any listed file.
+The recovery work performed no commit, push, deployment, `.env` change, cleanup, application migration, seeding, or external upload. The current repository HEAD is nevertheless `b089be1 Created the RES Lead Requirement Configuration and Reviewer's Worksheet Configuration`, which differs from the earlier recorded starting checkpoint `64137ad UI Polishing`; this commit was observed during recovery documentation and was not created or altered by the recovery work. The working tree is deliberately left dirty. Do not discard or overwrite any listed file.
 
-## Critical database incident — recover before any other work
+## Critical database incident — restored and verified
 
 At 2026-08-23 17:35 Taipei time, a PHPUnit retry invoked with only `php artisan test --env=testing ...` connected to the configured local MySQL ECRATS database instead of SQLite. Laravel `RefreshDatabase` issued a destructive multi-table `DROP TABLE`. Later parallel retry processes raced while recreating/dropping schema. The remaining process was interrupted immediately after the MySQL target was identified, but the local data had already been removed.
 
-Read-only evidence collected after the stop:
+Historical evidence collected immediately after the stop:
 
 - `users`, `research_applications`, `academic_terms`, and `document_requirements` each contain **0 rows**.
 - `php artisan migrate:status --no-ansi` reports migrations through `2026_07_29_000100_create_profile_option_aliases_table` as Ran, and every migration from `2026_08_02_000000_create_application_screenings_table` through `2026_08_22_000000_add_submission_and_worksheet_settings` as Pending.
 - MySQL binary logging is ON, row format, with data directory `D:\laragon\data\mysql-8.4\` and logs `binlog.000001` through `binlog.000006` present.
 - The first destructive transaction is in `binlog.000006`: its anonymous-GTID event starts at position **32686**, the destructive Query event starts at position **32765**, and the event timestamp is 2026-08-23 17:35:25 (commit metadata 17:35:28.440569 Taipei time). A second destructive transaction begins at position **187096** with the Query event at **187175**.
-- The logs begin with the original `CREATE DATABASE ecrats_db` and include subsequent schema and row events. An isolated point-in-time reconstruction therefore appears possible, but it has **not** been attempted or proven.
+- The logs begin with the original `CREATE DATABASE ecrats_db` and include subsequent schema and row events.
 
-Do not run any test, seeder, migration, `migrate:fresh`, or recovery replay against the live `ecrats_db`. The next agent must first obtain explicit user authorization for recovery writes, preserve copies of all six binlogs, and reconstruct into a separately named recovery database. Never replay directly into the damaged live database. A likely replay boundary is immediately before binlog 000006 position 32686, but this must be validated against copied logs and an isolated database before any live replacement decision. Report record counts, schema/migration state, referential integrity, and representative user/application/history checks from the isolated reconstruction to the user.
+The user subsequently gave explicit authorization to fix MySQL and restore if needed. Recovery completed successfully on 2026-08-23:
+
+- Copied `binlog.000001` through `binlog.000006` were preserved under `tmp/mysql-recovery-20260823/`. MySQL was rotated once to `binlog.000007` so the source `binlog.000006` could be copied closed; source and copy have the same SHA-256 `1D224B208EA1F4CA642263C5B5742A8C7035FA90E3E392913A972937ADA530A9` and size 251,534 bytes.
+- Replay targeted only the isolated `ecrats_recovery_20260823` first: `binlog.000002` from position 401, 000003–000005 in full, and closed 000006 through stop position 32686, with database rewriting.
+- Isolated validation found 40 tables, 45 migration records through the August 22 migration, 74 foreign keys, all `CHECK TABLE` results OK, tested orphan counts zero, and every checked private artifact present with a matching stored hash.
+- A damaged-live logical dump and a verified-recovery logical dump were retained. The verified dump SHA-256 is `8CC866C88659B89C2037FB846E7375787A7589E66AFA6FB159D5331F549E40A0`.
+- Under the user's restoration authorization, damaged `ecrats_db` was replaced with the verified dump. Final comparison with the isolated recovery reports identical table names and row counts with no checksum mismatches. `php artisan migrate:status --no-ansi` reports all 45 migrations Ran in batches 1 through 6.
+- `ecrats_recovery_20260823` remains intact as the verified fallback. Do not delete it or any recovery evidence without explicit user instruction.
+
+The permanent evidence record is `Documentations/MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md`. Do not run any test, seeder, migration, `migrate:fresh`, or recovery replay against live or recovery MySQL. Future authorized PHPUnit work must explicitly force process-only SQLite `:memory:`, clear `DB_URL`, preflight the resolved connection inside the same process, and run serially.
 
 `tmp/db_diagnostic.php` was created only to query binlog configuration and remains untracked because the user ordered the current state preserved. It contains no credentials and must not be used for mutation.
 
@@ -73,7 +82,7 @@ Treat all of these as **implemented, not verified**.
 - No authenticated desktop/tablet/mobile browser run was possible; browser discovery returned zero connected sessions.
 - Same-origin private PDF/image preview and download flows remain manually unverified.
 - Generated worksheet and certificate raster/reference comparison and independent QR scan remain pending.
-- The local MySQL database must be recovered and verified before application/browser work can resume.
+- The local MySQL database recovery blocker is resolved. Application/browser work remains stopped by user instruction and cannot resume until explicitly authorized.
 
 ## Exact verification results and failures
 
@@ -144,6 +153,8 @@ New implementation/test files:
 New/untracked diagnostic artifacts that must be preserved at this handover:
 
 - `tmp/db_diagnostic.php`
+- `tmp/mysql_recovery_admin.php` — local recovery helper used for rotation, isolated replay, inventory, validation, comparison, dumping, and authorized live replacement; syntax checked.
+- Entire `tmp/mysql-recovery-20260823/` directory — copied binary logs, closed 000006 copy, damaged-live dump, and verified recovery dump. Preserve unchanged.
 - `tmp/pdfs/protocol-worksheet-page-3.png`
 - Entire generated browser-profile tree `tmp/pdfs/edge-profile/` (many Edge cache/profile files; do not clean it without explicit user direction).
 
@@ -157,27 +168,25 @@ Documentation changed/created by the stop handover:
 - `Documentations/MANUAL_VISUAL_VALIDATION.md`
 - `Documentations/TESTING_GUIDE.md`
 - `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`
+- `Documentations/MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md`
 
 No new migration was created in this continuation.
 
 ## Prioritized next-agent plan
 
-1. **Do not run the app or tests.** Read the user stop instruction, Safety Net, INFINITY SAGA, and this handover fully. Confirm the repo boundary and preserve the dirty tree.
-2. **Ask for explicit database-recovery authorization.** Explain the zero-row state and available binlogs. Do not infer permission to restore or replace the live database.
-3. **After authorization, preserve recovery evidence first.** Copy `binlog.000001`–`binlog.000006` without modifying originals and record hashes. Do not rotate/purge logs.
-4. **Recover only into a new isolated database.** Replay the full history with database rewriting and stop before binlog 000006 position 32686. Never target `ecrats_db` during the first reconstruction. Capture every command and error.
-5. **Validate the isolated reconstruction read-only.** Compare all table counts, migrations (expected through the August 22 migration before the incident), users/roles, terms/deadlines, applications/documents, review assignments/submissions/comments/artifacts, decisions/revisions, notifications/audit, recipients/certificates/versions, private-file path references, hashes, and foreign-key integrity. Verify representative records visible in the supplied screenshots if present.
-6. **Return recovery evidence to the user for a replacement decision.** Do not swap databases, delete the damaged database, or overwrite data without explicit approval for that exact action.
-7. **Only after recovery is complete, make testing mechanically safe.** Use explicit process-only SQLite variables, add a preflight assertion that the resolved driver/database are `sqlite`/`:memory:`, and run tests serially. Do not edit `.env`.
-8. **Rerun the smallest pending tests first:** combined certificate preview/download, RES workspace identity/date/release panel, requirements configuration, worksheet configuration/artifact generation. Fix only verified failures.
-9. **Resume the INFINITY SAGA row-by-row audit.** Maintain a new traceability ledger with Verified complete / Incomplete or incorrect / Not yet verified for every line; do not rely on this handover as acceptance.
-10. **Finish proportional static/build and authenticated UI validation** only after source and recovered data are stable: focused suite, full SQLite suite, Pint, routes, Blade, build, diff checks, then desktop/tablet/mobile and same-origin private previews. Perform certificate/worksheet raster and QR acceptance with approved local tools.
-11. **Update all status documents truthfully.** Keep the database incident and recovery evidence in the permanent project record; do not erase it during cleanup.
+1. **Honor the current stop instruction.** Do not run the app, tests, migrations, builds, browser work, cleanup, or new implementation until the user explicitly resumes work. Read Safety Net, INFINITY SAGA, this handover, and the recovery record fully; preserve the dirty tree.
+2. **Preserve the verified recovery fallback.** Do not delete or mutate `ecrats_recovery_20260823`, copied binlogs, logical dumps, or recovery helpers. Live `ecrats_db` is already restored and verified; do not repeat recovery discovery or replay.
+3. **When testing is explicitly resumed, make isolation mechanically safe first.** Set explicit process-only `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, and empty `DB_URL`; verify the resolved driver/database from inside that same process before `RefreshDatabase`; run serially; do not edit `.env`.
+4. **Rerun the smallest pending tests first:** combined certificate preview/download, RES workspace identity/date/release panel, requirements configuration, worksheet configuration/artifact generation. Fix only verified failures.
+5. **Resume the INFINITY SAGA row-by-row audit.** Maintain a new traceability ledger with Verified complete / Incomplete or incorrect / Not yet verified for every line; do not rely on this handover as acceptance.
+6. **Finish proportional static/build and authenticated UI validation** only after source and data are stable: focused suite, full SQLite suite, Pint, routes, Blade, build, diff checks, then desktop/tablet/mobile and same-origin private previews. Perform certificate/worksheet raster and QR acceptance with approved local tools.
+7. **Update all status documents truthfully.** Keep the database incident and recovery evidence in the permanent project record; do not erase it during cleanup.
 
 ## Git state and preservation warnings
 
-- Branch: `main`; starting commit recorded for this continuation: `64137ad UI Polishing`.
-- Nothing was committed, pushed, deployed, or intentionally staged.
-- The tree contains pre-existing/current-session work and untracked artifacts listed above. Do not reset, checkout, stash, clean, delete, or bulk-format it.
+- Branch: `main`; current observed HEAD: `b089be1 Created the RES Lead Requirement Configuration and Reviewer's Worksheet Configuration`; earlier starting checkpoint: `64137ad UI Polishing`.
+- The recovery work committed, pushed, deployed, or intentionally staged nothing. Do not rewrite or remove the observed current commit.
+- Final `git status --short` contains only the eight modified recovery/status documents and three untracked recovery entries: `Documentations/MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md`, `tmp/mysql-recovery-20260823/`, and `tmp/mysql_recovery_admin.php`. The exact modified documentation files are listed above.
+- Do not reset, checkout, stash, clean, delete, or bulk-format the tree.
 - `.env` was not changed and remains prohibited.
-- The MySQL binary logs are outside Git but are critical recovery evidence. Do not restart/rotate/purge the local MySQL service until copies are preserved and a recovery plan is approved.
+- The original MySQL binary logs are outside Git, and verified copies are retained under `tmp/mysql-recovery-20260823/`. Do not purge the originals, delete the copies, remove `ecrats_recovery_20260823`, or replay recovery data without explicit user instruction.

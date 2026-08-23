@@ -60,13 +60,13 @@ Date:
 
 ## Active Plans
 
-## Plan: INFINITY SAGA continuation and database recovery handover
+## Plan: INFINITY SAGA continuation and database-recovery handover
 
-Status: **Stopped by user on 2026-08-23. Feature work is incomplete. Database recovery is the first blocker.**
+Status: **Stopped by user on 2026-08-23. Feature work is incomplete. The local MySQL database was successfully restored and verified on 2026-08-23.**
 
-The prioritized RES Requirements Configuration and Reviewer Worksheet Configuration work is implemented with focused test evidence, while the final combined-certificate/RES-workspace edits remain unverified. A PHPUnit retry connected to local MySQL and removed the ECRATS data/schema; current key-table counts are zero and only migrations through July 29 are present. Binary logs are enabled and contain a pre-drop boundary, so an isolated point-in-time reconstruction appears possible but is not authorized or verified.
+The prioritized RES Requirements Configuration and Reviewer Worksheet Configuration work is implemented with focused test evidence, while the final combined-certificate/RES-workspace edits remain unverified. A PHPUnit retry connected to local MySQL and removed the ECRATS data/schema. With the user's explicit restoration authorization, copied binary logs were replayed only into `ecrats_recovery_20260823` through the pre-drop boundary, validated, exported, and then imported into a recreated live `ecrats_db`. Live and recovery now match exactly across 40 tables, row counts, and checksums; all 45 migrations are Ran, integrity checks pass, and referenced private artifacts exist with matching hashes.
 
-Do not run tests, migrations, builds, cleanup, or browser work. Obtain explicit recovery authorization, preserve the binlogs, reconstruct into a separate database, validate it, and ask before any live replacement. The exact incident record, file inventory, verification results, and continuation order are in `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`.
+Do not run new feature work, tests, migrations, builds, cleanup, or browser work under the current stop instruction. Preserve the verified fallback database and `tmp/mysql-recovery-20260823/`. When work is later resumed, first make test isolation mechanically safe with explicit process-only SQLite variables and an in-process connection preflight, then continue the unverified INFINITY SAGA source audit. See `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` and `Documentations/MYSQL_POINT_IN_TIME_RECOVERY_2026-08-23.md`.
 
 ## Plan: ENDGAME manual-QA corrections and operational reports
 
