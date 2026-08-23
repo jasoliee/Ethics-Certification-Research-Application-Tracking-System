@@ -60,6 +60,14 @@ Date:
 
 ## Active Plans
 
+## Plan: INFINITY SAGA continuation and database recovery handover
+
+Status: **Stopped by user on 2026-08-23. Feature work is incomplete. Database recovery is the first blocker.**
+
+The prioritized RES Requirements Configuration and Reviewer Worksheet Configuration work is implemented with focused test evidence, while the final combined-certificate/RES-workspace edits remain unverified. A PHPUnit retry connected to local MySQL and removed the ECRATS data/schema; current key-table counts are zero and only migrations through July 29 are present. Binary logs are enabled and contain a pre-drop boundary, so an isolated point-in-time reconstruction appears possible but is not authorized or verified.
+
+Do not run tests, migrations, builds, cleanup, or browser work. Obtain explicit recovery authorization, preserve the binlogs, reconstruct into a separate database, validate it, and ask before any live replacement. The exact incident record, file inventory, verification results, and continuation order are in `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`.
+
 ## Plan: ENDGAME manual-QA corrections and operational reports
 
 Status: Source, test, build, and additive local-migration work completed on 2026-08-22. Authenticated viewport/native-preview and certificate raster/scanner acceptance remain pending because the approved local tooling is unavailable.

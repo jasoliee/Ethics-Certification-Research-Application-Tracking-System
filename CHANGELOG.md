@@ -4,6 +4,13 @@ All notable project changes should be documented here.
 
 ## Unreleased
 
+### 2026-08-23 INFINITY SAGA stopped continuation
+
+- Implemented focused RES Requirements Configuration and Reviewer Worksheet Configuration/generated-form corrections with earlier passing focused coverage; final cross-module acceptance remains incomplete.
+- Added but did not successfully verify combined RES Preview/Download All certificate actions and real-reviewer/date presentation in the read-only release workspace.
+- A test retry that was not explicitly forced with process-level SQLite variables connected to local MySQL and destructively reset ECRATS. Current key tables are empty and only the early migration set remains. Binary logs are available; no recovery was attempted after the user stop instruction.
+- All feature/testing/build/browser work is stopped. See `Documentations/INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` before any continuation.
+
 ### 2026-08-22 ENDGAME completion audit
 
 - Added safe automatic screening drafts, page-leave application draft saving, and formal-submission provenance so never-submitted replaced uploads are removed while the submitted V1/V2/V3 history remains immutable.

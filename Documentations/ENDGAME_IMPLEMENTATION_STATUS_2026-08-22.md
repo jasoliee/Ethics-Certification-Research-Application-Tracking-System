@@ -1,5 +1,7 @@
 # ENDGAME Implementation Status - 2026-08-22
 
+> **2026-08-23 continuation warning:** This historical acceptance record no longer describes the current local database or working-tree verification state. During the stopped INFINITY SAGA continuation, an inadequately isolated PHPUnit retry destructively reset local `ecrats_db`; key tables are empty and migrations after July 29 are pending. Later source edits are also only partially verified. Do not use the outcome below as current completion evidence. Continue from [INFINITY SAGA continuation handover](INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md), with database recovery first.
+
 The current row-by-row authority is [ENDGAME and DOOMSDAY Requirements Traceability](ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md). This record supersedes the August 21 status for changed behavior; it does not turn historical handoff claims into evidence.
 
 The exact ECRATS file inventory and per-group reasons are in [ENDGAME Changed Files](ENDGAME_CHANGED_FILES_2026-08-22.md).

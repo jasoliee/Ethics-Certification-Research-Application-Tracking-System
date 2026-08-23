@@ -1,5 +1,9 @@
 # Manual Visual Validation
 
+## 2026-08-23 stop status
+
+No authenticated browser validation was completed for the INFINITY SAGA continuation because browser discovery returned zero connected sessions. Do not begin a new visual pass until the local database is recovered and validated. Generated worksheet PDFs passed structural text extraction, but the attempted local Edge raster was blank gray; worksheet/certificate visual comparison, QR readability, private same-origin preview/download, and desktop/tablet/mobile acceptance remain **Not yet verified**. See `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`.
+
 Use this checklist in a working browser and record evidence. Use `Pass`, `Fail`, or `Pending` in Result. Microsoft Excel checks require the desktop application; browser spreadsheet previews are not equivalent.
 
 Current status for the 2026-07-30 implementation: **Implemented in code but pending manual visual verification.** Automated rendering/build checks do not replace the viewport acceptance below. Record the browser, viewport, date, result, and evidence when the team completes each check.

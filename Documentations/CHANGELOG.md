@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-23 — stopped INFINITY SAGA continuation
+
+- Added RES Requirements Configuration and shared Reviewer Worksheet Configuration; earlier focused settings/artifact coverage passed.
+- Adjusted generated worksheet signatory/title/continuation layout and selected notification, assignment, revision, reviewer-decision, and settings presentation contracts.
+- Implemented combined RES certificate Preview/Download All and real-reviewer/date workspace summaries, but these final edits are not yet verified.
+- **Database incident:** an inadequately isolated test retry targeted local MySQL and removed ECRATS data. Current key-table counts are zero; migrations after July 29 are pending. Binary logs remain available and contain the pre-drop boundary. No recovery has been attempted.
+- The user stopped new work. `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md` is the authoritative continuation ledger.
+
 ## 2026-08-22
 
 ### Added

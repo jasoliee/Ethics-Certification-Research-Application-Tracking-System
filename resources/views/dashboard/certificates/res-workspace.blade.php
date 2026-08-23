@@ -49,7 +49,10 @@
             @endif
         </section>
 
-        @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
+        @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease
+            && ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted
+                || ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus
+                    && $application->review_consensus_decision !== \App\Enums\ReviewDecision::Approved)))
             <section class="application-panel res-application-release-panel" aria-label="Decision release action">
                 @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
                     <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
@@ -68,10 +71,10 @@
                     $submittedVersion = $assignment->reviewSubmission?->currentVersion;
                     $snapshotComments = collect(data_get($submittedVersion?->payload_snapshot, 'comments', []));
                 @endphp
-                <details class="application-panel res-readonly-review-card" @if($application->reviewerAssignments->count() === 1) open @endif>
+                <details class="application-panel res-readonly-review-card">
                     <summary class="application-panel-heading">
-                        <span class="res-readonly-reviewer-name">{{ $assignment->reviewer?->name ?? 'Reviewer identity unavailable' }}</span>
-                        <div><h2>Reviewer {{ $loop->iteration }}</h2><p>Submitted {{ $submittedVersion?->submitted_at?->format('M j, Y g:i A') ?? 'Not submitted' }}@if ($submittedVersion) · Version {{ $submittedVersion->version_number }}@endif</p></div>
+                        <div class="res-readonly-review-date"><span>Submitted</span><strong>{{ $submittedVersion?->submitted_at?->format('M j, Y g:i A') ?? 'Not submitted' }}</strong>@if ($submittedVersion)<small>Version {{ $submittedVersion->version_number }}</small>@endif</div>
+                        <div class="res-readonly-reviewer-name"><h2>{{ $assignment->reviewer?->name ?? 'Reviewer identity unavailable' }}</h2></div>
                         <x-dashboard.status-badge :label="$submittedVersion?->decision?->label() ?? 'Pending'" :tone="$submittedVersion?->decision?->tone() ?? 'neutral'" />
                     </summary>
 

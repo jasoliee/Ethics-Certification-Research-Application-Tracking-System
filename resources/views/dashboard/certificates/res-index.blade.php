@@ -187,7 +187,7 @@
                                     <td class="certificate-row-number" data-certificate-row-number="{{ $rowNumber }}">{{ $rowNumber }}</td>
                                     <td class="certificate-application-cell">
                                         <small>{{ $application->application_code }}</small>
-                                        <strong>{{ $application->research_title }}</strong>
+                                        <strong class="monitoring-title-truncate" data-research-title-tooltip>{{ $application->research_title }}</strong>
                                     </td>
                                     <td class="certificate-queue-centered"><x-dashboard.status-badge :label="$queueLabel" :tone="$queueTone" /></td>
                                     <td class="certificate-queue-centered"><x-dashboard.status-badge :label="$decisionLabel" :tone="$decisionTone" /></td>
@@ -255,7 +255,7 @@
                     @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
                         <section class="certificate-modal-section certificate-decision-workspace" aria-labelledby="certificate-decision-{{ $application->id }}">
                             <div class="certificate-modal-section-heading">
-                                <div><h3 id="certificate-decision-{{ $application->id }}">Submitted Reviewer Decisions</h3><p>Inspect the immutable submitted record or release the current consensus decision. Both actions are revalidated by the server.</p></div>
+                                <div><h3 id="certificate-decision-{{ $application->id }}">Submitted Reviewer Decisions</h3></div>
                             </div>
                             <div class="certificate-modal-actions">
                                 <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="file-search" size="17" /><span>Open Workspace</span></a>
@@ -294,11 +294,8 @@
                             @endif
                             @if ($previewableCertificates->isNotEmpty())
                                 <a class="dashboard-outline-action" href="{{ route('res.certificates.applications.preview-all', $application) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview All Certificate</span></a>
+                                <a class="dashboard-outline-action" href="{{ route('res.certificates.applications.download-all', $application) }}"><x-dashboard.icon name="download" size="17" /><span>Download All Certificate</span></a>
                             @endif
-                            @foreach ($previewableCertificates as $recipientCertificate)
-                                <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.preview', [$recipientCertificate, $recipientCertificate->currentVersion]) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview {{ $recipientCertificate->recipient_name }}</span></a>
-                                <a class="dashboard-outline-action" href="{{ route('res.certificates.versions.download', [$recipientCertificate, $recipientCertificate->currentVersion]) }}"><x-dashboard.icon name="download" size="17" /><span>Download {{ $recipientCertificate->recipient_name }}</span></a>
-                            @endforeach
                             @if ($previewableCertificates->isNotEmpty())
                                 <details class="certificate-regenerate-confirmation">
                                     <summary class="dashboard-outline-action"><x-dashboard.icon name="refresh" size="17" /><span>Regenerate</span></summary>

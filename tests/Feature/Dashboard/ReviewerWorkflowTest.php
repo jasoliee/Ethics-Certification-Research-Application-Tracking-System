@@ -425,8 +425,11 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString("\$openLabel = ! \$canWrite ? 'View' : (\$formCompleted ? 'Edit' : (\$form ? 'Continue' : 'Start'));", $blade);
         $this->assertStringContainsString('aria-label="{{ $openLabel }} {{ $type->label() }}"', $blade);
         $this->assertStringContainsString('data-reviewer-form-submit-final>Submit', $blade);
+        $this->assertStringContainsString('class="reviewer-form-submit-actions"', $blade);
+        $this->assertStringNotContainsString('Back to Worksheet List', $blade);
         $this->assertStringContainsString('data-reviewer-consent-dependent', $blade);
-        $this->assertStringContainsString('minlength="15"', $blade);
+        $this->assertStringContainsString('name="recommendation_comments" rows="4" minlength="5"', $blade);
+        $this->assertStringContainsString('name="decision_comment" rows="4" minlength="5"', $blade);
         $this->assertStringContainsString('aria-labelledby="reviewer-form-{{ $type->value }}-progress-label"', $blade);
         $this->assertStringContainsString('data-reviewer-submit-dialog', $blade);
         $this->assertStringContainsString('data-reviewer-submit-confirmation', $blade);
@@ -778,11 +781,11 @@ class ReviewerWorkflowTest extends TestCase
         );
     }
 
-    public function test_recommendation_comments_require_fifteen_non_whitespace_characters(): void
+    public function test_required_decision_and_worksheet_comments_accept_five_characters(): void
     {
         $this->openReviewWindow();
         [$reviewer, , , , $assignment] = $this->assignmentFixture();
-        $value = "a b c d e f g h i j k l m n\n";
+        $tooShort = "a b c d\n";
 
         $this->actingAs($reviewer)
             ->from(route('reviewer.assignments.workspace', $assignment))
@@ -790,12 +793,57 @@ class ReviewerWorkflowTest extends TestCase
                 'intent' => 'submit',
                 'responses' => $this->completeResponses(ReviewFormType::Protocol),
                 'recommendation' => ReviewDecision::Approved->value,
-                'recommendation_comments' => $value,
+                'recommendation_comments' => $tooShort,
             ])
             ->assertSessionHasErrorsIn('reviewerForm', ['recommendation_comments'])
-            ->assertSessionHasInput('recommendation_comments', trim($value));
+            ->assertSessionHasInput('recommendation_comments', trim($tooShort));
 
         $this->assertDatabaseCount('review_form_submissions', 0);
+
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+                'intent' => 'submit',
+                'responses' => $this->completeResponses(ReviewFormType::Protocol),
+                'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'abcde',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('review_form_submissions', 1);
+    }
+
+    public function test_approval_is_blocked_when_a_completed_worksheet_recommends_revision(): void
+    {
+        $this->openReviewWindow();
+        [$reviewer, , , , $assignment] = $this->assignmentFixture();
+
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::Protocol->value]), [
+                'intent' => 'submit',
+                'responses' => $this->completeResponses(ReviewFormType::Protocol),
+                'recommendation' => ReviewDecision::MinorRevision->value,
+                'recommendation_comments' => 'Revise',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($reviewer)
+            ->put(route('reviewer.assignments.forms.update', [$assignment, ReviewFormType::InformedConsent->value]), [
+                'intent' => 'submit',
+                'consent_required' => '0',
+                'consent_not_required_explanation' => 'No direct participant interaction is involved.',
+                'recommendation' => ReviewDecision::Approved->value,
+                'recommendation_comments' => 'Ready',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($reviewer)
+            ->post(route('reviewer.assignments.review.store', $assignment), [
+                'intent' => 'submit',
+                'decision' => ReviewDecision::Approved->value,
+                'decision_comment' => 'Ready',
+            ])
+            ->assertSessionHasErrorsIn('reviewDecision', ['decision']);
+
+        $this->assertDatabaseCount('review_submissions', 0);
+        $this->assertDatabaseCount('review_form_artifacts', 0);
     }
 
     public function test_full_board_application_waits_for_every_assigned_reviewer_before_release_processing(): void

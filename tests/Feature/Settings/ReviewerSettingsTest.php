@@ -105,4 +105,60 @@ class ReviewerSettingsTest extends TestCase
         $response = $this->actingAs($applicant)->get(route('reviewer.settings.worksheet-signature.preview'));
         $response->status() === 403 ? $response->assertForbidden() : $response->assertRedirect(route('dashboard'));
     }
+
+    public function test_reviewer_enabled_adviser_can_configure_worksheets_from_adviser_settings(): void
+    {
+        Storage::fake('local');
+        $reviewer = User::factory()->reviewer(['Technical'])->create();
+
+        $this->actingAs($reviewer)
+            ->get(route('adviser.settings.index', ['tab' => 'worksheet']))
+            ->assertOk()
+            ->assertSee('Worksheet Configuration')
+            ->assertSee('Printed Reviewer Name')
+            ->assertSee(route('adviser.settings.worksheet-signatory.update'), false)
+            ->assertSee('Use a transparent background');
+
+        $this->actingAs($reviewer)
+            ->put(route('adviser.settings.worksheet-signatory.update'), [
+                'worksheet_signatory_name' => 'Reviewer Adviser Signatory',
+                'signature' => UploadedFile::fake()->image('adviser-signature.png', 420, 110),
+            ])
+            ->assertRedirect(route('adviser.settings.index', ['tab' => 'worksheet']))
+            ->assertSessionDoesntHaveErrors();
+
+        $reviewer->refresh();
+        $this->assertSame('Reviewer Adviser Signatory', $reviewer->worksheet_signatory_name);
+        $this->actingAs($reviewer)
+            ->get(route('adviser.settings.worksheet-signature.preview'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function test_pure_adviser_cannot_see_or_invoke_reviewer_worksheet_configuration(): void
+    {
+        $adviser = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'reviewer_enabled' => false,
+            'reviewer_capacity' => null,
+            'reviewer_classifications' => null,
+        ]);
+
+        $this->actingAs($adviser)
+            ->get(route('adviser.settings.index'))
+            ->assertOk()
+            ->assertDontSee('Worksheet Configuration')
+            ->assertDontSee('Reviewer Capability')
+            ->assertDontSee('Current Signature');
+
+        $update = $this->actingAs($adviser)
+            ->put(route('adviser.settings.worksheet-signatory.update'), [
+                'worksheet_signatory_name' => 'Unauthorized Name',
+            ]);
+        $update->status() === 403 ? $update->assertForbidden() : $update->assertRedirect(route('dashboard'));
+        $preview = $this->actingAs($adviser)->get(route('adviser.settings.worksheet-signature.preview'));
+        $preview->status() === 403 ? $preview->assertForbidden() : $preview->assertRedirect(route('dashboard'));
+        $this->assertNull($adviser->fresh()->worksheet_signatory_name);
+    }
 }

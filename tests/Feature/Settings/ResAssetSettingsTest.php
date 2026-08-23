@@ -111,6 +111,18 @@ class ResAssetSettingsTest extends TestCase
     {
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.settings.index', ['tab' => 'certificate']))
+            ->assertOk()
+            ->assertSee('Current Signature')
+            ->assertSee('Current QR Code')
+            ->assertSee('Replace Signature')
+            ->assertSee('Replace QR')
+            ->assertSee('The signature must be a transparent PNG file without a background.')
+            ->assertDontSee('Transparent PNG Signature')
+            ->assertDontSee('>QR Image<', false)
+            ->assertSee('data-settings-date-picker', false);
         $signature = new UploadedFile(
             resource_path('certificates/res-signatory-signature.png'),
             'authorized-signature.png',

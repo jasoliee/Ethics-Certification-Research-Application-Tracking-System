@@ -32,7 +32,7 @@ class SaveReviewerDecisionRequest extends FormRequest
                 Rule::requiredIf(fn (): bool => $this->input('intent') === 'submit'),
                 'nullable',
                 'string',
-                'min:10',
+                'min:5',
                 'max:2000',
             ],
         ];

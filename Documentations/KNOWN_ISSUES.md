@@ -1,5 +1,13 @@
 # Known Issues and Pending Verification
 
+## Critical local database incident — 2026-08-23
+
+- Local `ecrats_db` was destructively reset when a test retry relied on `--env=testing` instead of explicit process-level SQLite variables. Key ECRATS tables now contain zero rows, and migration status stops at the July 29 migration set.
+- MySQL row-format binary logs `binlog.000001` through `binlog.000006` are available. The first destructive transaction in 000006 begins at position 32686 (Query at 32765). Recovery appears possible but remains unattempted and requires explicit authorization.
+- Do not run the app, tests, migrations, seeders, cleanup, or MySQL log rotation. Recover into a separate database and validate it before any proposed live replacement.
+- Final combined-certificate and RES-workspace changes are implemented but unverified. The full INFINITY SAGA audit, final suites/build/checks, authenticated browser run, private-preview checks, and raster/QR acceptance are incomplete.
+- Full details: `INFINITY_SAGA_CONTINUATION_HANDOVER_2026-08-23.md`.
+
 ## August 22, 2026 Current Acceptance Blockers
 
 - Authenticated localhost desktop/tablet/mobile verification is pending. The approved in-app browser discovery returned zero browser sessions on both attempts; no standalone or external browser backend was substituted. This blocks live pointer/keyboard, long-value, upload-progress, modal, responsive-overflow, and populated/empty-state acceptance.

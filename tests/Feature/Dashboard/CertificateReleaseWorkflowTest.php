@@ -220,7 +220,10 @@ class CertificateReleaseWorkflowTest extends TestCase
             ->get(route('res.certificates.index'))
             ->assertOk()
             ->assertSee('Release Generated Certificate')
-            ->assertSee('Preview All Certificate');
+            ->assertSee('Preview All Certificate')
+            ->assertSee('Download All Certificate')
+            ->assertDontSee('Preview '.$applicant->name)
+            ->assertDontSee('Download '.$applicant->name);
         $pendingPreview = $this->actingAs($resLead)
             ->get(route('res.certificates.applications.preview-all', $application))
             ->assertOk()
@@ -277,11 +280,25 @@ class CertificateReleaseWorkflowTest extends TestCase
         $parser = new Fpdi;
         $this->assertSame(3, $parser->setSourceFile(StreamReader::createByString($response->getContent())));
 
+        $download = $this->actingAs($resLead)
+            ->get(route('res.certificates.applications.download-all', $application))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
+        $this->assertStringContainsString($application->application_code.'-all-certificates.pdf', (string) $download->headers->get('Content-Disposition'));
+        $downloadParser = new Fpdi;
+        $this->assertSame(3, $downloadParser->setSourceFile(StreamReader::createByString($download->getContent())));
+
         $unauthorized = $this->actingAs($applicant)
             ->get(route('res.certificates.applications.preview-all', $application));
         $unauthorized->status() === 403
             ? $unauthorized->assertForbidden()
             : $unauthorized->assertRedirect(route('dashboard'));
+        $unauthorizedDownload = $this->actingAs($applicant)
+            ->get(route('res.certificates.applications.download-all', $application));
+        $unauthorizedDownload->status() === 403
+            ? $unauthorizedDownload->assertForbidden()
+            : $unauthorizedDownload->assertRedirect(route('dashboard'));
 
         $tampered = $certificates->first()->currentVersion;
         Storage::disk('local')->put($tampered->stored_file_path, 'tampered certificate');

@@ -81,7 +81,7 @@
                 @endforeach
             </ol>
 
-            <details class="application-panel revision-status-overview revision-major-disclosure" open>
+            <details class="application-panel revision-status-overview revision-major-disclosure">
                 <summary class="application-panel-heading">
                     <div><h2 id="revision-status-title">Application Status Overview</h2></div>
                     <span class="reviewer-workflow-accordion-chevron" aria-hidden="true"><x-dashboard.icon name="chevron-down" size="18" /></span>
@@ -102,7 +102,7 @@
                 'is-final-approved' => $finalApproved,
             ])>
                 <main>
-                    <details class="application-panel revision-feedback-panel revision-major-disclosure" open>
+                    <details class="application-panel revision-feedback-panel revision-major-disclosure">
                         <summary class="application-panel-heading">
                             <div>
                                 <h2 id="released-feedback-title">Released Feedback and Document History</h2>
@@ -263,7 +263,7 @@
                     </details>
 
                     @unless ($finalApproved)
-                    <details class="application-panel revision-documents-panel" open>
+                    <details class="application-panel revision-documents-panel">
                         <summary class="application-panel-heading">
                             <div>
                                 <h2 id="revision-documents-title">Revision Submission</h2>
@@ -350,7 +350,7 @@
 
                 @if ($showCertification)
                 <aside>
-                    <details class="application-panel certification-panel revision-major-disclosure" open>
+                    <details class="application-panel certification-panel revision-major-disclosure">
                         <summary class="application-panel-heading">
                             <div><h2 id="certification-state-title">Certification</h2></div>
                             <x-dashboard.status-badge :label="$certificationState->label()" :tone="$certificationState->tone()" />

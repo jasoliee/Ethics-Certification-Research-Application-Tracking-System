@@ -179,7 +179,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
                 'reviewer_ids' => [$reviewer->id],
                 'confirm_assignment' => '1',
             ])
-            ->assertRedirect(route('res.applications.show', $application))
+            ->assertRedirect(route('res.applications.index'))
             ->assertSessionHasNoErrors();
 
         $application->refresh();

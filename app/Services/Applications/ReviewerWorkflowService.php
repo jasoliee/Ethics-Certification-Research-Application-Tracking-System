@@ -690,8 +690,8 @@ class ReviewerWorkflowService
             $errors['recommendation'] = 'Select a recommendation.';
         }
 
-        if ($this->nonWhitespaceLength((string) $payload['recommendation_comments']) < 15) {
-            $errors['recommendation_comments'] = 'Enter recommendation comments with at least 15 non-whitespace characters.';
+        if ($this->nonWhitespaceLength((string) $payload['recommendation_comments']) < 5) {
+            $errors['recommendation_comments'] = 'Enter recommendation comments with at least 5 non-whitespace characters.';
         }
 
         if ($errors !== []) {
@@ -735,8 +735,8 @@ class ReviewerWorkflowService
             $errors['decision'] = 'Select a final review decision.';
         }
 
-        if (mb_strlen(trim((string) $decisionComment)) < 10) {
-            $errors['decision_comment'] = 'Provide a final decision comment of at least 10 characters.';
+        if (mb_strlen(trim((string) $decisionComment)) < 5) {
+            $errors['decision_comment'] = 'Provide a final decision comment of at least 5 characters.';
         }
 
         if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
@@ -765,6 +765,23 @@ class ReviewerWorkflowService
             if (! $form
                 || ! in_array($form->status, [ReviewFormStatus::Completed, ReviewFormStatus::Final], true)) {
                 $errors['forms'] = 'Complete both required reviewer worksheets before submitting the decision.';
+            }
+        }
+
+        if ($decision === ReviewDecision::Approved) {
+            $conflictingRecommendations = $finalForms->filter(
+                fn (ReviewFormSubmission $form): bool => in_array(
+                    $form->recommendation,
+                    [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision],
+                    true,
+                ),
+            );
+
+            if ($conflictingRecommendations->isNotEmpty()) {
+                $labels = $conflictingRecommendations
+                    ->map(fn (ReviewFormSubmission $form): string => $form->form_type->label())
+                    ->implode(', ');
+                $errors['decision'] = "Approval cannot be submitted while {$labels} recommends a revision. Align the final decision with the completed worksheets.";
             }
         }
 

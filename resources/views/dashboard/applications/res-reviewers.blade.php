@@ -115,7 +115,7 @@
                         @else
                             <x-dashboard.overflow label="Eligible reviewer candidates" wide>
                                 <table class="dashboard-table res-reviewer-table">
-                                <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th>Position</th><th>Department</th><th>Institution</th><th class="res-reviewer-load-cell">Current Load</th></tr></thead>
+                                <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th class="res-reviewer-load-cell">Current Load</th><th>Department</th><th>Institution</th><th>Position</th></tr></thead>
                                 <tbody>
                                     @foreach ($candidates as $candidate)
                                         @php
@@ -145,16 +145,16 @@
                                                     data-reviewer-select
                                                 >
                                             </td>
-                                            <td><label for="reviewer-{{ $candidate->id }}"><strong>{{ $candidate->name }}</strong><small>Adviser with Reviewer capability</small></label></td>
-                                            <td>{{ $candidate->position_title ?: 'Not specified' }}</td>
-                                            <td>{{ $candidate->department ?: 'Not specified' }}</td>
-                                            <td>{{ $candidate->institution ?: 'Not specified' }}</td>
+                                            <td><label for="reviewer-{{ $candidate->id }}"><strong>{{ $candidate->name }}</strong></label></td>
                                             <td class="res-reviewer-load-cell">
                                                 <strong>{{ $activeLoad }} / {{ $capacity }}</strong>
                                                 @unless ($available)
                                                     <small class="res-reviewer-capacity-note">Capacity reached</small>
                                                 @endunless
                                             </td>
+                                            <td>{{ $candidate->department ?: 'Not specified' }}</td>
+                                            <td>{{ $candidate->institution ?: 'Not specified' }}</td>
+                                            <td>{{ $candidate->position_title ?: 'Not specified' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -194,7 +194,6 @@
                         <x-dashboard.icon name="x" size="20" />
                     </button>
                     <header class="application-modal-heading">
-                        <span class="application-modal-icon"><x-dashboard.icon name="users" size="24" /></span>
                         <div>
                             <h2 id="reviewer-assignment-title">Confirm Reviewer Set</h2>
                         </div>
@@ -210,7 +209,6 @@
                         <ul class="res-confirmation-reviewers" data-confirmation-reviewer-list></ul>
                     </div>
                     <div class="res-classification-note">
-                        <x-dashboard.icon name="user-check" size="18" />
                         <span>The application will move to {{ $reviewType === \App\Enums\ReviewType::Expedited ? 'Under Expedited Review' : 'Under Full Board Review' }}.</span>
                     </div>
                     <div class="application-modal-actions">

@@ -20,15 +20,17 @@
         );
         $optionsHaveErrors = $errors->has('option_field') || $errors->has('option_value');
         $backgroundsHaveErrors = $errors->getBag('certificateBackground')->any() || $errors->has('background') || $errors->has('background_type');
+        $requirementsHaveErrors = $errors->getBag('requirementConfiguration')->any();
         $requestedTab = request('tab');
         $initialTab = old('settings_tab')
-            ?: ($certificateHasErrors ? 'certificate'
+            ?: ($requirementsHaveErrors ? 'requirements'
+                : ($certificateHasErrors ? 'certificate'
                 : ($securityHasErrors ? 'security'
                 : ($deadlineHasErrors ? 'deadlines'
                     : ($optionsHaveErrors ? 'options'
                         : ($backgroundsHaveErrors ? 'backgrounds'
                             : ($profileHasErrors ? 'profile'
-                                : (in_array($requestedTab, ['profile', 'deadlines', 'options', 'backgrounds', 'certificate', 'security'], true) ? $requestedTab : 'profile')))))));
+                                : (in_array($requestedTab, ['profile', 'requirements', 'deadlines', 'options', 'backgrounds', 'certificate', 'security'], true) ? $requestedTab : 'profile'))))))));
         $processIcons = [
             'application-submission' => 'file-text',
             'adviser-endorsement' => 'user-check',
@@ -52,10 +54,14 @@
             <h1>Settings</h1>
         </header>
 
-        <nav class="settings-tabs" role="tablist" aria-label="Settings sections">
+        <nav class="settings-tabs settings-tabs-seven" role="tablist" aria-label="Settings sections">
             <button id="settings-tab-profile" type="button" role="tab" aria-controls="settings-panel-profile" aria-selected="{{ $initialTab === 'profile' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'profile' ? '0' : '-1' }}" data-settings-tab="profile">
                 <x-dashboard.icon name="user" size="18" />
                 <span>Profile</span>
+            </button>
+            <button id="settings-tab-requirements" type="button" role="tab" aria-controls="settings-panel-requirements" aria-selected="{{ $initialTab === 'requirements' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'requirements' ? '0' : '-1' }}" data-settings-tab="requirements">
+                <x-dashboard.icon name="file-text" size="18" />
+                <span>Requirements Configuration</span>
             </button>
             <button id="settings-tab-deadlines" type="button" role="tab" aria-controls="settings-panel-deadlines" aria-selected="{{ $initialTab === 'deadlines' ? 'true' : 'false' }}" tabindex="{{ $initialTab === 'deadlines' ? '0' : '-1' }}" data-settings-tab="deadlines">
                 <x-dashboard.icon name="calendar" size="18" />
@@ -108,6 +114,8 @@
             </section>
         </section>
 
+        @include('settings.partials.requirements-configuration')
+
         <section
             class="settings-tab-panel"
             id="settings-panel-certificate"
@@ -127,43 +135,43 @@
                     @method('PUT')
                     <input type="hidden" name="settings_tab" value="certificate">
                     <div class="settings-certificate-grid">
-                        <div class="settings-certificate-identity">
-                            <div class="settings-field">
-                                <label for="certificate_signatory_name">Printed Signatory Name</label>
-                                <input id="certificate_signatory_name" name="certificate_signatory_name" type="text" value="{{ old('certificate_signatory_name', $settingsUser->certificate_signatory_name ?: $settingsUser->name) }}" maxlength="120" required>
-                                @error('certificate_signatory_name')<span class="settings-field-error">{{ $message }}</span>@enderror
-                            </div>
-                            <div class="settings-field">
-                                <label for="certificate_valid_until">Valid Until</label>
-                                <input id="certificate_valid_until" name="certificate_valid_until" type="date" value="{{ old('certificate_valid_until', $settingsUser->certificate_valid_until?->format('Y-m-d') ?? now()->addYearNoOverflow()->format('Y-m-d')) }}" min="{{ now()->format('Y-m-d') }}" required>
-                                @error('certificate_valid_until')<span class="settings-field-error">{{ $message }}</span>@enderror
-                            </div>
+                        <div class="settings-field">
+                            <label for="certificate_signatory_name">Printed Signatory Name</label>
+                            <input id="certificate_signatory_name" name="certificate_signatory_name" type="text" value="{{ old('certificate_signatory_name', $settingsUser->certificate_signatory_name ?: $settingsUser->name) }}" maxlength="120" required>
+                            @error('certificate_signatory_name')<span class="settings-field-error">{{ $message }}</span>@enderror
                         </div>
-                        <div class="settings-certificate-upload">
-                            <span>Transparent PNG Signature</span>
-                            <label class="settings-file-control" for="settings_signature" data-settings-file-control>
+                        <div class="settings-field">
+                            <label for="certificate_valid_until">Valid Until</label>
+                            <input id="certificate_valid_until" name="certificate_valid_until" type="date" value="{{ old('certificate_valid_until', $settingsUser->certificate_valid_until?->format('Y-m-d') ?? now()->addYearNoOverflow()->format('Y-m-d')) }}" min="{{ now()->format('Y-m-d') }}" data-settings-date-picker required>
+                            @error('certificate_valid_until')<span class="settings-field-error">{{ $message }}</span>@enderror
+                        </div>
+                        <div class="settings-certificate-asset">
+                            <div class="settings-certificate-current">
+                                <span>Current Signature</span>
+                                <img class="settings-current-signature" src="{{ route('res.settings.signatory.preview') }}" alt="Current authorized RES certificate signature">
+                                <small class="settings-certificate-warning">The signature must be a transparent PNG file without a background.</small>
+                            </div>
+                            <label class="settings-file-control settings-certificate-replace" for="settings_signature" data-settings-file-control>
                                 <x-dashboard.icon name="upload" size="17" />
-                                <span data-settings-file-label>Choose File</span>
+                                <span data-settings-file-label data-settings-default-label="Replace Signature">Replace Signature</span>
                                 <input id="settings_signature" name="signature" type="file" accept="image/png,.png">
                             </label>
                             @error('signature')<span class="settings-field-error">{{ $message }}</span>@enderror
                             @error('signature', 'signatory')<span class="settings-field-error">{{ $message }}</span>@enderror
                         </div>
-                        <div class="settings-signature-preview">
-                            <span>Current Signature</span>
-                            <img src="{{ route('res.settings.signatory.preview') }}" alt="Current authorized RES certificate signature">
-                        </div>
-                        <div class="settings-certificate-upload">
-                            <span>QR Image</span>
-                            <label class="settings-file-control" for="settings_qr_image" data-settings-file-control>
+                        <div class="settings-certificate-asset">
+                            <div class="settings-certificate-current">
+                                <span>Current QR Code</span>
+                                <img class="settings-qr-preview" src="{{ route('res.settings.certificate-qr.preview') }}" alt="Current certificate QR code">
+                                @unless($settingsUser->certificate_qr_path)<small>Official fallback: {{ \App\Services\Certificates\DefaultCertificateQrService::URL }}</small>@endunless
+                            </div>
+                            <label class="settings-file-control settings-certificate-replace" for="settings_qr_image" data-settings-file-control>
                                 <x-dashboard.icon name="upload" size="17" />
-                                <span data-settings-file-label>Choose File</span>
+                                <span data-settings-file-label data-settings-default-label="Replace QR">Replace QR</span>
                                 <input id="settings_qr_image" name="qr_image" type="file" accept="image/png,.png">
                             </label>
                             @error('qr_image')<span class="settings-field-error">{{ $message }}</span>@enderror
                             @error('qr_image', 'signatory')<span class="settings-field-error">{{ $message }}</span>@enderror
-                            <img class="settings-qr-preview" src="{{ route('res.settings.certificate-qr.preview') }}" alt="Current certificate QR code">
-                            @unless($settingsUser->certificate_qr_path)<small>Official fallback: {{ \App\Services\Certificates\DefaultCertificateQrService::URL }}</small>@endunless
                         </div>
                     </div>
                     <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>Save Certificate Configuration</span></button>
@@ -255,8 +263,7 @@
             @if ($initialTab !== 'backgrounds') hidden @endif
         >
             <section class="settings-section" aria-labelledby="background-management-title">
-                <div class="settings-section-heading">
-                    <span><x-dashboard.icon name="image" size="23" /></span>
+                <div class="settings-section-heading settings-background-heading">
                     <div><h2 id="background-management-title">Background Management</h2></div>
                 </div>
 
@@ -282,8 +289,8 @@
                             <header>
                                 <div><h3 id="{{ $backgroundType }}-background-title">{{ $backgroundLabel }}</h3><p>{{ $activeBackground?->original_file_name ?: 'No active asset' }}</p></div>
                                 <div class="settings-background-header-actions">
-                                    @if ($activeBackground)<a class="dashboard-outline-action" href="{{ route('res.settings.backgrounds.preview', $activeBackground) }}" target="_blank" rel="noopener"><x-dashboard.icon name="eye" size="17" /><span>Preview</span></a>@endif
-                                    <form method="POST" action="{{ route('res.settings.backgrounds.reset') }}">@csrf<input type="hidden" name="settings_tab" value="backgrounds"><input type="hidden" name="background_type" value="{{ $backgroundType }}"><button class="dashboard-outline-action settings-reset-action" type="submit"><x-dashboard.icon name="refresh" size="17" /><span>Reset to Default</span></button></form>
+                                    @if ($activeBackground)<a class="settings-background-link" href="{{ route('res.settings.backgrounds.preview', $activeBackground) }}" target="_blank" rel="noopener">Preview</a>@endif
+                                    <form method="POST" action="{{ route('res.settings.backgrounds.reset') }}">@csrf<input type="hidden" name="settings_tab" value="backgrounds"><input type="hidden" name="background_type" value="{{ $backgroundType }}"><button class="settings-background-link is-danger" type="submit">Reset to Default</button></form>
                                 </div>
                             </header>
 

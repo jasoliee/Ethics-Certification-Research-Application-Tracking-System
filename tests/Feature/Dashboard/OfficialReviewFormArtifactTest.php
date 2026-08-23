@@ -175,7 +175,9 @@ class OfficialReviewFormArtifactTest extends TestCase
 
     public function test_finalized_worksheets_snapshot_and_render_the_verified_reviewer_signatory(): void
     {
-        [$reviewer, , , , $assignment] = $this->fixture();
+        [$reviewer, , , $application, $assignment] = $this->fixture();
+        $longTitle = 'A Cross-Institutional Longitudinal Study of Ethical Artificial Intelligence Adoption, Participant Data Protection, Community Accountability, and Inclusive Educational Outcomes Across Multiple Academic Programs';
+        $application->update(['research_title' => $longTitle]);
         app(WorksheetSignatorySettingsService::class)->update(
             $reviewer,
             'Dr. Immutable Worksheet Signatory',
@@ -189,6 +191,7 @@ class OfficialReviewFormArtifactTest extends TestCase
         $this->assertCount(2, $forms);
         foreach ($forms as $form) {
             $context = $form->finalized_context_snapshot;
+            $this->assertSame($longTitle, $context['research_title']);
             $this->assertSame('Dr. Immutable Worksheet Signatory', $context['worksheet_signatory_name']);
             $this->assertSame($reviewer->worksheet_signature_path, $context['worksheet_signature_path']);
             $this->assertSame($reviewer->worksheet_signature_sha256, $context['worksheet_signature_sha256']);

@@ -15,13 +15,16 @@ use App\Http\Requests\Settings\UpdateOwnProfileRequest;
 use App\Http\Requests\Settings\UpdateOwnUsernameRequest;
 use App\Http\Requests\Settings\UpdateSignatoryRequest;
 use App\Http\Requests\Settings\UploadManagedBackgroundRequest;
+use App\Http\Requests\Settings\SaveDocumentRequirementRequest;
 use App\Models\CertificateBackground;
+use App\Models\DocumentRequirement;
 use App\Models\ProfileOption;
 use App\Services\Certificates\CertificateBackgroundService;
 use App\Services\Certificates\DefaultCertificateQrService;
 use App\Services\Identity\ProfileOptionCatalog;
 use App\Services\Settings\AcademicTermResolver;
 use App\Services\Settings\DeadlineConfigurationService;
+use App\Services\Settings\DocumentRequirementConfigurationService;
 use App\Services\Settings\SelfAccountSettingsService;
 use App\Services\Settings\SignatorySettingsService;
 use Illuminate\Http\JsonResponse;
@@ -43,6 +46,7 @@ class ResLeadSettingsController extends Controller
         AcademicTermResolver $terms,
         ProfileOptionCatalog $profileOptions,
         CertificateBackgroundService $backgrounds,
+        DocumentRequirementConfigurationService $requirementConfiguration,
     ): View {
         $configuredTerm = $terms->latestConfigured();
         $currentTerm = $terms->current();
@@ -64,6 +68,12 @@ class ResLeadSettingsController extends Controller
             ->latest('asset_version')
             ->get()
             ->groupBy('background_type');
+        $documentRequirements = DocumentRequirement::query()
+            ->where('is_active', true)
+            ->withCount('applicationDocuments')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         return view('settings.res-lead', [
             'pageTitle' => 'Settings',
@@ -83,11 +93,45 @@ class ResLeadSettingsController extends Controller
                 'inactive' => $optionRecords->where('is_active', false)->count(),
             ],
             'managedBackgrounds' => $managedBackgrounds,
+            'documentRequirements' => $documentRequirements,
+            'requirementsLockedTerm' => $requirementConfiguration->structuralChangesLocked(),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Settings'],
             ],
         ]);
+    }
+
+    public function storeDocumentRequirement(
+        SaveDocumentRequirementRequest $request,
+        DocumentRequirementConfigurationService $requirements,
+    ): RedirectResponse {
+        $requirements->create($request->user(), $request->validated());
+
+        return redirect()->route('res.settings.index', ['tab' => 'requirements'])
+            ->with('status', 'The document requirement was added and is now available across ECRATS.');
+    }
+
+    public function updateDocumentRequirement(
+        SaveDocumentRequirementRequest $request,
+        DocumentRequirement $documentRequirement,
+        DocumentRequirementConfigurationService $requirements,
+    ): RedirectResponse {
+        $requirements->update($request->user(), $documentRequirement, $request->validated());
+
+        return redirect()->route('res.settings.index', ['tab' => 'requirements'])
+            ->with('status', 'The requirement specification was updated across ECRATS.');
+    }
+
+    public function destroyDocumentRequirement(
+        Request $request,
+        DocumentRequirement $documentRequirement,
+        DocumentRequirementConfigurationService $requirements,
+    ): RedirectResponse {
+        $requirements->deactivate($request->user(), $documentRequirement);
+
+        return redirect()->route('res.settings.index', ['tab' => 'requirements'])
+            ->with('status', 'The requirement was removed from the active catalogue. Historical records were preserved.');
     }
 
     public function updateDeadlines(

@@ -192,9 +192,9 @@ class OfficialReviewFormArtifactService
         $rightX = $isProtocol ? 150.0 : 145.0;
         $rightWidth = $isProtocol ? 42.0 : 47.0;
 
-        $pdf->SetFont('Helvetica', 'B', 5.5);
+        $pdf->SetFont('Helvetica', 'B', 5.25);
         $pdf->SetXY($leftX, 69.2);
-        $pdf->MultiCell(124.0, 3.1, $this->pdfText(Str::limit(trim((string) ($context['research_title'] ?? '')), 210, '...')), 0, 'L');
+        $pdf->MultiCell(124.0, 3.1, $this->pdfText(Str::limit(trim((string) ($context['research_title'] ?? '')), 260, '...')), 0, 'L');
         $this->writeFittedLine($pdf, $leftX, 82.2, $leftWidth, (string) ($context['application_code'] ?? ''), 6.5, 4.5);
         $this->writeFittedLine($pdf, $rightX, 82.2, $rightWidth, (string) ($context['review_classification'] ?? ''), 6.5, 4.5);
 
@@ -319,7 +319,7 @@ class OfficialReviewFormArtifactService
                 ? match ($recommendation) {
                     ReviewDecision::MinorRevision->value => 149.5,
                     ReviewDecision::MajorRevision->value => 183.4,
-                    default => 217.3,
+                    default => 207.0,
                 }
             : 160.0;
             $this->writeWrapped($pdf, 16.0, $commentY, 176.0, 5.0, $comments, $isProtocol ? 3 : 4);
@@ -327,7 +327,7 @@ class OfficialReviewFormArtifactService
             $this->writeSingleLine(
                 $pdf,
                 16.0,
-                $isProtocol ? min($commentY + 17.0, 235.0) : 188.0,
+                $isProtocol ? min($commentY + 17.0, 228.0) : 188.0,
                 176.0,
                 'Complete recommendation comments preserved on response continuation page.',
             );
@@ -336,13 +336,26 @@ class OfficialReviewFormArtifactService
         $signatureY = $isProtocol ? 244.0 : 201.0;
         $signaturePath = $this->verifiedWorksheetSignature($context);
         if ($signaturePath !== null) {
-            $pdf->Image($signaturePath, 55.0, $signatureY - 10.0, 42.0, 8.0, 'PNG');
+            $pdf->Image($signaturePath, 59.0, $signatureY - 10.0, 42.0, 8.0, 'PNG');
         }
-        $pdf->SetFont('Helvetica', 'B', 7.5);
-        $pdf->SetXY(25.0, $signatureY);
-        $pdf->Cell(110.0, 4.0, $this->pdfText((string) ($context['worksheet_signatory_name'] ?? $context['reviewer_name'] ?? '')), 0, 0, 'C');
-        $pdf->SetXY(145.0, $signatureY);
-        $pdf->Cell(40.0, 4.0, $this->pdfText((string) ($context['review_date'] ?? '')), 0, 0, 'C');
+        $this->writeFittedCenteredLine(
+            $pdf,
+            25.0,
+            $signatureY,
+            110.0,
+            (string) ($context['worksheet_signatory_name'] ?? $context['reviewer_name'] ?? ''),
+            9.0,
+            7.0,
+        );
+        $this->writeFittedCenteredLine(
+            $pdf,
+            145.0,
+            $signatureY,
+            40.0,
+            (string) ($context['review_date'] ?? ''),
+            9.0,
+            7.5,
+        );
     }
 
     /**
@@ -547,6 +560,28 @@ class OfficialReviewFormArtifactService
 
         $pdf->SetXY($x, $y);
         $pdf->Cell($width, 4, $value, 0, 0, 'L', false);
+    }
+
+    private function writeFittedCenteredLine(
+        Fpdi $pdf,
+        float $x,
+        float $y,
+        float $width,
+        string $text,
+        float $maximumSize,
+        float $minimumSize,
+    ): void {
+        $value = $this->pdfText(trim($text));
+        $fontSize = $maximumSize;
+        $pdf->SetFont('Helvetica', 'B', $fontSize);
+
+        while ($fontSize > $minimumSize && $pdf->GetStringWidth($value) > $width) {
+            $fontSize -= 0.25;
+            $pdf->SetFont('Helvetica', 'B', $fontSize);
+        }
+
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($width, 4.5, $value, 0, 0, 'C', false);
     }
 
     private function writeWrapped(

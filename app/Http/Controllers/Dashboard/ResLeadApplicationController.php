@@ -296,7 +296,7 @@ class ResLeadApplicationController extends Controller
         );
 
         return redirect()
-            ->route('res.applications.show', $researchApplication)
+            ->route('res.applications.index')
             ->with('status', 'Reviewers successfully assigned.');
     }
 

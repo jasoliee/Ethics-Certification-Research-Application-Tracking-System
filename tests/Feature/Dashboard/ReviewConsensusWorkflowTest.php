@@ -100,13 +100,21 @@ class ReviewConsensusWorkflowTest extends TestCase
 
             return $comment;
         });
+        $firstReviewerName = $application->reviewerAssignments()
+            ->with('reviewer')
+            ->orderBy('assignment_sequence')
+            ->firstOrFail()
+            ->reviewer
+            ->name;
 
         $evaluated = app(ReviewConsensusService::class)->evaluate($application);
         $this->assertSame(ReviewConsensusStatus::Consensus, $evaluated->review_consensus_status);
         $this->actingAs($resLead)
             ->get(route('res.certificates.workspace', $application))
             ->assertOk()
-            ->assertSeeInOrder(['Supporting Documents', 'Release Decision', 'Reviewer 1'])
+            ->assertSeeInOrder(['Supporting Documents', 'Release Decision', 'Reviewer 1 requires revision.'])
+            ->assertSee($firstReviewerName)
+            ->assertDontSee('<h2>Reviewer 1</h2>', false)
             ->assertDontSee('Application Decision');
         $css = (string) file_get_contents(resource_path('css/dashboard.css'));
         $this->assertMatchesRegularExpression(
@@ -188,7 +196,7 @@ class ReviewConsensusWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.certificates.workspace', $application))
             ->assertOk()
-            ->assertSeeInOrder(['Supporting Documents', 'Decision release blocked.', 'Reviewer 1'])
+            ->assertSeeInOrder(['Supporting Documents', 'Decision release blocked.', $assignments->first()->reviewer->name])
             ->assertDontSee('Application Decision')
             ->assertSee('The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.')
             ->assertDontSee('Release Decision');

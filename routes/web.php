@@ -207,6 +207,8 @@ Route::middleware('no-store')->group(function (): void {
                     Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
                     Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');
                     Route::patch('/password', 'updatePassword')->middleware('throttle:security-change')->name('password.update');
+                    Route::put('/worksheet-signatory', 'updateWorksheetSignatory')->middleware(['reviewer.enabled', 'throttle:security-change'])->name('worksheet-signatory.update');
+                    Route::get('/worksheet-signature/preview', 'previewWorksheetSignature')->middleware('reviewer.enabled')->name('worksheet-signature.preview');
                 });
             });
 
@@ -342,6 +344,8 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('certificates.versions.download');
                 Route::get('/certificates/applications/{researchApplication}/preview-all', [ResCertificationController::class, 'previewAllCertificates'])
                     ->name('certificates.applications.preview-all');
+                Route::get('/certificates/applications/{researchApplication}/download-all', [ResCertificationController::class, 'downloadAllCertificates'])
+                    ->name('certificates.applications.download-all');
                 Route::controller(ResReportController::class)->prefix('reports')->name('reports.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');
@@ -383,6 +387,9 @@ Route::middleware('no-store')->group(function (): void {
                 Route::get('/profile', ProfilePageController::class)->name('profile.show');
                 Route::controller(ResLeadSettingsController::class)->prefix('settings')->name('settings.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
+                    Route::post('/requirements', 'storeDocumentRequirement')->middleware('throttle:account-write')->name('requirements.store');
+                    Route::put('/requirements/{documentRequirement}', 'updateDocumentRequirement')->middleware('throttle:account-write')->name('requirements.update');
+                    Route::delete('/requirements/{documentRequirement}', 'destroyDocumentRequirement')->middleware('throttle:account-write')->name('requirements.destroy');
                     Route::put('/deadlines', 'updateDeadlines')->middleware('throttle:account-write')->name('deadlines.update');
                     Route::put('/profile', 'updateProfile')->middleware('throttle:account-write')->name('profile.update');
                     Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');

@@ -342,7 +342,7 @@
                         </div>
                         <div class="application-field">
                             <label for="review-decision-comment">Decision Comment</label>
-                            <textarea id="review-decision-comment" name="decision_comment" rows="4" minlength="10" maxlength="2000" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>{{ old('decision_comment', $review?->draft_decision_comment ?? $review?->decision_comment) }}</textarea>
+                            <textarea id="review-decision-comment" name="decision_comment" rows="4" minlength="5" maxlength="2000" aria-describedby="review-decision-feedback" @disabled(! $canWrite)>{{ old('decision_comment', $review?->draft_decision_comment ?? $review?->decision_comment) }}</textarea>
                         </div>
                         <p class="reviewer-decision-feedback" id="review-decision-feedback" role="alert" aria-live="assertive" tabindex="-1" data-reviewer-decision-feedback></p>
                         @if ($reviewSubmitted)
@@ -634,6 +634,8 @@
                         action="{{ route('reviewer.assignments.forms.update', [$assignment, $type]) }}"
                         data-reviewer-worksheet-form
                         data-reviewer-form-type="{{ $type->value }}"
+                        data-saved-recommendation="{{ $form?->recommendation?->value }}"
+                        data-form-completed="{{ $formCompleted ? 'true' : 'false' }}"
                     >
                         @csrf
                         @method('PUT')
@@ -704,7 +706,7 @@
                             </fieldset>
                             <div class="application-field">
                                 <label for="{{ $type->value }}-recommendation-comments">Recommendation Comments</label>
-                                <textarea id="{{ $type->value }}-recommendation-comments" name="recommendation_comments" rows="4" minlength="15" maxlength="2000" @disabled(! $formCanWrite) @required($formCanWrite)>{{ old('form_type') === $type->value ? old('recommendation_comments') : $form?->recommendation_comments }}</textarea>
+                                <textarea id="{{ $type->value }}-recommendation-comments" name="recommendation_comments" rows="4" minlength="5" maxlength="2000" @disabled(! $formCanWrite) @required($formCanWrite)>{{ old('form_type') === $type->value ? old('recommendation_comments') : $form?->recommendation_comments }}</textarea>
                                 @error('recommendation_comments', 'reviewerForm')<small class="application-field-error">{{ $message }}</small>@enderror
                             </div>
                         </div>
@@ -716,23 +718,23 @@
                         <p class="reviewer-form-feedback" role="status" aria-live="polite" data-reviewer-form-feedback></p>
 
                         <div class="application-modal-actions reviewer-form-actions">
-                            <button class="dashboard-outline-action" type="button" data-reviewer-form-close>
-                                <x-dashboard.icon name="arrow-left" size="16" />
-                                <span>Back to Worksheet List</span>
-                            </button>
                             @if ($reviewSubmitted && $form?->artifact?->status === \App\Enums\ReviewFormArtifactStatus::Ready)
-                                <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">
-                                    <x-dashboard.icon name="eye" size="16" />
-                                    <span>Preview Official PDF</span>
-                                </a>
-                                <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $form->artifact]) }}">
-                                    <x-dashboard.icon name="download" size="16" />
-                                    <span>Download PDF</span>
-                                </a>
+                                <div class="reviewer-form-artifact-actions">
+                                    <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.forms.artifacts.preview', [$assignment, $form, $form->artifact]) }}" target="_blank" rel="noopener">
+                                        <x-dashboard.icon name="eye" size="16" />
+                                        <span>Preview Official PDF</span>
+                                    </a>
+                                    <a class="dashboard-outline-action" href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $form->artifact]) }}">
+                                        <x-dashboard.icon name="download" size="16" />
+                                        <span>Download PDF</span>
+                                    </a>
+                                </div>
                             @endif
                             @if ($formCanWrite)
-                                <button class="dashboard-outline-action" type="submit" name="intent" value="draft" formnovalidate data-reviewer-form-save-draft>Save Draft</button>
-                                <button class="dashboard-primary-action" type="submit" name="intent" value="submit" data-reviewer-form-submit-final>Submit</button>
+                                <div class="reviewer-form-submit-actions">
+                                    <button class="dashboard-outline-action" type="submit" name="intent" value="draft" formnovalidate data-reviewer-form-save-draft>Save Draft</button>
+                                    <button class="dashboard-primary-action" type="submit" name="intent" value="submit" data-reviewer-form-submit-final>Submit</button>
+                                </div>
                             @endif
                         </div>
                     </form>

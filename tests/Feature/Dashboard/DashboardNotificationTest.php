@@ -89,7 +89,7 @@ class DashboardNotificationTest extends TestCase
         $owned = $owner->notifications()->firstOrFail();
         $foreign = $other->notifications()->firstOrFail();
 
-        $this->actingAs($owner)
+        $inbox = $this->actingAs($owner)
             ->get(route('applicant.notifications.index', ['read_status' => 'unread']))
             ->assertOk()
             ->assertSee('Owned notification')
@@ -98,9 +98,16 @@ class DashboardNotificationTest extends TestCase
             ->assertSee('Delete All')
             ->assertSee('Selected Notification')
             ->assertSee('Choose Action')
+            ->assertSee('notification-selected-actions', false)
             ->assertSee('data-notification-confirm-dialog', false)
             ->assertSee('data-notification-confirm-mode="inbox-selected"', false)
             ->assertDontSee('onsubmit="return confirm(', false);
+        $inboxHtml = $inbox->getContent();
+        $this->assertGreaterThan(
+            strpos($inboxHtml, 'notification-bulk-bar'),
+            strpos($inboxHtml, 'Mark all as Read'),
+            'All-notification actions must render inside the bulk-action container.',
+        );
 
         $this->actingAs($owner)
             ->patch(route('notifications.read-status', $foreign), ['action' => 'mark_read'])
@@ -116,6 +123,8 @@ class DashboardNotificationTest extends TestCase
             ->assertOk()
             ->assertSee('Owned notification')
             ->assertSee('Restore All')
+            ->assertSee('Permanently Delete Notification? This cannot be undone.')
+            ->assertSee('data-confirm-message=""', false)
             ->assertSee('data-notification-confirm-mode="bin-selected"', false)
             ->assertDontSee('window.confirm(', false);
 

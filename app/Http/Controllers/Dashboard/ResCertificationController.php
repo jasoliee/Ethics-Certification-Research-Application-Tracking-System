@@ -260,6 +260,20 @@ class ResCertificationController extends Controller
 
     public function previewAllCertificates(Request $request, ResearchApplication $researchApplication): Response
     {
+        return $this->allCertificatesResponse($request, $researchApplication, 'inline');
+    }
+
+    public function downloadAllCertificates(Request $request, ResearchApplication $researchApplication): Response
+    {
+        return $this->allCertificatesResponse($request, $researchApplication, 'attachment');
+    }
+
+    private function allCertificatesResponse(
+        Request $request,
+        ResearchApplication $researchApplication,
+        string $disposition,
+    ): Response
+    {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $researchApplication->load(['certificates.currentVersion']);
         $certificates = $researchApplication->certificates->filter(
@@ -290,7 +304,7 @@ class ResCertificationController extends Controller
 
         return response($bytes, 200, [
             ...$this->privateHeaders('application/pdf'),
-            'Content-Disposition' => 'inline; filename="'.$fileName.'"',
+            'Content-Disposition' => $disposition.'; filename="'.$fileName.'"',
         ]);
     }
 

@@ -100,7 +100,7 @@
                                                 data-document-download-url="{{ route('res.applications.documents.download', [$application, $document]) }}"
                                             >
                                                 <x-dashboard.icon name="eye" size="16" />
-                                                <span>View Document</span>
+                                                <span class="sr-only">Preview {{ $document->original_file_name }}</span>
                                             </button>
                                             <a
                                                 class="dashboard-icon-action"
@@ -275,7 +275,7 @@
                                             rel="noopener"
                                         >
                                             <x-dashboard.icon name="eye" size="16" />
-                                            <span>Preview</span>
+                                            <span class="sr-only">Preview {{ $form->form_type->label() }}</span>
                                         </a>
                                         <a
                                             class="dashboard-icon-action"

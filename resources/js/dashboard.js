@@ -164,8 +164,8 @@ function initializeNotificationTools(shell) {
 
             if (action === 'force_delete') {
                 return {
-                    title: 'Permanently Delete Selected Notifications',
-                    message: 'Permanently delete the selected notifications? This cannot be undone.',
+                    title: 'Permanently Delete Selected Notifications? This cannot be undone.',
+                    message: '',
                     action: 'Delete Selected',
                     danger: true,
                 };
@@ -224,6 +224,7 @@ function initializeNotificationTools(shell) {
             returnFocus = event.submitter instanceof HTMLElement ? event.submitter : document.activeElement;
             title.textContent = configuration.title;
             message.textContent = configuration.message;
+            message.hidden = configuration.message.trim() === '';
             confirmLabel.textContent = configuration.action;
             confirmButton.classList.toggle('is-danger', configuration.danger);
             dialog.hidden = false;
@@ -699,6 +700,8 @@ function initializeApplicationTools(shell) {
                     total: Number(payload.data?.total_items ?? formProgress().total),
                 };
                 const completed = ['completed', 'final'].includes(payload.data?.status);
+                form.dataset.savedRecommendation = String(formData.get('recommendation') ?? '');
+                form.dataset.formCompleted = String(completed);
                 shell.querySelectorAll(`[data-reviewer-form-status="${formType}"]`).forEach((status) => {
                     [...status.classList]
                         .filter((className) => className.startsWith('tone-'))
@@ -1809,9 +1812,20 @@ function initializeApplicationTools(shell) {
                 return false;
             }
 
-            if ((commentField?.value.trim().length ?? 0) < 10) {
+            const revisionWorksheetConflict = [...shell.querySelectorAll('[data-reviewer-worksheet-form]')]
+                .some((form) => form.dataset.formCompleted === 'true'
+                    && ['minor_revision', 'major_revision'].includes(form.dataset.savedRecommendation));
+            if (decisionField.value === 'approved' && revisionWorksheetConflict) {
+                decisionField.setAttribute('aria-invalid', 'true');
+                setDecisionFeedback('Approval cannot be submitted while a completed worksheet recommends a revision. Align the final decision with the worksheets.');
+                decisionField.focus();
+
+                return false;
+            }
+
+            if ((commentField?.value.trim().length ?? 0) < 5) {
                 commentField?.setAttribute('aria-invalid', 'true');
-                setDecisionFeedback('Enter a decision comment of at least 10 characters before continuing.');
+                setDecisionFeedback('Enter a decision comment of at least 5 characters before continuing.');
                 commentField?.focus();
 
                 return false;
@@ -2290,9 +2304,12 @@ function initializeApplicationTools(shell) {
         const heading = section.querySelector('.application-form-section-heading');
         const body = section.querySelector('.application-form-section-body');
         if (! heading || ! body) return;
+        const expanded = Boolean(section.querySelector('.application-field-error, [role="alert"]'));
+        body.hidden = ! expanded;
+        section.classList.toggle('is-collapsed', ! expanded);
         heading.tabIndex = 0;
         heading.setAttribute('role', 'button');
-        heading.setAttribute('aria-expanded', 'true');
+        heading.setAttribute('aria-expanded', String(expanded));
         const toggle = () => {
             body.hidden = ! body.hidden;
             heading.setAttribute('aria-expanded', String(! body.hidden));
@@ -2310,10 +2327,13 @@ function initializeApplicationTools(shell) {
         const heading = panel.firstElementChild;
         if (! heading || heading.dataset.collapsibleReady === 'true') return;
         const content = [...panel.children].slice(1);
+        const expanded = Boolean(panel.querySelector('.application-field-error, .res-form-error-summary'));
+        content.forEach((element) => { element.hidden = ! expanded; });
+        panel.classList.toggle('is-collapsed', ! expanded);
         heading.dataset.collapsibleReady = 'true';
         heading.tabIndex = 0;
         heading.setAttribute('role', 'button');
-        heading.setAttribute('aria-expanded', 'true');
+        heading.setAttribute('aria-expanded', String(expanded));
         const toggle = () => {
             const expanded = heading.getAttribute('aria-expanded') === 'true';
             heading.setAttribute('aria-expanded', String(! expanded));
@@ -2739,9 +2759,23 @@ function initializeSettingsTools(shell) {
         input?.addEventListener('change', () => {
             const selected = input.files?.[0];
             if (label) {
-                label.textContent = selected?.name ?? 'Choose File';
+                label.textContent = selected?.name ?? label.dataset.settingsDefaultLabel ?? 'Choose File';
             }
             control.classList.toggle('has-file', Boolean(selected));
+        });
+    });
+
+    settings.querySelectorAll('[data-settings-date-picker]').forEach((input) => {
+        input.addEventListener('click', () => {
+            if (typeof input.showPicker !== 'function') {
+                return;
+            }
+
+            try {
+                input.showPicker();
+            } catch {
+                // Native date controls still remain fully operable when showPicker is unavailable.
+            }
         });
     });
 
