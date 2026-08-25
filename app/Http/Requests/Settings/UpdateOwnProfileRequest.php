@@ -22,7 +22,7 @@ class UpdateOwnProfileRequest extends FormRequest
     {
         foreach ([
             'first_name', 'middle_name', 'last_name', 'suffix', 'phone_number',
-            'institution', 'department', 'program', 'year_level', 'position_title',
+            'institution', 'program', 'year_level', 'position_title',
         ] as $field) {
             if ($this->has($field)) {
                 $this->merge([$field => is_string($this->input($field))
@@ -44,8 +44,7 @@ class UpdateOwnProfileRequest extends FormRequest
             'last_name' => ['required', 'string', 'max:100'],
             'suffix' => ['nullable', 'string', 'max:30'],
             'phone_number' => ['required', 'digits:11'],
-            'institution' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Institution, $user?->institution))],
-            'department' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Department, $user?->department))],
+            'institution' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Institute, $user?->institution))],
             'program' => ['nullable', 'string', 'max:150', Rule::in($options->values(ProfileOptionField::Program, $user?->program))],
             'year_level' => [
                 Rule::requiredIf($user?->role === UserRole::Applicant && $user?->applicant_type === ApplicantType::Student),

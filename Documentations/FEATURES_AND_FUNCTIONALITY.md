@@ -63,8 +63,8 @@ This file began as the August 3 feature catalog and retains that historical deta
 
 - Applicants have paginated application history with semester and academic-year filters and internal horizontal table scrolling.
 - Each Applicant can have only one editable draft slot at a time. Repeated create requests reuse that draft.
-- New application codes use the approved year, Applicant type, institution acronym, date, and collision-checked random suffix.
-- Application information validates research title, type, category, institution, department, Student program, eligible Adviser, abstract, target participants, Starting Date, and Ending Date.
+- New application codes use the year, Applicant type, RES-editable Institute acronym, date, and collision-checked random suffix.
+- Application information validates research title, type, category, Institute, Student program, eligible Adviser, abstract, target participants, Starting Date, and Ending Date.
 - Ending Date must be on or after Starting Date. Historical records with the legacy duration text remain readable.
 - The Application page shows whether formal submission is Open or Closed beside Create/Resume Application.
 - The maximum is three formally submitted applications per Applicant. Drafts do not consume a slot, and resubmitting the same returned application reuses its original slot.
@@ -119,7 +119,7 @@ This file began as the August 3 feature catalog and retains that historical deta
 - RES Leads can correct persisted screening details; compatible assignments remain, incompatible pending assignments are removed, and started review work blocks destructive correction.
 - Expedited requires exactly one eligible reviewer; Full Board requires exactly three distinct eligible reviewers.
 - Eligibility is repeated inside the locked assignment transaction and includes active/setup-complete status, matching classification, Applicant/Adviser exclusion, and remaining active capacity.
-- All eligible classification-matched reviewers are listed, with department and institution matches prioritized. Department filtering and name/position/department search are available. Full-load reviewers are visible but disabled.
+- All eligible classification-matched reviewers are listed, with exact Institute matches prioritized. Institute filtering and name/position/Institute search are available. Full-load reviewers are visible but disabled.
 - Assignment uses the existing `reviewer_assignments` table and advances to `under_expedited_review` or `under_full_board_review`.
 - Exempted bypasses assignment and advances to the additive `exempted` status at the direct-release boundary.
 - Classification and assignment produce bounded audit events and neutral Applicant/Reviewer notifications.

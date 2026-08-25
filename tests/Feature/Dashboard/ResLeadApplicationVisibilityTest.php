@@ -138,7 +138,6 @@ class ResLeadApplicationVisibilityTest extends TestCase
             'research_type' => ResearchType::Capstone,
             'research_category' => 'Needle Ethics Category',
             'institution' => 'Needle Institute',
-            'department' => 'Needle Department',
             'program' => 'Needle Research Program',
             'review_type' => 'expedited',
             'application_status' => ApplicationStatus::AwaitingReviewerAssignment,
@@ -181,7 +180,6 @@ class ResLeadApplicationVisibilityTest extends TestCase
             'Needle Adviser',
             'Needle Ethics Category',
             'Needle Institute',
-            'Needle Department',
             'Needle Research Program',
         ] as $search) {
             $this->actingAs($resLead)

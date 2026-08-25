@@ -96,7 +96,6 @@ class AccountCreationServiceTest extends TestCase
             'suffix' => null,
             'phone_number' => '09171234567',
             'institution' => 'Institute of Engineering',
-            'department' => null,
         ], $overrides);
     }
 
@@ -106,7 +105,7 @@ class AccountCreationServiceTest extends TestCase
             'email' => 'student@ecrats.test',
             'institutional_identifier' => 'KLD-STU-201',
             'program' => null,
-            'year_level' => 'Fourth Year',
+            'year_level' => '4th Year',
             'role' => UserRole::Applicant,
             'applicant_type' => ApplicantType::Student,
         ], $overrides));

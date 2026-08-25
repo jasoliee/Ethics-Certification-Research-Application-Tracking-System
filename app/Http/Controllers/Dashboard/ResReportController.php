@@ -35,8 +35,7 @@ class ResReportController extends Controller
             'research_type' => ['nullable', Rule::enum(ResearchType::class)],
             'applicant_type' => ['nullable', Rule::enum(ApplicantType::class)],
             'review_type' => ['nullable', Rule::enum(ReviewType::class)],
-            'department' => ['nullable', 'string', 'max:150'],
-            'institution' => ['nullable', 'string', 'max:150'],
+            'institute' => ['nullable', 'string', 'max:150'],
             'application_status' => ['nullable', Rule::enum(ApplicationStatus::class)],
         ]);
 
@@ -54,8 +53,7 @@ class ResReportController extends Controller
             'applicantTypes' => ApplicantType::cases(),
             'reviewTypes' => ReviewType::cases(),
             'applicationStatuses' => ApplicationStatus::cases(),
-            'departments' => ResearchApplication::query()->whereNotNull('department')->where('department', '<>', '')->distinct()->orderBy('department')->pluck('department'),
-            'institutions' => ResearchApplication::query()->whereNotNull('institution')->where('institution', '<>', '')->distinct()->orderBy('institution')->pluck('institution'),
+            'institutes' => ResearchApplication::query()->whereNotNull('institution')->where('institution', '<>', '')->distinct()->orderBy('institution')->pluck('institution'),
         ]);
     }
 

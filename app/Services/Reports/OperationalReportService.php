@@ -79,10 +79,8 @@ class OperationalReportService
                 ->where('applicant_type', $filters['applicant_type']))
             ->when(filled($filters['review_type'] ?? null), fn (Builder $q) => $q
                 ->where('review_type', $filters['review_type']))
-            ->when(filled($filters['department'] ?? null), fn (Builder $q) => $q
-                ->where('department', $filters['department']))
-            ->when(filled($filters['institution'] ?? null), fn (Builder $q) => $q
-                ->where('institution', $filters['institution']))
+            ->when(filled($filters['institute'] ?? null), fn (Builder $q) => $q
+                ->where('institution', $filters['institute']))
             ->when(filled($filters['application_status'] ?? null), fn (Builder $q) => $q
                 ->where('application_status', $filters['application_status']));
     }

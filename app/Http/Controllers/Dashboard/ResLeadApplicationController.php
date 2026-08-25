@@ -62,7 +62,6 @@ class ResLeadApplicationController extends Controller
                         ->orWhere('research_title', 'like', "%{$search}%")
                         ->orWhere('research_category', 'like', "%{$search}%")
                         ->orWhere('institution', 'like', "%{$search}%")
-                        ->orWhere('department', 'like', "%{$search}%")
                         ->orWhere('program', 'like', "%{$search}%")
                         ->orWhereHas('adviser', fn (Builder $advisers) => $advisers
                             ->where('name', 'like', "%{$search}%"));
@@ -250,7 +249,7 @@ class ResLeadApplicationController extends Controller
         Gate::authorize('view', $researchApplication);
         $filters = $request->validate([
             'reviewer_q' => ['nullable', 'string', 'max:150'],
-            'department' => ['nullable', 'string', 'max:150'],
+            'institute' => ['nullable', 'string', 'max:150'],
         ]);
         $application = $this->loadResApplication($researchApplication);
         $reviewType = ReviewType::tryFrom((string) $application->review_type);
@@ -267,9 +266,9 @@ class ResLeadApplicationController extends Controller
             'candidates' => $canAssign
                 ? $eligibility->paginateCandidates($application, $reviewType, $filters)
                 : null,
-            // Department options use the same active/classification boundary as the candidate list.
-            'departments' => $canAssign
-                ? $eligibility->departmentOptions($application, $reviewType)
+            // Institute options use the same active/classification boundary as the candidate list.
+            'institutes' => $canAssign
+                ? $eligibility->instituteOptions($application, $reviewType)
                 : collect(),
             'filters' => $filters,
             'breadcrumbs' => [
@@ -318,7 +317,6 @@ class ResLeadApplicationController extends Controller
                 'research_type',
                 'research_category',
                 'institution',
-                'department',
                 'program',
                 'review_type',
                 'application_status',
@@ -338,8 +336,8 @@ class ResLeadApplicationController extends Controller
         $assignmentReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
 
         return $application->loadMissing([
-            'applicant:id,name,email,institutional_identifier,institution,department,program,role,applicant_type',
-            'adviser:id,name,email,institution,department',
+            'applicant:id,name,email,institutional_identifier,institution,program,role,applicant_type',
+            'adviser:id,name,email,institution',
             'latestEndorsement.adviser:id,name',
             'screening.screenedBy:id,name',
             'reviewerAssignments' => fn ($assignments) => $assignments

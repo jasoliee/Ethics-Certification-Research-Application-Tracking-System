@@ -62,17 +62,30 @@
         <div class="settings-requirement-list">
             @forelse ($documentRequirements as $requirement)
                 <article class="settings-requirement-card">
-                    <form method="POST" action="{{ route('res.settings.requirements.update', $requirement) }}">
+                    <header>
+                        <div>
+                            <span class="settings-requirement-code">{{ $requirement->code }}</span>
+                            <small>{{ $requirement->application_documents_count }} stored {{ Str::plural('document', $requirement->application_documents_count) }} linked</small>
+                        </div>
+                        <div class="settings-requirement-actions">
+                            <button class="dashboard-outline-action" type="submit" form="requirement-update-{{ $requirement->id }}">
+                                <x-dashboard.icon name="edit" size="16" />
+                                <span>Save Changes</span>
+                            </button>
+                            <form method="POST" action="{{ route('res.settings.requirements.destroy', $requirement) }}">
+                                @csrf
+                                @method('DELETE')
+                                <button class="settings-requirement-delete" type="submit" @disabled($requirementsLockedTerm !== null) aria-label="Delete {{ $requirement->name }}">
+                                    <x-dashboard.icon name="trash" size="16" />
+                                    <span>Delete</span>
+                                </button>
+                            </form>
+                        </div>
+                    </header>
+                    <form id="requirement-update-{{ $requirement->id }}" method="POST" action="{{ route('res.settings.requirements.update', $requirement) }}">
                         @csrf
                         @method('PUT')
                         <input type="hidden" name="settings_tab" value="requirements">
-                        <header>
-                            <div>
-                                <span class="settings-requirement-code">{{ $requirement->code }}</span>
-                                <small>{{ $requirement->application_documents_count }} stored {{ Str::plural('document', $requirement->application_documents_count) }} linked</small>
-                            </div>
-                            <span class="settings-requirement-required">Required</span>
-                        </header>
                         <div class="settings-requirement-edit-grid">
                             <div class="settings-field">
                                 <label for="requirement_name_{{ $requirement->id }}">Requirement Name</label>
@@ -83,20 +96,6 @@
                                 <textarea id="requirement_description_{{ $requirement->id }}" name="description" rows="3" maxlength="2000">{{ $requirement->description }}</textarea>
                             </div>
                         </div>
-                        <div class="settings-requirement-actions">
-                            <button class="dashboard-outline-action" type="submit">
-                                <x-dashboard.icon name="edit" size="16" />
-                                <span>Save Changes</span>
-                            </button>
-                        </div>
-                    </form>
-                    <form method="POST" action="{{ route('res.settings.requirements.destroy', $requirement) }}">
-                        @csrf
-                        @method('DELETE')
-                        <button class="settings-requirement-delete" type="submit" @disabled($requirementsLockedTerm !== null) aria-label="Delete {{ $requirement->name }}">
-                            <x-dashboard.icon name="trash" size="16" />
-                            <span>Delete</span>
-                        </button>
                     </form>
                 </article>
             @empty

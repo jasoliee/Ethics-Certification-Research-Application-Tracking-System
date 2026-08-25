@@ -5,6 +5,7 @@ namespace Tests\Feature\Dashboard;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\UserRole;
+use App\Models\DeadlineConfiguration;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
@@ -48,6 +49,16 @@ class DashboardNavigationTest extends TestCase
 
     public function test_non_sidebar_dashboard_actions_and_notification_pages_also_resolve(): void
     {
+        DeadlineConfiguration::create([
+            'deadline_key' => 'navigation-application-submission',
+            'title' => 'Application submission deadline',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => now()->subDay(),
+            'due_at' => now()->addDay(),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+
         $cases = [
             UserRole::Applicant->value => [
                 'dashboard',

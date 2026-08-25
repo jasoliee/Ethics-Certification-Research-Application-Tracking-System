@@ -29,7 +29,6 @@ use Illuminate\Notifications\Notifiable;
     'institutional_identifier',
     'phone_number',
     'institution',
-    'department',
     'program',
     'year_level',
     'position_title',

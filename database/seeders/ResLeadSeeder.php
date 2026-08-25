@@ -22,7 +22,6 @@ class ResLeadSeeder extends Seeder
                 'email' => 'reslead@ecrats.test',
                 'institutional_identifier' => 'KLD-RES-001',
                 'institution' => 'Institute of Computing and Digital Innovation',
-                'department' => 'Computer Studies',
                 'program' => 'Bachelor of Science in Computer Science',
                 'phone_number' => '09170000000',
                 'position_title' => 'RES Lead',

@@ -38,9 +38,8 @@
                     <div><dt>Applicant Category</dt><dd>{{ Str::headline($application->applicant_type) }}</dd></div>
                     <div><dt>Research Title</dt><dd>{{ $application->research_title }}</dd></div>
                     <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
-                    <div><dt>Institute / College</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
                     <div><dt>Program</dt><dd>{{ $application->program ?: 'Not applicable' }}</dd></div>
-                    <div><dt>Department</dt><dd>{{ $application->department ?: 'Not specified' }}</dd></div>
+                    <div><dt>Institute</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
                     <div><dt>Adviser</dt><dd>{{ $application->adviser?->name ?? 'Archived adviser' }}</dd></div>
                     <div><dt>Current Status</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
                 </dl>
@@ -71,14 +70,14 @@
                         <div class="application-field application-search-field">
                             <label for="reviewer-q">Search Reviewer</label>
                             <span><x-dashboard.icon name="search" size="18" /></span>
-                            <input id="reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Name, position, or department">
+                            <input id="reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Name, position, or institute">
                         </div>
                         <div class="application-field">
-                            <label for="reviewer-department">Department</label>
-                            <select id="reviewer-department" name="department">
-                                <option value="">All departments</option>
-                                @foreach ($departments as $department)
-                                    <option value="{{ $department }}" @selected(($filters['department'] ?? '') === $department)>{{ $department }}</option>
+                            <label for="reviewer-institute">Institute</label>
+                            <select id="reviewer-institute" name="institute">
+                                <option value="">All institutes</option>
+                                @foreach ($institutes as $institute)
+                                    <option value="{{ $institute }}" @selected(($filters['institute'] ?? '') === $institute)>{{ $institute }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -115,7 +114,7 @@
                         @else
                             <x-dashboard.overflow label="Eligible reviewer candidates" wide>
                                 <table class="dashboard-table res-reviewer-table">
-                                <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th class="res-reviewer-load-cell">Current Load</th><th>Department</th><th>Institution</th><th>Position</th></tr></thead>
+                                <thead><tr><th class="res-reviewer-select-column"><span class="sr-only">Select</span></th><th>Reviewer</th><th class="res-reviewer-load-cell">Current Load</th><th>Institute</th><th>Position</th></tr></thead>
                                 <tbody>
                                     @foreach ($candidates as $candidate)
                                         @php
@@ -129,7 +128,7 @@
                                             data-reviewer-id="{{ $candidate->id }}"
                                             data-reviewer-name="{{ $candidate->name }}"
                                             data-reviewer-position="{{ $candidate->position_title ?: 'Not specified' }}"
-                                            data-reviewer-department="{{ $candidate->department ?: 'Not specified' }}"
+                                            data-reviewer-institute="{{ $candidate->institution ?: 'Not specified' }}"
                                             data-reviewer-load="{{ $activeLoad }} / {{ $capacity }}"
                                             @class(['is-unavailable' => ! $available])
                                         >
@@ -152,7 +151,6 @@
                                                     <small class="res-reviewer-capacity-note">Capacity reached</small>
                                                 @endunless
                                             </td>
-                                            <td>{{ $candidate->department ?: 'Not specified' }}</td>
                                             <td>{{ $candidate->institution ?: 'Not specified' }}</td>
                                             <td>{{ $candidate->position_title ?: 'Not specified' }}</td>
                                         </tr>
@@ -225,14 +223,14 @@
                 </header>
                 <x-dashboard.overflow label="Assigned reviewer result" wide>
                     <table class="dashboard-table res-assigned-reviewer-table">
-                        <thead><tr><th>#</th><th>Reviewer</th><th>Position</th><th>Department</th><th>Current Load</th><th>Date Assigned</th><th>Status</th></tr></thead>
+                        <thead><tr><th>#</th><th>Reviewer</th><th>Position</th><th>Institute</th><th>Current Load</th><th>Date Assigned</th><th>Status</th></tr></thead>
                         <tbody>
                             @foreach ($assignments as $assignment)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
                                     <td><strong>{{ $assignment->reviewer?->name ?? 'Archived reviewer' }}</strong></td>
                                     <td>{{ $assignment->reviewer?->position_title ?: 'Not specified' }}</td>
-                                    <td>{{ $assignment->reviewer?->department ?: 'Not specified' }}</td>
+                                    <td>{{ $assignment->reviewer?->institution ?: 'Not specified' }}</td>
                                     <td>{{ $assignment->reviewer?->active_assignment_count ?? 0 }} / {{ $assignment->reviewer?->reviewer_capacity ?? 0 }}</td>
                                     <td>{{ $assignment->assigned_at?->format('M j, Y g:i A') ?? 'Not recorded' }}</td>
                                     <td><x-dashboard.status-badge :label="$assignment->assignment_status->label()" :tone="$assignment->assignment_status->tone()" /></td>

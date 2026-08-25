@@ -148,7 +148,7 @@ RES Lead:
 - Open the RES Applications Queue and confirm pre-endorsement submissions and drafts are absent, all approved filters stay scoped, pagination is 15 rows, and the table scrolls internally.
 - Open a ready screening record and verify incomplete administrative gates or stale mandatory-document state cannot be classified.
 - Verify Expedited accepts exactly one eligible reviewer, Full Board exactly three distinct eligible reviewers, full-capacity rows cannot be selected, and Exempted exposes no assignment action.
-- Confirm department matches appear before institution/other eligible reviewers, Department filtering works, and no Availability column or filter is present.
+- Confirm exact Institute matches appear before other eligible reviewers, Institute filtering works, and no Availability column or filter is present.
 - Re-edit a saved screening: Re-edit Decision sits beside View Assignment, the classification and saved summary fill the available width, and incompatible current assignments are superseded without deleting their history.
 - Confirm the RES requirement checklist provides authorized View and direct Download actions, while another role or mismatched nested document is denied.
 - Check the Reviewer assignment page at desktop, tablet, and phone widths: no Eligibility card, filters remain inside Eligible Reviewers, context text does not overlap, selected removal uses the X icon, the reassignment reason sits above Save Reviewer Set, and the confirmation action remains contained.

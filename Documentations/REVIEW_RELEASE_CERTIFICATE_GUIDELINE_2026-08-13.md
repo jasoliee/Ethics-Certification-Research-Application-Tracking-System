@@ -6,16 +6,16 @@ This document records the implemented continuation contract. Where older documen
 
 ## RES application and reporting boundaries
 
-- RES application search is enforced in the backend against application code, research title, status, category, institution, department, program, semester, and academic year where supported. Applicant first, middle, last, and display names are not search fields.
+- RES application search is enforced in the backend against application code, research title, status, category, Institute, program, semester, and academic year where supported. Applicant first, middle, last, and display names are not search fields.
 - The RES detail page places the full-width Requirement Checklist first. Application Details, Research Information, and Screening and Classification form the responsive row below it. Checklist status, upload date, and action columns are centered; long filenames wrap and the table keeps a bottom horizontal scrollbar.
 - Reports is RES-only. Its Audit Log entry owns the existing filters, term filters, pagination, and access policy. The former user-management audit URL is only a compatibility redirect.
 - Applicant navigation and backend routes contain no Reports destination; direct Applicant report URLs are unavailable.
 
 ## Applicant adviser selection
 
-- Student applicants see and may submit only an active, setup-complete Research Adviser whose department matches the Student account department.
-- Faculty applicants may select any active, setup-complete Research Adviser regardless of department.
-- The same rules are applied by the selector query and authoritative request validation. Inactive, archived, incomplete-setup, self, and wrong-role records are rejected. The form preserves old input and displays a department-specific empty state.
+- Student applicants see and may submit only an active, setup-complete Research Adviser whose Institute matches the Student account Institute.
+- Faculty applicants may select any active, setup-complete Research Adviser regardless of Institute.
+- The same rules are applied by the selector query and authoritative request validation. Inactive, archived, incomplete-setup, self, and wrong-role records are rejected. The form preserves old input and displays an Institute-specific empty state.
 
 ## Reviewer workspace and ownership
 

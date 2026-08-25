@@ -369,7 +369,6 @@
                                 <div><strong>Certificate was not claimed.</strong><span>{{ $errors->certificateClaim->first() }}</span></div>
                             </div>
                         @endif
-
                         @if ($certificationState === \App\Enums\CertificationState::SurveyRequired)
                             <form method="POST" action="{{ route('applicant.revision-certificates.survey.store', $application) }}" class="certificate-survey-form" data-disable-on-submit>
                                 @csrf

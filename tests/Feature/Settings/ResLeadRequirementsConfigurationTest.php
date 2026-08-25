@@ -46,6 +46,10 @@ class ResLeadRequirementsConfigurationTest extends TestCase
         $this->assertSame($positions, collect($positions)->sort()->values()->all());
         $this->assertMatchesRegularExpression('/<fieldset[^>]*disabled/s', $html);
         $this->assertMatchesRegularExpression('/class="settings-requirement-delete"[^>]*disabled/s', $html);
+        $this->assertStringContainsString('class="settings-requirement-actions"', $html);
+        $this->assertMatchesRegularExpression('/Save Changes<\/span>.*Delete<\/span>.*<\/header>.*id="requirement-update-/s', $html);
+        $this->assertStringNotContainsString('settings-requirement-required', $html);
+        $this->assertStringNotContainsString('>Required</span>', $html);
     }
 
     public function test_res_can_edit_requirement_text_during_an_active_term_and_applicant_views_receive_it(): void

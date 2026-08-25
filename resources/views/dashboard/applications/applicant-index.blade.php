@@ -40,6 +40,10 @@
             <div class="identity-validation-summary" role="alert"><strong>{{ $message }}</strong></div>
         @enderror
 
+        @error('submission_window')
+            <div class="identity-validation-summary" role="alert"><strong>{{ $message }}</strong></div>
+        @enderror
+
         @if ($applications->isEmpty())
             {{-- The first-time state leads to the same idempotent draft form used by the dashboard actions. --}}
             <section class="application-empty-panel">

@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\CertificateBackground;
 use App\Models\ProfileOption;
 use App\Models\User;
+use App\Services\Identity\ProfileOptionCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -105,6 +106,114 @@ class ResAssetSettingsTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.users.profile-options.index'))
             ->assertRedirect('/res-lead/settings?tab=options');
+    }
+
+    public function test_default_profile_options_include_editable_institute_acronyms(): void
+    {
+        $expectedInstitutes = [
+            'Institute of Behavioral Sciences' => 'IBS',
+            'Institute of Computing and Digital Innovation' => 'ICDI',
+            'Institute of Engineering' => 'IOE',
+            'Institute of Foundational Studies' => 'IFS',
+            'Institute of Governance and Development Studies' => 'IGDS',
+            'Institute of Medical Laboratory Science' => 'IMLS',
+            'Institute of Midwifery' => 'IOM',
+            'Institute of Nursing' => 'ION',
+            'Institute of Science and Mathematics' => 'ISM',
+        ];
+        $expectedPrograms = [
+            'Bachelor of Science in Psychology',
+            'Bachelor of Science in Computer Science',
+            'Bachelor of Science in Data Science',
+            'Bachelor of Science in Information Systems',
+            'Bachelor of Science in Civil Engineering',
+            'Bachelor of Science in Social Work',
+            'Bachelor of Science in Medical Laboratory Science',
+            'Bachelor of Science in Midwifery',
+            'Bachelor of Science in Nursing',
+            'Bachelor of Science in Life Sciences',
+        ];
+
+        $this->assertSame(
+            $expectedInstitutes,
+            ProfileOption::query()
+                ->where('field', ProfileOptionField::Institute->value)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->pluck('acronym', 'value')
+                ->all(),
+        );
+        $this->assertSame(
+            ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+            ProfileOption::query()
+                ->where('field', ProfileOptionField::YearLevel->value)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->pluck('value')
+                ->all(),
+        );
+        $this->assertSame(
+            $expectedPrograms,
+            ProfileOption::query()
+                ->where('field', ProfileOptionField::Program->value)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->pluck('value')
+                ->all(),
+        );
+
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $this->actingAs($resLead)
+            ->get(route('res.settings.index', ['tab' => 'options']))
+            ->assertOk()
+            ->assertSee('Institute Acronym')
+            ->assertSee('ICDI')
+            ->assertSee('data-profile-option-acronym', false);
+
+        $this->actingAs($resLead)
+            ->post(route('res.settings.profile-options.store'), [
+                'option_field' => ProfileOptionField::Institute->value,
+                'option_value' => 'Institute of Applied Research',
+            ])
+            ->assertSessionHasErrors('option_acronym');
+
+        $this->actingAs($resLead)
+            ->post(route('res.settings.profile-options.store'), [
+                'option_field' => ProfileOptionField::Institute->value,
+                'option_value' => 'Institute of Applied Research',
+                'option_acronym' => 'iar',
+            ])
+            ->assertRedirect(route('res.settings.index', ['tab' => 'options']))
+            ->assertSessionDoesntHaveErrors();
+        $option = ProfileOption::query()->where('value', 'Institute of Applied Research')->firstOrFail();
+        $this->assertSame('IAR', $option->acronym);
+
+        $this->actingAs($resLead)
+            ->put(route('res.settings.profile-options.update', $option), [
+                'option_value' => 'Institute of Applied and Emerging Research',
+                'option_acronym' => 'iaer',
+            ])
+            ->assertRedirect(route('res.settings.index', ['tab' => 'options']))
+            ->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('profile_options', [
+            'id' => $option->id,
+            'value' => 'Institute of Applied and Emerging Research',
+            'acronym' => 'IAER',
+        ]);
+        $catalog = app(ProfileOptionCatalog::class);
+        $this->assertSame('IAER', $catalog->instituteAcronym('Institute of Applied Research'));
+        $this->assertSame(
+            'Institute of Applied Research (IAER)',
+            $catalog->instituteLabelWithAcronym('Institute of Applied Research'),
+        );
+
+        $this->actingAs($resLead)
+            ->post(route('res.settings.profile-options.store'), [
+                'option_field' => ProfileOptionField::Institute->value,
+                'option_value' => 'Institute of Acronym Collision',
+                'option_acronym' => 'ICDI',
+            ])
+            ->assertSessionHasErrors('option_acronym');
     }
 
     public function test_res_signatory_requires_a_transparent_png_and_is_stored_privately(): void

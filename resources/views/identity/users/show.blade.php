@@ -85,8 +85,7 @@
                     <div><dt>Email Address</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->email }}">{{ $managedUser->email }}</dd></div>
                     <div><dt>{{ $managedUser->institutionalIdentifierLabel() }}</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institutional_identifier }}">{{ $managedUser->institutional_identifier }}</dd></div>
                     <div><dt>Phone Number</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->phone_number ?: 'Not provided' }}">{{ $managedUser->phone_number ?: 'Not provided' }}</dd></div>
-                    <div><dt>Institution / Affiliation</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institution ?: 'Not provided' }}">{{ $managedUser->institution ?: 'Not provided' }}</dd></div>
-                    <div><dt>Department / Unit</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->department ?: 'Not provided' }}">{{ $managedUser->department ?: 'Not provided' }}</dd></div>
+                    <div><dt>Institute</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institution ?: 'Not provided' }}">{{ $managedUser->institution ?: 'Not provided' }}</dd></div>
                     @if ($managedUser->role === \App\Enums\UserRole::Applicant)
                         <div><dt>Program</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->program ?: 'Not provided' }}">{{ $managedUser->program ?: 'Not provided' }}</dd></div>
                         @if ($managedUser->applicant_type === \App\Enums\ApplicantType::Student)<div><dt>Year Level</dt><dd class="identity-table-truncate" data-table-tooltip="{{ $managedUser->year_level }}">{{ $managedUser->year_level }}</dd></div>@endif

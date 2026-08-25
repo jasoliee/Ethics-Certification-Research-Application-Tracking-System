@@ -20,7 +20,7 @@ The Reviewer sidebar intentionally contains only Home and Assignments. Review is
 
 The workspace loads only research fields needed for ethics review. Applicant and Adviser account names, email addresses, institutional identifiers, and profile relationships are not selected for the Reviewer view. Reviewer identity is not rendered in Applicant routes.
 
-The responsive workspace follows high-fidelity pages 54-69 with a private document library, the selected-document viewer, and a rail ordered as Review Comment, Review Worksheet, and Review Assessment. A compact centered summary stays above the studio. On narrow screens the panes stack, while each wide document or table region remains internally bounded. The official form dialogs show only Title of the Study, Application Code, Type of Review, and Date Received; Institution, Reviewer, and Researcher / Study Leader are intentionally omitted from the modal interface.
+The responsive workspace follows high-fidelity pages 54-69 with a private document library, the selected-document viewer, and a rail ordered as Review Comment, Review Worksheet, and Review Assessment. A compact centered summary stays above the studio. On narrow screens the panes stack, while each wide document or table region remains internally bounded. The official form dialogs show only Title of the Study, Application Code, Type of Review, and Date Received; Institute, Reviewer, and Researcher / Study Leader are intentionally omitted from the modal interface.
 
 Current application documents remain on the private `local` disk. Preview and download require:
 

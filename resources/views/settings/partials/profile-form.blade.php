@@ -28,8 +28,7 @@
         </div>
 
         @foreach ([
-            [\App\Enums\ProfileOptionField::Institution, 'institution', 'Institution / Affiliation'],
-            [\App\Enums\ProfileOptionField::Department, 'department', 'Department / Unit'],
+            [\App\Enums\ProfileOptionField::Institute, 'institution', 'Institute'],
         ] as [$optionField, $field, $label])
             <div class="settings-field">
                 <label for="settings_{{ $field }}">{{ $label }}</label>

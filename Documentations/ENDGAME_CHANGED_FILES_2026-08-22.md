@@ -44,7 +44,7 @@ This inventory records the ECRATS-only working-tree files changed by the DOOMSDA
 - `app/Services/Reports/ApplicantSurveyReportService.php`, `OperationalReportService.php`: filter-aware anonymous surveys and complete operational aggregates/tables/query optimization.
 - `app/Services/Settings/AcademicTermResolver.php`, `WorksheetSignatorySettingsService.php`: current-first terms and private future-only worksheet settings.
 - `database/migrations/2026_08_22_000000_add_submission_and_worksheet_settings.php`: additive formal-submission metadata, worksheet fields, and workflow drafts.
-- `database/seeders/DashboardDemoSeeder.php`, `ResLeadSeeder.php`, `TestingUserSeeder.php`: consistent institution/department/program and safe complete mock profiles.
+- `database/seeders/DashboardDemoSeeder.php`, `ResLeadSeeder.php`, `TestingUserSeeder.php`: consistent Institute/program and safe complete mock profiles.
 
 ## Frontend assets and views
 

@@ -29,23 +29,23 @@ No account is created during validation. The actor-scoped preview expires after 
 Every official workbook contains exactly three worksheets in this order:
 
 - `Accounts`: visible data-entry sheet, frozen header, filter, text-formatted cells, fixed widths, and dropdowns where current options exist.
-- `Options`: hidden and protected sheet containing active Year Level, Institution, Department, Program, and Reviewer Classification values used by defined names.
+- `Options`: hidden and protected sheet containing active Year Level, Institute, Program, and Reviewer Classification values used by defined names.
 - `Instructions`: visible contract, accepted values, limits, warnings, and upload steps.
 
 The Student Researcher example row is:
 
-| First Name | Middle Name | Last Name | Suffix | Email | Student Number | Phone Number | Year Level | Institution | Department | Program |
+| First Name | Middle Name | Last Name | Suffix | Email | Student Number | Phone Number | Year Level | Institute | Program |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Juan | Dela | Cruz | Jr. | juandelacruz@example.com | 20260000 | 09999999999 | Fourth Year | Institute of Computing and Digital Innovation | Computer Studies | Bachelor of Science in Computer Science |
+| Juan | Dela | Cruz | Jr. | juandelacruz@example.com | 20260000 | 09999999999 | 4th Year | Institute of Computing and Digital Innovation | Bachelor of Science in Computer Science |
 
 The sentinel `EXAMPLE-ROW-DO-NOT-IMPORT` is stored as `Example Row Marker` in the visible Instructions sheet. Physical Row 2 is skipped only while that exact sentinel remains intact. Removing or changing the marker makes Row 2 ordinary account data that must pass every normal validation rule. The example row itself contains no hidden marker in an account field.
 
 ## Role Columns
 
-- Student Researcher: First Name, Middle Name, Last Name, Suffix, Email, Student Number, Phone Number, Year Level, Institution, Department, Program.
-- Faculty Researcher: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institution, Department, Program, Position / Designation.
-- Research Adviser: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institution, Department, Position / Designation.
-- Ethics Reviewer: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institution, Department, Position / Designation, Reviewer Classification.
+- Student Researcher: First Name, Middle Name, Last Name, Suffix, Email, Student Number, Phone Number, Year Level, Institute, Program.
+- Faculty Researcher: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institute, Program, Position / Designation.
+- Research Adviser: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institute, Position / Designation.
+- Ethics Reviewer: First Name, Middle Name, Last Name, Suffix, Email, Employee ID, Phone Number, Institute, Position / Designation, Reviewer Classification.
 
 Headers, order, account type, worksheet names, visibility, and worksheet count must match exactly. Username, password, role override, account status, setup status, and Date Joined are never import columns.
 

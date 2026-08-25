@@ -287,7 +287,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
         ]);
         $wrongDiscipline = $this->reviewerFor($application, ReviewType::Expedited, [
             'name' => 'Different Discipline Reviewer',
-            'department' => 'Business Administration',
+            'institution' => 'Institute of Governance and Development Studies',
         ]);
         $otherApplication = ResearchApplication::factory()->create();
 
@@ -312,7 +312,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.applications.reviewers.index', [
                 $application,
-                'department' => 'Business Administration',
+                'institute' => 'Institute of Governance and Development Studies',
             ]))
             ->assertOk()
             ->assertSee($wrongDiscipline->name)
@@ -519,13 +519,11 @@ class ResLeadScreeningWorkflowTest extends TestCase
         $applicant = User::factory()->create([
             'role' => UserRole::Applicant,
             'institution' => 'Institute of Computing and Digital Innovation',
-            'department' => 'Computer Studies',
             'program' => 'Bachelor of Science in Computer Science',
         ]);
         $adviser = User::factory()->create([
             'role' => UserRole::Adviser,
             'institution' => 'Institute of Computing and Digital Innovation',
-            'department' => 'Computer Studies',
         ]);
         $application = ResearchApplication::factory()->create([
             'applicant_user_id' => $applicant->id,
@@ -598,7 +596,6 @@ class ResLeadScreeningWorkflowTest extends TestCase
             'role' => UserRole::Reviewer,
             'account_status' => AccountStatus::Active->value,
             'institution' => $application->institution,
-            'department' => $application->department,
             'position_title' => 'Ethics Reviewer',
             'reviewer_classification' => $reviewType->reviewerClassification(),
             'reviewer_capacity' => 3,

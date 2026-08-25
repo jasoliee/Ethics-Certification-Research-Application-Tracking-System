@@ -28,11 +28,9 @@ class ResReviewMonitoringController extends Controller
     ): View {
         $filters = $request->validate([
             'reviewer_q' => ['nullable', 'string', 'max:150'],
-            'reviewer_department' => ['nullable', 'string', 'max:150'],
-            'reviewer_institution' => ['nullable', 'string', 'max:150'],
+            'reviewer_institute' => ['nullable', 'string', 'max:150'],
             'adviser_q' => ['nullable', 'string', 'max:150'],
-            'adviser_department' => ['nullable', 'string', 'max:150'],
-            'adviser_institution' => ['nullable', 'string', 'max:150'],
+            'adviser_institute' => ['nullable', 'string', 'max:150'],
             'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $filters['reviewer_q'] = trim((string) ($filters['reviewer_q'] ?? ''));

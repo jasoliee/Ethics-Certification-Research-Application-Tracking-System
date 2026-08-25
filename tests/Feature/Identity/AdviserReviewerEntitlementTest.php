@@ -198,7 +198,6 @@ class AdviserReviewerEntitlementTest extends TestCase
             'institutional_identifier' => $user?->institutional_identifier ?? 'KLD-EMP-REVIEWER-1',
             'phone_number' => $user?->phone_number ?? '09171234567',
             'institution' => $user?->institution ?? 'Institute of Engineering',
-            'department' => $user?->department,
             'program' => null,
             'year_level' => null,
             'position_title' => $user?->position_title ?? 'Research Adviser',

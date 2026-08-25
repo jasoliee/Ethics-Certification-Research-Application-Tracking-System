@@ -47,8 +47,7 @@ class ResOperationalReportTest extends TestCase
             'review_type' => ReviewType::Expedited,
             'application_status' => ApplicationStatus::UnderExpeditedReview,
             'current_stage' => ApplicationStage::EthicsReview,
-            'department' => 'Computer Studies',
-            'institution' => 'KLD',
+            'institution' => 'Institute of Computing and Digital Innovation',
             'submitted_at' => now()->subDays(4),
         ]);
         ResearchApplication::factory()->create([
@@ -59,15 +58,14 @@ class ResOperationalReportTest extends TestCase
             'review_type' => ReviewType::FullBoard,
             'application_status' => ApplicationStatus::UnderFullBoardReview,
             'current_stage' => ApplicationStage::EthicsReview,
-            'department' => 'Behavioral Sciences',
-            'institution' => 'Other Institution',
+            'institution' => 'Institute of Behavioral Sciences',
             'submitted_at' => now()->subMonths(9),
         ]);
 
         $response = $this->actingAs($resLead)->get(route('res.reports.index', [
             'academic_term_id' => $current->id,
             'research_type' => ResearchType::Thesis->value,
-            'department' => 'Computer Studies',
+            'institute' => 'Institute of Computing and Digital Innovation',
         ]));
 
         $response->assertOk()
@@ -77,8 +75,7 @@ class ResOperationalReportTest extends TestCase
                 'Research Type',
                 'Applicant Category',
                 'Review Type',
-                'Department',
-                'Institution',
+                'Institute',
                 'Workflow Status',
             ])
             ->assertSeeInOrder([

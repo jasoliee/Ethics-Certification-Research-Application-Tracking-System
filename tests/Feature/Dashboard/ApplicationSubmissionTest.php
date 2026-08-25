@@ -191,7 +191,13 @@ class ApplicationSubmissionTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index'))
             ->assertOk()
-            ->assertSee('Application Submission is Closed');
+            ->assertSee('Application Submission is Closed')
+            ->assertSee('type="button" disabled', false)
+            ->assertDontSee('href="'.route('applicant.applications.create').'"', false);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.create'))
+            ->assertRedirect(route('applicant.applications.index'))
+            ->assertSessionHasErrors('submission_window');
 
         $deadline = DeadlineConfiguration::create([
             'deadline_key' => 'landing-application-submission',
@@ -205,7 +211,11 @@ class ApplicationSubmissionTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index'))
             ->assertOk()
-            ->assertSee('Application Submission is Open');
+            ->assertSee('Application Submission is Open')
+            ->assertSee('href="'.route('applicant.applications.create').'"', false);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.create'))
+            ->assertOk();
 
         $deadline->update([
             'starts_at' => now()->subDays(3),
@@ -221,7 +231,12 @@ class ApplicationSubmissionTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.index'))
             ->assertOk()
-            ->assertSee('Application Submission is Closed');
+            ->assertSee('Application Submission is Closed')
+            ->assertSee('type="button" disabled', false);
+        $this->actingAs($applicant)
+            ->get(route('applicant.applications.create'))
+            ->assertRedirect(route('applicant.applications.index'))
+            ->assertSessionHasErrors('submission_window');
     }
 
     public function test_manual_availability_overrides_date_logic_and_manual_closure_remains_authoritative(): void
@@ -385,13 +400,13 @@ class ApplicationSubmissionTest extends TestCase
             'draft_owner_user_id' => null,
             'submitted_at' => null,
         ]);
+        $this->openSubmissionWindow();
         $this->actingAs($applicant)
             ->post(route('applicant.applications.store'), [
                 'research_title' => 'Fourth Record But First Formal Candidate',
                 'research_type' => ResearchType::Thesis->value,
                 'research_category' => 'Social and Behavioral Research',
                 'institution' => 'Institute of Computing and Digital Innovation',
-                'department' => 'Computer Studies',
                 'program' => 'Bachelor of Science in Computer Science',
                 'adviser_user_id' => $adviser->id,
                 'abstract' => 'A complete abstract for limit verification.',
@@ -416,7 +431,6 @@ class ApplicationSubmissionTest extends TestCase
             ]);
         $requirement = $this->requirement('LIMIT-PROTOCOL', 'Limit Protocol');
         $this->document($candidate, $requirement, $applicant, RequirementStatus::Completed);
-        $this->openSubmissionWindow();
 
         $this->actingAs($applicant)
             ->get(route('applicant.applications.requirements', $candidate))

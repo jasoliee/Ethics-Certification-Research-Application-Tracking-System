@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['field', 'value', 'normalized_value', 'sort_order', 'is_active', 'created_by_user_id'])]
+#[Fillable(['field', 'value', 'normalized_value', 'acronym', 'sort_order', 'is_active', 'created_by_user_id'])]
 class ProfileOption extends Model
 {
     protected function casts(): array

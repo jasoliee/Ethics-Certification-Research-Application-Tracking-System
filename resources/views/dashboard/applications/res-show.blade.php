@@ -302,14 +302,14 @@
                 </header>
                 <x-dashboard.overflow label="Assigned reviewer records" wide>
                     <table class="dashboard-table res-assigned-reviewer-table">
-                        <thead><tr><th>#</th><th>Reviewer</th><th>Position</th><th>Department</th><th>Current Load</th><th>Date Assigned</th><th>Status</th></tr></thead>
+                        <thead><tr><th>#</th><th>Reviewer</th><th>Position</th><th>Institute</th><th>Current Load</th><th>Date Assigned</th><th>Status</th></tr></thead>
                         <tbody>
                             @foreach ($application->reviewerAssignments as $assignment)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
                                     <td><strong>{{ $assignment->reviewer?->name ?? 'Archived reviewer' }}</strong></td>
                                     <td>{{ $assignment->reviewer?->position_title ?: 'Not specified' }}</td>
-                                    <td>{{ $assignment->reviewer?->department ?: 'Not specified' }}</td>
+                                    <td>{{ $assignment->reviewer?->institution ?: 'Not specified' }}</td>
                                     <td>{{ $assignment->reviewer?->active_assignment_count ?? 0 }} / {{ $assignment->reviewer?->reviewer_capacity ?? 0 }}</td>
                                     <td>{{ $assignment->assigned_at?->format('M j, Y g:i A') ?? 'Not recorded' }}</td>
                                     <td><x-dashboard.status-badge :label="$assignment->assignment_status->label()" :tone="$assignment->assignment_status->tone()" /></td>

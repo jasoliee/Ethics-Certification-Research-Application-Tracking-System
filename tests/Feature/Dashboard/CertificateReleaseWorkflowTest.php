@@ -193,6 +193,10 @@ class CertificateReleaseWorkflowTest extends TestCase
             'The committee reviewed the following documents: Research Proposal, Informed Consent',
             $text,
         );
+        $this->assertStringContainsString(
+            'INSTITUTE OF COMPUTING AND DIGITAL INNOVATION (ICDI)',
+            $text,
+        );
         $this->assertStringNotContainsString('Payment Proof', $text);
     }
 

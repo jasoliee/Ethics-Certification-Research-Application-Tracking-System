@@ -3,11 +3,11 @@
 @section('content')
     @php
         $hasReviewerFilters = collect($filters)
-            ->only(['reviewer_q', 'reviewer_department', 'reviewer_institution', 'academic_term_id'])
+            ->only(['reviewer_q', 'reviewer_institute', 'academic_term_id'])
             ->filter(fn ($value) => filled($value))
             ->isNotEmpty();
         $hasAdviserFilters = collect($filters)
-            ->only(['adviser_q', 'adviser_department', 'adviser_institution', 'academic_term_id'])
+            ->only(['adviser_q', 'adviser_institute', 'academic_term_id'])
             ->filter(fn ($value) => filled($value))
             ->isNotEmpty();
     @endphp
@@ -173,20 +173,11 @@
                     <input id="monitoring-reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Reviewer/Adviser name">
                 </div>
                 <div class="application-field">
-                    <label for="monitoring-reviewer-department">Department</label>
-                    <select id="monitoring-reviewer-department" name="reviewer_department">
-                        <option value="">All departments</option>
-                        @foreach ($reviewerDepartments as $department)
-                            <option value="{{ $department }}" @selected(($filters['reviewer_department'] ?? '') === $department)>{{ $department }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="application-field">
-                    <label for="monitoring-reviewer-institution">Institution</label>
-                    <select id="monitoring-reviewer-institution" name="reviewer_institution">
-                        <option value="">All institutions</option>
-                        @foreach ($reviewerInstitutions as $institution)
-                            <option value="{{ $institution }}" @selected(($filters['reviewer_institution'] ?? '') === $institution)>{{ $institution }}</option>
+                    <label for="monitoring-reviewer-institute">Institute</label>
+                    <select id="monitoring-reviewer-institute" name="reviewer_institute">
+                        <option value="">All institutes</option>
+                        @foreach ($reviewerInstitutes as $institute)
+                            <option value="{{ $institute }}" @selected(($filters['reviewer_institute'] ?? '') === $institute)>{{ $institute }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -214,7 +205,7 @@
                                     $remaining = max(0, (int) ($reviewer->reviewer_capacity ?? 0) - $activeLoad);
                                 @endphp
                                 <tr>
-                                    <td><strong>{{ $reviewer->name }}</strong><small>{{ $reviewer->department ?: 'Department not recorded' }}{{ $reviewer->institution ? ' - '.$reviewer->institution : '' }}</small></td>
+                                    <td><strong>{{ $reviewer->name }}</strong><small>{{ $reviewer->institution ?: 'Institute not recorded' }}</small></td>
                                     <td><strong class="review-monitoring-stat-value">{{ $activeLoad }}</strong></td>
                                     <td><strong class="review-monitoring-stat-value tone-green">{{ $completed }}</strong></td>
                                     <td><strong class="review-monitoring-stat-value tone-violet">{{ $remaining }}</strong></td>
@@ -258,21 +249,11 @@
                 </div>
 
                 <div class="application-field">
-                    <label for="monitoring-adviser-department">Department</label>
-                    <select id="monitoring-adviser-department" name="adviser_department">
-                        <option value="">All departments</option>
-                        @foreach ($adviserDepartments as $department)
-                            <option value="{{ $department }}" @selected(($filters['adviser_department'] ?? '') === $department)>{{ $department }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="application-field">
-                    <label for="monitoring-adviser-institution">Institution</label>
-                    <select id="monitoring-adviser-institution" name="adviser_institution">
-                        <option value="">All institutions</option>
-                        @foreach ($adviserInstitutions as $institution)
-                            <option value="{{ $institution }}" @selected(($filters['adviser_institution'] ?? '') === $institution)>{{ $institution }}</option>
+                    <label for="monitoring-adviser-institute">Institute</label>
+                    <select id="monitoring-adviser-institute" name="adviser_institute">
+                        <option value="">All institutes</option>
+                        @foreach ($adviserInstitutes as $institute)
+                            <option value="{{ $institute }}" @selected(($filters['adviser_institute'] ?? '') === $institute)>{{ $institute }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -332,7 +313,7 @@
                                 >
                                     <td>
                                         <strong>{{ $adviser->name }}</strong>
-                                        <small>{{ $adviser->position_title ?: 'Research Adviser' }}{{ $adviser->department ? ' - '.$adviser->department : '' }}</small>
+                                        <small>{{ $adviser->position_title ?: 'Research Adviser' }}{{ $adviser->institution ? ' - '.$adviser->institution : '' }}</small>
                                     </td>
                                     <td><strong class="review-monitoring-stat-value">{{ $declared }}</strong></td>
                                     <td>

@@ -10,7 +10,7 @@ The Adviser interface reuses the same table, status badge, pagination, tooltip, 
 
 Individual creation collects split names, email, the correct institutional identifier, and role-specific profile fields. Username and password are server-owned. New accounts remain `pending_setup` until the account holder follows the one-time setup link.
 
-Advisers can select active Year Level, Institution, Department, and Program values. They can see newly restored options immediately but cannot add, rename, deactivate, or restore options.
+Advisers can select active Year Level, Institute, and Program values. They can see newly restored options immediately but cannot add, rename, deactivate, or restore options.
 
 ## Excel Import
 

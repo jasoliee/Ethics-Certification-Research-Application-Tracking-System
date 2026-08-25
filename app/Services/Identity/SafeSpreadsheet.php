@@ -51,8 +51,7 @@ class SafeSpreadsheet
     /** Maps controlled profile fields to unique workbook-level names used by Excel dropdowns. */
     private const RANGE_NAMES = [
         'year_level' => 'EcratsYearLevelOptions',
-        'institution' => 'EcratsInstitutionOptions',
-        'department' => 'EcratsDepartmentOptions',
+        'institution' => 'EcratsInstituteOptions',
         'program' => 'EcratsProgramOptions',
     ];
 
@@ -566,8 +565,7 @@ class SafeSpreadsheet
         $columns = collect($fields)->values()->map(function (ProfileOptionField $field, int $index): string {
             $width = match ($field) {
                 ProfileOptionField::YearLevel => 20,
-                ProfileOptionField::Institution => 48,
-                ProfileOptionField::Department => 36,
+                ProfileOptionField::Institute => 48,
                 ProfileOptionField::Program => 46,
                 ProfileOptionField::ReviewerClassification => 30,
             };
@@ -623,7 +621,7 @@ class SafeSpreadsheet
                 'phone_number' => 20,
                 'year_level' => 18,
                 'institution' => 48,
-                'department', 'position_title' => 36,
+                'position_title' => 36,
                 'program' => 46,
                 'reviewer_enabled' => 20,
                 'reviewer_capacity' => 20,

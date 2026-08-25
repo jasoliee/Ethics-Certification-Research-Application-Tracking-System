@@ -260,20 +260,20 @@ class ResReviewMonitoringTest extends TestCase
             'role' => UserRole::Adviser,
             'name' => 'Endorsement Workload Alpha',
             'position_title' => 'Research Adviser',
-            'department' => 'Computer Studies',
+            'institution' => 'Institute of Computing and Digital Innovation',
             'expected_endorsement_count' => 5,
         ]);
         User::factory()->create([
             'role' => UserRole::Adviser,
             'name' => 'Inactive Workload Alpha',
-            'department' => 'Computer Studies',
+            'institution' => 'Institute of Computing and Digital Innovation',
             'account_status' => 'inactive',
             'expected_endorsement_count' => 8,
         ]);
         User::factory()->create([
             'role' => UserRole::Adviser,
             'name' => 'Different Active Adviser',
-            'department' => 'Behavioral Sciences',
+            'institution' => 'Institute of Behavioral Sciences',
             'expected_endorsement_count' => 2,
         ]);
 
@@ -303,7 +303,7 @@ class ResReviewMonitoringTest extends TestCase
         $response = $this->actingAs($resLead)
             ->get(route('res.review-monitoring.index', [
                 'adviser_q' => 'Endorsement Workload Alpha',
-                'adviser_department' => 'Computer Studies',
+                'adviser_institute' => 'Institute of Computing and Digital Innovation',
                 'adviser_workload' => 'not_received',
             ]))
             ->assertOk()

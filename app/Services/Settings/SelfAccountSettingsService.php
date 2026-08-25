@@ -29,7 +29,6 @@ class SelfAccountSettingsService
                 'suffix',
                 'phone_number',
                 'institution',
-                'department',
             ];
 
             if ($actor->role === UserRole::Applicant) {

@@ -63,6 +63,11 @@ class ReviewConsensusService
             if ($submission?->status === ReviewSubmissionStatus::Submitted && ! $submission->currentVersion) {
                 $submission->setRelation('currentVersion', $this->versions->ensureCurrent($submission));
             }
+            if ($submission?->status === ReviewSubmissionStatus::Submitted
+                && $submission->has_unsubmitted_changes
+                && $this->versions->normalizeUnchangedSubmission($assignment, $submission)) {
+                $submission->refresh()->load('currentVersion');
+            }
         }
 
         $ready = $requiredCount > 0

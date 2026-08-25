@@ -30,7 +30,6 @@ class RoleAccountSettingsTest extends TestCase
             'username' => 'stable.researcher',
             'phone_number' => '09170001111',
             'institution' => 'Institute of Computing and Digital Innovation',
-            'department' => 'Computer Studies',
             'year_level' => $yearLevel,
         ]);
 
@@ -49,7 +48,6 @@ class RoleAccountSettingsTest extends TestCase
                 'suffix' => null,
                 'phone_number' => '09171234567',
                 'institution' => $applicant->institution,
-                'department' => $applicant->department,
                 'program' => null,
                 'year_level' => $yearLevel,
                 'role' => UserRole::ResLead->value,
@@ -80,7 +78,8 @@ class RoleAccountSettingsTest extends TestCase
             ->assertSee($applicant->institutional_identifier)
             ->assertSee('09171234567')
             ->assertSee($applicant->institution)
-            ->assertSee($applicant->department)
+            ->assertSee('Institute')
+            ->assertDontSee('Department')
             ->assertSee('Edit Permitted Fields');
     }
 
@@ -99,7 +98,6 @@ class RoleAccountSettingsTest extends TestCase
                 'suffix' => $adviser->suffix,
                 'phone_number' => '09181234567',
                 'institution' => $adviser->institution,
-                'department' => $adviser->department,
                 'position_title' => 'Senior Research Adviser',
                 'expected_endorsement_count' => 12,
                 'reviewer_capacity' => 99,
@@ -124,7 +122,8 @@ class RoleAccountSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('09181234567')
             ->assertSee($adviser->institution)
-            ->assertSee($adviser->department)
+            ->assertSee('Institute')
+            ->assertDontSee('Department')
             ->assertSee('Senior Research Adviser');
     }
 

@@ -65,7 +65,7 @@ class UserManagementController extends Controller
         ])->validate();
         $visible = $this->queries->visibleTo($request->user());
         $counts = $this->managementCounts(clone $visible);
-        $institutions = collect($this->profileOptions->values(ProfileOptionField::Institution))
+        $institutions = collect($this->profileOptions->values(ProfileOptionField::Institute))
             ->merge((clone $visible)
                 ->whereNotNull('institution')
                 ->where('institution', '!=', '')
@@ -92,7 +92,6 @@ class UserManagementController extends Controller
                 'applicant_type',
                 'account_status',
                 'institution',
-                'department',
                 'created_at',
             ])
             ->latest('created_at')
@@ -224,7 +223,12 @@ class UserManagementController extends Controller
         ProfileOptionCatalog $profileOptions,
     ): RedirectResponse {
         $field = ProfileOptionField::from($request->validated('option_field'));
-        $profileOptions->create($request->user(), $field, $request->validated('option_value'));
+        $profileOptions->create(
+            $request->user(),
+            $field,
+            $request->validated('option_value'),
+            $request->validated('option_acronym'),
+        );
 
         return redirect()
             ->route('res.users.profile-options.index', ['field' => $field->value])
@@ -242,9 +246,13 @@ class UserManagementController extends Controller
         $search = trim((string) ($filters['search'] ?? ''));
         $query = ProfileOption::query()
             ->whereIn('field', collect(ProfileOptionField::managedCases())->pluck('value')->all())
-            ->select(['id', 'field', 'value', 'sort_order', 'is_active', 'created_at', 'updated_at'])
+            ->select(['id', 'field', 'value', 'acronym', 'sort_order', 'is_active', 'created_at', 'updated_at'])
             ->with('aliases:id,profile_option_id,value')
-            ->when($search !== '', fn ($options) => $options->whereLike('value', '%'.$search.'%'))
+            ->when($search !== '', fn ($options) => $options->where(function ($matching) use ($search): void {
+                $matching
+                    ->whereLike('value', '%'.$search.'%')
+                    ->orWhereLike('acronym', '%'.$search.'%');
+            }))
             ->when(filled($filters['field'] ?? null), fn ($options) => $options->where('field', $filters['field']))
             ->when(($filters['status'] ?? null) === 'active', fn ($options) => $options->where('is_active', true))
             ->when(($filters['status'] ?? null) === 'inactive', fn ($options) => $options->where('is_active', false))
@@ -277,7 +285,12 @@ class UserManagementController extends Controller
         ProfileOptionCatalog $profileOptions,
     ): RedirectResponse {
         abort_unless(in_array($profileOption->field, ProfileOptionField::managedCases(), true), 404);
-        $profileOptions->update($request->user(), $profileOption, $request->validated('option_value'));
+        $profileOptions->update(
+            $request->user(),
+            $profileOption,
+            $request->validated('option_value'),
+            $request->validated('option_acronym'),
+        );
 
         return back()->with('status', 'Dropdown option updated. Existing account values were left unchanged.');
     }

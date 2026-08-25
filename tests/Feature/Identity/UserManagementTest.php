@@ -375,7 +375,7 @@ class UserManagementTest extends TestCase
         // Arrange an authorized actor and one database-backed option added after the default migration data.
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        app(ProfileOptionCatalog::class)->create($resLead, ProfileOptionField::Department, 'Applied Computing Studies');
+        app(ProfileOptionCatalog::class)->create($resLead, ProfileOptionField::Institute, 'Institute of Applied Computing Studies', 'IACS');
 
         // Act through the HTTP endpoint to retain coverage of successful attachment response headers.
         $response = $this->actingAs($resLead)->get(route('res.users.import.template', [
@@ -403,7 +403,8 @@ class UserManagementTest extends TestCase
         $this->assertLessThan(strpos($workbook, '<definedNames>'), strpos($workbook, '<sheets>'));
         $this->assertStringContainsString('name="Options" sheetId="2" state="hidden"', $workbook);
         $this->assertStringContainsString('EcratsYearLevelOptions', $workbook);
-        $this->assertStringContainsString('EcratsDepartmentOptions', $workbook);
+        $this->assertStringContainsString('EcratsInstituteOptions', $workbook);
+        $this->assertStringNotContainsString('EcratsDepartmentOptions', $workbook);
         $zip->close();
 
         // Act through the trusted reader so content checks remain valid whether strings are inline or shared.
@@ -419,6 +420,7 @@ class UserManagementTest extends TestCase
             (string) $accounts?->getCell('B1')->getValue(),
             (string) $accounts?->getCell('C1')->getValue(),
         ]);
+        $this->assertSame('Institute', (string) $accounts?->getCell('I1')->getValue());
         $this->assertSame([
             'Juan',
             'Dela',
@@ -427,13 +429,12 @@ class UserManagementTest extends TestCase
             'juandelacruz@example.com',
             '20260000',
             '09999999999',
-            'Fourth Year',
+            '4th Year',
             'Institute of Computing and Digital Innovation',
-            'Computer Studies',
             'Bachelor of Science in Computer Science',
         ], array_map(
             fn (string $column): string => (string) $accounts?->getCell($column.'2')->getValue(),
-            range('A', 'K'),
+            range('A', 'J'),
         ));
         $this->assertContains($accounts?->getCell('F2')->getDataType(), [DataType::TYPE_STRING, DataType::TYPE_INLINE]);
         $this->assertContains($accounts?->getCell('G2')->getDataType(), [DataType::TYPE_STRING, DataType::TYPE_INLINE]);
@@ -441,9 +442,9 @@ class UserManagementTest extends TestCase
         // Assert dropdowns, database options, and the visible marker remain in their dedicated worksheets.
         $this->assertNotEmpty($accounts?->getDataValidationCollection());
         $this->assertTrue($accounts?->getStyle('A1')->getAlignment()->getWrapText());
-        $this->assertStringContainsString('Computer Studies', $optionsText);
-        $this->assertStringContainsString('Applied Computing Studies', $optionsText);
+        $this->assertStringContainsString('Institute of Applied Computing Studies', $optionsText);
         $this->assertStringContainsString('Institute of Engineering', $optionsText);
+        $this->assertStringNotContainsString('Department', $optionsText);
         $this->assertStringContainsString(AccountTypeCatalog::EXAMPLE_MARKER, $instructionsText);
         $this->assertStringContainsString('server', strtolower($instructionsText));
         $this->assertStringContainsString('formula', strtolower($instructionsText));
@@ -1057,7 +1058,7 @@ class UserManagementTest extends TestCase
         $accounts = $workbook->createSheet();
         $accounts->setTitle('People 2026')->setSheetState('hidden');
         $headers = ['EMAIL', 'Phone_Number', 'Student Number', 'FIRST-NAME', 'Year Level', 'Last Name', 'Internal Note'];
-        $values = ['flexible.student@ecrats.test', '09171234567', 'KLD-STU-FLEX', 'Flexible', 'Fourth Year', 'Student', 'Ignored safely'];
+        $values = ['flexible.student@ecrats.test', '09171234567', 'KLD-STU-FLEX', 'Flexible', '4th Year', 'Student', 'Ignored safely'];
 
         foreach ($headers as $index => $header) {
             $accounts->setCellValue([$index + 1, 4], $header);
@@ -1313,7 +1314,7 @@ class UserManagementTest extends TestCase
             'alias.import@ecrats.test',
             'KLD-STU-ALIAS',
         );
-        $row[10] = 'Applied Ethics';
+        $row[9] = 'Applied Ethics';
         $this->replaceSpreadsheetRow($path, 3, $row);
 
         $catalog->update($resLead, $option, 'Research Ethics');
@@ -1351,7 +1352,7 @@ class UserManagementTest extends TestCase
             'inactive.alias@ecrats.test',
             'KLD-STU-INACTIVE-ALIAS',
         );
-        $inactiveRow[10] = 'Applied Ethics';
+        $inactiveRow[9] = 'Applied Ethics';
         $this->replaceSpreadsheetRow($path, 3, $inactiveRow);
 
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
@@ -1713,9 +1714,8 @@ class UserManagementTest extends TestCase
             'institutional_identifier' => 'KLD-STU-501',
             'phone_number' => '09171234567',
             'institution' => 'Institute of Engineering',
-            'department' => null,
             'program' => null,
-            'year_level' => 'Fourth Year',
+            'year_level' => '4th Year',
             'role' => UserRole::Applicant->value,
             'applicant_type' => ApplicantType::Student->value,
         ], $overrides);
@@ -1753,9 +1753,8 @@ class UserManagementTest extends TestCase
             $email,
             $identifier,
             '09171234567',
-            'Fourth Year',
+            '4th Year',
             'Institute of Engineering',
-            '',
             '',
         ];
     }
@@ -1776,7 +1775,6 @@ class UserManagementTest extends TestCase
             $identifier,
             '09171234567',
             'Institute of Engineering',
-            'Computer Studies',
             '',
             $reviewerEnabled,
             $reviewerCapacity,

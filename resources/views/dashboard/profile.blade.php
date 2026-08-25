@@ -24,8 +24,7 @@
                 <div><dt>Account Status</dt><dd>{{ Str::headline($profileUser->account_status) }}</dd></div>
                 <div><dt>{{ $profileUser->institutionalIdentifierLabel() }}</dt><dd>{{ $profileUser->institutional_identifier }}</dd></div>
                 <div><dt>Phone Number</dt><dd>{{ $profileUser->phone_number ?: 'Not provided' }}</dd></div>
-                <div><dt>Institution / Affiliation</dt><dd>{{ $profileUser->institution ?: 'Not provided' }}</dd></div>
-                <div><dt>Department / Unit</dt><dd>{{ $profileUser->department ?: 'Not provided' }}</dd></div>
+                <div><dt>Institute</dt><dd>{{ $profileUser->institution ?: 'Not provided' }}</dd></div>
                 @if ($profileUser->role === \App\Enums\UserRole::Applicant)
                     <div><dt>Program</dt><dd>{{ $profileUser->program ?: 'Not provided' }}</dd></div>
                     @if ($profileUser->applicant_type === \App\Enums\ApplicantType::Student)<div><dt>Year Level</dt><dd>{{ $profileUser->year_level ?: 'Not provided' }}</dd></div>@endif

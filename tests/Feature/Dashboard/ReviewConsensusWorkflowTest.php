@@ -8,6 +8,8 @@ use App\Enums\BulkReleaseType;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewFormStatus;
+use App\Enums\ReviewFormType;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDocument;
@@ -30,6 +32,95 @@ use Tests\TestCase;
 class ReviewConsensusWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_expedited_false_navigation_draft_is_repaired_and_becomes_releasable_individually_and_in_bulk(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $reviewer = User::factory()->reviewer(['Expedited'])->create();
+        $application = ResearchApplication::factory()->create([
+            'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease,
+            'current_stage' => ApplicationStage::DecisionRelease,
+            'review_type' => 'expedited',
+            'current_revision_cycle' => 1,
+            'submitted_at' => now()->subWeek(),
+        ]);
+        $assignment = ReviewerAssignment::factory()->create([
+            'research_application_id' => $application->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_type' => 'initial_review',
+            'review_cycle' => 0,
+            'assignment_sequence' => 1,
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now()->subDay(),
+        ]);
+        $form = $assignment->formSubmissions()->create([
+            'form_type' => ReviewFormType::Protocol,
+            'status' => ReviewFormStatus::Final,
+            'catalog_version' => 'test-catalog-v1',
+            'catalog_snapshot' => ['form_type' => ReviewFormType::Protocol->value],
+            'finalized_payload_snapshot' => ['responses' => []],
+            'finalized_context_snapshot' => ['application_id' => $application->id],
+            'responses' => [],
+            'recommendation' => ReviewDecision::Disapproved,
+            'recommendation_comments' => 'The study cannot proceed safely.',
+            'review_date' => now()->toDateString(),
+            'completed_at' => now()->subDay(),
+            'finalized_at' => now()->subDay(),
+        ]);
+        $submission = $assignment->reviewSubmission()->create([
+            'status' => ReviewSubmissionStatus::Submitted,
+            'decision' => ReviewDecision::Disapproved,
+            'decision_comment' => 'The submitted expedited review is final.',
+            'draft_decision' => ReviewDecision::Disapproved,
+            'draft_decision_comment' => 'The submitted expedited review is final.',
+            'submitted_at' => now()->subDay(),
+        ]);
+        app(ReviewSubmissionVersionService::class)->create(
+            $reviewer,
+            $assignment,
+            $submission,
+            collect([$form]),
+            collect(),
+            collect(),
+            now()->subDay(),
+        );
+
+        // Reproduce the stale pagehide requests that used to downgrade finalized
+        // worksheets even though none of their working values had changed.
+        $form->update([
+            'status' => ReviewFormStatus::Draft,
+            'catalog_version' => null,
+            'catalog_snapshot' => null,
+            'finalized_payload_snapshot' => null,
+            'finalized_context_snapshot' => null,
+            'review_date' => null,
+            'completed_at' => null,
+            'finalized_at' => null,
+        ]);
+        $submission->update(['has_unsubmitted_changes' => true]);
+
+        $evaluated = app(ReviewConsensusService::class)->evaluate($application);
+
+        $this->assertSame(ReviewConsensusStatus::Consensus, $evaluated->review_consensus_status);
+        $this->assertFalse($submission->fresh()->has_unsubmitted_changes);
+        $this->assertSame(ReviewFormStatus::Final, $form->fresh()->status);
+        $this->assertNotNull($form->fresh()->finalized_payload_snapshot);
+        $this->assertSame(1, app(BulkReleaseService::class)->eligibleCounts($resLead)['decision']);
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.workspace', $application))
+            ->assertOk()
+            ->assertSee('Release Decision')
+            ->assertDontSee('Release All Decisions');
+
+        $this->actingAs($resLead)
+            ->post(route('res.certificates.decisions.release', $application))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('application_decision_releases', [
+            'research_application_id' => $application->id,
+            'decision' => ReviewDecision::Disapproved->value,
+        ]);
+    }
 
     public function test_one_full_board_release_includes_all_three_feedback_sets_and_actionable_requirements(): void
     {
@@ -112,7 +203,7 @@ class ReviewConsensusWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.certificates.workspace', $application))
             ->assertOk()
-            ->assertSeeInOrder(['Supporting Documents', 'Release Decision', 'Reviewer 1 requires revision.'])
+            ->assertSeeInOrder(['Supporting Documents', 'Release All Decisions', 'Reviewer 1 requires revision.'])
             ->assertSee($firstReviewerName)
             ->assertDontSee('<h2>Reviewer 1</h2>', false)
             ->assertDontSee('Application Decision');
@@ -199,7 +290,7 @@ class ReviewConsensusWorkflowTest extends TestCase
             ->assertSeeInOrder(['Supporting Documents', 'Decision release blocked.', $assignments->first()->reviewer->name])
             ->assertDontSee('Application Decision')
             ->assertSee('The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.')
-            ->assertDontSee('Release Decision');
+            ->assertDontSee('Release All Decisions');
 
         try {
             app(ApplicationRevisionWorkflowService::class)->releaseDecision(
@@ -244,7 +335,7 @@ class ReviewConsensusWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.certificates.workspace', $application))
             ->assertOk()
-            ->assertDontSee('Release Decision');
+            ->assertSee('Release All Decisions');
 
         $release = app(ApplicationRevisionWorkflowService::class)->releaseDecision(
             $resLead,

@@ -9,7 +9,6 @@ use App\Enums\CertificateVersionStatus;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchApplication;
-use App\Models\ReviewSubmission;
 use App\Models\User;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
 use App\Services\Applications\ReviewConsensusService;
@@ -41,7 +40,7 @@ class BulkReleaseService
             ->chunkById(100, function (Collection $applications) use (&$counts): void {
                 foreach ($applications as $application) {
                     $certificateEligible = $this->isCertificateEligible($application);
-                    $decisionEligible = $this->decisionSource($application) !== null;
+                    $decisionEligible = $this->isDecisionEligible($application);
                     $counts['certificate'] += (int) $certificateEligible;
                     $counts['decision'] += (int) $decisionEligible;
                     $counts['both'] += (int) ($certificateEligible || $decisionEligible);
@@ -151,9 +150,11 @@ class BulkReleaseService
         BulkReleaseType $type,
     ): void {
         if (in_array($type, [BulkReleaseType::Decision, BulkReleaseType::Both], true)) {
-            $source = $this->decisionSource($application);
-            if ($source) {
-                $this->decisions->releaseDecision($actor, $application, $source);
+            if ($this->isDecisionEligible($application)) {
+                // A null source deliberately asks the workflow to freeze and
+                // release every version participating in this application-level
+                // consensus, rather than selecting one Reviewer submission.
+                $this->decisions->releaseDecision($actor, $application);
                 $application->refresh();
             }
         }
@@ -169,7 +170,7 @@ class BulkReleaseService
         $certificateReleased = $this->certificateAlreadyReleased($application);
         $decisionReleased = $this->decisionAlreadyReleased($application);
         $certificateEligible = $this->isCertificateEligible($application);
-        $decisionEligible = $this->decisionSource($application) !== null;
+        $decisionEligible = $this->isDecisionEligible($application);
         $decisionConflicted = $application->refresh()->review_consensus_status === ReviewConsensusStatus::Conflicted;
 
         return match ($type) {
@@ -212,24 +213,16 @@ class BulkReleaseService
         return $application->decisionReleases->isNotEmpty();
     }
 
-    private function decisionSource(ResearchApplication $application): ?ReviewSubmission
+    private function isDecisionEligible(ResearchApplication $application): bool
     {
         if ($application->application_status !== ApplicationStatus::ReviewSubmittedPendingRelease) {
-            return null;
+            return false;
         }
 
         $application = $this->consensus->evaluate($application);
-        if ($application->review_consensus_status !== ReviewConsensusStatus::Consensus) {
-            return null;
-        }
 
-        $cycle = max(0, ((int) $application->current_revision_cycle) - 1);
-        $reviewType = $cycle === 0 ? 'initial_review' : 'revision_review';
-        $assignments = $application->reviewerAssignments
-            ->where('review_cycle', $cycle)
-            ->where('review_type', $reviewType);
-
-        return $assignments->first()?->reviewSubmission;
+        return $application->application_status === ApplicationStatus::ReviewSubmittedPendingRelease
+            && $application->review_consensus_status === ReviewConsensusStatus::Consensus;
     }
 
     private function relevantApplications(): Builder
@@ -254,9 +247,6 @@ class BulkReleaseService
             'certificateRecipients:id,research_application_id,sort_order',
             'certificates.currentVersion',
             'decisionReleases:id,research_application_id,review_cycle,decision',
-            'reviewerAssignments' => fn ($assignments) => $assignments
-                ->current()
-                ->with('reviewSubmission'),
         ];
     }
 

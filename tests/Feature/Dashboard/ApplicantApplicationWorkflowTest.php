@@ -5,15 +5,19 @@ namespace Tests\Feature\Dashboard;
 use App\Enums\ApplicantType;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\ProfileOptionField;
 use App\Enums\RequirementStatus;
 use App\Enums\ResearchType;
 use App\Enums\UserRole;
 use App\Models\AcademicTerm;
 use App\Models\ApplicationDocument;
 use App\Models\AuditLog;
+use App\Models\DeadlineConfiguration;
 use App\Models\DocumentRequirement;
+use App\Models\ProfileOption;
 use App\Models\ResearchApplication;
 use App\Models\User;
+use App\Services\Identity\ProfileOptionCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -23,6 +27,21 @@ use Tests\TestCase;
 class ApplicantApplicationWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        DeadlineConfiguration::create([
+            'deadline_key' => 'workflow-application-submission',
+            'title' => 'Application submission deadline',
+            'audience_role' => UserRole::Applicant,
+            'starts_at' => Carbon::parse('2020-01-01 00:00:00'),
+            'due_at' => Carbon::parse('2035-01-01 00:00:00'),
+            'priority' => 100,
+            'is_active' => true,
+        ]);
+    }
 
     public function test_repeated_start_submissions_create_one_editable_draft_and_audit_creation_once(): void
     {
@@ -115,6 +134,39 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
             $codes = ResearchApplication::query()->pluck('application_code');
             $this->assertSame($codes->count(), $codes->unique()->count());
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_application_codes_use_the_current_editable_institute_acronym(): void
+    {
+        $this->travelTo(Carbon::parse('2026-08-10 09:30:00'));
+
+        try {
+            $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+            $institute = ProfileOption::query()
+                ->where('field', ProfileOptionField::Institute->value)
+                ->where('value', 'Institute of Computing and Digital Innovation')
+                ->firstOrFail();
+            app(ProfileOptionCatalog::class)->update($resLead, $institute, $institute->value, 'DIGI');
+            $applicant = User::factory()->create([
+                'role' => UserRole::Applicant,
+                'applicant_type' => ApplicantType::Student,
+            ]);
+            $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+
+            $this->actingAs($applicant)
+                ->post(route('applicant.applications.store'), $this->applicationPayload($adviser))
+                ->assertRedirect()
+                ->assertSessionDoesntHaveErrors();
+
+            $this->assertMatchesRegularExpression(
+                '/^RES-2026-S-DIGI-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{6}$/',
+                (string) ResearchApplication::query()
+                    ->where('applicant_user_id', $applicant->id)
+                    ->value('application_code'),
+            );
         } finally {
             $this->travelBack();
         }
@@ -239,32 +291,32 @@ class ApplicantApplicationWorkflowTest extends TestCase
         $this->assertDatabaseMissing('research_applications', ['applicant_user_id' => $otherApplicant->id]);
     }
 
-    public function test_student_advisers_are_department_scoped_while_faculty_advisers_are_not(): void
+    public function test_student_advisers_are_institute_scoped_while_faculty_advisers_are_not(): void
     {
         $student = User::factory()->create([
             'role' => UserRole::Applicant,
             'applicant_type' => ApplicantType::Student,
-            'department' => 'Computer Studies',
+            'institution' => 'Institute of Computing and Digital Innovation',
         ]);
         $faculty = User::factory()->create([
             'role' => UserRole::Applicant,
             'applicant_type' => ApplicantType::Faculty,
-            'department' => 'Computer Studies',
+            'institution' => 'Institute of Computing and Digital Innovation',
         ]);
-        $sameDepartment = User::factory()->create([
+        $sameInstitute = User::factory()->create([
             'role' => UserRole::Adviser,
             'name' => 'Eligible Computing Adviser',
-            'department' => 'Computer Studies',
+            'institution' => 'Institute of Computing and Digital Innovation',
         ]);
-        $otherDepartment = User::factory()->create([
+        $otherInstitute = User::factory()->create([
             'role' => UserRole::Adviser,
             'name' => 'Eligible Nursing Adviser',
-            'department' => 'Nursing',
+            'institution' => 'Institute of Nursing',
         ]);
-        $inactiveSameDepartment = User::factory()->create([
+        $inactiveSameInstitute = User::factory()->create([
             'role' => UserRole::Adviser,
             'name' => 'Inactive Computing Adviser',
-            'department' => 'Computer Studies',
+            'institution' => 'Institute of Computing and Digital Innovation',
             'account_status' => 'inactive',
         ]);
 
@@ -277,7 +329,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         $this->actingAs($student)
             ->from(route('applicant.applications.create'))
-            ->post(route('applicant.applications.store'), $this->applicationPayload($otherDepartment))
+            ->post(route('applicant.applications.store'), $this->applicationPayload($otherInstitute))
             ->assertRedirect(route('applicant.applications.create'))
             ->assertSessionHasErrors('adviser_user_id');
 
@@ -290,16 +342,16 @@ class ApplicantApplicationWorkflowTest extends TestCase
 
         $this->actingAs($faculty)
             ->post(route('applicant.applications.store'), [
-                ...$this->applicationPayload($otherDepartment),
+                ...$this->applicationPayload($otherInstitute),
                 'program' => null,
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('research_applications', [
             'applicant_user_id' => $faculty->id,
-            'adviser_user_id' => $otherDepartment->id,
+            'adviser_user_id' => $otherInstitute->id,
         ]);
-        $this->assertNotNull($sameDepartment->id);
+        $this->assertNotNull($sameInstitute->id);
     }
 
     public function test_expected_duration_requires_an_ordered_date_pair_and_displays_the_saved_range(): void
@@ -339,7 +391,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('application-information-form', false)
             ->assertSee('application-form-section-heading', false)
-            ->assertSee('institutional-information-title', false)
+            ->assertSee('institute-information-title', false)
             ->assertSee('study-scope-title', false)
             ->assertSee('application-duration-fields', false)
             ->assertSeeInOrder(['Target Participants', 'Starting Date', 'Ending Date'])
@@ -1009,7 +1061,6 @@ class ApplicantApplicationWorkflowTest extends TestCase
             'research_type' => ResearchType::Thesis->value,
             'research_category' => 'Social and Behavioral Research',
             'institution' => 'Institute of Computing and Digital Innovation',
-            'department' => 'Computer Studies',
             'program' => 'Bachelor of Science in Computer Science',
             'adviser_user_id' => $adviser->id,
             'abstract' => 'This study examines privacy expectations in community-facing digital research.',

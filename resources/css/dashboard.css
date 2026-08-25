@@ -7248,7 +7248,7 @@
     .identity-option-create form {
         min-width: 0;
         display: grid;
-        grid-template-columns: minmax(180px, 0.75fr) minmax(240px, 1.25fr) auto;
+        grid-template-columns: minmax(170px, 0.7fr) minmax(230px, 1.25fr) minmax(140px, 0.55fr) auto;
         align-items: end;
         gap: 12px;
     }
@@ -7258,7 +7258,7 @@
     }
 
     .identity-option-table {
-        min-width: 900px;
+        min-width: 1080px;
     }
 
     .identity-option-table th:first-child,
@@ -7269,8 +7269,13 @@
 
     .identity-option-table th:nth-child(2),
     .identity-option-table td:nth-child(2) {
-        width: 420px;
-        min-width: 420px;
+        width: 380px;
+        min-width: 380px;
+    }
+
+    .identity-option-table .identity-col-acronym {
+        width: 170px;
+        min-width: 170px;
     }
 
     .identity-option-table .identity-col-usage {
@@ -7280,8 +7285,8 @@
     }
 
     .identity-option-table .identity-col-action {
-        width: 110px;
-        min-width: 110px;
+        width: 190px;
+        min-width: 190px;
     }
 
     .identity-option-edit-form {
@@ -7291,7 +7296,8 @@
         gap: 8px;
     }
 
-    .identity-option-edit-form input {
+    .identity-option-table-input {
+        width: 100%;
         min-width: 0;
         min-height: 38px;
         border: 1px solid #cfd9d3;
@@ -7301,15 +7307,26 @@
         background: #ffffff;
     }
 
-    .identity-option-edit-form input:focus {
+    .identity-option-table-input:focus {
         border-color: #278e58;
         outline: none;
         box-shadow: 0 0 0 3px rgba(39, 142, 88, 0.14);
     }
 
-    .identity-option-edit-form .identity-button {
+    .identity-option-row-actions .identity-button {
         min-height: 38px;
         padding-block: 7px;
+    }
+
+    .identity-option-acronym-input {
+        text-transform: uppercase;
+    }
+
+    .identity-option-row-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
 
     .identity-col-action form {
@@ -10165,7 +10182,7 @@ form[class*='filter'] :is(input, select):focus-visible,
 .settings-requirement-create fieldset {
     display: grid;
     grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.5fr) auto;
-    align-items: end;
+    align-items: start;
     gap: 14px;
     min-width: 0;
     margin: 0;
@@ -10186,6 +10203,7 @@ form[class*='filter'] :is(input, select):focus-visible,
 }
 
 .settings-requirement-create .dashboard-primary-action {
+    align-self: end;
     min-height: 44px;
     white-space: nowrap;
 }
@@ -10193,9 +10211,10 @@ form[class*='filter'] :is(input, select):focus-visible,
 .settings-requirement-specification textarea {
     width: 100%;
     min-width: 0;
-    min-height: 74px;
+    height: 44px;
+    min-height: 44px;
     padding: 10px 12px;
-    resize: vertical;
+    resize: none;
     border: 1px solid #bfcfc6;
     border-radius: 6px;
     color: #17231e;
@@ -10231,7 +10250,6 @@ form[class*='filter'] :is(input, select):focus-visible,
 .settings-requirement-card {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     padding: 16px;
     border: 1px solid #cbdad2;
@@ -10239,7 +10257,7 @@ form[class*='filter'] :is(input, select):focus-visible,
     background: #fff;
 }
 
-.settings-requirement-card > form:first-child {
+.settings-requirement-card > form {
     min-width: 0;
 }
 
@@ -10259,8 +10277,7 @@ form[class*='filter'] :is(input, select):focus-visible,
     color: #68766f;
 }
 
-.settings-requirement-code,
-.settings-requirement-required {
+.settings-requirement-code {
     display: inline-flex;
     align-items: center;
     min-height: 27px;
@@ -10272,11 +10289,6 @@ form[class*='filter'] :is(input, select):focus-visible,
     font-weight: 800;
 }
 
-.settings-requirement-required {
-    color: #7b5309;
-    background: #fff2d5;
-}
-
 .settings-requirement-edit-grid {
     display: grid;
     grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.5fr);
@@ -10286,8 +10298,13 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .settings-requirement-actions {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
-    margin-top: 12px;
+    gap: 8px;
+}
+
+.settings-requirement-actions form {
+    margin: 0;
 }
 
 .settings-requirement-delete {
@@ -10431,14 +10448,14 @@ form[class*='filter'] :is(input, select):focus-visible,
     background-color: #dff2e7;
 }
 
-.identity-option-create {
+.res-settings-page .identity-option-create {
     display: grid;
-    grid-template-columns: minmax(190px, .75fr) minmax(260px, 1.5fr) minmax(160px, .55fr);
+    grid-template-columns: minmax(180px, .7fr) minmax(240px, 1.35fr) minmax(150px, .55fr) minmax(150px, .55fr);
     align-items: end;
     gap: 14px;
 }
 
-.identity-option-create > .identity-button {
+.res-settings-page .identity-option-create > .identity-button {
     width: 100%;
     min-height: 44px;
 }
@@ -11190,6 +11207,10 @@ form[class*='filter'] :is(input, select):focus-visible,
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
+    .res-settings-page .identity-option-create {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .monitoring-drilldown-filters-wide,
     .report-filter-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -11205,6 +11226,7 @@ form[class*='filter'] :is(input, select):focus-visible,
     [data-settings-tabs]:has(.settings-tabs [role='tab']:nth-child(3):last-child) .settings-tabs,
     .settings-certificate-grid,
     .identity-option-create,
+    .res-settings-page .identity-option-create,
     .monitoring-drilldown-filters-wide,
     .report-filter-grid,
     .report-chart-grid,
@@ -11226,7 +11248,8 @@ form[class*='filter'] :is(input, select):focus-visible,
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .settings-requirement-card > form:last-child,
+    .settings-requirement-actions,
+    .settings-requirement-actions > *,
     .settings-requirement-delete,
     .settings-requirement-create .dashboard-primary-action,
     .settings-worksheet-form > .dashboard-primary-action {
@@ -11238,6 +11261,10 @@ form[class*='filter'] :is(input, select):focus-visible,
     .settings-requirement-card header > div {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .settings-requirement-actions {
+        width: 100%;
     }
 
     .settings-signatory-form > .dashboard-primary-action,

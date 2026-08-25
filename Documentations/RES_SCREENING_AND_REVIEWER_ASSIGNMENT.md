@@ -46,7 +46,7 @@ Expedited review requires exactly one reviewer. Full Board review requires exact
 - no Applicant or assigned-Adviser identity conflict; and
 - an active assignment count below the configured reviewer capacity.
 
-All active classification-matched candidates are visible by default. Exact application-department matches appear first, institution matches next, and other eligible candidates follow. Search covers name, position, and department, while Department provides an optional exact filter. Full-load rows remain visible with `current load / capacity` and disabled selection. Inactive, archived, setup-incomplete, classification-mismatched, and known-conflict accounts are omitted.
+All active classification-matched candidates are visible by default. Exact application-Institute matches appear first and other eligible candidates follow. Search covers name, position, and Institute, while Institute provides an optional exact filter. Full-load rows remain visible with `current load / capacity` and disabled selection. Inactive, archived, setup-incomplete, classification-mismatched, and known-conflict accounts are omitted.
 
 The confirmation dialog requires the exact count. On reassignment, the Reason for Reassignment field is shown inside Selected Reviewer immediately above Save Reviewer Set. The existing Form Request still requires 10 to 1,000 characters when the selected set changes, and the value remains part of the locked supersession/audit workflow. The redundant candidate-list message about known Applicant/Adviser conflicts is not shown; server-side conflict exclusion and final-write revalidation remain unchanged.
 
@@ -87,7 +87,7 @@ The existing RES private document preview/download routes remain unchanged.
 
 ## Local Demo Data
 
-`DashboardDemoSeeder` creates the prerequisite endorsement and screening histories represented by later demo statuses. The maintained `reviewertest` account is an active Expedited reviewer in Computer Studies with available capacity. Run the normal local migrations and demo seeder after pulling schema changes; database rows are not transferred by Git.
+`DashboardDemoSeeder` creates the prerequisite endorsement and screening histories represented by later demo statuses. The maintained `reviewertest` account is an active Expedited reviewer in the Institute of Computing and Digital Innovation with available capacity. Run the normal local migrations and demo seeder after pulling schema changes; database rows are not transferred by Git.
 
 ## Remaining Limitations
 

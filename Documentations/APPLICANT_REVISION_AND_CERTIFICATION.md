@@ -69,7 +69,7 @@ Each PDF is generated in A4 portrait format using the verified official resource
 - Derived official background SHA-256: `d7332a1bfbca1abd35434b9016008188537f137795fa01222296c103256a848f`
 - Official signature SHA-256: `bd83c53334d58e369e4010be3c2b4828c3529d974f2e2c26c8576369666f8ee3` (the source image plus its official transparency mask)
 
-Dynamic fields use authoritative application data: application code, research title, Applicant name/type/institution, current protected document names and latest upload date, review type, approval date, expected study dates/duration, and issue date. Long text is wrapped and font-fitted within reserved zones. Static wording and signatory details follow the supplied official certificate.
+Dynamic fields use authoritative application data: application code, research title, Applicant name/type/Institute, current protected document names and latest upload date, review type, approval date, expected study dates/duration, and issue date. Long text is wrapped and font-fitted within reserved zones. Static wording and signatory details follow the supplied official certificate.
 
 Generation writes a private PDF before the database transaction commits the ready version. If generation or persistence fails, the partial file is removed and no released/ready version is exposed. A first-generation failure records `generation_failed` with a bounded internal failure code; regeneration failure leaves the previously issued version intact.
 

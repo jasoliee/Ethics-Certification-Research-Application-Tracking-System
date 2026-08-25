@@ -3,6 +3,7 @@
 namespace App\Services\Applications;
 
 use App\Enums\ReviewFormArtifactStatus;
+use App\Enums\ReviewFormStatus;
 use App\Models\ReviewComment;
 use App\Models\ReviewerAssignment;
 use App\Models\ReviewFormArtifact;
@@ -124,6 +125,56 @@ class ReviewSubmissionVersionService
             $artifacts,
             $locked->submitted_at ?? now(),
         );
+    }
+
+    /**
+     * Clear a false dirty flag when the current working data still exactly matches
+     * the immutable submitted version. This also repairs worksheet rows downgraded
+     * by a stale navigation draft request.
+     */
+    public function normalizeUnchangedSubmission(
+        ReviewerAssignment $assignment,
+        ReviewSubmission $submission,
+    ): bool {
+        $version = $submission->currentVersion;
+        if (! $submission->has_unsubmitted_changes || ! $version) {
+            return false;
+        }
+
+        $workingHash = $this->workingRequestHash(
+            $assignment,
+            $submission->draft_decision?->value,
+            $submission->draft_decision_comment,
+        );
+        if (! hash_equals($version->request_sha256, $workingHash)) {
+            return false;
+        }
+
+        collect((array) data_get($version->payload_snapshot, 'forms', []))
+            ->each(function (array $snapshot) use ($assignment, $version): void {
+                $form = $assignment->formSubmissions()
+                    ->whereKey((int) data_get($snapshot, 'id'))
+                    ->lockForUpdate()
+                    ->first();
+                if (! $form) {
+                    return;
+                }
+
+                $form->update([
+                    'catalog_version' => data_get($snapshot, 'catalog_version'),
+                    'catalog_snapshot' => data_get($snapshot, 'catalog'),
+                    'finalized_payload_snapshot' => data_get($snapshot, 'payload'),
+                    'finalized_context_snapshot' => data_get($snapshot, 'context'),
+                    'status' => ReviewFormStatus::Final->value,
+                    'review_date' => $version->submitted_at?->toDateString(),
+                    'completed_at' => $version->submitted_at,
+                    'finalized_at' => $version->submitted_at,
+                ]);
+            });
+
+        $submission->update(['has_unsubmitted_changes' => false]);
+
+        return true;
     }
 
     public function workingRequestHash(

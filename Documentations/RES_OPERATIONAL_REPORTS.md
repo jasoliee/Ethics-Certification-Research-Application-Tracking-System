@@ -4,7 +4,7 @@ The RES Lead Reports page is an authorized, read-only operational dashboard buil
 
 ## Filters and scope
 
-Academic Term is first; the active term is first in the list and labelled `Current`. Date range, research type, Applicant category, review classification, department, institution, and workflow status are validated on the server. Every query remains inside RES authorization and the selected term/filter scope.
+Academic Term is first; the active term is first in the list and labelled `Current`. Date range, research type, Applicant category, review classification, Institute, and workflow status are validated on the server. Every query remains inside RES authorization and the selected term/filter scope.
 
 ## Report contents
 

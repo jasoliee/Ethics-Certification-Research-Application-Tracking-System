@@ -10,7 +10,7 @@ Research Adviser may create and manage Student or Faculty Researcher accounts on
 
 The full-page account selector opens a choice between Individual and Bulk creation. Individual forms collect split names and role-specific profile fields. Username, password, password confirmation, and Date Joined are not creator inputs. Form sections reuse one spacing class so divider lines, titles, and first field rows remain consistently separated for every account type.
 
-Year Level, Institution, Department, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. The initial-application migration adds the approved `Computer Studies` Department and `Bachelor of Science in Computer Science` Program when missing so the official Student workbook example validates. Existing profile strings remain unchanged when catalog entries are renamed or deactivated. Prior labels are retained as aliases of one immutable option ID so older official workbooks can resolve an active renamed option and store its current label.
+Year Level, Institute, Program, and Reviewer Classification use shared database-backed options. RES Lead can add, rename, deactivate, or restore an option from User Management or the account form; advisers can select active options but cannot modify the shared catalog. Existing profile strings remain unchanged when catalog entries are renamed or deactivated. Prior labels are retained as aliases of one immutable option ID so older official workbooks can resolve an active renamed option and store its current label.
 
 Required role fields include:
 

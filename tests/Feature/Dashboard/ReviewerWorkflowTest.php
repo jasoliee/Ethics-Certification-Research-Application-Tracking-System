@@ -103,7 +103,7 @@ class ReviewerWorkflowTest extends TestCase
             ->assertSee('<dt>Date Received</dt>', false)
             ->assertDontSee('Page Comment')
             ->assertDontSee('data-reviewer-page-comment', false)
-            ->assertDontSee('<dt>Institution</dt>', false)
+            ->assertDontSee('<dt>Institute</dt>', false)
             ->assertDontSee('<dt>Reviewer</dt>', false)
             ->assertDontSee('<dt>Researcher / Study Leader</dt>', false)
             ->assertSee(route('reviewer.applications.documents.download', [$application, $document]), false)

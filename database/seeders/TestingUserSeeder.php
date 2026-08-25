@@ -66,9 +66,8 @@ class TestingUserSeeder extends Seeder
                     'institution' => 'Institute of Computing and Digital Innovation',
                     'phone_number' => '09170000001',
                     // The compatibility review account is now an Adviser with supplementary access.
-                    'department' => 'Computer Studies',
                     'program' => 'Bachelor of Science in Computer Science',
-                    'year_level' => $user['role'] === UserRole::Applicant ? 'First Year' : null,
+                    'year_level' => $user['role'] === UserRole::Applicant ? '1st Year' : null,
                     'position_title' => $user['role'] === UserRole::Adviser
                         ? ($reviewerEnabled ? 'Ethics Reviewer' : 'Research Adviser')
                         : 'Student Researcher',

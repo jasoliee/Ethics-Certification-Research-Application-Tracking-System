@@ -92,7 +92,7 @@
 ### Changed
 
 - Restricted RES application search to approved application metadata, reorganized RES detail into a full-width requirements-first layout, and moved the RES-only Audit Log under Reports while removing Applicant Reports access.
-- Restricted Student Adviser selection and backend validation to active eligible same-department Advisers while retaining Faculty cross-department selection.
+- Restricted Student Adviser selection and backend validation to active eligible same-Institute Advisers while retaining Faculty cross-Institute selection.
 - Made Reviewer dashboard results current-assignment driven, reordered the workspace rail to Review Comment, Review Worksheet, and Review Assessment, simplified overall/document comments, corrected Protocol item 15, and enforced 15 non-whitespace recommendation characters.
 - Added editable Completed worksheets and moved immutable form snapshots/artifacts into the atomic overall review submission boundary. Informed Consent `No` now clears/disables dependent answers and renders them as not applicable.
 - Replaced RES decision overrides/document recovery mapping with a read-only review workspace and exact Reviewer-submission release. Revision decisions no longer require a document-linked comment.
@@ -101,7 +101,7 @@
 
 ### Verification
 
-- Added and updated focused tests for name-search exclusion, report ownership, department-scoped Adviser eligibility, assignment freshness, overall/document comments, editable worksheets, consent conditional behavior, RES read-only boundaries, typed bulk release, historical certificate dates/claims, and failed regeneration retention.
+- Added and updated focused tests for name-search exclusion, report ownership, Institute-scoped Adviser eligibility, assignment freshness, overall/document comments, editable worksheets, consent conditional behavior, RES read-only boundaries, typed bulk release, historical certificate dates/claims, and failed regeneration retention.
 - The complete Laravel suite passes with 249 tests and 3,650 assertions. Focused affected suites, changed-file Pint, strict Composer validation, platform requirements, the 133-route listing, isolated migration up/rollback/up checks, Blade compilation, the Vite production build, and `git diff --check` pass.
 - Signed-in browser acceptance passed at 1440, 1280, 1024, 768, and 390 pixels across the RES details/certification/review-release surfaces, Reviewer dashboard/workspace/conditional consent form, and Applicant navigation/application pages. The tested pages have no whole-page horizontal overflow or browser-console warnings/errors; intended wide tables retain internal bottom scrolling.
 - See `REVIEW_RELEASE_CERTIFICATE_GUIDELINE_2026-08-13.md` for the authoritative implementation and authorization contract.
@@ -194,7 +194,7 @@
 ### Changed
 
 - Raised the private application-document limit from 10 MB to 100 MB in validation, interface guidance, tests, and documentation.
-- Reviewer selection now lists all active classification-matched candidates, prioritizes department then institution matches, provides a Department filter, removes the Availability column, and keeps capacity visible.
+- Reviewer selection now lists all active classification-matched candidates, prioritizes exact Institute matches, provides an Institute filter, removes the Availability column, and keeps capacity visible.
 - Screening/classification summaries and Reviewer assignment surfaces now wrap responsively without overlapping labels, badges, or values.
 
 ### Security
@@ -276,7 +276,7 @@
 ### Added
 
 - Required Applicant Starting Date and Ending Date fields with ordered-date validation, formatted detail display, and a legacy duration-text fallback for existing records.
-- `profile_option_aliases` so renamed Year Level, Institution, Department, Program, and Reviewer Classification labels retain one immutable option identity for older official workbooks.
+- `profile_option_aliases` so renamed Year Level, Institute, Program, and Reviewer Classification labels retain one immutable option identity for older official workbooks.
 - Applicant final-submission confirmation, exact readiness checklist ordering, combined application/completion overview, Open/Closed submission label, and red formal-limit warning.
 - Regression coverage for newest Applicant selection, cross-term Adviser/RES dashboard visibility, date ranges, submission labels/dialog structure, complete deadline borders, and active/inactive historical workbook labels.
 - A maintained current-feature catalog and a dedicated deadline-configuration guide.

@@ -255,13 +255,7 @@ class UserAccountService
                 'nullable',
                 'string',
                 'max:150',
-                Rule::in($this->profileOptions->values(ProfileOptionField::Institution, $subject?->institution)),
-            ],
-            'department' => [
-                'nullable',
-                'string',
-                'max:150',
-                Rule::in($this->profileOptions->values(ProfileOptionField::Department, $subject?->department)),
+                Rule::in($this->profileOptions->values(ProfileOptionField::Institute, $subject?->institution)),
             ],
             'program' => [
                 'nullable',
@@ -294,7 +288,7 @@ class UserAccountService
     /** @param array<string, mixed> $attributes @return array<string, mixed> */
     private function normalizeProfile(array $attributes): array
     {
-        foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'program', 'year_level', 'position_title'] as $field) {
+        foreach (['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'program', 'year_level', 'position_title'] as $field) {
             $attributes[$field] = filled($attributes[$field] ?? null)
                 ? Str::squish((string) $attributes[$field])
                 : null;
@@ -333,8 +327,7 @@ class UserAccountService
             'institutional_identifier.regex' => 'Use only letters, numbers, periods, underscores, and hyphens for the institutional identifier.',
             'phone_number.digits' => 'Phone Number must contain exactly 11 digits.',
             'phone_number.required' => 'Phone Number is required and must contain exactly 11 digits.',
-            'institution.in' => $this->profileOptions->validationMessage(ProfileOptionField::Institution),
-            'department.in' => $this->profileOptions->validationMessage(ProfileOptionField::Department),
+            'institution.in' => $this->profileOptions->validationMessage(ProfileOptionField::Institute),
             'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $this->profileOptions->validationMessage(ProfileOptionField::YearLevel),
             'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
@@ -397,7 +390,6 @@ class UserAccountService
             'institutional_identifier',
             'phone_number',
             'institution',
-            'department',
             'program',
             'year_level',
             'position_title',

@@ -85,7 +85,7 @@
                         </select>
                         @if ($advisers->isEmpty())
                             <small class="application-field-help">{{ (auth()->user()->applicant_type ?? \App\Enums\ApplicantType::Student) === \App\Enums\ApplicantType::Student
-                                ? 'No active eligible Research Adviser is currently available in your department.'
+                                ? 'No active eligible Research Adviser is currently available in your Institute.'
                                 : 'No active eligible Research Adviser is currently available.' }}</small>
                         @endif
                         @error('adviser_user_id')<span class="identity-field-error">{{ $message }}</span>@enderror
@@ -123,33 +123,23 @@
                 </div>
             </section>
 
-            {{-- Institutional fields capture a submission-time snapshot from managed dropdown options. --}}
-            <section class="application-form-section" aria-labelledby="institutional-information-title">
+            {{-- Institute fields capture a submission-time snapshot from managed dropdown options. --}}
+            <section class="application-form-section" aria-labelledby="institute-information-title">
                 <header class="application-form-section-heading">
                     <span aria-hidden="true"><x-dashboard.icon name="building-2" size="18" /></span>
-                    <h2 id="institutional-information-title">Institutional Information</h2>
+                    <h2 id="institute-information-title">Institute Information</h2>
                 </header>
                 <div class="application-form-section-body">
-                    <div class="application-form-grid application-form-grid-three">
+                    <div class="application-form-grid">
                     <div class="application-field">
-                        <label for="institution">Institution or College <span aria-hidden="true">*</span></label>
+                        <label for="institution">Institute <span aria-hidden="true">*</span></label>
                         <select id="institution" name="institution" required>
-                            <option value="">Select institution</option>
-                            @foreach ($profileOptions[\App\Enums\ProfileOptionField::Institution->value] as $option)
+                            <option value="">Select institute</option>
+                            @foreach ($profileOptions[\App\Enums\ProfileOptionField::Institute->value] as $option)
                                 <option value="{{ $option }}" @selected($fieldValue('institution', auth()->user()->institution) === $option)>{{ $option }}</option>
                             @endforeach
                         </select>
                         @error('institution')<span class="identity-field-error">{{ $message }}</span>@enderror
-                    </div>
-                    <div class="application-field">
-                        <label for="department">Department <span aria-hidden="true">*</span></label>
-                        <select id="department" name="department" required>
-                            <option value="">Select department</option>
-                            @foreach ($profileOptions[\App\Enums\ProfileOptionField::Department->value] as $option)
-                                <option value="{{ $option }}" @selected($fieldValue('department', auth()->user()->department) === $option)>{{ $option }}</option>
-                            @endforeach
-                        </select>
-                        @error('department')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
                     <div class="application-field">
                         <label for="program">Program @if ((auth()->user()->applicant_type ?? \App\Enums\ApplicantType::Student) === \App\Enums\ApplicantType::Student)<span aria-hidden="true">*</span>@endif</label>

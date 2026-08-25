@@ -11,14 +11,14 @@
             fn (string $key): bool => str_starts_with($key, 'processes.')
                 || in_array($key, ['semester', 'academic_year', 'term_starts_on', 'term_ends_on'], true)
         );
-        $profileHasErrors = collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'department', 'position_title'])
+        $profileHasErrors = collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'position_title'])
             ->contains(fn (string $field): bool => $errors->has($field));
         $certificateHasErrors = $errors->getBag('signatory')->any() || collect(['certificate_signatory_name', 'certificate_valid_until', 'signature', 'qr_image'])
             ->contains(fn (string $field): bool => $errors->has($field));
         $securityHasErrors = $errors->has('username') || $errors->has('email') || collect($passwordFields)->contains(
             fn (array $field): bool => $errors->has($field[0])
         );
-        $optionsHaveErrors = $errors->has('option_field') || $errors->has('option_value');
+        $optionsHaveErrors = $errors->has('option_field') || $errors->has('option_value') || $errors->has('option_acronym');
         $backgroundsHaveErrors = $errors->getBag('certificateBackground')->any() || $errors->has('background') || $errors->has('background_type');
         $requirementsHaveErrors = $errors->getBag('requirementConfiguration')->any();
         $requestedTab = request('tab');
@@ -193,14 +193,18 @@
                     <div><h2 id="dropdown-options-title">Dropdown Options</h2><p>Manage controlled account-form and workbook values without changing historical account labels.</p></div>
                 </div>
 
-                <form class="identity-option-create" method="POST" action="{{ route('res.settings.profile-options.store') }}">
+                @php
+                    $selectedOptionField = old('option_field', \App\Enums\ProfileOptionField::YearLevel->value);
+                    $creatingInstituteOption = $selectedOptionField === \App\Enums\ProfileOptionField::Institute->value;
+                @endphp
+                <form class="identity-option-create" method="POST" action="{{ route('res.settings.profile-options.store') }}" data-profile-option-create>
                     @csrf
                     <input type="hidden" name="settings_tab" value="options">
                     <div class="identity-field">
                         <label for="settings_option_field">Option Group</label>
-                        <select id="settings_option_field" name="option_field" required>
+                        <select id="settings_option_field" name="option_field" required data-profile-option-field>
                             @foreach (\App\Enums\ProfileOptionField::managedCases() as $field)
-                                <option value="{{ $field->value }}" @selected(old('option_field') === $field->value)>{{ $field->label() }}</option>
+                                <option value="{{ $field->value }}" @selected($selectedOptionField === $field->value)>{{ $field->label() }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -208,6 +212,22 @@
                         <label for="settings_option_value">Option Value</label>
                         <input id="settings_option_value" name="option_value" type="text" value="{{ old('option_value') }}" maxlength="150" required>
                         @error('option_value')<span class="identity-field-error">{{ $message }}</span>@enderror
+                    </div>
+                    <div class="identity-field identity-option-acronym-field" data-profile-option-acronym-field @if (! $creatingInstituteOption) hidden @endif>
+                        <label for="settings_option_acronym">Institute Acronym</label>
+                        <input
+                            id="settings_option_acronym"
+                            name="option_acronym"
+                            type="text"
+                            value="{{ old('option_acronym') }}"
+                            maxlength="12"
+                            placeholder="e.g. ICDI"
+                            autocomplete="off"
+                            data-profile-option-acronym
+                            @disabled(! $creatingInstituteOption)
+                            @required($creatingInstituteOption)
+                        >
+                        @error('option_acronym')<span class="identity-field-error">{{ $message }}</span>@enderror
                     </div>
                     <button class="identity-button identity-button-primary" type="submit"><x-dashboard.icon name="plus" size="18" /><span>Add Option</span></button>
                 </form>
@@ -218,35 +238,45 @@
                 </div>
                 <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Dropdown options" tabindex="0">
                     <table class="identity-user-table identity-option-table">
-                        <thead><tr><th>Option Group</th><th>Option Value</th><th class="identity-col-usage">In Use</th><th class="identity-col-status">Status</th><th class="identity-col-action">Action</th></tr></thead>
+                        <thead><tr><th>Option Group</th><th>Option Value</th><th class="identity-col-acronym">Institute Acronym</th><th class="identity-col-usage">In Use</th><th class="identity-col-status">Status</th><th class="identity-col-action">Action</th></tr></thead>
                         <tbody>
                             @forelse ($profileOptionRecords as $option)
                                 <tr>
                                     <td><strong>{{ $option->field->label() }}</strong></td>
                                     <td>
-                                        <form class="identity-option-edit-form" method="POST" action="{{ route('res.settings.profile-options.update', $option) }}">
+                                        <form id="settings-option-form-{{ $option->id }}" method="POST" action="{{ route('res.settings.profile-options.update', $option) }}">
                                             @csrf
                                             @method('PUT')
                                             <input type="hidden" name="settings_tab" value="options">
-                                            <label class="sr-only" for="settings-option-{{ $option->id }}">Edit {{ $option->field->label() }} option</label>
-                                            <input id="settings-option-{{ $option->id }}" name="option_value" type="text" value="{{ $option->value }}" maxlength="150" required>
-                                            <button class="identity-button identity-button-secondary" type="submit"><x-dashboard.icon name="edit" size="17" /><span>Save</span></button>
                                         </form>
+                                        <label class="sr-only" for="settings-option-{{ $option->id }}">Edit {{ $option->field->label() }} option</label>
+                                        <input id="settings-option-{{ $option->id }}" class="identity-option-table-input" name="option_value" type="text" value="{{ $option->value }}" maxlength="150" form="settings-option-form-{{ $option->id }}" required>
+                                    </td>
+                                    <td class="identity-col-acronym">
+                                        @if ($option->field === \App\Enums\ProfileOptionField::Institute)
+                                            <label class="sr-only" for="settings-option-acronym-{{ $option->id }}">Edit {{ $option->value }} acronym</label>
+                                            <input id="settings-option-acronym-{{ $option->id }}" class="identity-option-table-input identity-option-acronym-input" name="option_acronym" type="text" value="{{ $option->acronym }}" maxlength="12" form="settings-option-form-{{ $option->id }}" required>
+                                        @else
+                                            <span aria-label="Not applicable">&mdash;</span>
+                                        @endif
                                     </td>
                                     <td class="identity-col-usage"><strong>{{ $profileOptionUsageCounts[$option->id] ?? 0 }}</strong></td>
                                     <td class="identity-col-status"><x-dashboard.status-badge :label="$option->is_active ? 'Active' : 'Inactive'" :tone="$option->is_active ? 'green' : 'neutral'" /></td>
                                     <td class="identity-col-action">
-                                        <form method="POST" action="{{ route('res.settings.profile-options.status', $option) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="settings_tab" value="options">
-                                            <input type="hidden" name="is_active" value="{{ $option->is_active ? 0 : 1 }}">
-                                            <button class="identity-view-link" type="submit">{{ $option->is_active ? 'Deactivate' : 'Restore' }}</button>
-                                        </form>
+                                        <div class="identity-option-row-actions">
+                                            <button class="identity-button identity-button-secondary" type="submit" form="settings-option-form-{{ $option->id }}"><x-dashboard.icon name="edit" size="17" /><span>Save</span></button>
+                                            <form method="POST" action="{{ route('res.settings.profile-options.status', $option) }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="settings_tab" value="options">
+                                                <input type="hidden" name="is_active" value="{{ $option->is_active ? 0 : 1 }}">
+                                                <button class="identity-view-link" type="submit">{{ $option->is_active ? 'Deactivate' : 'Restore' }}</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5">No dropdown options are configured.</td></tr>
+                                <tr><td colspan="6">No dropdown options are configured.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

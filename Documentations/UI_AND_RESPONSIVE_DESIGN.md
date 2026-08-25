@@ -14,7 +14,7 @@ RES Lead Profile and Security and Privacy use the same left-aligned section head
 
 ## Application Form Sections
 
-Applicant create and edit forms use three separate operational sections: Research Information, Institutional Information, and Study Scope. Each section has a compact domain icon header and bordered field surface; the outer form and final action row remain unframed so cards are not nested. Research Adviser spans the Research Information width, Study Scope keeps the abstract full-width, and participant/date fields collapse without horizontal overflow on phone layouts.
+Applicant create and edit forms use three separate operational sections: Research Information, Institute Information, and Study Scope. Each section has a compact domain icon header and bordered field surface; the outer form and final action row remain unframed so cards are not nested. Research Adviser spans the Research Information width, Study Scope keeps the abstract full-width, and participant/date fields collapse without horizontal overflow on phone layouts.
 
 ## Responsive Tables
 

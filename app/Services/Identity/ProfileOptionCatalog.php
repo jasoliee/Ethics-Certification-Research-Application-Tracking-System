@@ -64,8 +64,7 @@ class ProfileOptionCatalog
     {
         return [
             ProfileOptionField::YearLevel->value => $this->values(ProfileOptionField::YearLevel, $user->year_level),
-            ProfileOptionField::Institution->value => $this->values(ProfileOptionField::Institution, $user->institution),
-            ProfileOptionField::Department->value => $this->values(ProfileOptionField::Department, $user->department),
+            ProfileOptionField::Institute->value => $this->values(ProfileOptionField::Institute, $user->institution),
             ProfileOptionField::Program->value => $this->values(ProfileOptionField::Program, $user->program),
         ];
     }
@@ -100,11 +99,16 @@ class ProfileOptionCatalog
         return $identities['label:'.Str::lower($value)] ?? null;
     }
 
-    public function create(User $actor, ProfileOptionField|string $field, string $value): ProfileOption
-    {
+    public function create(
+        User $actor,
+        ProfileOptionField|string $field,
+        string $value,
+        ?string $acronym = null,
+    ): ProfileOption {
         $this->authorize($actor);
         $field = $field instanceof ProfileOptionField ? $field : ProfileOptionField::from($field);
         [$value, $normalized] = $this->normalizedValue($value);
+        $acronym = $this->normalizedAcronym($field, $acronym);
 
         if (ProfileOption::query()->where('field', $field->value)->where('normalized_value', $normalized)->exists()
             || ProfileOptionAlias::query()->where('field', $field->value)->where('normalized_value', $normalized)->exists()) {
@@ -117,6 +121,7 @@ class ProfileOptionCatalog
             'field' => $field,
             'value' => $value,
             'normalized_value' => $normalized,
+            'acronym' => $acronym,
             'sort_order' => ((int) ProfileOption::query()->where('field', $field->value)->max('sort_order')) + 10,
             'is_active' => true,
             'created_by_user_id' => $actor->id,
@@ -127,18 +132,20 @@ class ProfileOptionCatalog
             'option_id' => $option->id,
             'field' => $field->value,
             'value' => $value,
+            'acronym' => $acronym,
             'result' => 'created',
         ]);
 
         return $option;
     }
 
-    public function update(User $actor, ProfileOption $option, string $value): ProfileOption
+    public function update(User $actor, ProfileOption $option, string $value, ?string $acronym = null): ProfileOption
     {
         $this->authorize($actor);
         [$value, $normalized] = $this->normalizedValue($value);
+        $acronym = $this->normalizedAcronym($option->field, $acronym, $option->id);
 
-        $updated = DB::transaction(function () use ($actor, $option, $value, $normalized): ProfileOption {
+        $updated = DB::transaction(function () use ($actor, $option, $value, $normalized, $acronym): ProfileOption {
             // Lock the identity while moving its previous readable label into alias history.
             $locked = ProfileOption::query()->whereKey($option->id)->lockForUpdate()->firstOrFail();
             $field = $locked->field;
@@ -161,6 +168,7 @@ class ProfileOptionCatalog
 
             $previousValue = $locked->value;
             $previousNormalized = $locked->normalized_value;
+            $previousAcronym = $locked->acronym;
 
             if ($previousNormalized !== $normalized) {
                 // Restoring an earlier label removes that duplicate alias before preserving the outgoing label.
@@ -180,13 +188,19 @@ class ProfileOptionCatalog
                 );
             }
 
-            $locked->update(['value' => $value, 'normalized_value' => $normalized]);
+            $locked->update([
+                'value' => $value,
+                'normalized_value' => $normalized,
+                'acronym' => $acronym,
+            ]);
 
             $this->auditLog->record($actor, 'user.profile_option_updated', $locked, [
                 'option_id' => $locked->id,
                 'field' => $field->value,
                 'previous_value' => $previousValue,
                 'value' => $value,
+                'previous_acronym' => $previousAcronym,
+                'acronym' => $acronym,
                 'result' => 'updated',
             ]);
 
@@ -195,6 +209,39 @@ class ProfileOptionCatalog
         $this->resetCache();
 
         return $updated;
+    }
+
+    /**
+     * Resolve an Institute acronym from its current label or a preserved historical alias.
+     */
+    public function instituteAcronym(?string $institute): ?string
+    {
+        if (! filled($institute)) {
+            return null;
+        }
+
+        $normalized = Str::lower(Str::squish((string) $institute));
+
+        return ProfileOption::query()
+            ->where('field', ProfileOptionField::Institute->value)
+            ->whereNotNull('acronym')
+            ->where(function ($options) use ($normalized): void {
+                $options
+                    ->where('normalized_value', $normalized)
+                    ->orWhereHas('aliases', fn ($aliases) => $aliases->where('normalized_value', $normalized));
+            })
+            ->value('acronym');
+    }
+
+    /**
+     * Keep official output readable while exposing the configured Institute acronym.
+     */
+    public function instituteLabelWithAcronym(?string $institute): string
+    {
+        $label = filled($institute) ? Str::squish((string) $institute) : 'Institute not recorded';
+        $acronym = $this->instituteAcronym($institute);
+
+        return $acronym ? "{$label} ({$acronym})" : $label;
     }
 
     public function setActive(User $actor, ProfileOption $option, bool $isActive): ProfileOption
@@ -233,8 +280,7 @@ class ProfileOptionCatalog
     {
         $columns = [
             ProfileOptionField::YearLevel->value => 'year_level',
-            ProfileOptionField::Institution->value => 'institution',
-            ProfileOptionField::Department->value => 'department',
+            ProfileOptionField::Institute->value => 'institution',
             ProfileOptionField::Program->value => 'program',
             ProfileOptionField::ReviewerClassification->value => 'reviewer_classification',
         ];
@@ -324,5 +370,34 @@ class ProfileOptionCatalog
         $value = Str::squish($value);
 
         return [$value, Str::lower($value)];
+    }
+
+    private function normalizedAcronym(
+        ProfileOptionField $field,
+        ?string $acronym,
+        ?int $ignoreOptionId = null,
+    ): ?string {
+        if ($field !== ProfileOptionField::Institute) {
+            return null;
+        }
+
+        $acronym = Str::upper(Str::squish((string) $acronym));
+
+        if (! preg_match('/^[A-Z0-9]{2,12}$/', $acronym)) {
+            throw ValidationException::withMessages([
+                'option_acronym' => 'Use 2 to 12 uppercase letters or numbers for the Institute acronym.',
+            ]);
+        }
+
+        if (ProfileOption::query()
+            ->where('acronym', $acronym)
+            ->when($ignoreOptionId !== null, fn ($options) => $options->whereKeyNot($ignoreOptionId))
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'option_acronym' => 'That Institute acronym is already assigned to another option.',
+            ]);
+        }
+
+        return $acronym;
     }
 }

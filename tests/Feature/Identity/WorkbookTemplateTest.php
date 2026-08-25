@@ -85,15 +85,15 @@ class WorkbookTemplateTest extends TestCase
     }
 
     /**
-     * Verify empty Department and Program groups omit their ranges and add instructions instead of broken dropdowns.
+     * Verify an empty Program group omits its range and adds instructions instead of a broken dropdown.
      */
-    public function test_empty_department_and_program_options_remain_valid_after_round_trip(): void
+    public function test_empty_program_options_remain_valid_after_round_trip(): void
     {
         // Arrange explicitly empty active option groups regardless of future seed-data additions.
         Storage::fake('local');
         $actor = User::factory()->create(['role' => UserRole::ResLead]);
         ProfileOption::query()
-            ->whereIn('field', [ProfileOptionField::Department->value, ProfileOptionField::Program->value])
+            ->where('field', ProfileOptionField::Program->value)
             ->update(['is_active' => false]);
         $type = app(AccountTypeCatalog::class)->authorized($actor, 'student_researcher');
         $options = app(ProfileOptionCatalog::class)->grouped();
@@ -106,13 +106,11 @@ class WorkbookTemplateTest extends TestCase
             $this->assertNull($workbook->getNamedRange('EcratsDepartmentOptions'));
             $this->assertNull($workbook->getNamedRange('EcratsProgramOptions'));
             $instructions = $this->worksheetText($workbook, 'Instructions');
-            $this->assertStringContainsString('No active Department options are configured.', $instructions);
             $this->assertStringContainsString('No active Program options are configured.', $instructions);
 
             // Assert no surviving validation formula references either intentionally omitted name.
             foreach ($workbook->getSheetByName('Accounts')?->getDataValidationCollection() ?? [] as $validation) {
                 $this->assertNotContains(ltrim($validation->getFormula1(), '='), [
-                    'EcratsDepartmentOptions',
                     'EcratsProgramOptions',
                 ]);
             }
@@ -120,21 +118,21 @@ class WorkbookTemplateTest extends TestCase
     }
 
     /**
-     * Verify current additions appear, deactivated values disappear, and long institution names remain intact.
+     * Verify current additions appear, deactivated values disappear, and long Institute names remain intact.
      */
     public function test_active_deactivated_and_long_dropdown_values_survive_round_trip(): void
     {
-        // Arrange one new active option, one deactivated option, and a long but valid institution label.
+        // Arrange one new Institute option, one deactivated Program, and a long but valid Institute label.
         Storage::fake('local');
         $actor = User::factory()->create(['role' => UserRole::ResLead]);
         $catalog = app(ProfileOptionCatalog::class);
-        $newDepartment = 'Applied Research and Community Ethics Department';
+        $newInstitute = 'Institute for Applied Research and Community Ethics';
         $deactivatedProgram = 'Legacy Research Program';
-        $longInstitution = 'Kolehiyo ng Lungsod ng Dasmarinas Center for Interdisciplinary Research, Community Engagement, and International Collaboration';
-        $catalog->create($actor, ProfileOptionField::Department, $newDepartment);
+        $longInstitute = 'Kolehiyo ng Lungsod ng Dasmarinas Institute for Interdisciplinary Research, Community Engagement, and International Collaboration';
+        $catalog->create($actor, ProfileOptionField::Institute, $newInstitute, 'IARCE');
         $inactive = $catalog->create($actor, ProfileOptionField::Program, $deactivatedProgram);
         $catalog->setActive($actor, $inactive, false);
-        $catalog->create($actor, ProfileOptionField::Institution, $longInstitution);
+        $catalog->create($actor, ProfileOptionField::Institute, $longInstitute, 'KIIR');
         $type = app(AccountTypeCatalog::class)->authorized($actor, 'student_researcher');
         $options = $catalog->grouped();
 
@@ -142,10 +140,10 @@ class WorkbookTemplateTest extends TestCase
         $path = app(SafeSpreadsheet::class)->createTemplate($type, $options);
 
         // Assert both reader passes contain active values exactly and exclude the deactivated value.
-        $this->assertVerifiedRoundTrip($path, $type, $options, function (Spreadsheet $workbook) use ($newDepartment, $deactivatedProgram, $longInstitution): void {
+        $this->assertVerifiedRoundTrip($path, $type, $options, function (Spreadsheet $workbook) use ($newInstitute, $deactivatedProgram, $longInstitute): void {
             $optionsText = $this->worksheetText($workbook, 'Options');
-            $this->assertStringContainsString($newDepartment, $optionsText);
-            $this->assertStringContainsString($longInstitution, $optionsText);
+            $this->assertStringContainsString($newInstitute, $optionsText);
+            $this->assertStringContainsString($longInstitute, $optionsText);
             $this->assertStringNotContainsString($deactivatedProgram, $optionsText);
         });
     }

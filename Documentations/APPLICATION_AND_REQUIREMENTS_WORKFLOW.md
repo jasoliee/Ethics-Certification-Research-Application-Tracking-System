@@ -12,9 +12,9 @@ Saving validated information advances the working stage to `document_submission`
 
 ## Information Validation
 
-Create, update, and final submission share one server-side contract. Required information includes research title, Thesis or Capstone type, research category, institution, department, Research Adviser, abstract, target participants, Starting Date, and Ending Date. Program is required for Student Researchers and optional for Faculty Researchers. Ending Date cannot precede Starting Date.
+Create, update, and final submission share one server-side contract. Required information includes research title, Thesis or Capstone type, research category, Institute, Research Adviser, abstract, target participants, Starting Date, and Ending Date. Program is required for Student Researchers and optional for Faculty Researchers. Ending Date cannot precede Starting Date.
 
-Institution, Department, and Program values come from active profile options while preserving an already stored historical value. The selected Adviser must be active, unarchived, have the Adviser role, and have completed account setup.
+Institute and Program values come from active profile options while preserving an already stored historical value. The selected Adviser must be active, unarchived, have the Adviser role, and have completed account setup. Student Adviser eligibility requires an exact Institute match; Faculty applicants may select across Institutes.
 
 Legacy applications may retain their previous `expected_duration` text when no date pair exists. New and edited information uses the date pair; ECRATS does not invent dates from old prose.
 
@@ -71,7 +71,7 @@ Expedited and Full Board classifications advance to `awaiting_reviewer_assignmen
 
 ## Initial Reviewer Assignment
 
-Expedited requires exactly one eligible reviewer and Full Board exactly three distinct eligible reviewers. Candidate and transaction-time checks require an active, setup-complete Reviewer account, matching classification, no Applicant/Adviser identity conflict, and remaining active capacity. All active classification-matched reviewers are listed by default; exact department matches rank first, then institution matches, then other eligible reviewers. Department is an optional exact filter. Full-capacity reviewers remain visible with their load but cannot be selected.
+Expedited requires exactly one eligible reviewer and Full Board exactly three distinct eligible reviewers. Candidate and transaction-time checks require an active, setup-complete Reviewer account, matching classification, no Applicant/Adviser identity conflict, and remaining active capacity. All active classification-matched reviewers are listed by default; exact Institute matches rank first, then other eligible reviewers. Institute is an optional exact filter. Full-capacity reviewers remain visible with their load but cannot be selected.
 
 Assignment locks the application and selected reviewer rows in stable order, repeats every rule, rejects an existing initial assignment set, and writes the existing `reviewer_assignments` records atomically. Success advances to `under_expedited_review` or `under_full_board_review` and the `ethics_review` stage. Applicant and Reviewer notifications remain neutral; audit metadata stores only the classification, reviewer count, and resulting status.
 

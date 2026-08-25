@@ -4,8 +4,8 @@ namespace App\Services\Applications;
 
 use App\Enums\ApplicantType;
 use App\Models\ResearchApplication;
+use App\Services\Identity\ProfileOptionCatalog;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -14,26 +14,15 @@ use RuntimeException;
  */
 class ApplicationCodeGenerator
 {
-    /** @var array<string, string> */
-    private const INSTITUTION_ACRONYMS = [
-        'institute of behavioral sciences' => 'IBS',
-        'institute of computing and digital innovation' => 'ICDI',
-        'institute of engineering' => 'IOE',
-        'institute of foundational studies' => 'IFS',
-        'institute of governance and development studies' => 'IGDS',
-        'institute of medical laboratory science' => 'IMLS',
-        'institute of midwifery' => 'IOM',
-        'institute of nursing' => 'ION',
-        'institute of science and mathematics' => 'ISM',
-    ];
+    public function __construct(private readonly ProfileOptionCatalog $profileOptions) {}
 
     public function next(ApplicantType $applicantType, string $institution): string
     {
-        $institutionAcronym = self::INSTITUTION_ACRONYMS[Str::lower(trim($institution))] ?? null;
+        $institutionAcronym = $this->profileOptions->instituteAcronym($institution);
 
         if (! $institutionAcronym) {
             throw ValidationException::withMessages([
-                'institution' => 'The selected institution does not have an approved application ID acronym.',
+                'institution' => 'The selected Institute does not have an approved application ID acronym.',
             ]);
         }
 

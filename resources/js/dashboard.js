@@ -733,12 +733,15 @@ function initializeApplicationTools(shell) {
                 if (decisionForm) {
                     decisionForm.dataset.completedReviewerForms = String(completedCount);
                 }
-                preserveSavedFormDefaults();
-                savedWorksheetState = worksheetState();
                 form.removeAttribute('aria-busy');
                 setWorksheetControlsLocked(false);
                 worksheetControlsLocked = false;
                 syncConsentExplanation();
+                preserveSavedFormDefaults();
+                // FormData omits disabled controls. Capture the saved state only
+                // after restoring the worksheet controls so pagehide does not
+                // mistake a completed worksheet for an unsaved draft.
+                savedWorksheetState = worksheetState();
                 form.dispatchEvent(new CustomEvent('reviewer:form-saved'));
                 if (intent === 'submit' && completed) {
                     form.dispatchEvent(new CustomEvent('reviewer:form-completed'));
@@ -808,7 +811,7 @@ function initializeApplicationTools(shell) {
             name.textContent = row?.dataset.reviewerName ?? 'Reviewer';
             details.textContent = [
                 row?.dataset.reviewerPosition,
-                row?.dataset.reviewerDepartment,
+                row?.dataset.reviewerInstitute,
             ].filter(Boolean).join(' - ');
             load.textContent = row?.dataset.reviewerLoad ?? '';
             identity.append(name, details);
@@ -2544,6 +2547,7 @@ function initializeApplicationTools(shell) {
             submitter?.setAttribute('disabled', 'disabled');
         });
     });
+
 }
 
 function initializeSettingsTools(shell) {
@@ -2962,6 +2966,33 @@ function initializeOnboardingGuide(shell) {
 }
 
 function initializeManagedAccountTools(shell) {
+    shell.querySelectorAll('[data-profile-option-create]').forEach((form) => {
+        const field = form.querySelector('[data-profile-option-field]');
+        const acronymField = form.querySelector('[data-profile-option-acronym-field]');
+        const acronym = form.querySelector('[data-profile-option-acronym]');
+
+        if (! field || ! acronymField || ! acronym) {
+            return;
+        }
+
+        const syncInstituteAcronym = () => {
+            const isInstitute = field.value === 'institution';
+            acronymField.hidden = ! isInstitute;
+            acronym.disabled = ! isInstitute;
+            acronym.required = isInstitute;
+
+            if (! isInstitute) {
+                acronym.value = '';
+            }
+        };
+
+        field.addEventListener('change', syncInstituteAcronym);
+        acronym.addEventListener('input', () => {
+            acronym.value = acronym.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+        });
+        syncInstituteAcronym();
+    });
+
     const reviewerToggle = shell.querySelector('[data-reviewer-capability-toggle]');
     const reviewerCapacity = shell.querySelector('[data-reviewer-capacity]');
     if (reviewerToggle && reviewerCapacity) {

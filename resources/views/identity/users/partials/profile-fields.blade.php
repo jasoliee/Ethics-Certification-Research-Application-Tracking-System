@@ -31,9 +31,9 @@
     </div>
 </fieldset>
 
-{{-- Institutional and role-specific fields share the same divider-to-title spacing and field order. --}}
+{{-- Institute and role-specific fields share the same divider-to-title spacing and field order. --}}
 <fieldset class="identity-form-section">
-    <legend class="identity-form-section-title">Institutional Information</legend>
+    <legend class="identity-form-section-title">Institute Information</legend>
     <div class="identity-form-grid">
         <div class="identity-field">
             <label for="email">Email Address <span aria-hidden="true">*</span></label>
@@ -51,24 +51,14 @@
             @error('phone_number')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         <div class="identity-field">
-            <label for="institution">Institution / Affiliation</label>
+            <label for="institution">Institute</label>
             <select id="institution" name="institution" autocomplete="organization">
-                <option value="">Select institution</option>
-                @foreach ($profileOptions[\App\Enums\ProfileOptionField::Institution->value] ?? [] as $option)
+                <option value="">Select institute</option>
+                @foreach ($profileOptions[\App\Enums\ProfileOptionField::Institute->value] ?? [] as $option)
                     <option value="{{ $option }}" @selected(old('institution', $managedUser?->institution) === $option)>{{ $option }}</option>
                 @endforeach
             </select>
             @error('institution')<span class="identity-field-error">{{ $message }}</span>@enderror
-        </div>
-        <div class="identity-field">
-            <label for="department">Department / Unit</label>
-            <select id="department" name="department" autocomplete="organization-title">
-                <option value="">Select department</option>
-                @foreach ($profileOptions[\App\Enums\ProfileOptionField::Department->value] ?? [] as $option)
-                    <option value="{{ $option }}" @selected(old('department', $managedUser?->department) === $option)>{{ $option }}</option>
-                @endforeach
-            </select>
-            @error('department')<span class="identity-field-error">{{ $message }}</span>@enderror
         </div>
         @if ($profileRole === \App\Enums\UserRole::Applicant->value)
             <div class="identity-field">

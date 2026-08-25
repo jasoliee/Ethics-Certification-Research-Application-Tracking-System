@@ -31,13 +31,9 @@ class ApplicationInformationService
     {
         // Use the application snapshot first and the account profile second for legacy-value continuity.
         return [
-            ProfileOptionField::Institution->value => $this->profileOptions->values(
-                ProfileOptionField::Institution,
+            ProfileOptionField::Institute->value => $this->profileOptions->values(
+                ProfileOptionField::Institute,
                 $application?->institution ?? $applicant->institution,
-            ),
-            ProfileOptionField::Department->value => $this->profileOptions->values(
-                ProfileOptionField::Department,
-                $application?->department ?? $applicant->department,
             ),
             ProfileOptionField::Program->value => $this->profileOptions->values(
                 ProfileOptionField::Program,
@@ -55,18 +51,18 @@ class ApplicationInformationService
     {
         $isStudent = ($applicant->applicant_type ?? ApplicantType::Student) === ApplicantType::Student;
 
-        if ($isStudent && blank($applicant->department)) {
+        if ($isStudent && blank($applicant->institution)) {
             return collect();
         }
 
         // Exclude archived, inactive, and incomplete-setup accounts from the trusted Adviser selector.
         return User::query()
-            ->select(['id', 'name', 'email', 'institution', 'department'])
+            ->select(['id', 'name', 'email', 'institution'])
             ->where('role', UserRole::Adviser->value)
             ->where('account_status', AccountStatus::Active->value)
             ->whereNotNull('password_setup_completed_at')
             ->whereKeyNot($applicant->id)
-            ->when($isStudent, fn ($query) => $query->where('department', $applicant->department))
+            ->when($isStudent, fn ($query) => $query->where('institution', $applicant->institution))
             ->orderBy('name')
             ->get();
     }
@@ -95,11 +91,11 @@ class ApplicationInformationService
                     ->where('id', '!=', $applicant->id);
 
                 if ($isStudent) {
-                    if (blank($applicant->department)) {
+                    if (blank($applicant->institution)) {
                         return $query->whereRaw('1 = 0');
                     }
 
-                    $query->where('department', $applicant->department);
+                    $query->where('institution', $applicant->institution);
                 }
 
                 return $query;
@@ -134,8 +130,7 @@ class ApplicationInformationService
             'research_title' => ['required', 'string', 'max:255'],
             'research_type' => ['required', Rule::enum(ResearchType::class)],
             'research_category' => ['required', 'string', 'max:150'],
-            'institution' => ['required', 'string', 'max:150', Rule::in($options[ProfileOptionField::Institution->value])],
-            'department' => ['required', 'string', 'max:150', Rule::in($options[ProfileOptionField::Department->value])],
+            'institution' => ['required', 'string', 'max:150', Rule::in($options[ProfileOptionField::Institute->value])],
             'program' => [
                 Rule::requiredIf($isStudent),
                 'nullable',
@@ -207,10 +202,9 @@ class ApplicationInformationService
     public function messages(): array
     {
         return [
-            'institution.in' => 'Select an active Institution option.',
-            'department.in' => 'Select an active Department option.',
+            'institution.in' => 'Select an active Institute option.',
             'program.in' => 'Select an active Program option.',
-            'adviser_user_id.exists' => 'Select an active eligible Research Adviser. Student applicants must select one from their department.',
+            'adviser_user_id.exists' => 'Select an active eligible Research Adviser. Student applicants must select one from the same Institute.',
             'expected_start_date.required' => 'Enter the expected research starting date.',
             'expected_end_date.required' => 'Enter the expected research ending date.',
             'expected_end_date.after_or_equal' => 'The ending date must be on or after the starting date.',
@@ -234,7 +228,6 @@ class ApplicationInformationService
             'research_type' => $application->research_type?->value,
             'research_category' => $application->research_category,
             'institution' => $application->institution,
-            'department' => $application->department,
             'program' => $application->program,
             'adviser_user_id' => $application->adviser_user_id,
             'abstract' => $application->abstract,

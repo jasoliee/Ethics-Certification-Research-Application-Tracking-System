@@ -128,8 +128,8 @@ class ResearchApplicationPageController extends Controller
         return [
             'pageTitle' => $title,
             'application' => $application->loadMissing(
-                'applicant:id,name,email,institutional_identifier,institution,department,program,role,applicant_type',
-                'adviser:id,name,email,institution,department',
+                'applicant:id,name,email,institutional_identifier,institution,program,role,applicant_type',
+                'adviser:id,name,email,institution',
                 'latestEndorsement.adviser:id,name',
             ),
             'indexRoute' => DashboardNavigation::applicationsRoute($role),

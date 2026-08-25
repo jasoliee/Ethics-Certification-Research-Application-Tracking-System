@@ -11,7 +11,7 @@ The Application area supports:
 - one database-enforced editable draft slot per Applicant;
 - create, continue, and update actions;
 - Student- and Faculty-specific information validation;
-- active database-backed Institution, Department, and Program options;
+- active database-backed Institute and Program options;
 - selection of an active Research Adviser whose account setup is complete;
 - private individual/batch requirement upload, replacement, removal, preview, and download;
 - a shared mandatory-requirement completion percentage;
@@ -22,7 +22,7 @@ The Application area supports:
 
 ## Application Information
 
-The Applicant supplies research title, Thesis or Capstone type, research category, institution, department, program when required, Research Adviser, abstract, target participants, Starting Date, and Ending Date. Ending Date must be on or after Starting Date. The server validates the same persisted fields again at final submission. Historical records that only contain the earlier duration text remain readable without guessed date conversion.
+The Applicant supplies research title, Thesis or Capstone type, research category, Institute, program when required, Research Adviser, abstract, target participants, Starting Date, and Ending Date. Ending Date must be on or after Starting Date. The server validates the same persisted fields again at final submission. Historical records that only contain the earlier duration text remain readable without guessed date conversion.
 
 Repeated Start or Save requests converge on the Applicant's existing editable draft. A draft receives a non-sequential public application code, remains private to its owner, and is not visible to the Adviser until formal submission succeeds.
 

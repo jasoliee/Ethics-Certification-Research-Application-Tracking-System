@@ -87,8 +87,7 @@
                         <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
                         <div><dt>Research Category</dt><dd>{{ $application->research_category ?: 'Not specified' }}</dd></div>
                         <div><dt>Assigned Adviser</dt><dd>{{ $application->adviser?->name ?? 'Not assigned' }}</dd></div>
-                        <div><dt>Institution or College</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
-                        <div><dt>Department</dt><dd>{{ $application->department ?: 'Not specified' }}</dd></div>
+                        <div><dt>Institute</dt><dd>{{ $application->institution ?: 'Not specified' }}</dd></div>
                         <div><dt>Program</dt><dd>{{ $application->program ?: 'Not applicable' }}</dd></div>
                         <div><dt>Expected Duration</dt><dd>{{ $application->expectedDurationLabel() }}</dd></div>
                         <div class="application-detail-full"><dt>Target Participants</dt><dd>{{ $application->target_participants ?: 'Not specified' }}</dd></div>

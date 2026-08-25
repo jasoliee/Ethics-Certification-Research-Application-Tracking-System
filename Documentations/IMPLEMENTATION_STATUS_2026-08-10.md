@@ -43,7 +43,7 @@ This is the current handoff for the requirements in the attached ECRATS Laravel 
 
 - Required worksheets open from Review Tools and consistently display `Not Started`, `In Progress`, or `Completed` while retaining the existing Draft/Final persistence values, progress, draft restoration, and direct navigation.
 - Closing a worksheet warns about unsaved changes; closing is blocked while a draft save is in progress. Modal focus is contained and restored.
-- Institution, Reviewer, and Researcher / Study Leader were removed from both modal metadata summaries. Title, application code, review type, and date received remain.
+- Institute, Reviewer, and Researcher / Study Leader were removed from both modal metadata summaries. Title, application code, review type, and date received remain.
 - Question blocks have reusable responsive spacing; long questions wrap; Protocol retains No/Yes/Unable to Assess and Informed Consent retains Yes/No.
 - The consent explanation is shown and enabled only when consent is marked unnecessary.
 - Recommendations use accessible radio groups, and finalization remains server-validated and immutable.
@@ -85,7 +85,7 @@ This is the current handoff for the requirements in the attached ECRATS Laravel 
 ## Intentional Differences from the Prototype
 
 - `+ Page Comment` is absent because the written requirement explicitly overrides the prototype.
-- Institution, Reviewer, and Researcher / Study Leader are absent from worksheet modal metadata because the written requirement explicitly overrides the prototype; internal audit context remains stored.
+- Institute, Reviewer, and Researcher / Study Leader are absent from worksheet modal metadata because the written requirement explicitly overrides the prototype; internal audit context remains stored.
 - Office documents are not sent to third-party viewers. Unsupported inline formats use the authenticated first-party fallback and Download action to preserve confidentiality.
 ## August 11 continuation: Applicant revision and certification
 

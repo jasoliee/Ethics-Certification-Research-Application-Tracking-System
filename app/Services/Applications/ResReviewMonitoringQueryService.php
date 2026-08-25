@@ -30,13 +30,13 @@ class ResReviewMonitoringQueryService
     ) {}
 
     /**
-     * @param  array{q?: string|null, review_type?: string|null, assignment_status?: string|null, deadline?: string|null, consensus?: string|null, adviser_q?: string|null, adviser_department?: string|null, adviser_workload?: string|null}  $filters
+     * @param  array{q?: string|null, review_type?: string|null, assignment_status?: string|null, deadline?: string|null, consensus?: string|null, adviser_q?: string|null, adviser_institute?: string|null, adviser_workload?: string|null}  $filters
      * @return array{
      *     metrics: array{active_applications: int, active_assignments: int, completed_assignments: int, total_assignments: int, completion_rate: int, overdue_assignments: int, conflicted_applications: int},
      *     conflicts: Collection<int, ResearchApplication>,
      *     reviewerWorkloads: LengthAwarePaginator<int, User>,
      *     adviserWorkloads: LengthAwarePaginator<int, User>,
-     *     adviserDepartments: Collection<int, string>
+     *     adviserInstitutes: Collection<int, string>
      * }
      */
     public function dashboard(array $filters): array
@@ -46,10 +46,8 @@ class ResReviewMonitoringQueryService
             'conflicts' => $this->conflicts($filters),
             'reviewerWorkloads' => $this->reviewerWorkloads($filters),
             'adviserWorkloads' => $this->adviserWorkloads($filters),
-            'adviserDepartments' => $this->adviserDepartments(),
-            'adviserInstitutions' => $this->adviserInstitutions(),
-            'reviewerDepartments' => $this->reviewerDepartments(),
-            'reviewerInstitutions' => $this->reviewerInstitutions(),
+            'adviserInstitutes' => $this->adviserInstitutes(),
+            'reviewerInstitutes' => $this->reviewerInstitutes(),
         ];
     }
 
@@ -59,7 +57,7 @@ class ResReviewMonitoringQueryService
      * The shared statistics service remains the source of truth for every displayed count. SQL
      * predicates below only narrow the requested page and mirror those authoritative definitions.
      *
-     * @param  array{adviser_q?: string|null, adviser_department?: string|null, adviser_workload?: string|null}  $filters
+     * @param  array{adviser_q?: string|null, adviser_institute?: string|null, adviser_workload?: string|null}  $filters
      * @return LengthAwarePaginator<int, User>
      */
     private function adviserWorkloads(array $filters): LengthAwarePaginator
@@ -70,7 +68,6 @@ class ResReviewMonitoringQueryService
                 'name',
                 'role',
                 'position_title',
-                'department',
                 'institution',
                 'expected_endorsement_count',
             ])
@@ -85,10 +82,8 @@ class ResReviewMonitoringQueryService
                 $search = trim((string) $filters['adviser_q']);
                 $advisers->where('name', 'like', "%{$search}%");
             })
-            ->when(filled($filters['adviser_department'] ?? null), fn (Builder $advisers) => $advisers
-                ->whereRaw('LOWER(department) = ?', [mb_strtolower(trim((string) $filters['adviser_department']))]))
-            ->when(filled($filters['adviser_institution'] ?? null), fn (Builder $advisers) => $advisers
-                ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['adviser_institution']))]));
+            ->when(filled($filters['adviser_institute'] ?? null), fn (Builder $advisers) => $advisers
+                ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['adviser_institute']))]));
 
         $advisers = $query
             ->orderByDesc('awaiting_endorsement_count')
@@ -98,7 +93,7 @@ class ResReviewMonitoringQueryService
             ->paginate(12, ['*'], 'advisers_page')
             ->withQueryString();
 
-        $advisers->getCollection()->each(function (User $adviser): void {
+        $advisers->getCollection()->each(function (User $adviser) use ($filters): void {
             $adviser->setAttribute(
                 'endorsement_statistics',
                 $this->endorsementStatistics->for(
@@ -111,36 +106,14 @@ class ResReviewMonitoringQueryService
         return $advisers;
     }
 
-    /**
-     * Return the active Adviser Department filter catalog without identity or application joins.
-     *
-     * @return Collection<int, string>
-     */
-    private function adviserDepartments(): Collection
-    {
-        return $this->authorizedAdvisersQuery()
-            ->whereNotNull('department')
-            ->where('department', '!=', '')
-            ->orderBy('department')
-            ->pluck('department')
-            ->unique(fn (string $department): string => mb_strtolower(trim($department)))
-            ->values();
-    }
-
     /** @return Collection<int, string> */
-    private function adviserInstitutions(): Collection
+    private function adviserInstitutes(): Collection
     {
         return $this->staffFilterOptions($this->authorizedAdvisersQuery(), 'institution');
     }
 
     /** @return Collection<int, string> */
-    private function reviewerDepartments(): Collection
-    {
-        return $this->staffFilterOptions(User::query()->reviewerEnabled(), 'department');
-    }
-
-    /** @return Collection<int, string> */
-    private function reviewerInstitutions(): Collection
+    private function reviewerInstitutes(): Collection
     {
         return $this->staffFilterOptions(User::query()->reviewerEnabled(), 'institution');
     }
@@ -225,17 +198,14 @@ class ResReviewMonitoringQueryService
                 'id',
                 'name',
                 'position_title',
-                'department',
                 'institution',
                 'reviewer_capacity',
                 'reviewer_enabled',
             ])
             ->when(filled($filters['reviewer_q'] ?? null), fn (Builder $query) => $query
                 ->where('name', 'like', '%'.trim((string) $filters['reviewer_q']).'%'))
-            ->when(filled($filters['reviewer_department'] ?? null), fn (Builder $query) => $query
-                ->whereRaw('LOWER(department) = ?', [mb_strtolower(trim((string) $filters['reviewer_department']))]))
-            ->when(filled($filters['reviewer_institution'] ?? null), fn (Builder $query) => $query
-                ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['reviewer_institution']))]))
+            ->when(filled($filters['reviewer_institute'] ?? null), fn (Builder $query) => $query
+                ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['reviewer_institute']))]))
             ->orderBy('name')
             ->orderBy('id')
             ->paginate(12, ['*'], 'reviewers_page')

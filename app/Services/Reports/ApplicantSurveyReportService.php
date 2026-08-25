@@ -109,10 +109,8 @@ class ApplicantSurveyReportService
                 ->where('applicant_type', $filters['applicant_type']))
             ->when(filled($filters['review_type'] ?? null), fn (Builder $applications) => $applications
                 ->where('review_type', $filters['review_type']))
-            ->when(filled($filters['department'] ?? null), fn (Builder $applications) => $applications
-                ->where('department', $filters['department']))
-            ->when(filled($filters['institution'] ?? null), fn (Builder $applications) => $applications
-                ->where('institution', $filters['institution']))
+            ->when(filled($filters['institute'] ?? null), fn (Builder $applications) => $applications
+                ->where('institution', $filters['institute']))
             ->when(filled($filters['application_status'] ?? null), fn (Builder $applications) => $applications
                 ->where('application_status', $filters['application_status']));
     }

@@ -38,7 +38,6 @@ class ResearchApplicationFactory extends Factory
             'research_type' => ResearchType::Thesis,
             'research_category' => 'Social and Behavioral Research',
             'institution' => 'Institute of Computing and Digital Innovation',
-            'department' => 'Computer Studies',
             'program' => 'Bachelor of Science in Computer Science',
             'abstract' => fake()->paragraphs(2, true),
             'target_participants' => 'KLD students who meet the approved inclusion criteria.',

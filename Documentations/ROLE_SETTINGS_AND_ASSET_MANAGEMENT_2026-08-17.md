@@ -10,8 +10,8 @@ The Applicant, Adviser, and RES Lead account areas now expose real, authenticate
 
 - Self-service writes are authorized by the `UserPolicy` `updateOwnProfile` ability and always target the authenticated user.
 - The service applies a server-owned allowlist. Forged role, account-status, institutional-identifier, Reviewer entitlement, classification, or capacity fields are never persisted.
-- Applicant fields cover identity, contact, institution, department, program, and year level where applicable.
-- Adviser fields cover identity, contact, institution, department, position, and the expected-endorsement declaration. Reviewer eligibility data is read-only on the Adviser profile.
+- Applicant fields cover identity, contact, Institute, program, and year level where applicable.
+- Adviser fields cover identity, contact, Institute, position, and the expected-endorsement declaration. Reviewer eligibility data is read-only on the Adviser profile.
 - RES Lead fields cover permitted identity/contact information plus the separately authorized certificate signatory.
 - Every accepted profile write creates a `settings.profile_updated` audit record containing only the changed field names.
 

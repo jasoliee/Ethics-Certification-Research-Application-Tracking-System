@@ -21,7 +21,7 @@ class ReviewerEligibilityService
     /**
      * Return a bounded reviewer page while retaining full-load rows as visibly unavailable choices.
      *
-     * @param  array{reviewer_q?: string|null, department?: string|null}  $filters
+     * @param  array{reviewer_q?: string|null, institute?: string|null}  $filters
      * @return LengthAwarePaginator<int, User>
      */
     public function paginateCandidates(
@@ -35,7 +35,6 @@ class ReviewerEligibilityService
                 'name',
                 'position_title',
                 'institution',
-                'department',
                 'program',
                 'reviewer_capacity',
                 'reviewer_enabled',
@@ -50,13 +49,12 @@ class ReviewerEligibilityService
                 $matching
                     ->where('name', 'like', "%{$search}%")
                     ->orWhere('position_title', 'like', "%{$search}%")
-                    ->orWhere('department', 'like', "%{$search}%");
+                    ->orWhere('institution', 'like', "%{$search}%");
             });
         });
 
-        // Department filtering is exact and optional; cross-discipline accounts remain visible by default.
-        $query->when(filled($filters['department'] ?? null), fn (Builder $reviewers) => $reviewers
-            ->whereRaw('LOWER(department) = ?', [mb_strtolower(trim((string) $filters['department']))]));
+        $query->when(filled($filters['institute'] ?? null), fn (Builder $reviewers) => $reviewers
+            ->whereRaw('LOWER(institution) = ?', [mb_strtolower(trim((string) $filters['institute']))]));
 
         $this->prioritizeApplicationMatch($query, $application);
 
@@ -67,21 +65,17 @@ class ReviewerEligibilityService
             ->withQueryString();
     }
 
-    /**
-     * Return the bounded Department filter catalog from eligible reviewer-enabled Adviser accounts.
-     *
-     * @return Collection<int, string>
-     */
-    public function departmentOptions(
+    /** @return Collection<int, string> */
+    public function instituteOptions(
         ResearchApplication $application,
         ReviewType $reviewType,
     ): Collection {
         return $this->eligibleAccountsQuery($application, $reviewType)
-            ->whereNotNull('department')
-            ->where('department', '!=', '')
-            ->orderBy('department')
-            ->pluck('department')
-            ->unique(fn (string $department): string => mb_strtolower(trim($department)))
+            ->whereNotNull('institution')
+            ->where('institution', '!=', '')
+            ->orderBy('institution')
+            ->pluck('institution')
+            ->unique(fn (string $institute): string => mb_strtolower(trim($institute)))
             ->values();
     }
 
@@ -124,7 +118,7 @@ class ReviewerEligibilityService
     }
 
     /**
-     * Build the shared active-account boundary used by candidate rows and Department options.
+     * Build the shared active-account boundary used by candidate rows.
      */
     private function eligibleAccountsQuery(
         ResearchApplication $application,
@@ -142,29 +136,13 @@ class ReviewerEligibilityService
     }
 
     /**
-     * Sort exact Department matches first, then Institution matches, without excluding other reviewers.
+     * Sort exact Institute matches first without excluding other reviewers.
      */
     private function prioritizeApplicationMatch(
         Builder $query,
         ResearchApplication $application,
     ): void {
-        $department = mb_strtolower(trim((string) $application->department));
         $institution = mb_strtolower(trim((string) $application->institution));
-
-        if ($department !== '' && $institution !== '') {
-            $query->orderByRaw(
-                "CASE WHEN LOWER(COALESCE(department, '')) = ? THEN 0 WHEN LOWER(COALESCE(institution, '')) = ? THEN 1 ELSE 2 END",
-                [$department, $institution],
-            );
-
-            return;
-        }
-
-        if ($department !== '') {
-            $query->orderByRaw("CASE WHEN LOWER(COALESCE(department, '')) = ? THEN 0 ELSE 1 END", [$department]);
-
-            return;
-        }
 
         if ($institution !== '') {
             $query->orderByRaw("CASE WHEN LOWER(COALESCE(institution, '')) = ? THEN 0 ELSE 1 END", [$institution]);

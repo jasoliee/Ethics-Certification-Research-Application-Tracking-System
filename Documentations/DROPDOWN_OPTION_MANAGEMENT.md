@@ -2,7 +2,7 @@
 
 ## Managed Fields
 
-RES Lead manages five shared catalogs: Year Level, Institution, Department, Program, and Reviewer Classification. Reviewer Classification starts with Expedited, Full Board, and Exempted. Department and Program are intentionally not populated with guessed institutional values.
+RES Lead manages four shared catalogs: Year Level, Institute, Program, and Reviewer Classification. Reviewer Classification starts with Expedited, Full Board, and Exempted. The nine client-approved Institutes, four Year Levels, and ten Programs are installed as editable defaults, so configuration does not start empty.
 
 ## Lifecycle
 
@@ -16,7 +16,9 @@ Current and historical labels are unique case-insensitively within each field. E
 
 ## Authorization and Validation
 
-Only RES Lead can open or mutate the option catalog. Adviser forms consume active values but cannot manage the catalog. Add, update, deactivate, and restore requests use dedicated Form Requests, authorization checks, normalized duplicate validation, rate limiting, and audit events.
+Only RES Lead can open or mutate the option catalog. Adviser forms consume active values but cannot manage the catalog. Each Institute also has a required, unique 2-to-12-character acronym that RES Lead can edit beside its visible label. Add, update, deactivate, and restore requests use dedicated Form Requests, authorization checks, normalized duplicate validation, rate limiting, and audit events.
+
+The Institute acronym is resolved through the same immutable option identity and historical aliases. New Application IDs use the current configured acronym, while already-issued IDs remain unchanged. Official certificates show the Institute label together with its configured acronym.
 
 Required controlled fields fail server-side validation when no accepted options are active. Newly downloaded Excel templates also add an Instructions warning. Previously downloaded templates do not update their visible dropdown list automatically, but a selected old label may remain valid when it resolves to an active option's server-owned alias.
 

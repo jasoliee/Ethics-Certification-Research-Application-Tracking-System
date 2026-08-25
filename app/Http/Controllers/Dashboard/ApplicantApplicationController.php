@@ -54,14 +54,15 @@ class ApplicantApplicationController extends Controller
             ->withQueryString();
         $editableApplication = $this->editableApplication($request);
         $limitStatus = $submissionLimit->status($request->user());
+        $windowStatus = $submissionWindow->status();
 
         return view('dashboard.applications.applicant-index', [
             'pageTitle' => 'Application',
             'applications' => $applications,
             'editableApplication' => $editableApplication,
             'submissionLimit' => $limitStatus,
-            'submissionWindow' => $submissionWindow->status(),
-            'canStartApplication' => $editableApplication !== null || ! $limitStatus['reached'],
+            'submissionWindow' => $windowStatus,
+            'canStartApplication' => $editableApplication !== null || ($windowStatus['open'] && ! $limitStatus['reached']),
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Application'],
@@ -76,6 +77,7 @@ class ApplicantApplicationController extends Controller
         Request $request,
         ApplicationInformationService $information,
         ApplicationSubmissionLimit $submissionLimit,
+        ApplicationSubmissionWindow $submissionWindow,
     ): View|RedirectResponse {
         $application = $this->editableApplication($request);
 
@@ -84,6 +86,14 @@ class ApplicantApplicationController extends Controller
             Gate::authorize('update', $application);
         } else {
             Gate::authorize('create', ResearchApplication::class);
+
+            $windowStatus = $submissionWindow->status();
+
+            if (! $windowStatus['open']) {
+                return redirect()
+                    ->route('applicant.applications.index')
+                    ->withErrors(['submission_window' => $windowStatus['message']]);
+            }
 
             if (! $submissionLimit->canCreate($request->user())) {
                 return redirect()
@@ -101,7 +111,12 @@ class ApplicantApplicationController extends Controller
     public function store(
         StoreResearchApplicationRequest $request,
         ResearchApplicationDraftService $drafts,
+        ApplicationSubmissionWindow $submissionWindow,
     ): RedirectResponse {
+        if ($this->editableApplication($request) === null) {
+            $submissionWindow->assertOpen();
+        }
+
         $application = $drafts->save($request->user(), $request->validated());
 
         return redirect()

@@ -48,8 +48,7 @@ class UserManagementQueryService
                     ->whereLike('name', '%'.$search.'%')
                     ->orWhereLike('email', '%'.$search.'%')
                     ->orWhereLike('institutional_identifier', '%'.$search.'%')
-                    ->orWhereLike('institution', '%'.$search.'%')
-                    ->orWhereLike('department', '%'.$search.'%');
+                    ->orWhereLike('institution', '%'.$search.'%');
             });
         }
 

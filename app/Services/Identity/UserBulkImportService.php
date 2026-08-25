@@ -817,7 +817,7 @@ class UserBulkImportService
         return match ($field) {
             'email' => 'A valid unique email address, such as name@example.com.',
             'institutional_identifier' => 'The official unique Student Number or Employee ID using letters, numbers, periods, underscores, or hyphens.',
-            'year_level', 'institution', 'department', 'program' => 'A current active value from the database-backed dropdown list.',
+            'year_level', 'institution', 'program' => 'A current active value from the database-backed dropdown list.',
             'reviewer_enabled' => 'Yes or No.',
             'reviewer_capacity' => 'A whole number from 1 to 30 when Reviewer capability is enabled.',
             'first_name', 'middle_name', 'last_name', 'suffix', 'position_title' => 'Plain text within the documented length limit.',

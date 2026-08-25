@@ -115,9 +115,9 @@
             @endif
 
             <div class="identity-filter">
-                <label for="institution-filter">Institution</label>
+                <label for="institution-filter">Institute</label>
                 <select id="institution-filter" name="institution">
-                    <option value="">All institutions</option>
+                    <option value="">All institutes</option>
                     @foreach ($institutions as $institution)
                         <option value="{{ $institution }}" @selected(($filters['institution'] ?? null) === $institution)>{{ $institution }}</option>
                     @endforeach
@@ -197,7 +197,7 @@
                             <th scope="col" class="identity-col-identifier">Institutional ID</th>
                             <th scope="col" class="identity-col-email">Email</th>
                             <th scope="col" class="identity-col-role">Role</th>
-                            <th scope="col" class="identity-col-unit">Institution / Unit</th>
+                            <th scope="col" class="identity-col-unit">Institute</th>
                             <th scope="col" class="identity-col-date">Date Created</th>
                             <th scope="col" class="identity-col-status">Status</th>
                             <th scope="col" class="identity-col-action">Action</th>
@@ -233,7 +233,6 @@
                                 <td class="identity-col-unit">
                                     <span class="identity-table-unit">
                                         <strong class="identity-table-truncate" data-table-tooltip="{{ $managedUser->institution ?: 'Not provided' }}">{{ $managedUser->institution ?: 'Not provided' }}</strong>
-                                        @if ($managedUser->department)<small class="identity-table-truncate" data-table-tooltip="{{ $managedUser->department }}">{{ $managedUser->department }}</small>@endif
                                     </span>
                                 </td>
                                 <td class="identity-col-date"><time datetime="{{ $managedUser->created_at?->toDateString() }}">{{ $managedUser->created_at?->format('M d, Y') }}</time></td>

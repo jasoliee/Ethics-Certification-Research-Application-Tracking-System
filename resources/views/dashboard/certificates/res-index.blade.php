@@ -259,11 +259,11 @@
                             </div>
                             <div class="certificate-modal-actions">
                                 <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="file-search" size="17" /><span>Open Workspace</span></a>
-                                @if (! $isConflicted && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $decision !== \App\Enums\ReviewDecision::Approved)
+                                @if (! $isConflicted && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus)
                                     <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
                                         @csrf
                                         <input type="hidden" name="application_id" value="{{ $application->id }}">
-                                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>Release Decision</span></button>
+                                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>{{ $application->review_type === \App\Enums\ReviewType::FullBoard->value ? 'Release All Decisions' : 'Release Decision' }}</span></button>
                                     </form>
                                 @endif
                             </div>

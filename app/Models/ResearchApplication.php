@@ -33,7 +33,6 @@ class ResearchApplication extends Model
         'research_type',
         'research_category',
         'institution',
-        'department',
         'program',
         'abstract',
         'target_participants',

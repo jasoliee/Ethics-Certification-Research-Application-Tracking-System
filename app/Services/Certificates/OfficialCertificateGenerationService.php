@@ -9,6 +9,7 @@ use App\Models\Certificate;
 use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
 use App\Models\User;
+use App\Services\Identity\ProfileOptionCatalog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -17,9 +18,12 @@ use Throwable;
 
 class OfficialCertificateGenerationService
 {
-    public function __construct(private readonly DefaultCertificateQrService $defaultQr) {}
+    public function __construct(
+        private readonly DefaultCertificateQrService $defaultQr,
+        private readonly ProfileOptionCatalog $profileOptions,
+    ) {}
 
-    public const GENERATOR_VERSION = 'official-res-certificate-v3';
+    public const GENERATOR_VERSION = 'official-res-certificate-v4';
 
     public const QR_X_MM = 24.0;
 
@@ -195,7 +199,7 @@ class OfficialCertificateGenerationService
         mixed $validUntil,
     ): void {
         $application->loadMissing([
-            'applicant:id,name,first_name,middle_name,last_name,suffix,applicant_type,institution,department,program',
+            'applicant:id,name,first_name,middle_name,last_name,suffix,applicant_type,institution,program',
             'documents' => fn ($documents) => $documents
                 ->where('is_current', true)
                 ->with('requirement:id,name')
@@ -207,7 +211,9 @@ class OfficialCertificateGenerationService
         $applicantType = Str::upper(
             ApplicantType::tryFrom((string) $application->applicant_type)?->label() ?? 'Applicant',
         );
-        $institution = Str::upper($application->institution ?: $application->applicant?->institution ?: 'INSTITUTION NOT RECORDED');
+        $institution = Str::upper($this->profileOptions->instituteLabelWithAcronym(
+            $application->institution ?: $application->applicant?->institution,
+        ));
         $reviewType = $application->application_status === ApplicationStatus::Exempted
             ? 'Exempted'
             : (filled($application->review_type) ? Str::headline((string) $application->review_type) : 'Not recorded');

@@ -50,16 +50,14 @@
         </section>
 
         @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease
-            && ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted
-                || ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus
-                    && $application->review_consensus_decision !== \App\Enums\ReviewDecision::Approved)))
+            && in_array($application->review_consensus_status, [\App\Enums\ReviewConsensusStatus::Conflicted, \App\Enums\ReviewConsensusStatus::Consensus], true))
             <section class="application-panel res-application-release-panel" aria-label="Decision release action">
                 @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
                     <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
-                @elseif ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus && $application->review_consensus_decision !== \App\Enums\ReviewDecision::Approved)
+                @elseif ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus)
                     <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
                         @csrf
-                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>Release Decision</span></button>
+                        <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="send" size="17" /><span>{{ $application->review_type === \App\Enums\ReviewType::FullBoard->value ? 'Release All Decisions' : 'Release Decision' }}</span></button>
                     </form>
                 @endif
             </section>

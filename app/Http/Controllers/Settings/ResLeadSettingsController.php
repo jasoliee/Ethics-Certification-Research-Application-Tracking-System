@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Identity\ChangeProfileOptionStatusRequest;
 use App\Http\Requests\Identity\StoreProfileOptionRequest;
 use App\Http\Requests\Identity\UpdateProfileOptionRequest;
+use App\Http\Requests\Settings\SaveDocumentRequirementRequest;
 use App\Http\Requests\Settings\UpdateDeadlineSettingsRequest;
 use App\Http\Requests\Settings\UpdateOwnEmailRequest;
 use App\Http\Requests\Settings\UpdateOwnPasswordRequest;
@@ -15,7 +16,6 @@ use App\Http\Requests\Settings\UpdateOwnProfileRequest;
 use App\Http\Requests\Settings\UpdateOwnUsernameRequest;
 use App\Http\Requests\Settings\UpdateSignatoryRequest;
 use App\Http\Requests\Settings\UploadManagedBackgroundRequest;
-use App\Http\Requests\Settings\SaveDocumentRequirementRequest;
 use App\Models\CertificateBackground;
 use App\Models\DocumentRequirement;
 use App\Models\ProfileOption;
@@ -255,7 +255,12 @@ class ResLeadSettingsController extends Controller
         ProfileOptionCatalog $profileOptions,
     ): RedirectResponse {
         $field = ProfileOptionField::from($request->validated('option_field'));
-        $profileOptions->create($request->user(), $field, $request->validated('option_value'));
+        $profileOptions->create(
+            $request->user(),
+            $field,
+            $request->validated('option_value'),
+            $request->validated('option_acronym'),
+        );
 
         return redirect()->route('res.settings.index', ['tab' => 'options'])
             ->with('status', "{$field->label()} option added.");
@@ -266,7 +271,12 @@ class ResLeadSettingsController extends Controller
         ProfileOption $profileOption,
         ProfileOptionCatalog $profileOptions,
     ): RedirectResponse {
-        $profileOptions->update($request->user(), $profileOption, $request->validated('option_value'));
+        $profileOptions->update(
+            $request->user(),
+            $profileOption,
+            $request->validated('option_value'),
+            $request->validated('option_acronym'),
+        );
 
         return redirect()->route('res.settings.index', ['tab' => 'options'])
             ->with('status', 'Dropdown option updated. Historical values remain readable.');
