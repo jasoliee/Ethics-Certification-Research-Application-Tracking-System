@@ -97,6 +97,8 @@
                             </div>
                         </div>
 
+                        <button class="login-forgot-password" type="button" data-forgot-password-open>Forgot Password</button>
+
                         <div id="login-validation-messages" class="login-validation-messages" role="alert" aria-live="polite" aria-atomic="true">
                             @if ($hasCredentialError)
                                 <span class="login-validation-message" data-login-error data-error-for="credentials">{{ $errors->first('credentials') }}</span>
@@ -143,5 +145,16 @@
             </div>
         </section>
     @endif
+
+    <section class="login-modal-backdrop" data-forgot-password-dialog hidden>
+        <div class="login-modal login-forgot-password-modal" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title" aria-describedby="forgot-password-message" tabindex="-1">
+            <button class="login-modal-close" type="button" aria-label="Close forgot password message" data-forgot-password-close>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+            </button>
+            <h2 id="forgot-password-title">Forgot Password?</h2>
+            <p id="forgot-password-message">If you forgot your password, contact the adviser who created your account and ask them to send a new password setup link. You can use that link to choose a new password.</p>
+            <button class="login-submit" type="button" data-forgot-password-close>Okay</button>
+        </div>
+    </section>
 </body>
 </html>

@@ -67,6 +67,7 @@ class ApplicantRevisionPresentationTest extends TestCase
             ->assertSee('data-revision-version-panel="'.$first->id.'"', false)
             ->assertSee('data-revision-upload-form', false)
             ->assertSee('data-revision-upload-input', false)
+            ->assertSee('data-research-title-tooltip', false)
             ->assertSee('Choose File')
             ->assertDontSee('Upload Version')
             ->assertDontSee('Upload every required replacement before submitting.')
@@ -116,6 +117,12 @@ class ApplicantRevisionPresentationTest extends TestCase
             '/\.application-record-actions\.is-revision-actions\s*>\s*\*\s*\{[^}]*width:\s*100%;[^}]*min-height:\s*42px;/s',
             $css,
         );
+        $this->assertMatchesRegularExpression(
+            '/\.revision-requirement-disclosure-body\s*>\s*\.revision-version-control\s*\{[^}]*order:\s*-1;/s',
+            $css,
+        );
+        $this->assertStringContainsString('.applicant-review-worksheet-toolbar', $css);
+        $this->assertStringContainsString('justify-content: space-between;', $css);
 
         $application->update(['current_revision_cycle' => 3]);
         $this->assertSame('For Revision C2', $application->refresh()->statusLabel());

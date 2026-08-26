@@ -778,13 +778,19 @@ function initializeApplicationTools(shell) {
     shell.querySelectorAll('[data-reviewer-history-group]').forEach((group) => {
         const selector = group.querySelector('[data-reviewer-history-version-select]');
         const panels = [...group.querySelectorAll('[data-reviewer-history-version-panel]')];
+        if (! selector || panels.length === 0) {
+            return;
+        }
         const syncVersion = () => {
-    panels.forEach((panel) => {
-                panel.hidden = panel.dataset.reviewerHistoryVersionPanel !== selector?.value;
+            panels.forEach((panel) => {
+                const active = panel.dataset.reviewerHistoryVersionPanel === selector.value;
+                panel.hidden = ! active;
+                panel.setAttribute('aria-hidden', String(! active));
             });
         };
 
-        selector?.addEventListener('change', syncVersion);
+        selector.addEventListener('input', syncVersion);
+        selector.addEventListener('change', syncVersion);
         syncVersion();
     });
 
@@ -2292,6 +2298,159 @@ function initializeApplicationTools(shell) {
         });
     });
 
+    shell.querySelectorAll('.certification-panel').forEach((panel) => {
+        const setCertificationBadge = (label) => {
+            const badge = panel.querySelector('summary .dashboard-status-badge');
+
+            if (badge) {
+                badge.textContent = label;
+                badge.className = 'dashboard-status-badge tone-success';
+            }
+        };
+        const actionState = (title, message) => {
+            const state = document.createElement('div');
+            const heading = document.createElement('h3');
+            const copy = document.createElement('p');
+
+            state.className = 'certificate-action-state';
+            heading.textContent = title;
+            copy.textContent = message;
+            state.append(heading, copy);
+
+            return state;
+        };
+        const renderClaimable = (form, claimUrl) => {
+            const state = actionState('Certificate ready to claim', 'Your evaluation is complete and all current released certificate versions are ready.');
+            const claimForm = document.createElement('form');
+            const token = document.createElement('input');
+            const button = document.createElement('button');
+
+            claimForm.method = 'POST';
+            claimForm.action = claimUrl;
+            claimForm.dataset.certificateAsyncForm = 'claim';
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            button.type = 'submit';
+            button.className = 'dashboard-primary-action';
+            button.textContent = 'Claim Certificate';
+            claimForm.append(token, button);
+            state.append(claimForm);
+            form.replaceWith(state);
+            setCertificationBadge('Ready to Claim');
+        };
+        const renderClaimed = (form, payload) => {
+            const state = actionState('Personalized certificates claimed', 'All personalized certificates are ready to view or download.');
+            const list = document.createElement('div');
+
+            list.className = 'applicant-certificate-list';
+            (payload.certificates ?? []).forEach((certificate) => {
+                const item = document.createElement('article');
+                const identity = document.createElement('div');
+                const name = document.createElement('strong');
+                const metadata = document.createElement('span');
+                const actions = document.createElement('div');
+                const preview = document.createElement('a');
+                const download = document.createElement('a');
+
+                name.textContent = certificate.recipient_name;
+                metadata.textContent = `${certificate.certificate_number} · version ${certificate.version}`;
+                preview.className = 'dashboard-outline-action';
+                preview.href = certificate.preview_url;
+                preview.target = '_blank';
+                preview.rel = 'noopener';
+                preview.textContent = 'View';
+                download.className = 'dashboard-primary-action';
+                download.href = certificate.download_url;
+                download.textContent = 'Download';
+                identity.append(name, metadata);
+                actions.append(preview, download);
+                item.append(identity, actions);
+                list.append(item);
+            });
+            state.append(list);
+
+            const downloadAll = document.createElement('a');
+            downloadAll.className = 'dashboard-primary-action applicant-certificate-download-all';
+            downloadAll.href = payload.download_all_url;
+            downloadAll.textContent = 'Download All';
+            state.append(downloadAll);
+            const currentState = form.closest('.certificate-action-state');
+            if (currentState) {
+                currentState.replaceWith(state);
+            } else {
+                form.replaceWith(state);
+            }
+            setCertificationBadge('Claimed');
+        };
+
+        panel.addEventListener('submit', async (event) => {
+            const form = event.target.closest?.('[data-certificate-async-form]');
+
+            if (! form || ! panel.contains(form)) {
+                return;
+            }
+
+            event.preventDefault();
+            if (! form.reportValidity()) {
+                return;
+            }
+
+            const submit = event.submitter ?? form.querySelector('button[type="submit"]');
+            const originalLabel = submit?.textContent;
+            submit?.setAttribute('disabled', 'disabled');
+            if (submit) {
+                submit.textContent = form.dataset.certificateAsyncForm === 'survey' ? 'Submitting Evaluation...' : 'Claiming...';
+            }
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json();
+
+                if (! response.ok) {
+                    const messages = Object.values(payload.errors ?? {}).flat();
+                    let error = panel.querySelector('.certificate-action-error');
+
+                    if (! error) {
+                        error = document.createElement('div');
+                        error.className = 'res-form-error-summary certificate-action-error';
+                        form.before(error);
+                    }
+                    error.textContent = messages[0] ?? payload.message ?? 'The certificate action could not be completed.';
+
+                    return;
+                }
+
+                panel.querySelector('.certificate-action-error')?.remove();
+                if (form.dataset.certificateAsyncForm === 'survey') {
+                    renderClaimable(form, payload.claim_url);
+                } else {
+                    renderClaimed(form, payload);
+                }
+            } catch {
+                let error = panel.querySelector('.certificate-action-error');
+                if (! error) {
+                    error = document.createElement('div');
+                    error.className = 'res-form-error-summary certificate-action-error';
+                    form.before(error);
+                }
+                error.textContent = 'The certificate action could not be completed. Check your connection and try again.';
+            } finally {
+                submit?.removeAttribute('disabled');
+                if (submit && submit.isConnected) {
+                    submit.textContent = originalLabel;
+                }
+            }
+        });
+    });
+
     // Keep the ending-date boundary synchronized without replacing server-side validation.
     const expectedStartDate = shell.querySelector('#expected_start_date');
     const expectedEndDate = shell.querySelector('[data-expected-end-date]');
@@ -2782,6 +2941,148 @@ function initializeSettingsTools(shell) {
             }
         });
     });
+
+    const inlineProfileForm = settings.querySelector('[data-inline-profile-form]');
+
+    if (inlineProfileForm) {
+        const profileFields = [...inlineProfileForm.querySelectorAll('[data-inline-profile-field]')];
+        const fullNameTargets = settings.querySelectorAll('[data-inline-profile-name], [data-inline-profile-full-name]');
+
+        const setFieldMode = (field, mode) => {
+            const input = field.querySelector('[data-inline-profile-input]');
+            const value = field.querySelector('[data-inline-profile-value]');
+            const button = field.querySelector('[data-inline-profile-edit]');
+            const editIcon = field.querySelector('[data-inline-edit-icon]');
+            const saveIcon = field.querySelector('[data-inline-save-icon]');
+            const label = field.querySelector('dt')?.textContent?.trim() ?? 'profile field';
+            const editing = mode === 'save';
+
+            input.hidden = ! editing;
+            value.hidden = editing;
+            button.dataset.mode = mode;
+            button.setAttribute('aria-label', `${editing ? 'Save' : 'Edit'} ${label}`);
+            editIcon.hidden = editing;
+            saveIcon.hidden = ! editing;
+        };
+
+        const renderProfileData = (data) => {
+            profileFields.forEach((field) => {
+                const name = field.dataset.profileField;
+                const input = field.querySelector('[data-inline-profile-input]');
+                const value = field.querySelector('[data-inline-profile-value]');
+
+                if (! name || ! Object.hasOwn(data, name)) {
+                    return;
+                }
+
+                input.value = data[name] ?? '';
+                input.dataset.savedValue = input.value;
+                value.textContent = data[name] !== null && data[name] !== ''
+                    ? String(data[name])
+                    : value.dataset.emptyLabel || 'Not provided';
+            });
+            fullNameTargets.forEach((target) => {
+                target.textContent = data.name;
+            });
+        };
+
+        const saveProfile = async (field) => {
+            const input = field.querySelector('[data-inline-profile-input]');
+            const button = field.querySelector('[data-inline-profile-edit]');
+
+            if (! input.reportValidity()) {
+                return;
+            }
+
+            profileFields.forEach((candidate) => {
+                candidate.querySelector('[data-inline-profile-error]').textContent = '';
+                candidate.querySelector('[data-inline-profile-input]').setAttribute('aria-invalid', 'false');
+            });
+            button.disabled = true;
+
+            try {
+                const response = await fetch(inlineProfileForm.action, {
+                    method: 'POST',
+                    body: new FormData(inlineProfileForm),
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json();
+
+                if (! response.ok) {
+                    const errors = payload.errors ?? {};
+                    let firstInvalid = null;
+
+                    Object.entries(errors).forEach(([name, messages]) => {
+                        const candidate = profileFields.find((item) => item.dataset.profileField === name);
+
+                        if (! candidate) {
+                            return;
+                        }
+
+                        const candidateInput = candidate.querySelector('[data-inline-profile-input]');
+                        candidate.querySelector('[data-inline-profile-error]').textContent = Array.isArray(messages) ? messages[0] : String(messages);
+                        candidateInput.setAttribute('aria-invalid', 'true');
+                        setFieldMode(candidate, 'save');
+                        firstInvalid ??= candidateInput;
+                    });
+                    firstInvalid?.focus();
+
+                    return;
+                }
+
+                renderProfileData(payload.data ?? {});
+                profileFields.forEach((candidate) => setFieldMode(candidate, 'edit'));
+            } catch {
+                field.querySelector('[data-inline-profile-error]').textContent = 'This value could not be saved. Check your connection and try again.';
+            } finally {
+                button.disabled = false;
+            }
+        };
+
+        profileFields.forEach((field) => {
+            const input = field.querySelector('[data-inline-profile-input]');
+            const button = field.querySelector('[data-inline-profile-edit]');
+
+            button.addEventListener('click', () => {
+                if (button.dataset.mode === 'save') {
+                    saveProfile(field);
+
+                    return;
+                }
+
+                profileFields.forEach((candidate) => {
+                    if (candidate !== field) {
+                        const candidateInput = candidate.querySelector('[data-inline-profile-input]');
+                        const candidateButton = candidate.querySelector('[data-inline-profile-edit]');
+
+                        if (candidateButton.dataset.mode === 'save') {
+                            candidateInput.value = candidateInput.dataset.savedValue ?? candidateInput.value;
+                            candidate.querySelector('[data-inline-profile-error]').textContent = '';
+                        }
+                        setFieldMode(candidate, 'edit');
+                    }
+                });
+                input.dataset.savedValue = input.value;
+                setFieldMode(field, 'save');
+                input.focus();
+                input.select?.();
+            });
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveProfile(field);
+                } else if (event.key === 'Escape') {
+                    input.value = input.dataset.savedValue ?? input.value;
+                    field.querySelector('[data-inline-profile-error]').textContent = '';
+                    setFieldMode(field, 'edit');
+                    button.focus();
+                }
+            });
+        });
+    }
 
     const passwordForm = settings.querySelector('[data-settings-password-form]');
 

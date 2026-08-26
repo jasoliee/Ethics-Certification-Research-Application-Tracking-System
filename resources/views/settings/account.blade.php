@@ -24,7 +24,6 @@
         <section class="settings-tab-panel" id="settings-panel-profile" role="tabpanel" aria-labelledby="settings-tab-profile" data-settings-panel="profile" @if ($initialTab !== 'profile') hidden @endif>
             <section class="settings-section">
                 <div class="settings-section-heading"><span><x-dashboard.icon name="user" size="23" /></span><div><h2>Profile</h2></div></div>
-                <dl class="settings-profile-summary"><div><dt>Full Name</dt><dd>{{ $settingsUser->name }}</dd></div><div><dt>{{ $settingsUser->institutionalIdentifierLabel() }}</dt><dd>{{ $settingsUser->institutional_identifier }}</dd></div><div><dt>Email Address</dt><dd>{{ $settingsUser->email }}</dd></div><div><dt>Role</dt><dd>{{ $settingsUser->displayRoleLabel() }}</dd></div><div><dt>Account Status</dt><dd>{{ Str::headline($settingsUser->account_status) }}</dd></div><div><dt>Institute</dt><dd>{{ $settingsUser->institution ?: 'Not provided' }}</dd></div>@if($settingsUser->role === \App\Enums\UserRole::Applicant)<div><dt>Program / Year Level</dt><dd>{{ collect([$settingsUser->program, $settingsUser->year_level])->filter()->implode(' - ') ?: 'Not provided' }}</dd></div>@endif</dl>
                 @include('settings.partials.profile-form')
             </section>
         </section>

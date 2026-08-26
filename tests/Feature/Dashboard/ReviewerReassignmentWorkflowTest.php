@@ -65,7 +65,7 @@ class ReviewerReassignmentWorkflowTest extends TestCase
                 'confirm_assignment' => '1',
                 'reassignment_reason' => 'The original reviewer is no longer available to complete this review.',
             ])
-            ->assertRedirect(route('res.applications.show', $application))
+            ->assertRedirect(route('res.applications.index'))
             ->assertSessionHasNoErrors();
 
         $assignment->refresh();

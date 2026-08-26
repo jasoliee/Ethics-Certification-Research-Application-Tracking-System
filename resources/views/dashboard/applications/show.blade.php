@@ -26,16 +26,13 @@
                 'application-record-actions',
                 'is-revision-actions' => $role === \App\Enums\UserRole::Applicant
                     && $application->application_status === \App\Enums\ApplicationStatus::RevisionWindowOpen,
-            ])>
+                ])>
                 <a class="dashboard-outline-action" href="{{ route($indexRoute) }}"><x-dashboard.icon name="arrow-left" size="17" /><span>Back to List</span></a>
                 @if ($role === \App\Enums\UserRole::Applicant && $application->application_status === \App\Enums\ApplicationStatus::RevisionWindowOpen)
                     <a class="dashboard-outline-action" href="{{ route('applicant.revision-certificates.index', ['application' => $application->id]) }}"><x-dashboard.icon name="arrow-right" size="17" /><span>Go to Revision</span></a>
                 @endif
                 @if ($canEdit && ! $isReturnedApplicant)
-                    <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
-                @endif
-                @if ($canUpload)
-                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}"><x-dashboard.icon name="upload" size="17" /><span>Manage Documents</span></a>
+                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
                 @endif
             </div>
         </header>
@@ -74,7 +71,7 @@
                     <h2>{{ $role === \App\Enums\UserRole::Applicant ? 'Application Information' : 'Application and Applicant Information' }}</h2>
                 </div>
                 @if ($isReturnedApplicant && $canEdit)
-                    <a class="dashboard-outline-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
+                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.edit', $application) }}"><x-dashboard.icon name="edit" size="17" /><span>Edit Information</span></a>
                 @endif
             </header>
             <div @class(['application-combined-information-grid', 'is-single' => $role === \App\Enums\UserRole::Applicant])>
@@ -162,8 +159,7 @@
 
             @if ($role === \App\Enums\UserRole::Applicant && $canEdit)
                 {{-- Applicants return to the upload workspace while the record remains editable. --}}
-                <div class="application-panel-actions">
-                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}">{{ $isReturnedApplicant ? 'Re-upload Documents' : 'Continue Document Submission' }}</a>
+                <div class="application-panel-actions application-draft-actions">
                     @if ($canDiscard)
                         <form method="POST" action="{{ route('applicant.applications.destroy', $application) }}" data-confirm-draft-discard>
                             @csrf
@@ -174,6 +170,7 @@
                             </button>
                         </form>
                     @endif
+                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}">{{ $isReturnedApplicant ? 'Re-upload Documents' : 'Continue Document Submission' }}</a>
                 </div>
             @endif
         </section>

@@ -36,11 +36,13 @@
                     <div><dt>Received, Awaiting Endorsement</dt><dd>{{ $adviserStatistics['awaiting'] }}</dd></div>
                     <div><dt>Remaining Expected Total</dt><dd>{{ $adviserStatistics['remaining'] }}</dd></div>
                     <div><dt>Not Yet Received</dt><dd>{{ $adviserStatistics['not_received'] }}</dd></div>
-                    <div><dt>Reviewer Access</dt><dd>{{ $reviewerProfile['enabled'] ? 'Enabled' : 'Disabled' }}</dd></div>
-                    <div><dt>Maximum Active Application Load</dt><dd>{{ $reviewerProfile['capacity'] ?: 'Not configured' }}</dd></div>
-                    <div><dt>Current Active Assignment Load</dt><dd>{{ $reviewerProfile['active_load'] }}</dd></div>
-                    <div><dt>Available Capacity</dt><dd>{{ $reviewerProfile['available_capacity'] }}</dd></div>
-                    <div><dt>Assignment Eligibility</dt><dd>{{ $reviewerProfile['eligibility_label'] }}</dd></div>
+                    @if ($reviewerProfile)
+                        <div><dt>Reviewer Access</dt><dd>Enabled</dd></div>
+                        <div><dt>Maximum Active Application Load</dt><dd>{{ $reviewerProfile['capacity'] ?: 'Not configured' }}</dd></div>
+                        <div><dt>Current Active Assignment Load</dt><dd>{{ $reviewerProfile['active_load'] }}</dd></div>
+                        <div><dt>Available Capacity</dt><dd>{{ $reviewerProfile['available_capacity'] }}</dd></div>
+                        <div><dt>Assignment Eligibility</dt><dd>{{ $reviewerProfile['eligibility_label'] }}</dd></div>
+                    @endif
                 @endif
                 @if ($profileUser->role === \App\Enums\UserRole::ResLead)
                     <div><dt>Certificate Signatory</dt><dd>{{ $profileUser->certificate_signatory_name ?: $profileUser->name }}</dd></div>
@@ -48,7 +50,6 @@
             </dl>
 
             <div class="dashboard-profile-actions">
-                <a class="dashboard-outline-action" href="{{ route($dashboardSettingsRoute, ['tab' => 'profile']) }}"><x-dashboard.icon name="edit" size="18" />Edit Permitted Fields</a>
                 <a class="dashboard-outline-action" href="{{ route($dashboardSettingsRoute, ['tab' => 'security']) }}"><x-dashboard.icon name="lock" size="18" />Security &amp; Privacy</a>
             </div>
         </section>

@@ -12,6 +12,11 @@
 
         {{-- Queue filters mirror the approved screening fields and remain outside the table overflow region. --}}
         <form class="application-filter-bar application-filter-bar-res" method="GET" action="{{ route('res.applications.index') }}">
+            <div class="application-field application-search-field res-filter-search">
+                <label for="res-q">Search</label>
+                <span><x-dashboard.icon name="search" size="18" /></span>
+                <input id="res-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Code, title, category, adviser, institute, or program">
+            </div>
             <div class="application-field res-filter-term">
                 <label for="res-academic-term">Academic Term</label>
                 <select id="res-academic-term" name="academic_term_id">
@@ -21,12 +26,6 @@
                     @endforeach
                 </select>
             </div>
-            <div class="application-field application-search-field res-filter-search">
-                <label for="res-q">Search</label>
-                <span><x-dashboard.icon name="search" size="18" /></span>
-                <input id="res-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Code, title, category, adviser, institute, or program">
-            </div>
-
             <div class="application-field res-filter-status">
                 <label for="res-status">Status</label>
                 <select id="res-status" name="status">

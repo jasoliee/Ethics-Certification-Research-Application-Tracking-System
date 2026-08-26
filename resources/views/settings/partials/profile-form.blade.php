@@ -1,96 +1,97 @@
-<form class="settings-account-form settings-profile-form" method="POST" action="{{ route($settingsRouteBase.'.profile.update') }}">
-    @csrf
-    @method('PUT')
-    <input type="hidden" name="settings_tab" value="profile">
+@php
+    $editableProfileFields = [
+        ['first_name', 'First Name', 'text', true, null, 100],
+        ['middle_name', 'Middle Name', 'text', false, null, 100],
+        ['last_name', 'Last Name', 'text', true, null, 100],
+        ['suffix', 'Suffix', 'text', false, null, 30],
+        ['phone_number', 'Phone Number', 'tel', true, null, 11],
+        ['institution', 'Institute', 'select', false, $profileOptions[\App\Enums\ProfileOptionField::Institute->value] ?? [], null],
+    ];
 
-    <div>
-        <h3>Editable Profile Information</h3>
-    </div>
+    if ($settingsUser->role === \App\Enums\UserRole::Applicant) {
+        $editableProfileFields[] = ['program', 'Program', 'select', false, $profileOptions[\App\Enums\ProfileOptionField::Program->value] ?? [], null];
+        if ($settingsUser->applicant_type === \App\Enums\ApplicantType::Student) {
+            $editableProfileFields[] = ['year_level', 'Year Level', 'select', true, $profileOptions[\App\Enums\ProfileOptionField::YearLevel->value] ?? [], null];
+        }
+    }
 
-    <div class="identity-form-grid">
-        @foreach ([
-            ['first_name', 'First Name', true, 'given-name'],
-            ['middle_name', 'Middle Name', false, 'additional-name'],
-            ['last_name', 'Last Name', true, 'family-name'],
-            ['suffix', 'Suffix', false, 'honorific-suffix'],
-        ] as [$field, $label, $required, $autocomplete])
-            <div class="settings-field">
-                <label for="settings_{{ $field }}">{{ $label }} @if ($required)<span aria-hidden="true">*</span>@endif</label>
-                <input id="settings_{{ $field }}" name="{{ $field }}" type="text" value="{{ old($field, $settingsUser->{$field}) }}" maxlength="{{ $field === 'suffix' ? 30 : 100 }}" autocomplete="{{ $autocomplete }}" @required($required)>
-                @error($field)<span class="settings-field-error">{{ $message }}</span>@enderror
-            </div>
-        @endforeach
+    if ($settingsUser->role === \App\Enums\UserRole::Adviser
+        || $settingsUser->role === \App\Enums\UserRole::ResLead
+        || $settingsUser->applicant_type === \App\Enums\ApplicantType::Faculty) {
+        $editableProfileFields[] = ['position_title', 'Position / Designation', 'text', $settingsUser->role === \App\Enums\UserRole::Adviser, null, 150];
+    }
 
-        <div class="settings-field">
-            <label for="settings_phone_number">Phone Number <span aria-hidden="true">*</span></label>
-            <input id="settings_phone_number" name="phone_number" type="tel" value="{{ old('phone_number', $settingsUser->phone_number) }}" minlength="11" maxlength="11" inputmode="numeric" pattern="[0-9]{11}" autocomplete="tel" required>
-            @error('phone_number')<span class="settings-field-error">{{ $message }}</span>@enderror
+    if ($settingsUser->role === \App\Enums\UserRole::Adviser) {
+        $editableProfileFields[] = ['expected_endorsement_count', 'Declared Expected Endorsements', 'number', false, null, null];
+    }
+@endphp
+
+<section class="settings-inline-profile-card" aria-label="Account profile">
+    <div class="dashboard-profile-summary settings-inline-profile-summary">
+        <span class="dashboard-avatar dashboard-profile-avatar" aria-hidden="true">{{ $dashboardUserInitials }}</span>
+        <div>
+            <h3 data-inline-profile-name>{{ $settingsUser->name }}</h3>
+            <p>{{ $settingsUser->displayRoleLabel() }}</p>
         </div>
-
-        @foreach ([
-            [\App\Enums\ProfileOptionField::Institute, 'institution', 'Institute'],
-        ] as [$optionField, $field, $label])
-            <div class="settings-field">
-                <label for="settings_{{ $field }}">{{ $label }}</label>
-                <select id="settings_{{ $field }}" name="{{ $field }}">
-                    <option value="">Not provided</option>
-                    @foreach ($profileOptions[$optionField->value] ?? [] as $option)
-                        <option value="{{ $option }}" @selected(old($field, $settingsUser->{$field}) === $option)>{{ $option }}</option>
-                    @endforeach
-                </select>
-                @error($field)<span class="settings-field-error">{{ $message }}</span>@enderror
-            </div>
-        @endforeach
-
-        @if ($settingsUser->role === \App\Enums\UserRole::Applicant)
-            <div class="settings-field">
-                <label for="settings_program">Program</label>
-                <select id="settings_program" name="program">
-                    <option value="">Not provided</option>
-                    @foreach ($profileOptions[\App\Enums\ProfileOptionField::Program->value] ?? [] as $option)
-                        <option value="{{ $option }}" @selected(old('program', $settingsUser->program) === $option)>{{ $option }}</option>
-                    @endforeach
-                </select>
-                @error('program')<span class="settings-field-error">{{ $message }}</span>@enderror
-            </div>
-            @if ($settingsUser->applicant_type === \App\Enums\ApplicantType::Student)
-                <div class="settings-field">
-                    <label for="settings_year_level">Year Level <span aria-hidden="true">*</span></label>
-                    <select id="settings_year_level" name="year_level" required>
-                        <option value="">Select year level</option>
-                        @foreach ($profileOptions[\App\Enums\ProfileOptionField::YearLevel->value] ?? [] as $option)
-                            <option value="{{ $option }}" @selected(old('year_level', $settingsUser->year_level) === $option)>{{ $option }}</option>
-                        @endforeach
-                    </select>
-                    @error('year_level')<span class="settings-field-error">{{ $message }}</span>@enderror
-                </div>
-            @endif
-        @endif
-
-        @if ($settingsUser->role === \App\Enums\UserRole::Adviser || $settingsUser->role === \App\Enums\UserRole::ResLead || $settingsUser->applicant_type === \App\Enums\ApplicantType::Faculty)
-            <div class="settings-field">
-                <label for="settings_position_title">Position / Designation @if ($settingsUser->role === \App\Enums\UserRole::Adviser)<span aria-hidden="true">*</span>@endif</label>
-                <input id="settings_position_title" name="position_title" type="text" value="{{ old('position_title', $settingsUser->position_title) }}" maxlength="150" @required($settingsUser->role === \App\Enums\UserRole::Adviser)>
-                @error('position_title')<span class="settings-field-error">{{ $message }}</span>@enderror
-            </div>
-        @endif
-
-        @if ($settingsUser->role === \App\Enums\UserRole::Adviser)
-            <div class="settings-field">
-                <label for="settings_expected_endorsement_count">Expected Endorsements</label>
-                <input id="settings_expected_endorsement_count" name="expected_endorsement_count" type="number" value="{{ old('expected_endorsement_count', $settingsUser->expected_endorsement_count) }}" min="0" max="10000">
-                <small>Declare the number of applications you expect to endorse.</small>
-                @error('expected_endorsement_count')<span class="settings-field-error">{{ $message }}</span>@enderror
-            </div>
-        @endif
     </div>
 
-    <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="check" size="17" /><span>Save Profile</span></button>
-</form>
+    <form class="settings-inline-profile-form" method="POST" action="{{ route($settingsRouteBase.'.profile.update') }}" data-inline-profile-form>
+        @csrf
+        @method('PUT')
+        <input type="hidden" name="settings_tab" value="profile">
+
+        <dl class="dashboard-profile-details settings-inline-profile-details">
+            <div><dt>Full Name</dt><dd data-inline-profile-full-name>{{ $settingsUser->name }}</dd></div>
+            <div><dt>Username</dt><dd>{{ $settingsUser->username }}</dd></div>
+            <div><dt>Email Address</dt><dd>{{ $settingsUser->email }}</dd></div>
+            <div><dt>Role</dt><dd>{{ $settingsUser->displayRoleLabel() }}</dd></div>
+            <div><dt>Account Status</dt><dd>{{ Str::headline($settingsUser->account_status) }}</dd></div>
+            <div><dt>{{ $settingsUser->institutionalIdentifierLabel() }}</dt><dd>{{ $settingsUser->institutional_identifier }}</dd></div>
+
+            @foreach ($editableProfileFields as [$field, $label, $type, $required, $options, $maxlength])
+                @php
+                    $value = old($field, $settingsUser->{$field});
+                    $hasFieldError = $errors->has($field);
+                @endphp
+                <div class="settings-inline-profile-field" data-inline-profile-field data-profile-field="{{ $field }}">
+                    <dt>{{ $label }}</dt>
+                    <dd>
+                        <span data-inline-profile-value data-empty-label="Not provided" @if($hasFieldError) hidden @endif>{{ filled($value) ? $value : 'Not provided' }}</span>
+                        @if ($type === 'select')
+                            <select name="{{ $field }}" data-inline-profile-input @if(! $hasFieldError) hidden @endif @required($required)>
+                                <option value="">{{ $required ? 'Select '.$label : 'Not provided' }}</option>
+                                @foreach ($options as $option)
+                                    <option value="{{ $option }}" @selected($value === $option)>{{ $option }}</option>
+                                @endforeach
+                            </select>
+                        @else
+                            <input
+                                name="{{ $field }}"
+                                type="{{ $type }}"
+                                value="{{ $value }}"
+                                data-inline-profile-input
+                                @if(! $hasFieldError) hidden @endif
+                                @if($maxlength) maxlength="{{ $maxlength }}" @endif
+                                @if($field === 'phone_number') minlength="11" inputmode="numeric" pattern="[0-9]{11}" @endif
+                                @if($field === 'expected_endorsement_count') min="0" max="10000" @endif
+                                @required($required)
+                            >
+                        @endif
+                        <button class="settings-inline-profile-edit" type="button" data-inline-profile-edit data-mode="{{ $hasFieldError ? 'save' : 'edit' }}" aria-label="{{ $hasFieldError ? 'Save' : 'Edit' }} {{ $label }}">
+                            <span data-inline-edit-icon @if($hasFieldError) hidden @endif><x-dashboard.icon name="edit" size="17" /></span>
+                            <span data-inline-save-icon @if(! $hasFieldError) hidden @endif><x-dashboard.icon name="check" size="17" /></span>
+                        </button>
+                        <small class="settings-field-error" data-inline-profile-error>@error($field){{ $message }}@enderror</small>
+                    </dd>
+                </div>
+            @endforeach
+        </dl>
+    </form>
+</section>
 
 @if ($adviserStatistics ?? null)
     <section class="settings-section" aria-labelledby="endorsement-statistics-title">
-        <div class="settings-section-heading"><span><x-dashboard.icon name="clipboard" size="23" /></span><div><h3 id="endorsement-statistics-title">Endorsement Overview</h3><p>Live counts derived from applications assigned to your account.</p></div></div>
+        <div class="settings-section-heading"><span><x-dashboard.icon name="clipboard" size="23" /></span><div><h3 id="endorsement-statistics-title">Endorsement Overview</h3><p>Live counts derived from unique Applicant accounts assigned to you.</p></div></div>
         <dl class="settings-profile-summary">
             <div><dt>Declared Expected</dt><dd>{{ $adviserStatistics['declared'] }}</dd></div>
             <div><dt>Successfully Endorsed</dt><dd>{{ $adviserStatistics['endorsed'] }}</dd></div>

@@ -96,6 +96,36 @@ function initializeLoginPage() {
         window.requestAnimationFrame(() => inactivePanel?.focus());
     }
 
+    const forgotPasswordOpen = document.querySelector('[data-forgot-password-open]');
+    const forgotPasswordDialog = document.querySelector('[data-forgot-password-dialog]');
+    const forgotPasswordPanel = forgotPasswordDialog?.querySelector('[role="dialog"]');
+
+    if (forgotPasswordOpen && forgotPasswordDialog) {
+        const closeForgotPasswordDialog = () => {
+            forgotPasswordDialog.hidden = true;
+            forgotPasswordOpen.focus();
+        };
+        const openForgotPasswordDialog = () => {
+            forgotPasswordDialog.hidden = false;
+            window.requestAnimationFrame(() => forgotPasswordPanel?.focus());
+        };
+
+        forgotPasswordOpen.addEventListener('click', openForgotPasswordDialog);
+        forgotPasswordDialog.querySelectorAll('[data-forgot-password-close]').forEach((button) => {
+            button.addEventListener('click', closeForgotPasswordDialog);
+        });
+        forgotPasswordDialog.addEventListener('click', (event) => {
+            if (event.target === forgotPasswordDialog) {
+                closeForgotPasswordDialog();
+            }
+        });
+        forgotPasswordDialog.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeForgotPasswordDialog();
+            }
+        });
+    }
+
     const form = document.querySelector('[data-login-form]');
 
     if (! form) {

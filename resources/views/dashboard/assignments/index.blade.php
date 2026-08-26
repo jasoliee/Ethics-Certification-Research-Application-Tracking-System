@@ -26,6 +26,11 @@
         {{-- Assignment filters stay bounded to approved fields and retain pagination query state. --}}
         <form class="reviewer-assignment-filter-bar" method="GET" action="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index') }}">
             @if ($reviewTasksPage)<input type="hidden" name="tab" value="{{ $filters['tab'] ?? 'assigned' }}">@endif
+            <div class="application-field application-search-field">
+                <label for="assignment-q">Search</label>
+                <span><x-dashboard.icon name="search" size="18" /></span>
+                <input id="assignment-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Application code or research title">
+            </div>
             <div class="application-field">
                 <label for="assignment-academic-term">Academic Term</label>
                 <select id="assignment-academic-term" name="academic_term_id">
@@ -34,11 +39,6 @@
                         <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
                     @endforeach
                 </select>
-            </div>
-            <div class="application-field application-search-field">
-                <label for="assignment-q">Search</label>
-                <span><x-dashboard.icon name="search" size="18" /></span>
-                <input id="assignment-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Application code or research title">
             </div>
             <div class="application-field">
                 <label for="assignment-cycle">Review Type</label>

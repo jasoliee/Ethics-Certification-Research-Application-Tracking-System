@@ -158,6 +158,11 @@
             </div>
 
             <form class="review-monitoring-adviser-filters" method="GET" action="{{ route('res.review-monitoring.index') }}">
+                <div class="application-field application-search-field review-monitoring-filter-search">
+                    <label for="monitoring-reviewer-q">Search</label>
+                    <span><x-dashboard.icon name="search" size="18" /></span>
+                    <input id="monitoring-reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Reviewer/Adviser name">
+                </div>
                 <div class="application-field">
                     <label for="monitoring-reviewer-term">Academic Term</label>
                     <select id="monitoring-reviewer-term" name="academic_term_id">
@@ -166,11 +171,6 @@
                             <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
                         @endforeach
                     </select>
-                </div>
-                <div class="application-field application-search-field review-monitoring-filter-search">
-                    <label for="monitoring-reviewer-q">Name</label>
-                    <span><x-dashboard.icon name="search" size="18" /></span>
-                    <input id="monitoring-reviewer-q" name="reviewer_q" value="{{ $filters['reviewer_q'] ?? '' }}" placeholder="Reviewer/Adviser name">
                 </div>
                 <div class="application-field">
                     <label for="monitoring-reviewer-institute">Institute</label>
@@ -228,6 +228,16 @@
             </div>
 
             <form class="review-monitoring-adviser-filters" method="GET" action="{{ route('res.review-monitoring.index') }}">
+                <div class="application-field application-search-field review-monitoring-filter-search">
+                    <label for="monitoring-adviser-q">Search</label>
+                    <span><x-dashboard.icon name="search" size="18" /></span>
+                    <input
+                        id="monitoring-adviser-q"
+                        name="adviser_q"
+                        value="{{ $filters['adviser_q'] ?? '' }}"
+                        placeholder="Adviser name"
+                    >
+                </div>
                 <div class="application-field">
                     <label for="monitoring-adviser-term">Academic Term</label>
                     <select id="monitoring-adviser-term" name="academic_term_id">
@@ -237,17 +247,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="application-field application-search-field review-monitoring-filter-search">
-                    <label for="monitoring-adviser-q">Name</label>
-                    <span><x-dashboard.icon name="search" size="18" /></span>
-                    <input
-                        id="monitoring-adviser-q"
-                        name="adviser_q"
-                        value="{{ $filters['adviser_q'] ?? '' }}"
-                        placeholder="Adviser name"
-                    >
-                </div>
-
                 <div class="application-field">
                     <label for="monitoring-adviser-institute">Institute</label>
                     <select id="monitoring-adviser-institute" name="adviser_institute">

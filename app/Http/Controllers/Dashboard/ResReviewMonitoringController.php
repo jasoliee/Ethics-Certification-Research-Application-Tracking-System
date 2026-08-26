@@ -56,12 +56,14 @@ class ResReviewMonitoringController extends Controller
         abort_unless($request->user()?->role === UserRole::ResLead, 403);
         abort_unless($reviewer->role === UserRole::Adviser, 404);
         $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:150'],
             'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
             'review_type' => ['nullable', Rule::in(['expedited', 'full_board', 'revision_review'])],
             'assignment_status' => ['nullable', Rule::enum(ReviewerAssignmentStatus::class)],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
+        $filters['q'] = trim((string) ($filters['q'] ?? ''));
 
         $assignments = $reviewer->reviewerAssignments()
             ->whereNull('superseded_at')
@@ -75,6 +77,11 @@ class ResReviewMonitoringController extends Controller
                     'review_type',
                 ])
                 ->with('academicTerm:id,semester,academic_year')])
+            ->when(filled($filters['q']), fn (Builder $assignments) => $assignments
+                ->whereHas('researchApplication', fn (Builder $applications) => $applications
+                    ->where(fn (Builder $search) => $search
+                        ->where('application_code', 'like', '%'.$filters['q'].'%')
+                        ->orWhere('research_title', 'like', '%'.$filters['q'].'%'))))
             ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $assignments) => $assignments
                 ->whereHas('researchApplication', fn (Builder $applications) => $applications
                     ->where('academic_term_id', (int) $filters['academic_term_id'])))
@@ -109,12 +116,14 @@ class ResReviewMonitoringController extends Controller
         abort_unless($request->user()?->role === UserRole::ResLead, 403);
         abort_unless($adviser->role === UserRole::Adviser, 404);
         $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:150'],
             'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
             'review_type' => ['nullable', Rule::in(['expedited', 'full_board'])],
             'application_status' => ['nullable', Rule::enum(ApplicationStatus::class)],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
+        $filters['q'] = trim((string) ($filters['q'] ?? ''));
 
         $applications = ResearchApplication::query()
             ->select([
@@ -129,6 +138,10 @@ class ResReviewMonitoringController extends Controller
             ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
                 ->where('adviser_user_id', $adviser->id)
                 ->where('endorsement_status', EndorsementStatus::Endorsed->value))
+            ->when(filled($filters['q']), fn (Builder $query) => $query
+                ->where(fn (Builder $search) => $search
+                    ->where('application_code', 'like', '%'.$filters['q'].'%')
+                    ->orWhere('research_title', 'like', '%'.$filters['q'].'%')))
             ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $query) => $query
                 ->where('academic_term_id', (int) $filters['academic_term_id']))
             ->when(filled($filters['review_type'] ?? null), fn (Builder $query) => $query->where('review_type', $filters['review_type']))

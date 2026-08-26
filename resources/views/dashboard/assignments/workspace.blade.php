@@ -372,12 +372,6 @@
                     <x-dashboard.status-badge :label="'Revision '.$assignment->review_cycle" tone="violet" />
                 </header>
 
-                @php
-                    $myHistoricalComments = $historicalReviews->flatMap(
-                        fn ($historicalReview) => $historicalReview->comments,
-                    );
-                    $overallHistoricalComments = $myHistoricalComments->whereNull('application_document_id');
-                @endphp
                 <div class="reviewer-requirement-history-list">
                     @forelse ($historicalDocuments->groupBy('document_requirement_id') as $requirementId => $versions)
                         @php
@@ -400,7 +394,7 @@
 
                                 @foreach ($orderedVersions as $document)
                                     @php
-                                        $versionComments = $myHistoricalComments->where('application_document_id', $document->id);
+                                        $versionComments = $historicalCommentsByDocument->get($document->id, collect());
                                     @endphp
                                     <section
                                         class="reviewer-history-version-panel"
@@ -440,14 +434,14 @@
                         <p class="reviewer-empty-copy">No earlier document versions are available for this revision cycle.</p>
                     @endforelse
 
-                    @if ($overallHistoricalComments->isNotEmpty())
+                    @if ($historicalOverallComments->isNotEmpty())
                         <details class="reviewer-history-disclosure reviewer-requirement-history">
                             <summary>
                                 <span>Entire Application</span>
-                                <small>{{ $overallHistoricalComments->count() }} of my previous {{ Str::plural('comment', $overallHistoricalComments->count()) }}</small>
+                                <small>{{ $historicalOverallComments->count() }} of my previous {{ Str::plural('comment', $historicalOverallComments->count()) }}</small>
                             </summary>
                             <div class="reviewer-history-comments reviewer-overall-history-comments">
-                                @foreach ($overallHistoricalComments as $historicalComment)
+                                @foreach ($historicalOverallComments as $historicalComment)
                                     <article>
                                         <header>
                                             <x-dashboard.status-badge :label="$historicalComment->category->label()" :tone="$historicalComment->category->tone()" />

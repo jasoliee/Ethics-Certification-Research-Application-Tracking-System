@@ -23,6 +23,7 @@ use App\Models\ReviewerAssignment;
 use App\Models\User;
 use App\Services\Applications\ApplicationDocumentService;
 use App\Services\Applications\ApplicationRevisionWorkflowService;
+use App\Services\Applications\ReviewConsensusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -168,7 +169,168 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_res_cannot_override_a_submitted_revision_decision_or_map_documents(): void
+    public function test_two_revision_cycles_preserve_version_feedback_and_remain_submittable_through_approval(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, $reviewer, $resLead, $application, $initialAssignment, $versionOne] = $this->reviewedApplication();
+        $this->openWindow('revision-period', UserRole::Applicant);
+        $this->openWindow('reviewing-revision-period', UserRole::Reviewer);
+        $workflow = app(ApplicationRevisionWorkflowService::class);
+        $documents = app(ApplicationDocumentService::class);
+        $consensus = app(ReviewConsensusService::class);
+        $versionOneComment = 'VERSION-ONE-REVISION-FEEDBACK';
+        $versionTwoComment = 'VERSION-TWO-REVISION-FEEDBACK';
+        $versionThreeComment = 'VERSION-THREE-APPROVAL-FEEDBACK';
+
+        $initialAssignment->comments()->create([
+            'application_document_id' => $versionOne->id,
+            'scope' => ReviewCommentScope::Document,
+            'category' => ReviewCommentCategory::RequiredRevision,
+            'body' => $versionOneComment,
+        ]);
+        $workflow->releaseDecision($resLead, $application, $initialAssignment->reviewSubmission);
+
+        $application->refresh();
+        $revisionOne = $application->revisions()
+            ->with('requirements')
+            ->where('revision_number', 1)
+            ->firstOrFail();
+        $this->assertSame(ApplicationStatus::RevisionWindowOpen, $application->application_status);
+        $this->assertCount(1, $revisionOne->requirements);
+        $this->assertSame($versionOne->id, $revisionOne->requirements->first()->source_application_document_id);
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index'))
+            ->assertOk()
+            ->assertSee($application->application_code);
+        $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertSee('data-revision-upload-form', false)
+            ->assertSee('Replacement required before submission')
+            ->assertSee('Submit Revision for Re-review');
+
+        $versionTwo = $documents->uploadRevision(
+            $applicant,
+            $application,
+            $revisionOne,
+            $revisionOne->requirements->first(),
+            UploadedFile::fake()->createWithContent('protocol-c1.pdf', '%PDF-1.4 cycle one'),
+        );
+        $workflow->submitRevision($applicant, $application->refresh(), $revisionOne->refresh());
+        $cycleOneAssignment = ReviewerAssignment::query()
+            ->where('research_application_id', $application->id)
+            ->where('review_cycle', 1)
+            ->firstOrFail();
+        $cycleOneAssignment->comments()->create([
+            'application_document_id' => $versionTwo->id,
+            'scope' => ReviewCommentScope::Document,
+            'category' => ReviewCommentCategory::RequiredRevision,
+            'body' => $versionTwoComment,
+        ]);
+        $cycleOneSubmission = $cycleOneAssignment->reviewSubmission()->create([
+            'status' => ReviewSubmissionStatus::Submitted,
+            'decision' => ReviewDecision::MinorRevision,
+            'decision_comment' => 'The first revised version still needs correction.',
+            'submitted_at' => now(),
+        ]);
+        $cycleOneAssignment->update([
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now(),
+        ]);
+        $consensus->evaluate($application->refresh());
+        $workflow->releaseDecision($resLead, $application->refresh(), $cycleOneSubmission);
+
+        $application->refresh();
+        $revisionTwo = $application->revisions()
+            ->with('requirements')
+            ->where('revision_number', 2)
+            ->firstOrFail();
+        $this->assertSame(ApplicationStatus::RevisionWindowOpen, $application->application_status);
+        $this->assertSame(3, $application->current_revision_cycle);
+        $this->assertCount(1, $revisionTwo->requirements);
+        $this->assertSame($versionTwo->id, $revisionTwo->requirements->first()->source_application_document_id);
+
+        $applicantHistory = $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertSee('Version 2')
+            ->assertSee('Version 1')
+            ->assertSee('The first revised version still needs correction.')
+            ->assertSee('data-revision-upload-form', false)
+            ->assertSee('Replacement required before submission')
+            ->getContent();
+        $versionTwoPanel = $this->versionPanel($applicantHistory, 'data-revision-version-panel', $versionTwo->id);
+        $versionOnePanel = $this->versionPanel($applicantHistory, 'data-revision-version-panel', $versionOne->id);
+        $this->assertStringContainsString($versionTwoComment, $versionTwoPanel);
+        $this->assertStringNotContainsString($versionOneComment, $versionTwoPanel);
+        $this->assertStringContainsString($versionOneComment, $versionOnePanel);
+        $this->assertStringNotContainsString($versionTwoComment, $versionOnePanel);
+
+        $versionThree = $documents->uploadRevision(
+            $applicant,
+            $application,
+            $revisionTwo,
+            $revisionTwo->requirements->first(),
+            UploadedFile::fake()->createWithContent('protocol-c2.pdf', '%PDF-1.4 cycle two'),
+        );
+        $workflow->submitRevision($applicant, $application->refresh(), $revisionTwo->refresh());
+        $cycleTwoAssignment = ReviewerAssignment::query()
+            ->where('research_application_id', $application->id)
+            ->where('review_cycle', 2)
+            ->firstOrFail();
+        $cycleTwoAssignment->comments()->create([
+            'application_document_id' => $versionThree->id,
+            'scope' => ReviewCommentScope::Document,
+            'category' => ReviewCommentCategory::General,
+            'body' => $versionThreeComment,
+        ]);
+        $cycleTwoSubmission = $cycleTwoAssignment->reviewSubmission()->create([
+            'status' => ReviewSubmissionStatus::Submitted,
+            'decision' => ReviewDecision::Approved,
+            'decision_comment' => 'The second revised version is acceptable.',
+            'submitted_at' => now(),
+        ]);
+        $cycleTwoAssignment->update([
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now(),
+        ]);
+        $consensus->evaluate($application->refresh());
+
+        $reviewerHistory = $this->actingAs($reviewer)
+            ->get(route('reviewer.assignments.workspace', $cycleTwoAssignment))
+            ->assertOk()
+            ->assertSee('data-reviewer-history-version-select', false)
+            ->assertSee('The first revised version still needs correction.')
+            ->assertSee('The second revised version is acceptable.')
+            ->getContent();
+        $reviewerVersionThree = $this->versionPanel($reviewerHistory, 'data-reviewer-history-version-panel', $versionThree->id);
+        $reviewerVersionTwo = $this->versionPanel($reviewerHistory, 'data-reviewer-history-version-panel', $versionTwo->id);
+        $reviewerVersionOne = $this->versionPanel($reviewerHistory, 'data-reviewer-history-version-panel', $versionOne->id);
+        $this->assertStringContainsString($versionThreeComment, $reviewerVersionThree);
+        $this->assertStringNotContainsString($versionTwoComment, $reviewerVersionThree);
+        $this->assertStringContainsString($versionTwoComment, $reviewerVersionTwo);
+        $this->assertStringNotContainsString($versionOneComment, $reviewerVersionTwo);
+        $this->assertStringContainsString($versionOneComment, $reviewerVersionOne);
+
+        $workflow->releaseDecision($resLead, $application->refresh(), $cycleTwoSubmission);
+
+        $application->refresh();
+        $this->assertSame(ApplicationStatus::ForCertificateRelease, $application->application_status);
+        $this->assertSame(2, $application->revisions()->where('status', ApplicationRevisionStatus::Completed->value)->count());
+        $finalApplicantHistory = $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertSee($versionOneComment)
+            ->assertSee($versionTwoComment)
+            ->assertSee($versionThreeComment)
+            ->assertSee('The first revised version still needs correction.')
+            ->assertSee('The second revised version is acceptable.')
+            ->assertSee('Pending Certificate Release');
+        $finalApplicantHistory->assertDontSee('data-revision-upload-form', false);
+    }
+
+    public function test_res_cannot_override_a_submitted_revision_decision_and_overall_feedback_still_creates_actionable_documents(): void
     {
         Storage::fake('local');
         Notification::fake();
@@ -195,7 +357,9 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
         $release = $application->decisionReleases()->firstOrFail();
         $this->assertSame(ReviewDecision::MinorRevision, $release->decision);
         $this->assertSame($assignment->reviewSubmission->id, $release->source_review_submission_id);
-        $this->assertSame(0, $application->revisions()->firstOrFail()->requirements()->count());
+        $generatedRevision = $application->revisions()->with('requirements')->firstOrFail();
+        $this->assertCount(1, $generatedRevision->requirements);
+        $this->assertSame($document->id, $generatedRevision->requirements->first()->source_application_document_id);
         $this->assertSame($release->id, $legacyOverallComment->refresh()->application_decision_release_id);
         $this->assertSame(ReviewCommentScope::Overall, $legacyOverallComment->scope);
         $this->assertNull($legacyOverallComment->application_document_id);
@@ -361,5 +525,15 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             'priority' => 10,
             'is_active' => true,
         ]);
+    }
+
+    private function versionPanel(string $html, string $attribute, int $documentId): string
+    {
+        $marker = $attribute.'="'.$documentId.'"';
+        $start = strpos($html, $marker);
+        $this->assertNotFalse($start, "Expected {$marker} in rendered revision history.");
+        $next = strpos($html, $attribute.'="', $start + strlen($marker));
+
+        return substr($html, $start, $next === false ? null : $next - $start);
     }
 }

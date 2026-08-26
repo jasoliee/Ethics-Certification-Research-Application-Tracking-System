@@ -4,6 +4,7 @@
     <div class="dashboard-page dashboard-applicant-page">
 
         @if (! $activeApplication)
+            @php($canCreateApplication = $submissionWindow['open'])
             <div class="dashboard-applicant-grid">
                 <section class="dashboard-focus-card">
                     <h2><x-dashboard.icon name="clipboard" /> Application Status</h2>
@@ -12,8 +13,8 @@
                         alt="Empty application file"
                         title="No application yet"
                         message="Start an application to track its review status here."
-                        action-label="Start Application"
-                        :action-href="route('applicant.applications.create')"
+                        :action-label="$canCreateApplication ? 'Start Application' : null"
+                        :action-href="$canCreateApplication ? route('applicant.applications.create') : null"
                     />
                 </section>
 
@@ -24,8 +25,8 @@
                         alt="Empty research application"
                         title="No active application"
                         message="Your application details will appear here once you begin."
-                        action-label="Create Application"
-                        :action-href="route('applicant.applications.create')"
+                        :action-label="$canCreateApplication ? 'Create Application' : null"
+                        :action-href="$canCreateApplication ? route('applicant.applications.create') : null"
                     />
                 </section>
 

@@ -5,7 +5,9 @@ namespace App\Services\Applications;
 use App\Enums\ApplicationStatus;
 use App\Enums\EndorsementStatus;
 use App\Enums\UserRole;
+use App\Models\ResearchApplication;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Calculates the Adviser endorsement workload from authoritative workflow records.
@@ -22,19 +24,27 @@ class AdviserEndorsementStatisticsService
         }
 
         $declared = max(0, (int) ($user->expected_endorsement_count ?? 0));
-        $endorsed = $user->endorsements()
-            ->where('endorsement_status', EndorsementStatus::Endorsed->value)
-            ->when($academicTermId, fn ($endorsements) => $endorsements
-                ->whereHas('researchApplication', fn ($applications) => $applications
-                    ->where('academic_term_id', $academicTermId)))
-            ->distinct('research_application_id')
-            ->count('research_application_id');
+        // Workload is account-scoped: several applications from one Applicant still
+        // represent one expected, completed, or awaiting endorsement relationship.
+        $endorsedApplicantIds = ResearchApplication::query()
+            ->whereHas('endorsements', fn (Builder $endorsements) => $endorsements
+                ->where('adviser_user_id', $user->id)
+                ->where('endorsement_status', EndorsementStatus::Endorsed->value))
+            ->when($academicTermId, fn (Builder $applications) => $applications
+                ->where('academic_term_id', $academicTermId))
+            ->whereNotNull('applicant_user_id')
+            ->distinct()
+            ->pluck('applicant_user_id');
+        $endorsed = $endorsedApplicantIds->count();
         $awaiting = $user->advisedApplications()
             ->whereNotNull('submitted_at')
             ->where('application_status', ApplicationStatus::SubmittedToAdviser->value)
             ->when($academicTermId, fn ($applications) => $applications
                 ->where('academic_term_id', $academicTermId))
-            ->count();
+            ->whereNotIn('applicant_user_id', $endorsedApplicantIds)
+            ->whereNotNull('applicant_user_id')
+            ->distinct('applicant_user_id')
+            ->count('applicant_user_id');
         $remaining = max(0, $declared - $endorsed);
 
         return [

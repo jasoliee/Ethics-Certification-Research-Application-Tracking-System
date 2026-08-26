@@ -464,6 +464,10 @@ class CertificateReleaseWorkflowTest extends TestCase
             ->assertRedirect($indexUrl)
             ->assertSessionHasNoErrors()
             ->assertSessionHas('status', 'Evaluation completed. Your released certificate is now ready to claim.');
+        $this->actingAs($applicant)
+            ->postJson(route('applicant.revision-certificates.survey.store', $application), $this->surveyPayload())
+            ->assertOk()
+            ->assertJsonPath('claim_url', route('applicant.revision-certificates.certificate.claim', $application));
         $this->assertDatabaseHas('applicant_survey_responses', [
             'research_application_id' => $application->id,
             'applicant_user_id' => $applicant->id,
@@ -479,6 +483,27 @@ class CertificateReleaseWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Certificate ready to claim')
             ->assertSee(route('applicant.revision-certificates.certificate.claim', $application), false);
+
+        $this->actingAs($applicant)
+            ->postJson(route('applicant.revision-certificates.certificate.claim', $application))
+            ->assertOk()
+            ->assertJsonCount(1, 'certificates')
+            ->assertJsonPath('certificates.0.certificate_number', $certificate->certificate_number)
+            ->assertJsonPath('download_all_url', route('applicant.revision-certificates.certificates.download-all', $application));
+        $combined = $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.certificates.download-all', $application))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+        $combinedParser = new Fpdi;
+        $this->assertSame(1, $combinedParser->setSourceFile(StreamReader::createByString($combined->getContent())));
+        $this->actingAs(User::factory()->create(['role' => UserRole::Applicant]))
+            ->get(route('applicant.revision-certificates.certificates.download-all', $application))
+            ->assertForbidden();
+        $this->actingAs($applicant)
+            ->get($indexUrl)
+            ->assertOk()
+            ->assertSee('Download All')
+            ->assertSee(route('applicant.revision-certificates.certificates.download-all', $application), false);
 
         $this->actingAs($applicant)
             ->from($indexUrl)

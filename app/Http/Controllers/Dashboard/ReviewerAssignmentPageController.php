@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ResearchType;
 use App\Enums\ReviewCommentCategory;
+use App\Enums\ReviewCommentScope;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewFormType;
@@ -17,6 +18,7 @@ use App\Services\Settings\DeadlineProcessAvailability;
 use App\Support\ReviewFormCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -236,11 +238,14 @@ class ReviewerAssignmentPageController extends Controller
         );
         $historicalDocuments = collect();
         $historicalReviews = collect();
+        $historicalCommentsByDocument = collect();
+        $historicalOverallComments = collect();
 
         if ((int) $reviewerAssignment->review_cycle > 0) {
+            $historicalMaximumVersion = (int) $reviewerAssignment->review_cycle + ($completedCycle ? 1 : 0);
             $historicalDocuments = ApplicationDocument::query()
                 ->where('research_application_id', $reviewerAssignment->research_application_id)
-                ->where('document_version', '<=', $reviewerAssignment->review_cycle)
+                ->where('document_version', '<=', $historicalMaximumVersion)
                 ->with('requirement:id,name')
                 ->orderByDesc('document_version')
                 ->orderByDesc('uploaded_at')
@@ -250,7 +255,11 @@ class ReviewerAssignmentPageController extends Controller
                 ->current()
                 ->where('research_application_id', $reviewerAssignment->research_application_id)
                 ->where('reviewer_user_id', $reviewerAssignment->reviewer_user_id)
-                ->where('review_cycle', '<', $reviewerAssignment->review_cycle)
+                ->where(
+                    'review_cycle',
+                    $completedCycle ? '<=' : '<',
+                    $reviewerAssignment->review_cycle,
+                )
                 ->with([
                     'reviewSubmission:id,reviewer_assignment_id,current_version_id,status,decision,submitted_at',
                     'reviewSubmission.versions.artifacts.formSubmission',
@@ -263,6 +272,63 @@ class ReviewerAssignmentPageController extends Controller
                 ->orderByDesc('review_cycle')
                 ->limit(10)
                 ->get();
+            $historicalComments = $historicalReviews->flatMap(function (ReviewerAssignment $historicalReview) {
+                $submission = $historicalReview->reviewSubmission;
+                $version = $submission?->versions?->firstWhere('id', $submission->current_version_id)
+                    ?? $submission?->versions?->sortByDesc('version_number')->first();
+                $snapshot = collect((array) data_get($version?->payload_snapshot, 'comments', []))
+                    ->filter(fn (mixed $comment): bool => is_array($comment)
+                        && blank(data_get($comment, 'deleted_at'))
+                        && filled(data_get($comment, 'body')))
+                    ->map(fn (array $comment): object => (object) [
+                        'application_document_id' => filled(data_get($comment, 'application_document_id'))
+                            ? (int) data_get($comment, 'application_document_id')
+                            : null,
+                        'scope' => ReviewCommentScope::tryFrom((string) data_get($comment, 'scope')) ?? ReviewCommentScope::Overall,
+                        'category' => ReviewCommentCategory::tryFrom((string) data_get($comment, 'category')) ?? ReviewCommentCategory::General,
+                        'page_number' => filled(data_get($comment, 'page_number')) ? (int) data_get($comment, 'page_number') : null,
+                        'body' => trim((string) data_get($comment, 'body')),
+                        'created_at' => filled(data_get($comment, 'created_at'))
+                            ? Carbon::parse((string) data_get($comment, 'created_at'))
+                            : $version?->submitted_at,
+                    ]);
+
+                if ($snapshot->isEmpty()) {
+                    $snapshot = $historicalReview->comments
+                        ->filter(fn ($comment): bool => $comment->deleted_at === null)
+                        ->map(fn ($comment): object => (object) [
+                            'application_document_id' => $comment->application_document_id,
+                            'scope' => $comment->scope,
+                            'category' => $comment->category,
+                            'page_number' => $comment->page_number,
+                            'body' => $comment->body,
+                            'created_at' => $comment->created_at,
+                        ]);
+                }
+
+                $decisionComment = trim((string) $version?->decision_comment);
+                if ($decisionComment !== '' && ! $snapshot->contains(
+                    fn (object $comment): bool => $comment->application_document_id === null
+                        && mb_strtolower($comment->body) === mb_strtolower($decisionComment),
+                )) {
+                    $snapshot->push((object) [
+                        'application_document_id' => null,
+                        'scope' => ReviewCommentScope::Overall,
+                        'category' => ReviewCommentCategory::General,
+                        'page_number' => null,
+                        'body' => $decisionComment,
+                        'created_at' => $version?->submitted_at,
+                    ]);
+                }
+
+                return $snapshot;
+            })->values();
+            $historicalCommentsByDocument = $historicalComments
+                ->whereNotNull('application_document_id')
+                ->groupBy('application_document_id');
+            $historicalOverallComments = $historicalComments
+                ->whereNull('application_document_id')
+                ->values();
         }
 
         return view('dashboard.assignments.workspace', [
@@ -280,6 +346,8 @@ class ReviewerAssignmentPageController extends Controller
             'commentCategories' => ReviewCommentCategory::cases(),
             'historicalDocuments' => $historicalDocuments,
             'historicalReviews' => $historicalReviews,
+            'historicalCommentsByDocument' => $historicalCommentsByDocument,
+            'historicalOverallComments' => $historicalOverallComments,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Assignments', 'route' => 'reviewer.assignments.index'],

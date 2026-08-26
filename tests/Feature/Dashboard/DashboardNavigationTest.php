@@ -44,7 +44,7 @@ class DashboardNavigationTest extends TestCase
             ->assertSee('href="'.route('dashboard').'"', false)
             ->assertSee('<span aria-current="page">Settings</span>', false)
             ->assertSeeInOrder(['dashboard-topbar', 'dashboard-breadcrumbs', 'dashboard-content'], false)
-            ->assertSee('Editable Profile Information');
+            ->assertSee('data-inline-profile-form', false);
     }
 
     public function test_non_sidebar_dashboard_actions_and_notification_pages_also_resolve(): void
@@ -191,7 +191,7 @@ class DashboardNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('href="https://kld.edu.ph/profile.php"', false)
             ->assertSee('Faculty Researcher')
-            ->assertSee('href="'.route('applicant.profile.show').'"', false)
+            ->assertDontSee('href="'.route('applicant.profile.show').'"', false)
             ->assertSee('href="'.route('applicant.settings.index').'"', false)
             ->assertDontSee('<nav class="dashboard-breadcrumbs"', false)
             ->assertSee('class="dashboard-footer"', false)

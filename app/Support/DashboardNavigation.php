@@ -65,12 +65,7 @@ class DashboardNavigation
 
     public static function profileRoute(UserRole $role): string
     {
-        return match ($role) {
-            UserRole::Applicant => 'applicant.profile.show',
-            UserRole::Adviser => 'adviser.profile.show',
-            UserRole::Reviewer => 'reviewer.profile.show',
-            UserRole::ResLead => 'res.profile.show',
-        };
+        return self::settingsRoute($role);
     }
 
     public static function applicationsRoute(UserRole $role): string

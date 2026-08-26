@@ -492,7 +492,7 @@
 
     .review-monitoring-adviser-filters {
         display: grid;
-        grid-template-columns: minmax(250px, 1.5fr) repeat(2, minmax(180px, 1fr)) auto;
+        grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(150px, 1fr)) auto;
         align-items: end;
         gap: 12px;
         border-top: 1px solid #e7ece9;
@@ -506,6 +506,10 @@
     .review-monitoring-adviser-filters .application-field select {
         min-width: 0;
         width: 100%;
+    }
+
+    .review-monitoring-adviser-filters .review-monitoring-filter-actions {
+        grid-column: -2 / -1;
     }
 
     .review-monitoring-adviser-table-region {

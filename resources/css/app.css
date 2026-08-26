@@ -475,6 +475,25 @@
         text-decoration: underline;
     }
 
+    .login-forgot-password {
+        width: max-content;
+        justify-self: end;
+        margin-top: -5px;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: #198855;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .login-forgot-password:hover,
+    .login-forgot-password:focus-visible {
+        text-decoration: underline;
+    }
+
     /* Covers the login surface only after valid credentials identify a deactivated account. */
     .login-modal-backdrop {
         position: fixed;
@@ -486,8 +505,13 @@
         background: rgba(10, 24, 17, 0.58);
     }
 
+    .login-modal-backdrop[hidden] {
+        display: none;
+    }
+
     /* Presents a focused inactive-account explanation without revealing additional account data. */
     .login-modal {
+        position: relative;
         width: min(100%, 470px);
         display: grid;
         justify-items: center;
@@ -498,6 +522,52 @@
         box-shadow: 0 22px 65px rgba(7, 24, 15, 0.28);
         text-align: center;
         outline: none;
+    }
+
+    .login-modal-close {
+        width: 36px;
+        height: 36px;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 6px;
+        padding: 0;
+        background: transparent;
+        color: #4b5563;
+        cursor: pointer;
+    }
+
+    .login-modal-close:hover,
+    .login-modal-close:focus-visible {
+        background: #f2f4f3;
+        color: #198855;
+    }
+
+    .login-modal-close svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+    }
+
+    .login-forgot-password-modal h2,
+    .login-forgot-password-modal p {
+        margin: 0;
+        text-align: center;
+    }
+
+    .login-forgot-password-modal p {
+        color: #4b5563;
+        line-height: 1.65;
+    }
+
+    .login-forgot-password-modal .login-submit {
+        width: 100%;
     }
 
     /* Uses a familiar locked-account symbol at a stable size. */

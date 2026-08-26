@@ -256,6 +256,7 @@ class ResReviewMonitoringTest extends TestCase
             'email' => 'private-unendorsed@example.test',
             'username' => 'private-unendorsed-user',
         ]);
+        $endorsedApplicant = User::factory()->create(['role' => UserRole::Applicant]);
         $adviser = User::factory()->create([
             'role' => UserRole::Adviser,
             'name' => 'Endorsement Workload Alpha',
@@ -278,6 +279,7 @@ class ResReviewMonitoringTest extends TestCase
         ]);
 
         $endorsedApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $endorsedApplicant->id,
             'adviser_user_id' => $adviser->id,
             'application_code' => 'RES-ENDORSED-SAFE-001',
             'application_status' => ApplicationStatus::UnderResScreening,
@@ -298,6 +300,20 @@ class ResReviewMonitoringTest extends TestCase
             'application_status' => ApplicationStatus::SubmittedToAdviser,
             'current_stage' => ApplicationStage::AdviserReview,
             'submitted_at' => now()->subDay(),
+        ]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $privateApplicant->id,
+            'adviser_user_id' => $adviser->id,
+            'application_status' => ApplicationStatus::SubmittedToAdviser,
+            'current_stage' => ApplicationStage::AdviserReview,
+            'submitted_at' => now()->subHours(12),
+        ]);
+        ResearchApplication::factory()->create([
+            'applicant_user_id' => $endorsedApplicant->id,
+            'adviser_user_id' => $adviser->id,
+            'application_status' => ApplicationStatus::SubmittedToAdviser,
+            'current_stage' => ApplicationStage::AdviserReview,
+            'submitted_at' => now()->subHours(6),
         ]);
 
         $response = $this->actingAs($resLead)
@@ -341,9 +357,14 @@ class ResReviewMonitoringTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.review-monitoring.advisers.applications', $adviser))
             ->assertOk()
+            ->assertSee('id="adviser-application-q"', false)
             ->assertSee('RES-ENDORSED-SAFE-001')
             ->assertDontSee('RES-UNENDORSED-SAFE-002')
             ->assertDontSee('Private Unendorsed Applicant');
+        $this->actingAs($resLead)
+            ->get(route('res.review-monitoring.advisers.applications', ['adviser' => $adviser, 'q' => 'does-not-match']))
+            ->assertOk()
+            ->assertDontSee('RES-ENDORSED-SAFE-001');
     }
 
     public function test_monitoring_filters_collapse_responsively_and_the_wide_table_stays_scrollable(): void

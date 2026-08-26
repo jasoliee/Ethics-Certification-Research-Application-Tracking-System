@@ -6,7 +6,6 @@ use App\Enums\AccountStatus;
 use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
-use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
@@ -36,6 +35,7 @@ class ApplicationRevisionWorkflowService
         private readonly AuditLogService $auditLog,
         private readonly ReviewConsensusService $consensus,
         private readonly CertificateReleaseService $certificates,
+        private readonly RevisionRequirementSourceResolver $revisionRequirements,
     ) {}
 
     public function releaseDecision(
@@ -88,27 +88,7 @@ class ApplicationRevisionWorkflowService
                     ]),
             )->values();
             $commentIds = $feedbackSnapshot->pluck('id')->filter()->map(fn (mixed $id): int => (int) $id)->values();
-            $documentIds = $feedbackSnapshot
-                ->where('category', ReviewCommentCategory::RequiredRevision->value)
-                ->pluck('application_document_id')
-                ->filter()
-                ->map(fn (mixed $id): int => (int) $id)
-                ->unique()
-                ->values();
-            $documents = ApplicationDocument::query()
-                ->where('research_application_id', $locked->id)
-                ->whereKey($documentIds)
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('id');
-            $requiredDocuments = $documentIds
-                ->map(fn (int $documentId): ?array => ($document = $documents->get($documentId)) ? [
-                    'requirement_id' => $document->document_requirement_id,
-                    'source_document_id' => $document->id,
-                ] : null)
-                ->filter()
-                ->unique('requirement_id')
-                ->values();
+            $requiredDocuments = $this->revisionRequirements->resolve($locked, $feedbackSnapshot, true);
             if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
                 if ($reviewCycle >= self::MAX_REVISION_CYCLES) {
                     throw ValidationException::withMessages([
@@ -239,6 +219,103 @@ class ApplicationRevisionWorkflowService
         }
 
         return $release;
+    }
+
+    /**
+     * Idempotently recover actionable rows for revision decisions created before
+     * the cycle-safe requirement resolver was introduced.
+     */
+    public function ensureRevisionRequirements(
+        User $actor,
+        ResearchApplication $application,
+        ApplicationRevision $revision,
+    ): ApplicationRevision {
+        return DB::transaction(function () use ($actor, $application, $revision): ApplicationRevision {
+            $lockedApplication = ResearchApplication::query()
+                ->whereKey($application->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $lockedRevision = ApplicationRevision::query()
+                ->whereKey($revision->id)
+                ->where('research_application_id', $lockedApplication->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            abort_unless(
+                $actor->role === UserRole::ResLead
+                    || Gate::forUser($actor)->allows('submitRevision', $lockedApplication),
+                403,
+            );
+
+            if ($lockedRevision->status !== ApplicationRevisionStatus::PendingUploads) {
+                return $lockedRevision->load('requirements');
+            }
+
+            $release = ApplicationDecisionRelease::query()
+                ->whereKey($lockedRevision->application_decision_release_id)
+                ->where('research_application_id', $lockedApplication->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $feedback = collect($release->released_feedback_snapshot ?? []);
+            if ($feedback->isEmpty()) {
+                $feedback = ReviewComment::query()
+                    ->withTrashed()
+                    ->where('application_decision_release_id', $release->id)
+                    ->orderBy('id')
+                    ->get()
+                    ->map(fn (ReviewComment $comment): array => [
+                        'id' => $comment->id,
+                        'application_document_id' => $comment->application_document_id,
+                        'scope' => $comment->scope->value,
+                        'category' => $comment->category->value,
+                        'body' => $comment->body,
+                        'deleted_at' => $comment->deleted_at?->toIso8601String(),
+                    ]);
+            }
+            $sources = $this->revisionRequirements->resolve($lockedApplication, $feedback, true);
+            $existingRequirements = $lockedRevision->requirements()
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('document_requirement_id');
+            $created = 0;
+            $realigned = 0;
+
+            foreach ($sources as $source) {
+                $existingRequirement = $existingRequirements->get($source['requirement_id']);
+                if ($existingRequirement) {
+                    if ($existingRequirement->replacement_application_document_id === null
+                        && (int) $existingRequirement->source_application_document_id !== $source['source_document_id']) {
+                        $existingRequirement->update([
+                            'source_application_document_id' => $source['source_document_id'],
+                        ]);
+                        $realigned++;
+                    }
+
+                    continue;
+                }
+                $lockedRevision->requirements()->create([
+                    'document_requirement_id' => $source['requirement_id'],
+                    'source_application_document_id' => $source['source_document_id'],
+                    'is_required' => true,
+                ]);
+                $created++;
+            }
+
+            if ($created > 0 || $realigned > 0) {
+                $this->auditLog->record($actor, 'application.revision_requirements_recovered', $lockedApplication, [
+                    'application_revision_id' => $lockedRevision->id,
+                    'revision_number' => $lockedRevision->revision_number,
+                    'created_requirement_count' => $created,
+                    'realigned_requirement_count' => $realigned,
+                    'result' => 'recovered',
+                ]);
+            }
+
+            return $lockedRevision->load([
+                'requirements.requirement:id,name',
+                'requirements.sourceDocument',
+                'requirements.replacementDocument',
+            ]);
+        }, 3);
     }
 
     public function submitRevision(

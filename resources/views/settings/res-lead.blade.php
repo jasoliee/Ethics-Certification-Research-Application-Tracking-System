@@ -102,13 +102,6 @@
                     </div>
                 </div>
 
-                <dl class="settings-profile-summary">
-                    <div><dt>Name</dt><dd>{{ $settingsUser->name }}</dd></div>
-                    <div><dt>Email Address</dt><dd>{{ $settingsUser->email }}</dd></div>
-                    <div><dt>Role</dt><dd>{{ $settingsUser->displayRoleLabel() }}</dd></div>
-                    <div><dt>Active Term</dt><dd>{{ $activeTermLabel }}</dd></div>
-                </dl>
-
                 @include('settings.partials.profile-form')
 
             </section>

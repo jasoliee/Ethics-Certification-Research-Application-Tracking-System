@@ -7945,12 +7945,27 @@
 
     .application-upload-feedback {
         min-height: 17px;
-        flex: 1 0 100%;
         color: #176f3d;
         font-size: 11px;
         font-weight: 650;
         line-height: 17px;
         text-align: right;
+    }
+
+    .application-upload-status {
+        min-height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .application-upload-status .application-upload-feedback:empty {
+        display: none;
+    }
+
+    .application-draft-actions {
+        justify-content: space-between;
     }
 
     .application-document-column,
@@ -8583,11 +8598,12 @@
         height: 40px;
         border: 1px solid #bdcbc3;
         border-radius: 5px;
-        padding: 0 10px;
+        padding: 0 34px;
         color: #17211b;
         background: #ffffff;
         font: inherit;
         font-size: 12px;
+        text-align: center;
     }
 
     .settings-table-field input:focus {
@@ -8596,7 +8612,7 @@
     }
 
     .settings-manual-cell .settings-switch {
-        justify-content: flex-start;
+        justify-content: center;
         border-color: #d4dfd8;
     }
 
@@ -8955,8 +8971,8 @@
     .application-filter-bar.application-filter-bar-res {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         grid-template-areas:
-            "search search status apply"
-            "review affiliation term clear"
+            "search search term status"
+            "review affiliation apply clear"
             "date date date date";
         align-items: end;
         gap: 12px;
@@ -10423,6 +10439,98 @@ form[class*='filter'] :is(input, select):focus-visible,
     text-overflow: ellipsis;
 }
 
+.settings-inline-profile-card {
+    width: 100%;
+    display: grid;
+    gap: 20px;
+    border: 1px solid #dce5e0;
+    border-radius: 8px;
+    padding: 24px;
+    background: #fff;
+}
+
+.settings-inline-profile-summary h3,
+.settings-inline-profile-summary p {
+    margin: 0;
+}
+
+.settings-inline-profile-summary h3 {
+    color: #202b3c;
+    font-size: 23px;
+}
+
+.settings-inline-profile-summary p {
+    margin-top: 4px;
+    color: #177645;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.settings-inline-profile-details {
+    width: 100%;
+}
+
+.settings-inline-profile-details > div {
+    align-content: start;
+}
+
+.settings-inline-profile-field dd {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.settings-inline-profile-field [data-inline-profile-value] {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.settings-inline-profile-field input,
+.settings-inline-profile-field select {
+    min-width: 0;
+    min-height: 38px;
+    flex: 1 1 auto;
+    border: 1px solid #cbdad2;
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: #202b3c;
+    background: #fff;
+}
+
+.settings-inline-profile-field [hidden] {
+    display: none !important;
+}
+
+.settings-inline-profile-edit {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #bdd8c9;
+    border-radius: 6px;
+    padding: 0;
+    color: #177645;
+    background: #f5fbf7;
+    cursor: pointer;
+}
+
+.settings-inline-profile-edit:hover,
+.settings-inline-profile-edit:focus-visible {
+    border-color: #177645;
+    background: #e9f6ee;
+}
+
+.settings-inline-profile-edit > span {
+    display: grid;
+}
+
+.settings-inline-profile-field .settings-field-error {
+    flex: 1 0 100%;
+}
+
 .settings-deadline-table th:nth-child(4),
 .settings-deadline-table th:nth-child(5),
 .settings-deadline-table th:nth-child(6),
@@ -11486,6 +11594,19 @@ form[class*='filter'] :is(input, select):focus-visible,
         display: none;
     }
 
+    .revision-version-feedback {
+        grid-column: 1 / -1;
+        border-top: 1px solid #e3ebe6;
+        padding-top: 12px;
+    }
+
+    .revision-anonymous-reviewer-group h4 small {
+        margin-left: 6px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
     .revision-version-meta {
         display: flex;
         align-items: center;
@@ -11864,8 +11985,13 @@ form[class*='filter'] :is(input, select):focus-visible,
 
     .revision-application-switcher span,
     .revision-application-tabs span {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
         color: #64748b;
         font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .revision-application-tabs {
@@ -12192,6 +12318,14 @@ form[class*='filter'] :is(input, select):focus-visible,
         padding: 14px;
     }
 
+    .applicant-review-worksheet-toolbar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
     .applicant-review-worksheet-tabs,
     .applicant-review-worksheet-controls {
         display: flex;
@@ -12244,9 +12378,18 @@ form[class*='filter'] :is(input, select):focus-visible,
     }
 
     .applicant-review-worksheet-controls a {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
         color: #176f3d;
         font-size: 12px;
         font-weight: 700;
+        text-decoration: none;
+    }
+
+    .applicant-review-worksheet-controls a:hover,
+    .applicant-review-worksheet-controls a:focus-visible {
+        text-decoration: underline;
     }
 
     .applicant-review-worksheet iframe {
@@ -12535,6 +12678,12 @@ form[class*='filter'] :is(input, select):focus-visible,
         justify-items: start;
         gap: 3px;
         text-align: left;
+    }
+
+    .applicant-certificate-download-all {
+        width: min(100%, 240px);
+        justify-content: center;
+        justify-self: center;
     }
 
     .revision-version-history {

@@ -21,7 +21,7 @@ class ProfilePageController extends Controller
             'pageTitle' => 'Profile',
             'profileUser' => $user,
             'adviserStatistics' => $endorsementStatistics->for($user),
-            'reviewerProfile' => $reviewerCapabilities->for($user),
+            'reviewerProfile' => $user->hasReviewerAccess() ? $reviewerCapabilities->for($user) : null,
             'breadcrumbs' => [
                 ['label' => 'Home', 'route' => 'dashboard'],
                 ['label' => 'Profile'],

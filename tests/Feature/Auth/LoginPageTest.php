@@ -33,6 +33,12 @@ class LoginPageTest extends TestCase
             ->assertSee('aria-controls="password"', false)
             ->assertSee('aria-pressed="false"', false)
             ->assertSee('data-password-state-indicator', false)
+            ->assertSee('Forgot Password')
+            ->assertSee('data-forgot-password-open', false)
+            ->assertSee('data-forgot-password-dialog', false)
+            ->assertSee('contact the adviser who created your account')
+            ->assertSee('data-forgot-password-close', false)
+            ->assertSee('Okay')
             ->assertDontSee('Register')
             ->assertDontSee('Create account')
             ->assertDontSee('class="login-error"', false);

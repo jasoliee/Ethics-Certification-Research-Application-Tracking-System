@@ -219,7 +219,7 @@ class ResLeadSettingsTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.settings.index'))
             ->assertOk()
-            ->assertSee('<dt>Active Term</dt><dd>Semester and Academic Year</dd>', false)
+            ->assertSee('Semester and Academic Year')
             ->assertDontSee('Current Semester, A.Y. 2026-2027');
     }
 

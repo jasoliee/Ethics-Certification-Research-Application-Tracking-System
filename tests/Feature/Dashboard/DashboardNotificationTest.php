@@ -55,7 +55,7 @@ class DashboardNotificationTest extends TestCase
             ->assertSee('aria-expanded="false"', false)
             ->assertSee('action="'.route('logout').'"', false)
             ->assertSee('name="_token"', false)
-            ->assertSee('href="'.route('adviser.profile.show').'"', false)
+            ->assertDontSee('href="'.route('adviser.profile.show').'"', false)
             ->assertSee('href="'.route('adviser.settings.index').'"', false);
     }
 

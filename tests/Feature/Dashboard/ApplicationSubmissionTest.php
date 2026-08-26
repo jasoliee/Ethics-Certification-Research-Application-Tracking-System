@@ -46,7 +46,9 @@ class ApplicationSubmissionTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.applications.show', $application))
             ->assertOk()
-            ->assertSee('Continue Document Submission');
+            ->assertSee('Continue Document Submission')
+            ->assertDontSee('Manage Documents')
+            ->assertSeeInOrder(['Edit Information', 'Discard Draft', 'Continue Document Submission']);
         $this->assertNull($application->submitted_at);
     }
 
@@ -195,6 +197,10 @@ class ApplicationSubmissionTest extends TestCase
             ->assertSee('type="button" disabled', false)
             ->assertDontSee('href="'.route('applicant.applications.create').'"', false);
         $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('href="'.route('applicant.applications.create').'"', false);
+        $this->actingAs($applicant)
             ->get(route('applicant.applications.create'))
             ->assertRedirect(route('applicant.applications.index'))
             ->assertSessionHasErrors('submission_window');
@@ -212,6 +218,10 @@ class ApplicationSubmissionTest extends TestCase
             ->get(route('applicant.applications.index'))
             ->assertOk()
             ->assertSee('Application Submission is Open')
+            ->assertSee('href="'.route('applicant.applications.create').'"', false);
+        $this->actingAs($applicant)
+            ->get(route('dashboard'))
+            ->assertOk()
             ->assertSee('href="'.route('applicant.applications.create').'"', false);
         $this->actingAs($applicant)
             ->get(route('applicant.applications.create'))

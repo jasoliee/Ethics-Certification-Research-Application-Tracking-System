@@ -36,7 +36,9 @@ class RoleAccountSettingsTest extends TestCase
         $this->actingAs($applicant)
             ->get(route('applicant.settings.index'))
             ->assertOk()
-            ->assertSee('Editable Profile Information')
+            ->assertSee('data-inline-profile-form', false)
+            ->assertSee('data-inline-profile-edit', false)
+            ->assertSee('data-inline-profile-value', false)
             ->assertSee('Security and Privacy')
             ->assertSee(route('applicant.settings.profile.update'), false);
 
@@ -80,7 +82,22 @@ class RoleAccountSettingsTest extends TestCase
             ->assertSee($applicant->institution)
             ->assertSee('Institute')
             ->assertDontSee('Department')
-            ->assertSee('Edit Permitted Fields');
+            ->assertDontSee('Edit Permitted Fields');
+
+        $this->actingAs($applicant)
+            ->putJson(route('applicant.settings.profile.update'), [
+                'first_name' => 'Inline',
+                'middle_name' => 'A',
+                'last_name' => 'Researcher',
+                'suffix' => null,
+                'phone_number' => '09171234567',
+                'institution' => $applicant->institution,
+                'program' => null,
+                'year_level' => $yearLevel,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Inline A Researcher')
+            ->assertJsonPath('data.first_name', 'Inline');
     }
 
     public function test_adviser_settings_store_expected_endorsements_but_keep_reviewer_fields_read_only(): void
@@ -125,6 +142,29 @@ class RoleAccountSettingsTest extends TestCase
             ->assertSee('Institute')
             ->assertDontSee('Department')
             ->assertSee('Senior Research Adviser');
+    }
+
+    public function test_adviser_without_reviewer_access_cannot_see_reviewer_capability_information(): void
+    {
+        $adviser = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'reviewer_enabled' => false,
+            'reviewer_capacity' => null,
+        ]);
+
+        $this->actingAs($adviser)
+            ->get(route('adviser.settings.index'))
+            ->assertOk()
+            ->assertDontSee('Reviewer Capability')
+            ->assertDontSee('Reviewer Access')
+            ->assertDontSee('Assignment Eligibility');
+
+        $this->actingAs($adviser)
+            ->get(route('adviser.profile.show'))
+            ->assertOk()
+            ->assertDontSee('Reviewer Access')
+            ->assertDontSee('Maximum Active Application Load')
+            ->assertDontSee('Assignment Eligibility');
     }
 
     public function test_email_and_password_changes_require_current_password_and_are_audited(): void

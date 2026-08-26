@@ -234,8 +234,8 @@ class ResLeadApplicationVisibilityTest extends TestCase
             '/@container application-workspace \(max-width:\s*1120px\)\s*\{[^}]*\.application-filter-bar\.application-filter-bar-res\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s',
             $css,
         );
-        $this->assertStringContainsString('"search search status apply"', $css);
-        $this->assertStringContainsString('"review affiliation term clear"', $css);
+        $this->assertStringContainsString('"search search term status"', $css);
+        $this->assertStringContainsString('"review affiliation apply clear"', $css);
         $this->assertStringContainsString('"search search"', $css);
         $this->assertStringContainsString('"status review"', $css);
         $this->assertStringContainsString('"affiliation affiliation"', $css);

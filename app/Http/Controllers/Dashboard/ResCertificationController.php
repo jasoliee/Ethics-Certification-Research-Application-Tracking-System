@@ -51,6 +51,11 @@ class ResCertificationController extends Controller
             ->where(function (Builder $query): void {
                 $query->whereIn('application_status', [
                     ApplicationStatus::ReviewSubmittedPendingRelease->value,
+                    ApplicationStatus::RevisionWindowOpen->value,
+                    ApplicationStatus::RevisionSubmitted->value,
+                    ApplicationStatus::UnderReReview->value,
+                    ApplicationStatus::ResultReleasedMinorRevision->value,
+                    ApplicationStatus::ResultReleasedMajorRevision->value,
                     ApplicationStatus::ResultReleasedAccepted->value,
                     ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
@@ -272,8 +277,7 @@ class ResCertificationController extends Controller
         Request $request,
         ResearchApplication $researchApplication,
         string $disposition,
-    ): Response
-    {
+    ): Response {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $researchApplication->load(['certificates.currentVersion']);
         $certificates = $researchApplication->certificates->filter(

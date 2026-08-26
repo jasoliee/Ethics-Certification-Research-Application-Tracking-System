@@ -151,6 +151,8 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('revision-certificates.certificate.preview');
                 Route::get('/revision-certificates/applications/{researchApplication}/certificates/{certificate}/versions/{certificateVersion}/download', [ApplicantRevisionCertificateController::class, 'download'])
                     ->name('revision-certificates.certificate.download');
+                Route::get('/revision-certificates/applications/{researchApplication}/certificates/download-all', [ApplicantRevisionCertificateController::class, 'downloadAll'])
+                    ->name('revision-certificates.certificates.download-all');
                 Route::redirect('/reviewer', '/student-faculty-researcher/revision-certificates')->name('reviewer.index');
                 Route::redirect('/certificates', '/student-faculty-researcher/revision-certificates')->name('certificates.index');
                 Route::get('/notifications', [NotificationPageController::class, 'index'])->name('notifications.index');

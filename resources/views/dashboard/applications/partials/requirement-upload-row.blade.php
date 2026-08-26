@@ -21,7 +21,10 @@
         @endif
     </div>
     <div class="application-requirement-actions">
-        <x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" />
+        <div class="application-upload-status">
+            <span class="application-upload-feedback" role="status" data-upload-feedback></span>
+            <x-dashboard.status-badge :label="$item['status']->label()" :tone="$item['status']->tone()" />
+        </div>
         @if ($document)
             <div class="application-current-document">
                 <button
@@ -98,6 +101,5 @@
                 </div>
             </form>
         @endif
-        <span class="application-upload-feedback" role="status" data-upload-feedback></span>
     </div>
 </article>

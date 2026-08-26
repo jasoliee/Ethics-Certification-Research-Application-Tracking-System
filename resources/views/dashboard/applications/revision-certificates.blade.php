@@ -65,7 +65,7 @@
                             @if ($application?->is($item)) aria-current="page" @endif
                         >
                             <strong>{{ $item->application_code }}</strong>
-                            <span>{{ $item->research_title }}</span>
+                            <span data-research-title-tooltip>{{ $item->research_title }}</span>
                         </a>
                     @endforeach
                 </div>
@@ -132,6 +132,7 @@
                                             </span>
                                         </summary>
                                         <div class="revision-requirement-disclosure-body">
+                                            @if ($group['versions']->isEmpty())
                                             <section class="revision-requirement-feedback" aria-label="{{ $group['name'] }} released feedback">
                                                 <h3>Released Reviewer Feedback</h3>
                                                 @if ($group['reviewer_groups']->isEmpty())
@@ -140,7 +141,7 @@
                                                     <div class="revision-reviewer-feedback-grid">
                                                         @foreach ($group['reviewer_groups'] as $reviewerGroup)
                                                             <section class="revision-anonymous-reviewer-group">
-                                                                <h4>{{ $reviewerGroup['label'] }}</h4>
+                                                                <h4>{{ $reviewerGroup['label'] }} <small>{{ $reviewerGroup['release_label'] }}</small></h4>
                                                                 @foreach ($reviewerGroup['comments'] as $comment)
                                                                     <article>
                                                                         <header>
@@ -163,6 +164,7 @@
                                                     </div>
                                                 @endif
                                             </section>
+                                            @endif
 
                                             @if ($group['versions']->isNotEmpty())
                                                 <div class="revision-version-control">
@@ -186,6 +188,13 @@
                                                                         @if ($document->is_current)<strong>Current</strong>@endif
                                                                         <time datetime="{{ $document->uploaded_at?->toIso8601String() }}">{{ $document->uploaded_at?->format('M j, Y g:i A') ?? 'Date not recorded' }}</time>
                                                                     </div>
+                                                                    <section class="revision-requirement-feedback revision-version-feedback" aria-label="{{ $group['name'] }} Version {{ $document->document_version }} released feedback">
+                                                                        <h3>Released Reviewer Feedback for Version {{ $document->document_version }}</h3>
+                                                                        @include('dashboard.applications.partials.released-feedback-groups', [
+                                                                            'reviewerGroups' => $group['reviewer_groups_by_version']->get($document->id, collect()),
+                                                                            'emptyMessage' => 'No detailed comments were released for this document version.',
+                                                                        ])
+                                                                    </section>
                                                                 </article>
                                                             @endforeach
                                                         </div>
@@ -201,16 +210,6 @@
                                                 <span>{{ $worksheetGroups->count() }} official worksheet types</span>
                                             </summary>
                                             <div class="applicant-review-worksheet-body">
-                                                <div class="applicant-review-worksheet-tabs" role="tablist" aria-label="Review worksheet type">
-                                                    @foreach ($worksheetGroups as $worksheetGroup)
-                                                        <button
-                                                            type="button"
-                                                            role="tab"
-                                                            aria-selected="{{ $loop->first ? 'true' : 'false' }}"
-                                                            data-applicant-worksheet-tab="{{ $worksheetGroup['type']->value }}"
-                                                        >{{ $worksheetGroup['type']->label() }}</button>
-                                                    @endforeach
-                                                </div>
                                                 @foreach ($worksheetGroups as $worksheetGroup)
                                                     @php
                                                         $worksheetType = $worksheetGroup['type'];
@@ -224,32 +223,39 @@
                                                         ]);
                                                     @endphp
                                                     <section data-applicant-worksheet-panel="{{ $worksheetType->value }}" @if (! $loop->first) hidden @endif>
-                                                        <div class="applicant-review-worksheet-controls">
-                                                            <label>
-                                                                <span>Select version</span>
-                                                                <select data-applicant-worksheet-version>
-                                                                    @foreach ($worksheetGroup['artifacts'] as $worksheet)
-                                                                        @php
-                                                                            $worksheetArtifact = $worksheet['artifact'];
-                                                                            $worksheetPreview = route('applicant.revision-certificates.worksheets.preview', [
-                                                                                $application,
-                                                                                $worksheet['assignment'],
-                                                                                $worksheetArtifact->formSubmission,
-                                                                                $worksheetArtifact,
-                                                                            ]);
-                                                                            $worksheetDownload = route('applicant.revision-certificates.worksheets.download', [
-                                                                                $application,
-                                                                                $worksheet['assignment'],
-                                                                                $worksheetArtifact->formSubmission,
-                                                                                $worksheetArtifact,
-                                                                            ]);
-                                                                        @endphp
-                                                                        <option value="{{ $worksheetArtifact->id }}" data-preview-url="{{ $worksheetPreview }}" data-download-url="{{ $worksheetDownload }}">Version {{ $worksheet['version_number'] }} - {{ $worksheet['reviewer_label'] }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            </label>
-                                                            <a href="{{ $firstWorksheetPreview }}" target="_blank" rel="noopener" data-applicant-worksheet-preview-link>Open in New Tab</a>
-                                                            <a href="{{ route('applicant.revision-certificates.worksheets.download', [$application, $firstWorksheet['assignment'], $firstWorksheetArtifact->formSubmission, $firstWorksheetArtifact]) }}" data-applicant-worksheet-download-link>Download</a>
+                                                        <div class="applicant-review-worksheet-toolbar">
+                                                            <div class="applicant-review-worksheet-controls">
+                                                                <label>
+                                                                    <span>Select version</span>
+                                                                    <select data-applicant-worksheet-version>
+                                                                        @foreach ($worksheetGroup['artifacts'] as $worksheet)
+                                                                            @php
+                                                                                $worksheetArtifact = $worksheet['artifact'];
+                                                                                $worksheetPreview = route('applicant.revision-certificates.worksheets.preview', [
+                                                                                    $application,
+                                                                                    $worksheet['assignment'],
+                                                                                    $worksheetArtifact->formSubmission,
+                                                                                    $worksheetArtifact,
+                                                                                ]);
+                                                                                $worksheetDownload = route('applicant.revision-certificates.worksheets.download', [
+                                                                                    $application,
+                                                                                    $worksheet['assignment'],
+                                                                                    $worksheetArtifact->formSubmission,
+                                                                                    $worksheetArtifact,
+                                                                                ]);
+                                                                            @endphp
+                                                                            <option value="{{ $worksheetArtifact->id }}" data-preview-url="{{ $worksheetPreview }}" data-download-url="{{ $worksheetDownload }}">Version {{ $worksheet['version_number'] }} - {{ $worksheet['reviewer_label'] }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                </label>
+                                                                <a href="{{ $firstWorksheetPreview }}" target="_blank" rel="noopener" data-applicant-worksheet-preview-link>Open in New Tab</a>
+                                                                <a href="{{ route('applicant.revision-certificates.worksheets.download', [$application, $firstWorksheet['assignment'], $firstWorksheetArtifact->formSubmission, $firstWorksheetArtifact]) }}" data-applicant-worksheet-download-link>Download</a>
+                                                            </div>
+                                                            <div class="applicant-review-worksheet-tabs" role="tablist" aria-label="Review worksheet type">
+                                                                @foreach ($worksheetGroups as $tabWorksheetGroup)
+                                                                    <button type="button" role="tab" aria-selected="{{ $tabWorksheetGroup['type'] === $worksheetType ? 'true' : 'false' }}" data-applicant-worksheet-tab="{{ $tabWorksheetGroup['type']->value }}">{{ $tabWorksheetGroup['type']->label() }}</button>
+                                                                @endforeach
+                                                            </div>
                                                         </div>
                                                         <iframe src="{{ $firstWorksheetPreview }}" title="{{ $worksheetType->label() }} secure preview" loading="lazy" referrerpolicy="no-referrer" data-applicant-worksheet-frame></iframe>
                                                     </section>
@@ -370,7 +376,7 @@
                             </div>
                         @endif
                         @if ($certificationState === \App\Enums\CertificationState::SurveyRequired)
-                            <form method="POST" action="{{ route('applicant.revision-certificates.survey.store', $application) }}" class="certificate-survey-form" data-disable-on-submit>
+                            <form method="POST" action="{{ route('applicant.revision-certificates.survey.store', $application) }}" class="certificate-survey-form" data-certificate-async-form="survey">
                                 @csrf
                                 <div class="certificate-survey-intro">
                                     <strong>Required post-review feedback</strong>
@@ -407,7 +413,7 @@
                                 <x-dashboard.icon name="award" size="42" />
                                 <h3>Certificate ready to claim</h3>
                                 <p>Your evaluation is complete and the current released certificate version is ready.</p>
-                                <form method="POST" action="{{ route('applicant.revision-certificates.certificate.claim', $application) }}" data-disable-on-submit>
+                                <form method="POST" action="{{ route('applicant.revision-certificates.certificate.claim', $application) }}" data-certificate-async-form="claim">
                                     @csrf
                                     <button class="dashboard-primary-action" type="submit">Claim Certificate</button>
                                 </form>
@@ -433,6 +439,7 @@
                                         @endif
                                     @endforeach
                                 </div>
+                                <a class="dashboard-primary-action applicant-certificate-download-all" href="{{ route('applicant.revision-certificates.certificates.download-all', $application) }}"><x-dashboard.icon name="download" size="17" /><span>Download All</span></a>
                             </div>
                         @elseif ($certificationState === \App\Enums\CertificationState::GenerationFailed)
                             <div class="certificate-action-state is-error"><x-dashboard.icon name="alert-triangle" size="34" /><h3>Generation failed safely</h3><p>RES has been asked to retry. No incomplete certificate is available.</p></div>

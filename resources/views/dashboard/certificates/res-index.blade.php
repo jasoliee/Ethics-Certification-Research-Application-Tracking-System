@@ -65,6 +65,11 @@
         </section>
 
         <form class="application-panel certificate-queue-filters" method="GET" action="{{ route('res.certificates.index') }}">
+            <div class="application-field application-search-field certificate-filter-search">
+                <label for="certificate-q">Search</label>
+                <span><x-dashboard.icon name="search" size="18" /></span>
+                <input id="certificate-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Application code or research title">
+            </div>
             <div class="application-field">
                 <label for="certificate-academic-term">Academic Term</label>
                 <select id="certificate-academic-term" name="academic_term_id">
@@ -73,11 +78,6 @@
                         <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
                     @endforeach
                 </select>
-            </div>
-            <div class="application-field application-search-field certificate-filter-search">
-                <label for="certificate-q">Search</label>
-                <span><x-dashboard.icon name="search" size="18" /></span>
-                <input id="certificate-q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Application code or research title">
             </div>
             <div class="application-field">
                 <label for="certificate-status">Status</label>

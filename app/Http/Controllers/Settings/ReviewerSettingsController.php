@@ -49,8 +49,18 @@ class ReviewerSettingsController extends Controller
     public function updateProfile(
         UpdateOwnProfileRequest $request,
         SelfAccountSettingsService $settings,
-    ): RedirectResponse {
-        $settings->updateProfile($request->user(), $request->validated());
+    ): RedirectResponse|JsonResponse {
+        $updated = $settings->updateProfile($request->user(), $request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json(['data' => [
+                ...$updated->only([
+                    'first_name', 'middle_name', 'last_name', 'suffix', 'phone_number',
+                    'institution', 'program', 'year_level', 'position_title', 'expected_endorsement_count',
+                ]),
+                'name' => $updated->name,
+            ]]);
+        }
 
         return back()->with('status', 'Your profile information was updated.');
     }
