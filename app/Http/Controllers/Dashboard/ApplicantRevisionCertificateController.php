@@ -55,6 +55,7 @@ class ApplicantRevisionCertificateController extends Controller
                     ApplicationStatus::ResultReleasedMinorRevision->value,
                     ApplicationStatus::ResultReleasedMajorRevision->value,
                     ApplicationStatus::ResultReleasedDisapproved->value,
+                    ApplicationStatus::Failed->value,
                     ApplicationStatus::RevisionWindowOpen->value,
                     ApplicationStatus::RevisionSubmitted->value,
                     ApplicationStatus::UnderReReview->value,
@@ -159,6 +160,15 @@ class ApplicantRevisionCertificateController extends Controller
             ->whereKey($sourceVersionIds)
             ->get()
             ->keyBy('id');
+        $terminalFailureAssignments = $selected->application_status === ApplicationStatus::Failed
+            ? $selected->reviewerAssignments()
+                ->current()
+                ->where('review_cycle', ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES)
+                ->with('reviewSubmission.currentVersion')
+                ->orderBy('assignment_sequence')
+                ->orderBy('id')
+                ->get()
+            : collect();
         $releasedFeedback = $selected->decisionReleases
             ->sortBy('review_cycle')
             ->values()
@@ -283,6 +293,75 @@ class ApplicantRevisionCertificateController extends Controller
                 return $comments;
             })
             ->values();
+        $terminalFailureAssignments->each(function ($assignment, int $index) use ($releasedFeedback, $documentLookup): void {
+            $version = $assignment->reviewSubmission?->currentVersion;
+            if (! $version) {
+                return;
+            }
+
+            $reviewerSequence = max(1, (int) ($assignment->assignment_sequence ?: $index + 1));
+            $releaseId = 'final-failure-'.$assignment->id;
+            $releaseLabel = 'Final review - application failed';
+            $comments = collect((array) data_get($version->payload_snapshot, 'comments', []))
+                ->filter(fn (mixed $comment): bool => is_array($comment)
+                    && blank(data_get($comment, 'deleted_at'))
+                    && filled(data_get($comment, 'body')))
+                ->map(function (array $comment) use (
+                    $documentLookup,
+                    $releaseId,
+                    $releaseLabel,
+                    $reviewerSequence,
+                    $version,
+                ): object {
+                    $documentId = filled(data_get($comment, 'application_document_id'))
+                        ? (int) data_get($comment, 'application_document_id')
+                        : null;
+                    $document = $documentId ? $documentLookup->get($documentId) : null;
+
+                    return (object) [
+                        'release_id' => $releaseId,
+                        'review_cycle' => ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES,
+                        'release_label' => $releaseLabel,
+                        'reviewer_sequence' => $reviewerSequence,
+                        'reviewer_label' => 'Reviewer '.$reviewerSequence,
+                        'application_document_id' => $documentId,
+                        'document' => $document,
+                        'document_requirement_id' => $document?->document_requirement_id,
+                        'document_version' => $document?->document_version,
+                        'scope' => ReviewCommentScope::tryFrom((string) data_get($comment, 'scope')) ?? ReviewCommentScope::Overall,
+                        'category' => ReviewCommentCategory::tryFrom((string) data_get($comment, 'category')) ?? ReviewCommentCategory::General,
+                        'page_number' => filled(data_get($comment, 'page_number')) ? (int) data_get($comment, 'page_number') : null,
+                        'body' => trim((string) data_get($comment, 'body')),
+                        'released_at' => $version->submitted_at,
+                        'is_decision_comment' => false,
+                    ];
+                });
+            $decisionComment = trim((string) $version->decision_comment);
+            if ($decisionComment !== '' && ! $comments->contains(
+                fn (object $comment): bool => $comment->application_document_id === null
+                    && mb_strtolower($comment->body) === mb_strtolower($decisionComment),
+            )) {
+                $comments->push((object) [
+                    'release_id' => $releaseId,
+                    'review_cycle' => ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES,
+                    'release_label' => $releaseLabel,
+                    'reviewer_sequence' => $reviewerSequence,
+                    'reviewer_label' => 'Reviewer '.$reviewerSequence,
+                    'application_document_id' => null,
+                    'document' => null,
+                    'document_requirement_id' => null,
+                    'document_version' => null,
+                    'scope' => ReviewCommentScope::Overall,
+                    'category' => ReviewCommentCategory::General,
+                    'page_number' => null,
+                    'body' => $decisionComment,
+                    'released_at' => $version->submitted_at,
+                    'is_decision_comment' => true,
+                ]);
+            }
+
+            $releasedFeedback->push(...$comments);
+        });
         $reviewerGroups = fn ($comments) => collect($comments)
             ->groupBy(fn (object $comment): string => $comment->release_id.'-'.$comment->reviewer_sequence)
             ->map(fn ($reviewerComments): array => [

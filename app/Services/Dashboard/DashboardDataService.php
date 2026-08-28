@@ -404,6 +404,7 @@ class DashboardDataService
             ApplicationStatus::ReviewSubmittedPendingRelease,
             ApplicationStatus::ResultReleasedAccepted,
             ApplicationStatus::ResultReleasedDisapproved,
+            ApplicationStatus::Failed,
             ApplicationStatus::FeedbackRequired,
             ApplicationStatus::CertificateReleased,
             ApplicationStatus::Archived,

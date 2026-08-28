@@ -20,6 +20,7 @@ enum ApplicationStatus: string
     case ResultReleasedMinorRevision = 'result_released_minor_revision';
     case ResultReleasedMajorRevision = 'result_released_major_revision';
     case ResultReleasedDisapproved = 'result_released_disapproved';
+    case Failed = 'failed';
     case RevisionWindowOpen = 'revision_window_open';
     case RevisionSubmitted = 'revision_submitted';
     case UnderReReview = 'under_re_review';
@@ -46,6 +47,7 @@ enum ApplicationStatus: string
             self::ResultReleasedMinorRevision => 'Minor Revision',
             self::ResultReleasedMajorRevision => 'Major Revision',
             self::ResultReleasedDisapproved => 'Disapproved',
+            self::Failed => 'Failed',
             self::RevisionWindowOpen => 'Revision Window Open',
             self::RevisionSubmitted => 'Revision Submitted',
             self::UnderReReview => 'Under Re-review',
@@ -64,7 +66,7 @@ enum ApplicationStatus: string
             self::UnderExpeditedReview, self::RevisionSubmitted, self::UnderReReview => 'green',
             self::UnderFullBoardReview, self::RevisionWindowOpen => 'violet',
             self::Exempted, self::ReviewSubmittedPendingRelease => 'cyan',
-            self::ReturnedByAdviser, self::ResultReleasedDisapproved => 'red',
+            self::ReturnedByAdviser, self::ResultReleasedDisapproved, self::Failed => 'red',
             self::ResultReleasedAccepted, self::ForCertificateRelease, self::CertificateReleased => 'success',
             self::ResultReleasedMinorRevision => 'amber',
             self::ResultReleasedMajorRevision => 'purple',
@@ -92,6 +94,7 @@ enum ApplicationStatus: string
             self::ResultReleasedMinorRevision,
             self::ResultReleasedMajorRevision,
             self::ResultReleasedDisapproved,
+            self::Failed,
             self::RevisionWindowOpen,
             self::RevisionSubmitted,
             self::FeedbackRequired,

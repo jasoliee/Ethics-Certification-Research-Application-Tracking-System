@@ -53,7 +53,7 @@ class ReviewerAssignmentPageController extends Controller
             ->latestCycleForReviewer()
             ->where('reviewer_user_id', $request->user()->id)
             ->where('assignment_status', '!=', ReviewerAssignmentStatus::Superseded->value)
-            ->with(['researchApplication:id,academic_term_id,application_code,research_title,research_type,review_type'])
+            ->with(['researchApplication:id,academic_term_id,application_code,research_title,research_type,review_type,application_status'])
             ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $query) => $query
                 ->whereHas('researchApplication', fn (Builder $applications) => $applications
                     ->where('academic_term_id', (int) $filters['academic_term_id'])))
@@ -128,6 +128,7 @@ class ReviewerAssignmentPageController extends Controller
                 'expected_end_date',
                 'abstract',
                 'review_type',
+                'application_status',
                 'submitted_at',
             ]),
             'reviewSubmission.currentVersion',
@@ -194,6 +195,7 @@ class ReviewerAssignmentPageController extends Controller
                 'expected_end_date',
                 'abstract',
                 'review_type',
+                'application_status',
                 'submitted_at',
             ]),
             'researchApplication.documents' => fn ($documents) => $documents

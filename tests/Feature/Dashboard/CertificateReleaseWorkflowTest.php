@@ -341,15 +341,17 @@ class CertificateReleaseWorkflowTest extends TestCase
         $response = $this->actingAs($resLead)->get(route('res.certificates.index'));
         $response->assertOk()->assertSee('GROUP-PARTIAL')->assertSee('Certificate Generation Failed');
         $this->assertSame(1, $response->viewData('queueMetrics')['pending_certificate_release']);
-        $this->assertSame(0, $response->viewData('queueMetrics')['certificates_released']);
+        $this->assertSame(0, $response->viewData('queueMetrics')['final_revision_failed']);
         $this->actingAs($resLead)
             ->get(route('res.certificates.index', ['claim' => 'unavailable']))
             ->assertOk()
             ->assertSee('GROUP-PARTIAL');
-        $this->actingAs($resLead)
+        $claimedResponse = $this->actingAs($resLead)
             ->get(route('res.certificates.index', ['claim' => 'claimed']))
-            ->assertOk()
-            ->assertDontSee('GROUP-PARTIAL');
+            ->assertOk();
+        $this->assertFalse(
+            $claimedResponse->viewData('applications')->getCollection()->contains('id', $application->id),
+        );
 
         $bulk = app(BulkReleaseService::class);
         $this->assertSame(1, $bulk->eligibleCounts($resLead)['certificate']);
@@ -368,8 +370,8 @@ class CertificateReleaseWorkflowTest extends TestCase
 
         $releasedResponse = $this->actingAs($resLead)->get(route('res.certificates.index'));
         $this->assertSame(0, $releasedResponse->viewData('queueMetrics')['pending_certificate_release']);
-        $this->assertSame(1, $releasedResponse->viewData('queueMetrics')['certificates_released']);
-        $releasedResponse->assertSee('2 personalized certificates ready');
+        $this->assertSame(0, $releasedResponse->viewData('queueMetrics')['final_revision_failed']);
+        $this->assertFalse($releasedResponse->viewData('applications')->getCollection()->contains('id', $application->id));
     }
 
     public function test_release_survey_claim_and_private_download_form_one_server_gated_sequence(): void
@@ -737,7 +739,7 @@ class CertificateReleaseWorkflowTest extends TestCase
         $this->assertSame(CertificateStatus::Released, $second->certificate()->firstOrFail()->status);
     }
 
-    public function test_typed_bulk_release_handles_both_idempotently_and_reports_all_outcomes(): void
+    public function test_typed_bulk_release_handles_both_idempotently_and_ignores_completed_releases(): void
     {
         Storage::fake('local');
         Notification::fake();
@@ -761,7 +763,7 @@ class CertificateReleaseWorkflowTest extends TestCase
 
         $this->assertSame(1, $summary['eligible']);
         $this->assertSame(1, $summary['successfully_released']);
-        $this->assertSame(1, $summary['already_released']);
+        $this->assertSame(0, $summary['already_released']);
         $this->assertSame(1, $summary['ineligible']);
         $this->assertSame(0, $summary['failed']);
         $this->assertSame(CertificateStatus::Released, $unanimous->certificate()->firstOrFail()->status);
@@ -769,7 +771,7 @@ class CertificateReleaseWorkflowTest extends TestCase
 
         $repeat = $service->release($resLead, BulkReleaseType::Both);
         $this->assertSame(0, $repeat['successfully_released']);
-        $this->assertSame(2, $repeat['already_released']);
+        $this->assertSame(0, $repeat['already_released']);
         $this->assertSame(1, $repeat['ineligible']);
         $this->assertSame(1, $unanimous->certificate()->firstOrFail()->versions()->count());
         Notification::assertSentToTimes($newApplicant, DashboardUpdateNotification::class, 2);

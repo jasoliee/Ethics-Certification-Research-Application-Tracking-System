@@ -57,9 +57,11 @@ class BulkReleaseService
      *     successfully_released: int,
      *     already_released: int,
      *     conflicted: int,
+     *     max_revision_failed: int,
      *     ineligible: int,
      *     failed: int,
-     *     failed_application_codes: array<int, string>
+     *     failed_application_codes: array<int, string>,
+     *     max_revision_failed_application_codes: array<int, string>
      * }
      */
     public function release(User $actor, BulkReleaseType $type): array
@@ -72,14 +74,17 @@ class BulkReleaseService
             'successfully_released' => 0,
             'already_released' => 0,
             'conflicted' => 0,
+            'max_revision_failed' => 0,
             'ineligible' => 0,
             'failed' => 0,
             'failed_application_codes' => [],
+            'max_revision_failed_application_codes' => [],
         ];
         $affected = [
             'successfully_released' => [],
             'already_released' => [],
             'conflicted' => [],
+            'max_revision_failed' => [],
             'ineligible' => [],
             'failed' => [],
         ];
@@ -108,6 +113,13 @@ class BulkReleaseService
 
                         continue;
                     }
+                    if ($classification === 'max_revision_failed') {
+                        $summary['max_revision_failed']++;
+                        $summary['max_revision_failed_application_codes'][] = $application->application_code;
+                        $affected['max_revision_failed'][] = $application->id;
+
+                        continue;
+                    }
 
                     $summary['eligible']++;
                     try {
@@ -132,6 +144,7 @@ class BulkReleaseService
             'successfully_released_count' => $summary['successfully_released'],
             'already_released_count' => $summary['already_released'],
             'conflicted_count' => $summary['conflicted'],
+            'max_revision_failed_count' => $summary['max_revision_failed'],
             'ineligible_count' => $summary['ineligible'],
             'failed_count' => $summary['failed'],
             'affected_application_ids' => array_map(
@@ -139,6 +152,11 @@ class BulkReleaseService
                 $affected,
             ),
             'failed_application_codes' => array_slice($summary['failed_application_codes'], 0, 100),
+            'max_revision_failed_application_codes' => array_slice(
+                $summary['max_revision_failed_application_codes'],
+                0,
+                100,
+            ),
         ]);
 
         return $summary;
@@ -167,6 +185,13 @@ class BulkReleaseService
 
     private function classify(ResearchApplication $application, BulkReleaseType $type): string
     {
+        if ($application->application_status === ApplicationStatus::ReviewSubmittedPendingRelease) {
+            $application = $this->consensus->evaluate($application);
+        }
+        if ($application->application_status === ApplicationStatus::Failed) {
+            return 'max_revision_failed';
+        }
+
         $certificateReleased = $this->certificateAlreadyReleased($application);
         $decisionReleased = $this->decisionAlreadyReleased($application);
         $certificateEligible = $this->isCertificateEligible($application);
@@ -231,12 +256,20 @@ class BulkReleaseService
             ->where(function (Builder $query): void {
                 $query->whereIn('application_status', [
                     ApplicationStatus::ReviewSubmittedPendingRelease->value,
+                    ApplicationStatus::Failed->value,
                     ApplicationStatus::ResultReleasedAccepted->value,
                     ApplicationStatus::ForCertificateRelease->value,
                     ApplicationStatus::Exempted->value,
-                    ApplicationStatus::CertificateReleased->value,
-                ])->orWhereHas('certificates')
-                    ->orWhereHas('decisionReleases');
+                ])->orWhere(function (Builder $incompleteRelease): void {
+                    $incompleteRelease
+                        ->where('application_status', ApplicationStatus::CertificateReleased->value)
+                        ->whereHas('certificates')
+                        ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
+                            ->whereDoesntHave('certificate', fn (Builder $certificates) => $certificates
+                                ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value])
+                                ->whereHas('currentVersion', fn (Builder $versions) => $versions
+                                    ->where('status', CertificateVersionStatus::Ready->value))));
+                });
             });
     }
 

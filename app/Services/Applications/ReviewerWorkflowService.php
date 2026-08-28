@@ -3,6 +3,7 @@
 namespace App\Services\Applications;
 
 use App\Enums\AccountStatus;
+use App\Enums\ApplicationStatus;
 use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
 use App\Enums\ReviewConsensusStatus;
@@ -408,7 +409,8 @@ class ReviewerWorkflowService
                 $application = $this->consensus->evaluateLocked($application);
                 $allSubmitted = $application->review_consensus_status !== ReviewConsensusStatus::AwaitingSubmissions;
 
-                if ($application->review_consensus_status === ReviewConsensusStatus::Consensus) {
+                if ($application->review_consensus_status === ReviewConsensusStatus::Consensus
+                    && $application->application_status !== ApplicationStatus::Failed) {
                     $this->notifyResLeads(
                         'Reviewer consensus ready for decision release',
                         'All required current Reviewer submissions agree and are ready for RES release.',

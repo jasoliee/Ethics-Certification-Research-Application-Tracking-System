@@ -102,8 +102,12 @@
                                     <td>{{ Str::headline($assignment->review_type) }}</td>
                                     <td class="reviewer-table-centered">
                                         <x-dashboard.status-badge
-                                            :label="$activeReviewTab === 'completed' ? 'Completed' : $assignment->assignment_status->label()"
-                                            :tone="$assignment->assignment_status->tone()"
+                                            :label="$assignment->researchApplication->application_status === \App\Enums\ApplicationStatus::Failed
+                                                ? 'Failed'
+                                                : ($activeReviewTab === 'completed' ? 'Completed' : $assignment->assignment_status->label())"
+                                            :tone="$assignment->researchApplication->application_status === \App\Enums\ApplicationStatus::Failed
+                                                ? 'red'
+                                                : $assignment->assignment_status->tone()"
                                         />
                                     </td>
                                     <td class="reviewer-table-centered reviewer-deadline-value">

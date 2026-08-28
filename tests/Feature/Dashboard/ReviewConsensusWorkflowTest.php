@@ -359,4 +359,52 @@ class ReviewConsensusWorkflowTest extends TestCase
             ])
             ->assertForbidden();
     }
+
+    public function test_final_review_full_board_conflict_does_not_fail_the_application_until_revision_consensus_exists(): void
+    {
+        Notification::fake();
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $application = ResearchApplication::factory()->create([
+            'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease,
+            'current_stage' => ApplicationStage::DecisionRelease,
+            'review_type' => 'full_board',
+            'current_revision_cycle' => ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES + 1,
+            'submitted_at' => now()->subWeek(),
+        ]);
+
+        collect([
+            ReviewDecision::MinorRevision,
+            ReviewDecision::MajorRevision,
+            ReviewDecision::MinorRevision,
+        ])->each(function (ReviewDecision $decision, int $index) use ($application): void {
+            $reviewer = User::factory()->reviewer(['Full Board'])->create();
+            $assignment = ReviewerAssignment::factory()->create([
+                'research_application_id' => $application->id,
+                'reviewer_user_id' => $reviewer->id,
+                'review_type' => 'revision_review',
+                'review_cycle' => ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES,
+                'assignment_sequence' => $index + 1,
+                'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+                'submitted_at' => now()->subDay(),
+            ]);
+            $assignment->reviewSubmission()->create([
+                'status' => ReviewSubmissionStatus::Submitted,
+                'decision' => $decision,
+                'decision_comment' => 'Final Full Board decision '.$decision->value.'.',
+                'submitted_at' => now()->subDay(),
+            ]);
+        });
+
+        $evaluated = app(ReviewConsensusService::class)->evaluate($application);
+
+        $this->assertSame(ReviewConsensusStatus::Conflicted, $evaluated->review_consensus_status);
+        $this->assertSame(ApplicationStatus::ReviewSubmittedPendingRelease, $evaluated->application_status);
+        $this->assertNull($evaluated->review_consensus_decision);
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index'))
+            ->assertOk()
+            ->assertSee($application->application_code)
+            ->assertSee('Conflicted Decisions')
+            ->assertDontSee('is-final-review-failed', false);
+    }
 }

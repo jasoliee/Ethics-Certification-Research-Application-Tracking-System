@@ -28,7 +28,8 @@ use Illuminate\Validation\ValidationException;
 
 class ApplicationRevisionWorkflowService
 {
-    public const MAX_REVISION_CYCLES = 2;
+    /** Three revised submissions follow the initial submission; review cycle 3 is final. */
+    public const MAX_REVISION_CYCLES = 3;
 
     public function __construct(
         private readonly DeadlineProcessAvailability $deadlines,
@@ -43,6 +44,18 @@ class ApplicationRevisionWorkflowService
         ResearchApplication $application,
         ?ReviewSubmission $sourceSubmission = null,
     ): ApplicationDecisionRelease {
+        if (in_array($application->application_status, [
+            ApplicationStatus::ReviewSubmittedPendingRelease,
+            ApplicationStatus::Failed,
+        ], true)) {
+            $application = $this->consensus->evaluate($application);
+        }
+        if ($application->application_status === ApplicationStatus::Failed) {
+            throw ValidationException::withMessages([
+                'review_submission_id' => 'This application has already been marked Failed because its final review after the third revised submission still requires revision. No further decision can be released.',
+            ])->errorBag('decisionRelease');
+        }
+
         $release = DB::transaction(function () use ($actor, $application, $sourceSubmission): ApplicationDecisionRelease {
             $locked = ResearchApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
             Gate::forUser($actor)->authorize('releaseDecision', $locked);
@@ -92,7 +105,7 @@ class ApplicationRevisionWorkflowService
             if (in_array($decision, [ReviewDecision::MinorRevision, ReviewDecision::MajorRevision], true)) {
                 if ($reviewCycle >= self::MAX_REVISION_CYCLES) {
                     throw ValidationException::withMessages([
-                        'review_submission_id' => 'The maximum of two revision cycles has been reached. A further revision cannot be opened for this application.',
+                        'review_submission_id' => 'The final review after the third revised submission cannot open another revision cycle. This application is Failed.',
                     ])->errorBag('decisionRelease');
                 }
             }

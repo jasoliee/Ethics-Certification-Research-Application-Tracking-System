@@ -23,7 +23,7 @@
             <div class="login-panel login-panel-brand">
                 <div class="login-brand-content">
                     <div class="login-logo" role="img" aria-label="Kolehiyo ng Lungsod ng Dasmarinas seal"></div>
-                    <h1>Ethics Review Section<br>Submission Portal</h1>
+                    <h1>Research Ethics Unit<br>Submission Portal</h1>
                     <p>Secure access for students, advisers, reviewers, and the Research Ethics Standing Committee.</p>
                     <small>&copy; 2026 Kolehiyo ng Lungsod ng Dasmarinas</small>
                 </div>

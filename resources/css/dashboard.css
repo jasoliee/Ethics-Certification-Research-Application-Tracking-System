@@ -3176,6 +3176,11 @@
         background: #e8f1ff;
     }
 
+    .certificate-metric-icon.is-red {
+        color: #b42318;
+        background: #fff0ee;
+    }
+
     .certificate-queue-filters {
         grid-template-columns: repeat(4, minmax(150px, 1fr));
         gap: 14px;
@@ -3294,6 +3299,11 @@
     .certificate-queue-table tbody tr.is-review-conflicted {
         box-shadow: inset 4px 0 #b42318;
         background: #fff5f4;
+    }
+
+    .certificate-queue-table tbody tr.is-final-review-failed {
+        box-shadow: inset 0 0 0 2px #b42318;
+        background: #fff1f0;
     }
 
     .certificate-row-number {
@@ -10912,7 +10922,7 @@ form[class*='filter'] :is(input, select):focus-visible,
 .certificate-metric-strip > a:nth-child(2) strong,
 .certificate-metric-strip > a:nth-child(2) div span { color: #1267d5; }
 .certificate-metric-strip > a:nth-child(3) strong,
-.certificate-metric-strip > a:nth-child(3) div span { color: #087241; }
+.certificate-metric-strip > a:nth-child(3) div span { color: #b42318; }
 
 .certificate-queue-filters .application-search-field > span,
 .review-monitoring-filter-search > span {
@@ -10936,7 +10946,7 @@ form[class*='filter'] :is(input, select):focus-visible,
 }
 
 .certificate-bulk-summary dl {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 .certificate-bulk-modal .application-modal-heading,
@@ -11557,7 +11567,7 @@ form[class*='filter'] :is(input, select):focus-visible,
     .revision-version-selector-heading {
         display: grid;
         grid-template-columns: minmax(220px, 330px) minmax(0, 1fr);
-        align-items: end;
+        align-items: start;
         gap: 10px;
     }
 

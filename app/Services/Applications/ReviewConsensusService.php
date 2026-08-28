@@ -3,13 +3,16 @@
 namespace App\Services\Applications;
 
 use App\Enums\AccountStatus;
+use App\Enums\ApplicationRevisionStatus;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\ReviewConsensusStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\ReviewType;
 use App\Enums\UserRole;
+use App\Models\ApplicationRevision;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\ReviewSubmission;
@@ -87,7 +90,15 @@ class ReviewConsensusService
         $signature = $ready ? $this->signature($assignments) : null;
         $previousStatus = $application->review_consensus_status;
         $previousSignature = $application->review_consensus_signature;
+        $previousApplicationStatus = $application->application_status;
         $evaluatedAt = now();
+        $finalRevisionFailure = $status === ReviewConsensusStatus::Consensus
+            && $cycle >= ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES
+            && in_array($decisions->first(), [
+                ReviewDecision::MinorRevision->value,
+                ReviewDecision::MajorRevision->value,
+            ], true);
+        $terminalFailure = $previousApplicationStatus === ApplicationStatus::Failed || $finalRevisionFailure;
 
         $application->update([
             'review_consensus_status' => $status->value,
@@ -98,12 +109,35 @@ class ReviewConsensusService
             'review_conflicted_at' => $status === ReviewConsensusStatus::Conflicted
                 ? ($application->review_conflicted_at ?? $evaluatedAt)
                 : null,
-            ...($ready ? [
+            ...($terminalFailure ? [
+                'application_status' => ApplicationStatus::Failed->value,
+                'current_stage' => ApplicationStage::Completed->value,
+                'status_updated_at' => $evaluatedAt,
+            ] : ($ready ? [
                 'application_status' => ApplicationStatus::ReviewSubmittedPendingRelease->value,
                 'current_stage' => ApplicationStage::DecisionRelease->value,
                 'status_updated_at' => $evaluatedAt,
-            ] : []),
+            ] : [])),
         ]);
+
+        if ($finalRevisionFailure && $previousApplicationStatus !== ApplicationStatus::Failed) {
+            ApplicationRevision::query()
+                ->where('research_application_id', $application->id)
+                ->where('revision_number', $cycle)
+                ->where('status', ApplicationRevisionStatus::UnderReview->value)
+                ->update([
+                    'status' => ApplicationRevisionStatus::Completed->value,
+                    'completed_at' => $evaluatedAt,
+                ]);
+            $this->auditLog->record(null, 'application.final_revision_failed', $application, [
+                'review_cycle' => $cycle,
+                'decision' => $decisions->first(),
+                'consensus_signature' => $signature,
+                'reviewer_assignment_ids' => $assignments->pluck('id')->all(),
+                'result' => ApplicationStatus::Failed->value,
+            ]);
+            $this->notifyFinalRevisionFailure($application, $assignments);
+        }
 
         if ($status === ReviewConsensusStatus::Conflicted
             && ($previousStatus !== ReviewConsensusStatus::Conflicted || $previousSignature !== $signature)) {
@@ -221,5 +255,61 @@ class ReviewConsensusService
                     'academic_term_id' => $application->academic_term_id,
                 ]));
             }, 100);
+    }
+
+    /** @param Collection<int, ReviewerAssignment> $assignments */
+    private function notifyFinalRevisionFailure(
+        ResearchApplication $application,
+        Collection $assignments,
+    ): void {
+        $title = 'Application failed after the final revision review';
+        $message = 'The third revised submission still received a Minor or Major Revision decision. The application is now closed as Failed and cannot enter another revision cycle.';
+        $notifiedUserIds = [];
+        $notify = function (?User $user, string $route, array $parameters) use (
+            $application,
+            $title,
+            $message,
+            &$notifiedUserIds,
+        ): void {
+            if (! $user
+                || $user->account_status !== AccountStatus::Active
+                || in_array($user->id, $notifiedUserIds, true)) {
+                return;
+            }
+
+            $user->notify(new DashboardUpdateNotification([
+                'title' => $title,
+                'message' => $message,
+                'icon' => 'alert-triangle',
+                'tone' => 'red',
+                'route' => $route,
+                'route_parameters' => $parameters,
+                'academic_term_id' => $application->academic_term_id,
+            ]));
+            $notifiedUserIds[] = $user->id;
+        };
+
+        $application->loadMissing(['applicant:id,account_status', 'adviser:id,account_status']);
+        $notify($application->applicant, 'applicant.revision-certificates.index', [
+            'application' => $application->id,
+        ]);
+        $notify($application->adviser, 'adviser.applications.show', [
+            'researchApplication' => $application->id,
+        ]);
+
+        $assignments->loadMissing('reviewer:id,account_status');
+        foreach ($assignments as $assignment) {
+            $notify($assignment->reviewer, 'reviewer.assignments.show', [
+                'reviewerAssignment' => $assignment->id,
+            ]);
+        }
+
+        User::query()
+            ->where('role', UserRole::ResLead->value)
+            ->where('account_status', AccountStatus::Active->value)
+            ->select(['id', 'account_status'])
+            ->eachById(fn (User $resLead) => $notify($resLead, 'res.certificates.index', [
+                'q' => $application->application_code,
+            ]), 100);
     }
 }

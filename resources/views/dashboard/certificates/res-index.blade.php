@@ -34,11 +34,15 @@
                     <div><dt>Successfully released</dt><dd>{{ $summary['successfully_released'] }}</dd></div>
                     <div><dt>Already released</dt><dd>{{ $summary['already_released'] }}</dd></div>
                     <div><dt>Conflicted (skipped)</dt><dd>{{ $summary['conflicted'] ?? 0 }}</dd></div>
+                    <div><dt>Failed after final revision (skipped)</dt><dd>{{ $summary['max_revision_failed'] ?? 0 }}</dd></div>
                     <div><dt>Ineligible</dt><dd>{{ $summary['ineligible'] }}</dd></div>
-                    <div><dt>Failed</dt><dd>{{ $summary['failed'] }}</dd></div>
+                    <div><dt>System failures</dt><dd>{{ $summary['failed'] }}</dd></div>
                 </dl>
+                @if ($summary['max_revision_failed_application_codes'] ?? [])
+                    <p role="alert">Not released because the final review still required revision: {{ implode(', ', $summary['max_revision_failed_application_codes']) }}. These applications are already marked Failed.</p>
+                @endif
                 @if ($summary['failed_application_codes'])
-                    <p role="alert">Failed application codes: {{ implode(', ', $summary['failed_application_codes']) }}</p>
+                    <p role="alert">Applications with system processing errors: {{ implode(', ', $summary['failed_application_codes']) }}</p>
                 @endif
             </section>
         @endif
@@ -59,8 +63,8 @@
                 <div><strong>{{ $queueMetrics['pending_certificate_release'] }}</strong><span>Pending Certificate Release</span></div>
             </a>
             <a href="#certificate-queue-title">
-                <span class="certificate-metric-icon is-green"><x-dashboard.icon name="check" size="25" /></span>
-                <div><strong>{{ $queueMetrics['certificates_released'] }}</strong><span>Certificates Released</span></div>
+                <span class="certificate-metric-icon is-red"><x-dashboard.icon name="alert-triangle" size="25" /></span>
+                <div><strong>{{ $queueMetrics['final_revision_failed'] }}</strong><span>Failed After Final Revision</span></div>
             </a>
         </section>
 
@@ -83,7 +87,7 @@
                 <label for="certificate-status">Status</label>
                 <select id="certificate-status" name="status">
                     <option value="">All statuses</option>
-                    @foreach (\App\Enums\ApplicationStatus::cases() as $status)
+                    @foreach ($queueStatuses as $status)
                         <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>{{ $status->label() }}</option>
                     @endforeach
                 </select>
@@ -160,7 +164,9 @@
                                     $isReleased = $recipientCount > 0 && $readyRecipientCount === $recipientCount;
                                     $latestRelease = $application->decisionReleases->first();
                                     $isConflicted = $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted;
+                                    $isFinalReviewFailed = $application->application_status === \App\Enums\ApplicationStatus::Failed;
                                     $queueLabel = match (true) {
+                                        $isFinalReviewFailed => 'Failed - Maximum Revisions',
                                         $isConflicted => 'Conflicted Decisions',
                                         $application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease => 'Pending Decision Release',
                                         $isReleased => 'Certificate Released',
@@ -168,12 +174,17 @@
                                         default => 'Pending Certificate Release',
                                     };
                                     $queueTone = match (true) {
-                                        $isConflicted, $state === \App\Enums\CertificationState::GenerationFailed => 'red',
+                                        $isFinalReviewFailed, $isConflicted, $state === \App\Enums\CertificationState::GenerationFailed => 'red',
                                         $isReleased => 'success',
                                         $application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease => 'orange',
                                         default => 'blue',
                                     };
-                                    $decision = $latestRelease?->decision ?? $application->review_consensus_decision;
+                                    $decision = in_array($application->application_status, [
+                                        \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease,
+                                        \App\Enums\ApplicationStatus::Failed,
+                                    ], true)
+                                        ? $application->review_consensus_decision
+                                        : ($latestRelease?->decision ?? $application->review_consensus_decision);
                                     $decisionLabel = $isConflicted ? 'Conflicted' : ($decision?->label() ?? 'Pending');
                                     $decisionTone = $isConflicted ? 'red' : ($decision?->tone() ?? 'orange');
                                     $claimLabel = match (true) {
@@ -183,7 +194,7 @@
                                     };
                                     $claimTone = $claimLabel === 'Claimed' ? 'success' : 'neutral';
                                 @endphp
-                                <tr class="{{ $isConflicted ? 'is-review-conflicted' : ($isReleased ? 'is-certificate-ready' : '') }}">
+                                <tr class="{{ $isFinalReviewFailed ? 'is-final-review-failed' : ($isConflicted ? 'is-review-conflicted' : ($isReleased ? 'is-certificate-ready' : '')) }}">
                                     <td class="certificate-row-number" data-certificate-row-number="{{ $rowNumber }}">{{ $rowNumber }}</td>
                                     <td class="certificate-application-cell">
                                         <small>{{ $application->application_code }}</small>
@@ -222,7 +233,13 @@
                 $cycleAssignments = $application->reviewerAssignments->where('review_cycle', $cycle);
                 $latestRelease = $application->decisionReleases->first();
                 $isConflicted = $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted;
-                $decision = $latestRelease?->decision ?? $application->review_consensus_decision;
+                $isFinalReviewFailed = $application->application_status === \App\Enums\ApplicationStatus::Failed;
+                $decision = in_array($application->application_status, [
+                    \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease,
+                    \App\Enums\ApplicationStatus::Failed,
+                ], true)
+                    ? $application->review_consensus_decision
+                    : ($latestRelease?->decision ?? $application->review_consensus_decision);
                 $reopenApplicationDialog = $dialogApplicationId === $application->id
                     && ($errors->decisionRelease->any() || $errors->certificateRelease->any());
             @endphp
@@ -252,14 +269,17 @@
                         </dl>
                     </section>
 
-                    @if ($application->application_status === \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease)
+                    @if (in_array($application->application_status, [
+                        \App\Enums\ApplicationStatus::ReviewSubmittedPendingRelease,
+                        \App\Enums\ApplicationStatus::Failed,
+                    ], true))
                         <section class="certificate-modal-section certificate-decision-workspace" aria-labelledby="certificate-decision-{{ $application->id }}">
                             <div class="certificate-modal-section-heading">
                                 <div><h3 id="certificate-decision-{{ $application->id }}">Submitted Reviewer Decisions</h3></div>
                             </div>
                             <div class="certificate-modal-actions">
                                 <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="file-search" size="17" /><span>Open Workspace</span></a>
-                                @if (! $isConflicted && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus)
+                                @if ($isFinalReviewFailed || (! $isConflicted && $application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus))
                                     <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
                                         @csrf
                                         <input type="hidden" name="application_id" value="{{ $application->id }}">
@@ -269,6 +289,8 @@
                             </div>
                             @if ($isConflicted)
                                 <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
+                            @elseif ($isFinalReviewFailed)
+                                <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Application already failed.</strong><span>The final review of the third revised submission still requires revision. No additional revision cycle or decision release is allowed.</span></div></div>
                             @endif
                         </section>
                     @endif

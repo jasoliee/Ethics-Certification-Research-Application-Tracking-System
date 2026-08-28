@@ -4,12 +4,17 @@ namespace Tests\Feature\Dashboard;
 
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
+use App\Enums\BulkReleaseType;
 use App\Enums\ReviewDecision;
+use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
+use App\Services\Applications\ReviewConsensusService;
+use App\Services\Certificates\BulkReleaseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -24,6 +29,9 @@ class ResCertificateProcessingPageTest extends TestCase
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $eligible = $this->application('ELIGIBLE', ApplicationStatus::ResultReleasedAccepted, $resLead);
         $pending = $this->application('PENDING', ApplicationStatus::ReviewSubmittedPendingRelease, $resLead);
+        $failed = $this->application('FAILED-FIRST', ApplicationStatus::Failed, $resLead);
+        $failed->update(['status_updated_at' => now()->subYear()]);
+        $released = $this->application('ALREADY-RELEASED', ApplicationStatus::CertificateReleased, $resLead);
 
         $response = $this->actingAs($resLead)->get(route('res.certificates.index'));
 
@@ -31,11 +39,14 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertViewHas('queueMetrics', [
                 'pending_decision_release' => 1,
                 'pending_certificate_release' => 1,
-                'certificates_released' => 0,
+                'final_revision_failed' => 1,
             ])
             ->assertSee('Decision &amp; Certificates', false)
             ->assertSee('Pending Decision Release')
             ->assertSee('Pending Certificate Release')
+            ->assertSee('Failed After Final Revision')
+            ->assertSeeInOrder([$failed->application_code, $pending->application_code])
+            ->assertSee('is-final-review-failed', false)
             ->assertSee('Decision &amp; Certificate Queue', false)
             ->assertSeeInOrder(['Status', 'Decision', 'Claim', 'Last Updated', 'Action'])
             ->assertDontSee('Manage Certificate Background')
@@ -59,7 +70,9 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertDontSee($eligible->applicant->name)
             ->assertDontSee($pending->applicant->name)
             ->assertSee($eligible->research_title)
-            ->assertSee($pending->research_title);
+            ->assertSee($pending->research_title)
+            ->assertDontSee($released->research_title)
+            ->assertDontSee('data-certificate-application-dialog="'.$released->id.'"', false);
 
         $css = (string) file_get_contents(resource_path('css/dashboard.css'));
         $this->assertMatchesRegularExpression(
@@ -126,6 +139,65 @@ class ResCertificateProcessingPageTest extends TestCase
         $this->assertDatabaseMissing('application_decision_releases', [
             'research_application_id' => $pending->id,
         ]);
+    }
+
+    public function test_bulk_decision_release_skips_final_revision_failures_but_releases_every_valid_application(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $failed = $this->application('FINAL-FAILED', ApplicationStatus::Failed, $resLead);
+        $failed->update([
+            'current_stage' => ApplicationStage::Completed,
+            'current_revision_cycle' => 4,
+            'review_consensus_cycle' => 3,
+            'review_consensus_decision' => ReviewDecision::MajorRevision,
+        ]);
+        $valid = $this->application('VALID-DECISION', ApplicationStatus::ReviewSubmittedPendingRelease, $resLead);
+        $valid->update([
+            'review_type' => 'expedited',
+            'current_revision_cycle' => 1,
+        ]);
+        $reviewer = User::factory()->reviewer(['Expedited'])->create();
+        $assignment = ReviewerAssignment::factory()->create([
+            'research_application_id' => $valid->id,
+            'reviewer_user_id' => $reviewer->id,
+            'review_type' => 'initial_review',
+            'review_cycle' => 0,
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now(),
+        ]);
+        $assignment->reviewSubmission()->create([
+            'status' => ReviewSubmissionStatus::Submitted,
+            'decision' => ReviewDecision::Disapproved,
+            'decision_comment' => 'This valid pending decision should still be released.',
+            'submitted_at' => now(),
+        ]);
+        app(ReviewConsensusService::class)->evaluate($valid);
+
+        $summary = app(BulkReleaseService::class)->release($resLead, BulkReleaseType::Decision);
+
+        $this->assertSame(1, $summary['eligible']);
+        $this->assertSame(1, $summary['successfully_released']);
+        $this->assertSame(1, $summary['max_revision_failed']);
+        $this->assertSame([$failed->application_code], $summary['max_revision_failed_application_codes']);
+        $this->assertSame(ApplicationStatus::ResultReleasedDisapproved, $valid->refresh()->application_status);
+        $this->assertSame(ApplicationStatus::Failed, $failed->refresh()->application_status);
+        $this->assertDatabaseHas('application_decision_releases', [
+            'research_application_id' => $valid->id,
+            'decision' => ReviewDecision::Disapproved->value,
+        ]);
+        $this->assertDatabaseMissing('application_decision_releases', [
+            'research_application_id' => $failed->id,
+            'review_cycle' => 3,
+        ]);
+
+        $this->actingAs($resLead)
+            ->withSession(['bulk_certificate_summary' => $summary])
+            ->get(route('res.certificates.index'))
+            ->assertOk()
+            ->assertSee('Failed after final revision (skipped)')
+            ->assertSee($failed->application_code)
+            ->assertSee('These applications are already marked Failed.');
     }
 
     public function test_non_res_user_cannot_open_certificate_processing(): void

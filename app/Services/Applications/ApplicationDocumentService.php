@@ -279,9 +279,9 @@ class ApplicationDocumentService
                     ? (int) $existingRevisionReplacement->document_version
                     : max(1, (int) $documents->max('document_version')) + 1;
 
-                if ($targetVersion > 3) {
+                if ($targetVersion > 4) {
                     throw ValidationException::withMessages([
-                        'document' => 'The maximum business document version (Version 3) has been reached.',
+                        'document' => 'The maximum business document version (Version 4) has been reached.',
                     ])->errorBag('revisionUpload');
                 }
 

@@ -47,20 +47,23 @@ class ResCertificationController extends Controller
             'claim' => ['nullable', Rule::in(['claimed', 'unclaimed', 'unavailable'])],
             'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
+        $queueStatuses = [
+            ApplicationStatus::ReviewSubmittedPendingRelease,
+            ApplicationStatus::Failed,
+            ApplicationStatus::ResultReleasedAccepted,
+            ApplicationStatus::ForCertificateRelease,
+            ApplicationStatus::Exempted,
+        ];
         $relevantApplications = ResearchApplication::query()
-            ->where(function (Builder $query): void {
-                $query->whereIn('application_status', [
-                    ApplicationStatus::ReviewSubmittedPendingRelease->value,
-                    ApplicationStatus::RevisionWindowOpen->value,
-                    ApplicationStatus::RevisionSubmitted->value,
-                    ApplicationStatus::UnderReReview->value,
-                    ApplicationStatus::ResultReleasedMinorRevision->value,
-                    ApplicationStatus::ResultReleasedMajorRevision->value,
-                    ApplicationStatus::ResultReleasedAccepted->value,
-                    ApplicationStatus::ForCertificateRelease->value,
-                    ApplicationStatus::Exempted->value,
-                    ApplicationStatus::CertificateReleased->value,
-                ])->orWhereHas('certificates');
+            ->where(function (Builder $query) use ($queueStatuses): void {
+                $query->whereIn('application_status', ApplicationStatus::values($queueStatuses))
+                    ->orWhere(function (Builder $incompleteRelease): void {
+                        $incompleteRelease
+                            ->where('application_status', ApplicationStatus::CertificateReleased->value)
+                            ->whereHas('certificates')
+                            ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
+                                ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)));
+                    });
             });
         $terms->applyFilters($relevantApplications, $filters);
         (clone $relevantApplications)
@@ -81,10 +84,8 @@ class ResCertificationController extends Controller
                 ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
                     ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
                 ->count(),
-            'certificates_released' => (clone $relevantApplications)
-                ->whereHas('certificateRecipients')
-                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
-                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
+            'final_revision_failed' => (clone $relevantApplications)
+                ->where('application_status', ApplicationStatus::Failed->value)
                 ->count(),
         ];
         $applications = (clone $relevantApplications)
@@ -136,6 +137,7 @@ class ResCertificationController extends Controller
                     ->orderBy('review_cycle')
                     ->orderBy('id'),
             ])
+            ->orderByRaw('CASE WHEN application_status = ? THEN 0 ELSE 1 END', [ApplicationStatus::Failed->value])
             ->orderByRaw('CASE WHEN review_consensus_status = ? THEN 0 ELSE 1 END', [ReviewConsensusStatus::Conflicted->value])
             ->latest('status_updated_at')
             ->latest('id')
@@ -152,6 +154,7 @@ class ResCertificationController extends Controller
             'queueMetrics' => $queueMetrics,
             'certificationStates' => $states,
             'filters' => $filters,
+            'queueStatuses' => $queueStatuses,
             'termOptions' => $terms->filterOptions(),
             'bulkEligibleCounts' => $bulkReleases->eligibleCounts($request->user()),
             'breadcrumbs' => [

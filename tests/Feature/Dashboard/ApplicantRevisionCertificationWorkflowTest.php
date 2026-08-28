@@ -28,7 +28,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ApplicantRevisionCertificationWorkflowTest extends TestCase
@@ -202,7 +201,7 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.certificates.index'))
             ->assertOk()
-            ->assertSee($application->application_code);
+            ->assertDontSee($application->application_code);
         $this->actingAs($applicant)
             ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
             ->assertOk()
@@ -416,48 +415,142 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_a_third_revision_cycle_is_rejected_before_any_release_is_persisted(): void
+    public function test_the_third_revised_submission_receives_a_final_review_and_another_revision_decision_marks_it_failed(): void
     {
         Storage::fake('local');
         Notification::fake();
-        [, $reviewer, $resLead, $application, , $document] = $this->reviewedApplication();
-        $application->update(['current_revision_cycle' => 3]);
-        $thirdCycleAssignment = ReviewerAssignment::factory()->create([
-            'research_application_id' => $application->id,
-            'reviewer_user_id' => $reviewer->id,
-            'review_type' => 'revision_review',
-            'review_cycle' => 2,
-            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
-            'assignment_sequence' => 2,
-            'submitted_at' => now()->subHour(),
+        [$applicant, $reviewer, $resLead, $application, $currentAssignment, $currentDocument] = $this->reviewedApplication();
+        $reviewer->update([
+            'role' => UserRole::Adviser,
+            'reviewer_enabled' => true,
+            'reviewer_classification' => 'Expedited',
+            'reviewer_classifications' => ['Expedited'],
+            'reviewer_capacity' => 6,
         ]);
-        $thirdCycleAssignment->reviewSubmission()->create([
-            'status' => ReviewSubmissionStatus::Submitted,
-            'decision' => ReviewDecision::MinorRevision,
-            'submitted_at' => now()->subHour(),
+        $adviser = User::factory()->create(['role' => UserRole::Adviser]);
+        $application->update([
+            'adviser_user_id' => $adviser->id,
+            'review_type' => 'expedited',
         ]);
-        $comment = ReviewComment::create([
-            'reviewer_assignment_id' => $thirdCycleAssignment->id,
-            'application_document_id' => $document->id,
-            'scope' => ReviewCommentScope::Document,
-            'category' => ReviewCommentCategory::RequiredRevision,
-            'body' => 'A third revision must not be opened.',
-        ]);
+        $this->openWindow('revision-period', UserRole::Applicant);
+        $this->openWindow('reviewing-revision-period', UserRole::Reviewer);
+        $workflow = app(ApplicationRevisionWorkflowService::class);
+        $documents = app(ApplicationDocumentService::class);
+        $consensus = app(ReviewConsensusService::class);
 
-        try {
-            app(ApplicationRevisionWorkflowService::class)->releaseDecision(
+        foreach (range(1, ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES) as $revisionNumber) {
+            $currentAssignment->comments()->create([
+                'application_document_id' => $currentDocument->id,
+                'scope' => ReviewCommentScope::Document,
+                'category' => ReviewCommentCategory::RequiredRevision,
+                'body' => "Revision cycle {$revisionNumber} requires another document version.",
+            ]);
+            $workflow->releaseDecision(
                 $resLead,
                 $application->refresh(),
-                $thirdCycleAssignment->reviewSubmission,
+                $currentAssignment->reviewSubmission,
             );
-            $this->fail('The maximum revision cycle boundary must be enforced.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('review_submission_id', $exception->errors());
+            $revision = $application->revisions()
+                ->with('requirements')
+                ->where('revision_number', $revisionNumber)
+                ->firstOrFail();
+            $this->assertSame(ApplicationStatus::RevisionWindowOpen, $application->refresh()->application_status);
+
+            $currentDocument = $documents->uploadRevision(
+                $applicant,
+                $application,
+                $revision,
+                $revision->requirements->firstOrFail(),
+                UploadedFile::fake()->createWithContent(
+                    "protocol-revision-{$revisionNumber}.pdf",
+                    "%PDF-1.4 revision {$revisionNumber}",
+                ),
+            );
+            $workflow->submitRevision($applicant, $application->refresh(), $revision->refresh());
+            $currentAssignment = ReviewerAssignment::query()
+                ->where('research_application_id', $application->id)
+                ->where('review_cycle', $revisionNumber)
+                ->firstOrFail();
+
+            if ($revisionNumber < ApplicationRevisionWorkflowService::MAX_REVISION_CYCLES) {
+                $currentAssignment->reviewSubmission()->create([
+                    'status' => ReviewSubmissionStatus::Submitted,
+                    'decision' => ReviewDecision::MinorRevision,
+                    'decision_comment' => "Revision {$revisionNumber} still requires correction.",
+                    'submitted_at' => now(),
+                ]);
+                $currentAssignment->update([
+                    'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+                    'submitted_at' => now(),
+                ]);
+                $consensus->evaluate($application->refresh());
+            }
         }
 
-        $this->assertSame(0, $application->decisionReleases()->count());
-        $this->assertNull($comment->refresh()->released_at);
-        $this->assertSame(ApplicationStatus::ReviewSubmittedPendingRelease, $application->refresh()->application_status);
+        $this->assertSame(4, $application->refresh()->current_revision_cycle);
+        $this->assertSame(ApplicationStatus::UnderReReview, $application->application_status);
+        $finalComment = 'The third revised document still requires a major revision.';
+        $currentAssignment->comments()->create([
+            'application_document_id' => $currentDocument->id,
+            'scope' => ReviewCommentScope::Document,
+            'category' => ReviewCommentCategory::RequiredRevision,
+            'body' => $finalComment,
+        ]);
+        $currentAssignment->reviewSubmission()->create([
+            'status' => ReviewSubmissionStatus::Submitted,
+            'decision' => ReviewDecision::MajorRevision,
+            'decision_comment' => 'The final review did not meet the approval criteria.',
+            'submitted_at' => now(),
+        ]);
+        $currentAssignment->update([
+            'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            'submitted_at' => now(),
+        ]);
+
+        $evaluated = $consensus->evaluate($application->refresh());
+
+        $this->assertSame(ApplicationStatus::Failed, $evaluated->application_status);
+        $this->assertSame(ApplicationStage::Completed, $evaluated->current_stage);
+        $this->assertSame(3, $evaluated->review_consensus_cycle);
+        $this->assertSame(ReviewDecision::MajorRevision, $evaluated->review_consensus_decision);
+        $this->assertSame(3, $application->decisionReleases()->count());
+        $this->assertDatabaseMissing('application_decision_releases', [
+            'research_application_id' => $application->id,
+            'review_cycle' => 3,
+        ]);
+        $this->assertSame(3, $application->revisions()
+            ->where('status', ApplicationRevisionStatus::Completed->value)
+            ->count());
+
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index'))
+            ->assertOk()
+            ->assertSeeInOrder([$application->application_code, 'Failed - Maximum Revisions'])
+            ->assertSee('is-final-review-failed', false)
+            ->assertSee('Application already failed.');
+        $this->actingAs($resLead)
+            ->from(route('res.certificates.index'))
+            ->post(route('res.certificates.decisions.release', $application), [
+                'application_id' => $application->id,
+            ])
+            ->assertRedirect(route('res.certificates.index'))
+            ->assertSessionHasErrorsIn('decisionRelease', ['review_submission_id']);
+        $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertSee('Failed')
+            ->assertSee($finalComment)
+            ->assertSee('The final review did not meet the approval criteria.');
+        $this->actingAs($adviser)
+            ->get(route('adviser.applications.index'))
+            ->assertOk()
+            ->assertSee($application->application_code)
+            ->assertSee('Failed');
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.assignments.index', ['tab' => 'completed']))
+            ->assertOk()
+            ->assertSee($application->application_code)
+            ->assertSee('Failed');
     }
 
     /** @return array{User, User, User, ResearchApplication, ReviewerAssignment, ApplicationDocument} */

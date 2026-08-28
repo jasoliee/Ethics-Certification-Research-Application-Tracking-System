@@ -30,7 +30,8 @@
                     <div><dt>Research Type</dt><dd>{{ $application->research_type?->label() ?? 'Not specified' }}</dd></div>
                     <div><dt>Review Type</dt><dd>{{ Str::headline($assignment->review_type) }}</dd></div>
                     <div><dt>Classification</dt><dd>{{ filled($application->review_type) ? Str::headline($application->review_type) : 'Not specified' }}</dd></div>
-                    <div><dt>Status</dt><dd><x-dashboard.status-badge :label="$assignment->assignment_status->label()" :tone="$assignment->assignment_status->tone()" /></dd></div>
+                    <div><dt>Assignment Status</dt><dd><x-dashboard.status-badge :label="$assignment->assignment_status->label()" :tone="$assignment->assignment_status->tone()" /></dd></div>
+                    <div><dt>Application Status</dt><dd><x-dashboard.status-badge :label="$application->application_status->label()" :tone="$application->application_status->tone()" /></dd></div>
                     <div><dt>Date Assigned</dt><dd>{{ $assignment->assigned_at?->format('M j, Y g:i A') ?? 'Not configured' }}</dd></div>
                     <div><dt>Deadline</dt><dd>{{ $assignment->review_deadline_at?->format('M j, Y g:i A') ?? 'Not configured' }}</dd></div>
                 </dl>
