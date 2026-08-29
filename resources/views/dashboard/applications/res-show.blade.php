@@ -193,7 +193,7 @@
 
                         <div class="application-field res-classification-reason">
                             <label for="classification_reason">Reason / Basis for Classification</label>
-                            <textarea id="classification_reason" name="classification_reason" rows="8" minlength="15" maxlength="2000" required>{{ old('classification_reason', $screeningDraft['classification_reason'] ?? ($isEditingScreening ? $screening->classification_reason : '')) }}</textarea>
+                            <textarea id="classification_reason" name="classification_reason" rows="8" minlength="5" maxlength="2000" required>{{ old('classification_reason', $screeningDraft['classification_reason'] ?? ($isEditingScreening ? $screening->classification_reason : '')) }}</textarea>
                             @error('classification_reason', 'resScreening')<small class="application-field-error">{{ $message }}</small>@enderror
                         </div>
                     </div>

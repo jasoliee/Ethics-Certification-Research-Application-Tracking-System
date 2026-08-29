@@ -66,7 +66,9 @@
                     </header>
 
                     {{-- Filter and selection forms are siblings inside one panel, avoiding invalid nested forms. --}}
-                    <form class="res-reviewer-filter-bar" method="GET" action="{{ route('res.applications.reviewers.index', $application) }}">
+                    <form class="res-reviewer-filter-bar unified-filter-panel" method="GET" action="{{ route('res.applications.reviewers.index', $application) }}">
+                        <x-dashboard.filter-header description="Refine eligible reviewer candidates." :reset-href="route('res.applications.reviewers.index', $application)" />
+                        <div class="unified-filter-fields">
                         <div class="application-field application-search-field">
                             <label for="reviewer-q">Search Reviewer</label>
                             <span><x-dashboard.icon name="search" size="18" /></span>
@@ -81,8 +83,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Filter</span></button>
-                        <a class="dashboard-outline-action" href="{{ route('res.applications.reviewers.index', $application) }}">Reset</a>
+                        </div>
                     </form>
 
                     @if ($errors->reviewerAssignment->any())
@@ -174,7 +175,7 @@
                         {{-- The form attribute preserves server validation and audit handling while placing this field with the save action. --}}
                         <div class="application-field res-reassignment-reason">
                             <label for="reassignment_reason">Reason for Reassignment</label>
-                            <textarea id="reassignment_reason" name="reassignment_reason" rows="3" minlength="10" maxlength="1000" form="res-reviewer-assignment-form">{{ old('reassignment_reason') }}</textarea>
+                            <textarea id="reassignment_reason" name="reassignment_reason" rows="3" minlength="5" maxlength="1000" form="res-reviewer-assignment-form">{{ old('reassignment_reason') }}</textarea>
                             @error('reassignment_reason', 'reviewerAssignment')<small class="application-field-error">{{ $message }}</small>@enderror
                         </div>
                     @endif

@@ -3,6 +3,9 @@
 @section('content')
     @php
         $query = array_filter($filters, fn ($value) => filled($value));
+        $summaryFilterQuery = collect($query)
+            ->except(['summary_filter', 'application_status', 'certificate_status', 'applications_page'])
+            ->all();
         $summaryCards = [
             ['label' => 'Unique Applicants', 'key' => 'unique_applicants', 'icon' => 'users', 'tone' => 'green'],
             ['label' => 'Applications Submitted', 'key' => 'submitted', 'icon' => 'file-text', 'tone' => 'blue'],
@@ -23,8 +26,9 @@
             </div>
         </header>
 
-        <form class="report-filter-panel" method="GET" action="{{ route('res.reports.index') }}">
-            <div class="report-filter-grid">
+        <form class="report-filter-panel unified-filter-panel" method="GET" action="{{ route('res.reports.index') }}">
+            <x-dashboard.filter-header description="Refine reporting results across the selected period." :reset-href="route('res.reports.index')" />
+            <div class="report-filter-grid unified-filter-fields">
                 <label class="report-filter-search"><span>Search</span><input type="search" name="q" value="{{ $filters['q'] ?? '' }}" maxlength="100" placeholder="Application code or research title"></label>
                 <label><span>Academic Term</span><select name="academic_term_id"><option value="">All terms</option>@foreach ($termOptions as $term)<option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>@endforeach</select></label>
                 <label><span>Institute</span><select name="institute"><option value="">All institutes</option>@foreach ($institutes as $institute)<option value="{{ $institute }}" @selected(($filters['institute'] ?? '') === $institute)>{{ $institute }}</option>@endforeach</select></label>
@@ -36,17 +40,21 @@
                 <label><span>Date From</span><input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}"></label>
                 <label><span>Date To</span><input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}"></label>
             </div>
-            <div class="report-filter-actions">
-                <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="search" size="18" />Apply Filters</button>
-                <a class="dashboard-outline-action" href="{{ route('res.reports.index') }}">Reset</a>
-            </div>
         </form>
 
         <section class="application-panel report-overall-card" aria-labelledby="overall-summary-title">
             <header class="application-panel-heading"><h2 id="overall-summary-title">Overall Summary</h2></header>
             <div class="report-summary-grid">
                 @foreach ($summaryCards as $card)
-                    <x-dashboard.summary-card :label="$card['label']" :count="$report['summary'][$card['key']]" :icon="$card['icon']" :tone="$card['tone']" />
+                    @php($cardUrl = route('res.reports.index', array_merge($summaryFilterQuery, ['summary_filter' => $card['key']])).'#filtered-application-list')
+                    <x-dashboard.summary-card
+                        :label="$card['label']"
+                        :count="$report['summary'][$card['key']]"
+                        :icon="$card['icon']"
+                        :tone="$card['tone']"
+                        :href="$cardUrl"
+                        :active="($filters['summary_filter'] ?? null) === $card['key']"
+                    />
                 @endforeach
             </div>
             <div class="report-classification-strip" aria-label="Review classification summary">
@@ -70,7 +78,7 @@
             </x-dashboard.overflow>
         </section>
 
-        <section class="application-panel" aria-labelledby="application-list-title">
+        <section id="filtered-application-list" class="application-panel" aria-labelledby="application-list-title">
             <header class="application-panel-heading"><h2 id="application-list-title">Filtered Application List</h2><span class="status-badge status-badge-green">Double-blind</span></header>
             <x-dashboard.overflow label="Filtered double-blind application list">
                 <table class="dashboard-table report-table">

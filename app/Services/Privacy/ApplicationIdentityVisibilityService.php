@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Centralizes the double-blind boundary for REU-facing applicant identity.
  *
- * An application may identify its Applicant only after every configured
- * recipient has an issued certificate in a released or claimed state.
+ * An application may identify its Applicant only after the latest released
+ * decision is Approved and every configured recipient has an issued
+ * certificate in a released or claimed state.
  */
 class ApplicationIdentityVisibilityService
 {
@@ -20,7 +21,12 @@ class ApplicationIdentityVisibilityService
     {
         return $applications
             ->whereHas('decisionReleases', fn (Builder $decisions) => $decisions
-                ->where('decision', ReviewDecision::Approved->value))
+                ->where('decision', ReviewDecision::Approved->value)
+                ->whereNotExists(fn ($newer) => $newer
+                    ->selectRaw('1')
+                    ->from('application_decision_releases as newer_releases')
+                    ->whereColumn('newer_releases.research_application_id', 'application_decision_releases.research_application_id')
+                    ->whereColumn('newer_releases.id', '>', 'application_decision_releases.id')))
             ->whereHas('certificates')
             ->whereDoesntHave('certificates', fn (Builder $certificates) => $certificates
                 ->whereNotIn('status', [

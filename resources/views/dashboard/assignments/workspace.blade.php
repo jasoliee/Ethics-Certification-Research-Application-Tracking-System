@@ -646,7 +646,7 @@
                                 <label><input type="radio" name="consent_required" value="0" @checked((string) $consentValue === '0') @disabled(! $formCanWrite)> No</label>
                                 <label class="application-field reviewer-consent-explanation" data-reviewer-consent-explanation @if ((string) $consentValue !== '0') hidden @endif>
                                     <span>If NO, please explain (answer briefly)</span>
-                                    <textarea name="consent_not_required_explanation" rows="3" minlength="10" maxlength="2000" data-reviewer-consent-explanation-input @disabled(! $formCanWrite || (string) $consentValue !== '0') @required($formCanWrite && (string) $consentValue === '0')>{{ old('form_type') === $type->value ? old('consent_not_required_explanation') : $form?->consent_not_required_explanation }}</textarea>
+                                    <textarea name="consent_not_required_explanation" rows="3" minlength="5" maxlength="2000" data-reviewer-consent-explanation-input @disabled(! $formCanWrite || (string) $consentValue !== '0') @required($formCanWrite && (string) $consentValue === '0')>{{ old('form_type') === $type->value ? old('consent_not_required_explanation') : $form?->consent_not_required_explanation }}</textarea>
                                 </label>
                             </fieldset>
                         @endif

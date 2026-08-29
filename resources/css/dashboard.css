@@ -10355,6 +10355,216 @@
     }
 }
 
+/* Shared role-neutral filter layout. Important grid declarations prevent older
+   page-specific layouts from moving commands back into the field rows. */
+.unified-filter-panel {
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    padding: 20px !important;
+    margin: 0 0 18px;
+    border: 1px solid #dbe5df;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgb(17 54 34 / 4%);
+}
+
+.unified-filter-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.unified-filter-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.unified-filter-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    color: #17864f;
+    border: 1px solid #bcdcca;
+    border-radius: 9px;
+    background: #eef8f2;
+}
+
+.unified-filter-title > span:last-child {
+    display: grid;
+    gap: 2px;
+}
+
+.unified-filter-title strong {
+    color: #102019;
+    font-size: 18px;
+    line-height: 1.2;
+}
+
+.unified-filter-title small {
+    color: #67766e;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.unified-filter-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+.unified-filter-actions > * {
+    min-height: 42px;
+    justify-content: center;
+}
+
+.unified-filter-fields {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    align-items: end !important;
+}
+
+.unified-filter-fields > * {
+    min-width: 0;
+}
+
+.unified-filter-fields > .unified-filter-search,
+.unified-filter-fields > .application-search-field,
+.unified-filter-fields > .identity-filter-search,
+.unified-filter-fields > .report-filter-search,
+.unified-filter-fields > .certificate-filter-search,
+.unified-filter-fields > .review-monitoring-filter-search {
+    grid-column: span 2;
+}
+
+.unified-filter-fields label,
+.unified-filter-fields .application-field-label {
+    color: #24342b;
+    font-weight: 700;
+}
+
+.unified-filter-fields input,
+.unified-filter-fields select {
+    width: 100%;
+    min-height: 42px;
+}
+
+.report-summary-grid .dashboard-summary-card[href] {
+    text-decoration: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.settings-school-year-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-school-year-fields > span {
+    color: #6b7971;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.settings-security-heading {
+    justify-content: center;
+    text-align: center;
+}
+
+.settings-background-header-actions .settings-background-link {
+    font-size: 12px;
+}
+
+.reviewer-form-actions {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(145px, 1fr));
+    align-items: stretch;
+    width: 100%;
+    gap: 10px;
+}
+
+.reviewer-form-actions .reviewer-form-artifact-actions,
+.reviewer-form-actions .reviewer-form-submit-actions {
+    display: contents !important;
+}
+
+.reviewer-form-actions .reviewer-form-artifact-actions > *,
+.reviewer-form-actions .reviewer-form-submit-actions > * {
+    width: 100% !important;
+    min-height: 44px;
+}
+
+@media (max-width: 820px) {
+    .reviewer-form-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .reviewer-form-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.report-summary-grid .dashboard-summary-card[href]:hover,
+.report-summary-grid .dashboard-summary-card[href]:focus-visible,
+.report-summary-grid .dashboard-summary-card.is-active {
+    border-color: #17864f;
+    box-shadow: 0 7px 18px rgb(18 104 61 / 14%);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 1100px) {
+    .unified-filter-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 680px) {
+    .unified-filter-panel {
+        padding: 16px !important;
+    }
+
+    .unified-filter-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .unified-filter-actions,
+    .unified-filter-actions > * {
+        width: 100%;
+    }
+
+    .unified-filter-actions > * {
+        flex: 1 1 0;
+    }
+
+    .unified-filter-fields {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .unified-filter-fields > .unified-filter-search,
+    .unified-filter-fields > .application-search-field,
+    .unified-filter-fields > .identity-filter-search,
+    .unified-filter-fields > .report-filter-search,
+    .unified-filter-fields > .certificate-filter-search,
+    .unified-filter-fields > .review-monitoring-filter-search {
+        grid-column: auto;
+    }
+}
+
 /* ENDGAME responsive and alignment audit overrides. */
 form[class*='filter'] :is(input, select):hover,
 form[class*='filter'] :is(input, select):focus-visible,

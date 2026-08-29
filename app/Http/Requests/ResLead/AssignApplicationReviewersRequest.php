@@ -47,7 +47,7 @@ class AssignApplicationReviewersRequest extends FormRequest
             'reviewer_ids' => ['required', 'array', 'size:'.$requiredCount],
             'reviewer_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
             'confirm_assignment' => ['required', 'accepted'],
-            'reassignment_reason' => [$isReassignment ? 'required' : 'nullable', 'string', 'min:10', 'max:1000'],
+            'reassignment_reason' => [$isReassignment ? 'required' : 'nullable', 'string', 'min:5', 'max:1000'],
         ];
     }
 

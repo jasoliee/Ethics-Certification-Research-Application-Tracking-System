@@ -38,7 +38,7 @@ class DashboardNavigationTest extends TestCase
     {
         foreach (UserRole::cases() as $role) {
             $user = User::factory()->create(['role' => $role]);
-            $homeRoute = DashboardNavigation::for($role)[0]['route'];
+            $homeRoute = RoleHome::routeNameFor($role);
 
             $this->actingAs($user)
                 ->get(route($homeRoute))

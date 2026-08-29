@@ -9,7 +9,7 @@
         ];
         $deadlineHasErrors = collect($errors->keys())->contains(
             fn (string $key): bool => str_starts_with($key, 'processes.')
-                || in_array($key, ['semester', 'academic_year', 'term_starts_on', 'term_ends_on', 'academic_term'], true)
+                || in_array($key, ['semester', 'academic_year', 'academic_year_start', 'academic_year_end', 'term_starts_on', 'term_ends_on', 'academic_term'], true)
         );
         $profileHasErrors = collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'position_title'])
             ->contains(fn (string $field): bool => $errors->has($field));
@@ -98,7 +98,6 @@
                     <span><x-dashboard.icon name="user" size="23" /></span>
                     <div>
                         <h2 id="profile-settings-title">Profile</h2>
-                        <p>Review your managed account identity and current active term.</p>
                     </div>
                 </div>
 
@@ -182,7 +181,8 @@
         >
             <section class="settings-section" aria-labelledby="dropdown-options-title">
                 <div class="settings-section-heading">
-                    <h2 id="dropdown-options-title">Dropdown Options</h2>
+                    <span><x-dashboard.icon name="settings" size="23" /></span>
+                    <div><h2 id="dropdown-options-title">Dropdown Options</h2></div>
                 </div>
 
                 @php
@@ -286,6 +286,7 @@
         >
             <section class="settings-section" aria-labelledby="background-management-title">
                 <div class="settings-section-heading settings-background-heading">
+                    <span><x-dashboard.icon name="image" size="23" /></span>
                     <div><h2 id="background-management-title">Background Management</h2></div>
                 </div>
 
@@ -416,18 +417,28 @@
                             <h3 id="term-settings-title">Semester and Academic Year</h3>
                             <div class="settings-term-fields">
                                 <div class="settings-field">
-                                    <label for="semester">Semester</label>
+                                    <label for="semester">Academic Semester</label>
                                     <select id="semester" name="semester" required>
                                         <option value="">Select semester</option>
                                         @foreach ($semesterOptions as $semester)<option value="{{ $semester }}" @selected(old('semester', $configuredTerm?->semester) === $semester)>{{ $semester }}</option>@endforeach
                                     </select>
                                 </div>
                                 <div class="settings-field">
-                                    <label for="academic_year">Academic Year</label>
-                                    <select id="academic_year" name="academic_year" required>
-                                        <option value="">Select school year</option>
-                                        @foreach ($academicYearOptions as $academicYear)<option value="{{ $academicYear }}" @selected(old('academic_year', $configuredTerm?->academic_year) === $academicYear)>{{ $academicYear }}</option>@endforeach
-                                    </select>
+                                    @php
+                                        $configuredSchoolYears = explode('-', (string) ($configuredTerm?->academic_year ?? ''));
+                                    @endphp
+                                    <label for="academic_year_start">School Year</label>
+                                    <div class="settings-school-year-fields">
+                                        <select id="academic_year_start" name="academic_year_start" aria-label="School year starting year" required>
+                                            <option value="">Start year</option>
+                                            @foreach ($schoolYearOptions as $year)<option value="{{ $year }}" @selected((string) old('academic_year_start', $configuredSchoolYears[0] ?? '') === (string) $year)>{{ $year }}</option>@endforeach
+                                        </select>
+                                        <span aria-hidden="true">to</span>
+                                        <select id="academic_year_end" name="academic_year_end" aria-label="School year ending year" required>
+                                            <option value="">End year</option>
+                                            @foreach ($schoolYearOptions as $year)<option value="{{ $year }}" @selected((string) old('academic_year_end', $configuredSchoolYears[1] ?? '') === (string) $year)>{{ $year }}</option>@endforeach
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="settings-field settings-date-field">
                                     <label for="term_starts_on">Starting Date</label>
@@ -578,7 +589,7 @@
             @if ($initialTab !== 'security') hidden @endif
         >
             <section class="settings-section" aria-labelledby="security-settings-title">
-                <div class="settings-section-heading">
+                <div class="settings-section-heading settings-security-heading">
                     <span><x-dashboard.icon name="lock" size="23" /></span>
                     <div>
                         <h2 id="security-settings-title">Security and Privacy</h2>

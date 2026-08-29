@@ -34,7 +34,7 @@ class ImportManagedUsersRequest extends FormRequest
         return [
             'accounts_file.extensions' => 'Upload a standard .xlsx workbook. CSV, legacy Excel, and macro-enabled files are not accepted.',
             'accounts_file.mimetypes' => 'The uploaded file content must be a standard macro-free XLSX workbook.',
-            'accounts_file.max' => 'The Excel file must not exceed 2 MB.',
+            'accounts_file.max' => 'The Excel file must not exceed 100 MB.',
         ];
     }
 }

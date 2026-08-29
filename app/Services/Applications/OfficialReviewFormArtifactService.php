@@ -125,7 +125,10 @@ class OfficialReviewFormArtifactService
             $templateId = $pdf->importPage($sourcePage);
             $size = $pdf->getTemplateSize($templateId);
             $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-            $this->applyBackground($pdf, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
+            // The official source pages already contain their complete branded layout.
+            // Layering the managed background beneath them duplicated the page-three
+            // heading and made the title unreadable. The managed background remains
+            // authoritative for generated supplemental pages.
             $pdf->useTemplate($templateId);
             $this->overlaySourcePage($pdf, $type, $sourcePage, $payload, $context);
         }
@@ -247,7 +250,7 @@ class OfficialReviewFormArtifactService
             $pdf->SetFont('Helvetica', '', 6.5);
             $comment = (string) $response['comment'];
             $printedComment = mb_strlen($comment) > 70
-                ? Str::limit($comment, 65, '... [continued]')
+                ? Str::limit($comment, 68, '...')
                 : $comment;
             $this->writeSingleLine(
                 $pdf,
@@ -280,8 +283,6 @@ class OfficialReviewFormArtifactService
                 (string) ($payload['consent_not_required_explanation'] ?? ''),
                 3,
             );
-            $pdf->SetFont('Helvetica', 'B', 6);
-            $this->writeSingleLine($pdf, 18.0, 141.0, 174.0, 'Complete explanation preserved on response continuation page.');
         }
     }
 
@@ -323,20 +324,12 @@ class OfficialReviewFormArtifactService
                 }
             : 160.0;
             $this->writeWrapped($pdf, 16.0, $commentY, 176.0, 5.0, $comments, $isProtocol ? 3 : 4);
-            $pdf->SetFont('Helvetica', 'B', 6);
-            $this->writeSingleLine(
-                $pdf,
-                16.0,
-                $isProtocol ? min($commentY + 17.0, 228.0) : 188.0,
-                176.0,
-                'Complete recommendation comments preserved on response continuation page.',
-            );
         }
 
         $signatureY = $isProtocol ? 244.0 : 201.0;
         $signaturePath = $this->verifiedWorksheetSignature($context);
         if ($signaturePath !== null) {
-            $pdf->Image($signaturePath, 59.0, $signatureY - 10.0, 42.0, 8.0, 'PNG');
+            $pdf->Image($signaturePath, 54.0, $signatureY - 10.0, 52.0, 8.0, 'PNG');
         }
         $this->writeFittedCenteredLine(
             $pdf,
@@ -479,22 +472,16 @@ class OfficialReviewFormArtifactService
         $pdf->AddPage('P', 'A4');
         $this->applyBackground($pdf, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
         $pdf->SetMargins(18, 18, 18);
-        $logoPath = base_path('assets/logo.png');
-
-        if (is_file($logoPath) && is_readable($logoPath)) {
-            $pdf->Image($logoPath, 18, 14, 18, 18, 'PNG');
-        }
-
-        $pdf->SetXY(42, 16);
+        $pdf->SetXY(18, 55);
         $pdf->SetTextColor(0, 73, 35);
         $pdf->SetFont('Helvetica', 'B', 13);
-        $pdf->Cell(150, 7, $this->pdfText($type->code().' RESPONSE CONTINUATION'), 0, 1);
-        $pdf->SetX(42);
+        $pdf->Cell(174, 7, $this->pdfText($type->code().' SUPPLEMENTAL REVIEW RECORD'), 0, 1, 'C');
+        $pdf->SetX(18);
         $pdf->SetFont('Helvetica', 'B', 8);
-        $pdf->Cell(150, 5, $this->pdfText('RESEARCH ETHICS UNIT - OFFICIAL REVIEW RECORD'), 0, 1);
+        $pdf->Cell(174, 5, $this->pdfText('RESEARCH ETHICS UNIT'), 0, 1, 'C');
         $pdf->SetDrawColor(0, 111, 61);
-        $pdf->Line(18, 35, 192, 35);
-        $pdf->SetXY(18, 39);
+        $pdf->Line(18, 70, 192, 70);
+        $pdf->SetXY(18, 74);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFont('Helvetica', '', 8);
         $pdf->MultiCell(174, 5, $this->pdfText(

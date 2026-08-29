@@ -53,7 +53,9 @@
             </form>
         </section>
 
-        <form class="identity-filter-bar identity-option-filters" method="GET" action="{{ route($routeBase.'.profile-options.index') }}">
+        <form class="identity-filter-bar identity-option-filters unified-filter-panel" method="GET" action="{{ route($routeBase.'.profile-options.index') }}">
+            <x-dashboard.filter-header description="Refine configured dropdown options." :reset-href="route($routeBase.'.profile-options.index')" />
+            <div class="unified-filter-fields">
             <div class="identity-filter identity-filter-search">
                 <label for="option-search">Search</label>
                 <div class="identity-input-icon"><x-dashboard.icon name="search" size="19" /><input id="option-search" name="search" type="search" value="{{ $filters['search'] ?? '' }}" placeholder="Option value" maxlength="100"></div>
@@ -75,9 +77,6 @@
                     <option value="inactive" @selected(($filters['status'] ?? null) === 'inactive')>Inactive ({{ $counts['inactive'] }})</option>
                 </select>
             </div>
-            <div class="identity-filter-actions">
-                <button class="identity-button identity-button-primary" type="submit">Apply</button>
-                <a class="identity-button identity-button-warning" href="{{ route($routeBase.'.profile-options.index') }}" aria-label="Reset dropdown-option filters">Reset</a>
             </div>
         </form>
 

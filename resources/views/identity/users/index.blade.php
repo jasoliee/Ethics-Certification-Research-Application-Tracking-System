@@ -93,7 +93,9 @@
         </nav>
 
         {{-- Filters use GET parameters so views are bookmarkable and pagination retains the current search. --}}
-        <form class="identity-filter-bar {{ $isResLead ? 'has-role-filter' : 'is-adviser-filter' }}" method="GET" action="{{ route($routeBase.'.index') }}">
+        <form class="identity-filter-bar unified-filter-panel {{ $isResLead ? 'has-role-filter' : 'is-adviser-filter' }}" method="GET" action="{{ route($routeBase.'.index') }}">
+            <x-dashboard.filter-header description="Refine user account results." :reset-href="route($routeBase.'.index')" />
+            <div class="unified-filter-fields">
             <div class="identity-filter identity-filter-search">
                 <label for="user-search">Search</label>
                 <div class="identity-input-icon">
@@ -145,9 +147,6 @@
                 </select>
             </div>
 
-            <div class="identity-filter-actions">
-                <button class="identity-button identity-button-primary" type="submit">Apply</button>
-                <a class="identity-button identity-button-warning" href="{{ route($routeBase.'.index') }}" aria-label="Reset user filters">Reset</a>
             </div>
         </form>
 

@@ -22,7 +22,7 @@ class UserBulkImportService
 {
     public const MAX_ROWS = SafeSpreadsheet::MAX_ACCOUNT_ROWS;
 
-    public const MAX_FILE_KILOBYTES = 2048;
+    public const MAX_FILE_KILOBYTES = 102400;
 
     private const PREVIEW_TTL_MINUTES = 30;
 

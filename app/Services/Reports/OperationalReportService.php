@@ -44,9 +44,12 @@ class OperationalReportService
     public function report(array $filters, ?int $applicationPageSize = null): array
     {
         $applications = $this->applicationQuery($filters);
+        $summaryFilters = $filters;
+        unset($summaryFilters['summary_filter']);
+        $summaryApplications = $this->applicationQuery($summaryFilters);
 
         return [
-            'summary' => $this->summary($applications, $filters),
+            'summary' => $this->summary($summaryApplications, $summaryFilters),
             'applications' => $this->applicationRows($applications, $applicationPageSize),
             'applicant_certification' => $this->applicantCertification($filters),
             'institute_summary' => $this->instituteSummary($applications, $filters),
@@ -93,6 +96,17 @@ class OperationalReportService
                 ->where('institution', $filters['institute']))
             ->when(filled($filters['application_status'] ?? null), fn (Builder $q) => $q
                 ->where('application_status', $filters['application_status']))
+            ->when(($filters['summary_filter'] ?? null) === 'not_submitted', fn (Builder $q) => $q
+                ->whereRaw('1 = 0'))
+            ->when(($filters['summary_filter'] ?? null) === 'failed', fn (Builder $q) => $q
+                ->where('application_status', ApplicationStatus::Failed->value))
+            ->when(($filters['summary_filter'] ?? null) === 'certificates_claimed', fn (Builder $q) => $q
+                ->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->where('status', CertificateStatus::Claimed->value)))
+            ->when(($filters['summary_filter'] ?? null) === 'certificates_unclaimed', fn (Builder $q) => $q
+                ->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->where('status', CertificateStatus::Released->value)
+                    ->whereNull('claimed_at')))
             ->when(filled($filters['q'] ?? null), function (Builder $q) use ($filters): void {
                 $search = '%'.trim((string) $filters['q']).'%';
                 // Applicant identity is intentionally excluded from this pre-release search.
@@ -136,8 +150,14 @@ class OperationalReportService
         $certificates = $this->relatedApplications(Certificate::query(), $filters);
 
         return [
-            'unique_applicants' => (clone $applications)->whereNotNull('applicant_user_id')->distinct()->count('applicant_user_id'),
-            'submitted' => (clone $applications)->count(),
+            'unique_applicants' => $this->activeApplicantCount($filters),
+            'submitted' => (clone $applications)
+                ->whereHas('applicant', fn (Builder $applicants) => $applicants
+                    ->where('role', UserRole::Applicant->value)
+                    ->where('account_status', AccountStatus::Active->value))
+                ->whereNotNull('applicant_user_id')
+                ->distinct()
+                ->count('applicant_user_id'),
             'not_submitted' => $this->notSubmittedApplicants($filters),
             'failed' => (clone $applications)->where('application_status', ApplicationStatus::Failed->value)->count(),
             'certificates_claimed' => (clone $certificates)
@@ -152,6 +172,19 @@ class OperationalReportService
                 ->distinct()
                 ->count('applicant_user_id'),
         ];
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function activeApplicantCount(array $filters): int
+    {
+        return User::query()
+            ->where('role', UserRole::Applicant->value)
+            ->where('account_status', AccountStatus::Active->value)
+            ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
+                ->where('institution', $filters['institute']))
+            ->when(filled($filters['applicant_type'] ?? null), fn (Builder $users) => $users
+                ->where('applicant_type', $filters['applicant_type']))
+            ->count();
     }
 
     /** @param array<string, mixed> $filters */
@@ -280,8 +313,12 @@ class OperationalReportService
             ->unique()
             ->map(function (string $institute) use ($applicationGroups, $certificates, $activeApplicants): array {
                 $instituteApplications = $applicationGroups->get($institute, collect());
-                $submittedApplicantIds = $instituteApplications->pluck('applicant_user_id')->filter()->unique();
                 $applicantAccounts = $activeApplicants->get($institute, collect());
+                $submittedApplicantIds = $instituteApplications
+                    ->pluck('applicant_user_id')
+                    ->filter()
+                    ->unique()
+                    ->intersect($applicantAccounts->pluck('id'));
                 $claimedApplicantIds = $instituteApplications
                     ->filter(fn (ResearchApplication $application): bool => $certificates
                         ->get($application->id, collect())
@@ -300,8 +337,8 @@ class OperationalReportService
 
                 return [
                     'institute' => $institute,
-                    'unique_applicants' => $submittedApplicantIds->count(),
-                    'submitted' => $instituteApplications->count(),
+                    'unique_applicants' => $applicantAccounts->count(),
+                    'submitted' => $submittedApplicantIds->count(),
                     'not_submitted' => $applicantAccounts->pluck('id')->diff($submittedApplicantIds)->count(),
                     'failed' => $instituteApplications->where('application_status', ApplicationStatus::Failed)->count(),
                     'claimed' => $claimedApplicantIds->count(),

@@ -11,7 +11,9 @@
             <a class="identity-button identity-button-secondary" href="{{ route($routeBase.'.index') }}"><x-dashboard.icon name="arrow-left" size="18" /><span>Back to Reports</span></a>
         </header>
 
-        <form class="identity-filter-bar identity-audit-filters" method="GET" action="{{ route($routeBase.'.audit.index') }}">
+        <form class="identity-filter-bar identity-audit-filters unified-filter-panel" method="GET" action="{{ route($routeBase.'.audit.index') }}">
+            <x-dashboard.filter-header description="Refine audit trail events." :reset-href="route($routeBase.'.audit.index')" />
+            <div class="unified-filter-fields">
             <div class="identity-filter identity-filter-search">
                 <label for="audit-search">Search</label>
                 <div class="identity-input-icon">
@@ -70,9 +72,6 @@
             </div>
             <div class="identity-filter"><label for="audit-date-from">From</label><input id="audit-date-from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}"></div>
             <div class="identity-filter"><label for="audit-date-to">To</label><input id="audit-date-to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}"></div>
-            <div class="identity-filter-actions">
-                <button class="identity-button identity-button-primary" type="submit">Apply</button>
-                <a class="identity-button identity-button-warning" href="{{ route($routeBase.'.audit.index') }}" aria-label="Reset audit-log filters">Reset</a>
             </div>
         </form>
 

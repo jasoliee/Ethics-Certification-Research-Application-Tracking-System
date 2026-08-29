@@ -8,7 +8,8 @@
 >
     <section class="settings-section settings-requirements-section" aria-labelledby="requirements-configuration-title">
         <div class="settings-section-heading settings-requirements-heading">
-            <h2 id="requirements-configuration-title">Requirements Configuration</h2>
+            <span><x-dashboard.icon name="file-text" size="23" /></span>
+            <div><h2 id="requirements-configuration-title">Requirements Configuration</h2></div>
         </div>
 
         @if ($requirementsLockedTerm)

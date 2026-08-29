@@ -8,40 +8,41 @@
         </header>
 
         {{-- GET filters remain bookmarkable and cannot escape the authenticated Adviser scope. --}}
-        <form class="application-filter-bar application-filter-bar-wide" method="GET" action="{{ route('adviser.applications.index') }}">
-            <div class="application-field application-search-field">
-                <label class="sr-only" for="q">Search applications</label>
-                <span><x-dashboard.icon name="search" size="18" /></span>
-                <input id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Applicant, ID, title, or program">
+        <form class="application-filter-bar application-filter-bar-wide unified-filter-panel" method="GET" action="{{ route('adviser.applications.index') }}">
+            <x-dashboard.filter-header description="Refine the applications assigned to you." :reset-href="route('adviser.applications.index')" />
+            <div class="unified-filter-fields">
+                <div class="application-field application-search-field">
+                    <label for="q">Search</label>
+                    <span><x-dashboard.icon name="search" size="18" /></span>
+                    <input id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Applicant, ID, title, or program">
+                </div>
+                <div class="application-field">
+                    <label for="adviser-academic-term">Academic Term</label>
+                    <select id="adviser-academic-term" name="academic_term_id">
+                        <option value="">All terms</option>
+                        @foreach ($termOptions as $term)
+                            <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="application-field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">All statuses</option>
+                        @foreach ($statuses as $status)
+                            <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>{{ $status->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="application-field">
+                    <label for="date_from">Submitted From</label>
+                    <input id="date_from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}" title="Submitted from">
+                </div>
+                <div class="application-field">
+                    <label for="date_to">Submitted To</label>
+                    <input id="date_to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}" title="Submitted to">
+                </div>
             </div>
-            <div class="application-field">
-                <label class="sr-only" for="adviser-academic-term">Academic Term</label>
-                <select id="adviser-academic-term" name="academic_term_id">
-                    <option value="">All terms</option>
-                    @foreach ($termOptions as $term)
-                        <option value="{{ $term->id }}" @selected((string) ($filters['academic_term_id'] ?? '') === (string) $term->id)>{{ $term->filterLabel() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="application-field">
-                <label class="sr-only" for="status">Status</label>
-                <select id="status" name="status">
-                    <option value="">All statuses</option>
-                    @foreach ($statuses as $status)
-                        <option value="{{ $status->value }}" @selected(($filters['status'] ?? '') === $status->value)>{{ $status->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="application-field">
-                <label class="sr-only" for="date_from">Submitted from</label>
-                <input id="date_from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}" title="Submitted from">
-            </div>
-            <div class="application-field">
-                <label class="sr-only" for="date_to">Submitted to</label>
-                <input id="date_to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}" title="Submitted to">
-            </div>
-            <button class="dashboard-primary-action" type="submit">Apply Filters</button>
-            <a class="dashboard-outline-action" href="{{ route('adviser.applications.index') }}">Clear</a>
         </form>
 
         {{-- Results stay inside a focusable horizontal-scroll boundary and retain every required column. --}}

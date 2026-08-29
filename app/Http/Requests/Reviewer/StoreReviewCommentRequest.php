@@ -27,7 +27,7 @@ class StoreReviewCommentRequest extends FormRequest
                 'integer',
                 'exists:application_documents,id',
             ],
-            'body' => ['required', 'string', 'min:3', 'max:2000'],
+            'body' => ['required', 'string', 'min:5', 'max:2000'],
         ];
     }
 }

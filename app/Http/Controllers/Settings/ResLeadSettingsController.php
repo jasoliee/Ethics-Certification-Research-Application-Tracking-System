@@ -54,9 +54,10 @@ class ResLeadSettingsController extends Controller
         $currentTerm = $terms->current();
         $termHistory = AcademicTerm::query()->latest('starts_at')->latest('id')->get();
         $schoolYearStart = now()->year - 2;
-        $academicYearOptions = collect(range($schoolYearStart, now()->year + 5))
-            ->map(fn (int $year): string => $year.'-'.($year + 1))
-            ->when($configuredTerm, fn ($years) => $years->push($configuredTerm->academic_year))
+        $schoolYearOptions = collect(range($schoolYearStart, now()->year + 6))
+            ->when($configuredTerm, function ($years) use ($configuredTerm) {
+                return $years->merge(array_map('intval', explode('-', (string) $configuredTerm->academic_year)));
+            })
             ->unique()
             ->sort()
             ->values();
@@ -91,8 +92,8 @@ class ResLeadSettingsController extends Controller
             'configuredTerm' => $configuredTerm,
             'activeTermLabel' => $currentTerm?->label() ?? $configuredTerm?->label() ?? AcademicTermResolver::FALLBACK_LABEL,
             'termHistory' => $termHistory,
-            'semesterOptions' => ['1st Semester', '2nd Semester', 'Summer Term'],
-            'academicYearOptions' => $academicYearOptions,
+            'semesterOptions' => ['1st Semester', '2nd Semester', '3rd Semester', 'Mid Year'],
+            'schoolYearOptions' => $schoolYearOptions,
             'upcomingDeadline' => $upcomingDeadline,
             'minimumDate' => now()->toDateString(),
             'minimumDeadline' => now()->addMinute()->startOfMinute()->format('Y-m-d\TH:i'),

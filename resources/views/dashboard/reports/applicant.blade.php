@@ -5,7 +5,7 @@
         <header class="dashboard-page-heading report-page-heading report-record-heading">
             <div>
                 <h1>Released Applicant Record</h1>
-                <p>Only applications with a complete issued certificate set are shown.</p>
+                <p>Only approved applications with a complete issued certificate set are shown.</p>
             </div>
             <a class="dashboard-outline-action" href="{{ $backToReportsUrl }}"><x-dashboard.icon name="arrow-left" size="18" />Back to Reports</a>
         </header>
@@ -24,7 +24,7 @@
             <section class="application-panel" aria-labelledby="released-application-{{ $application->id }}">
                 <header class="application-panel-heading">
                     <div><h2 id="released-application-{{ $application->id }}">{{ $application->application_code }}</h2><p>{{ $application->research_title }}</p></div>
-                    <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}">View Certificate Record</a>
+                    <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="eye" size="17" />View Read-Only Workspace</a>
                 </header>
                 <dl class="application-detail-grid">
                     <div><dt>Institute</dt><dd>{{ $application->institution }}</dd></div>

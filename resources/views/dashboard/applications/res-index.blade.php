@@ -11,7 +11,9 @@
         </header>
 
         {{-- Queue filters mirror the approved screening fields and remain outside the table overflow region. --}}
-        <form class="application-filter-bar application-filter-bar-res" method="GET" action="{{ route('res.applications.index') }}">
+        <form class="application-filter-bar application-filter-bar-res unified-filter-panel" method="GET" action="{{ route('res.applications.index') }}">
+            <x-dashboard.filter-header description="Refine application queue results." :reset-href="route('res.applications.index')" actions-class="res-application-filter-actions" primary-class="res-filter-apply" />
+            <div class="unified-filter-fields">
             <div class="application-field application-search-field res-filter-search">
                 <label for="res-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -67,9 +69,6 @@
                 </div>
             </div>
 
-            <div class="res-application-filter-actions">
-                <button class="dashboard-primary-action res-filter-apply" type="submit">Apply Filters</button>
-                <a class="dashboard-outline-action res-filter-clear" href="{{ route('res.applications.index') }}">Reset Filters</a>
             </div>
         </form>
 

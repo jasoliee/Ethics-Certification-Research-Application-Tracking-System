@@ -24,8 +24,13 @@
         @endif
 
         {{-- Assignment filters stay bounded to approved fields and retain pagination query state. --}}
-        <form class="reviewer-assignment-filter-bar" method="GET" action="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index') }}">
+        <form class="reviewer-assignment-filter-bar unified-filter-panel" method="GET" action="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index') }}">
             @if ($reviewTasksPage)<input type="hidden" name="tab" value="{{ $filters['tab'] ?? 'assigned' }}">@endif
+            <x-dashboard.filter-header
+                description="Refine your assigned review tasks."
+                :reset-href="route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index', $reviewTasksPage ? ['tab' => $filters['tab'] ?? 'assigned'] : [])"
+            />
+            <div class="unified-filter-fields">
             <div class="application-field application-search-field">
                 <label for="assignment-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -75,8 +80,7 @@
                     <option value="no_deadline" @selected(($filters['deadline'] ?? '') === 'no_deadline')>Not configured</option>
                 </select>
             </div>
-            <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Apply Filters</span></button>
-            <a class="dashboard-outline-action" href="{{ route($reviewTasksPage ? 'reviewer.reviews.index' : 'reviewer.assignments.index', $reviewTasksPage ? ['tab' => $filters['tab'] ?? 'assigned'] : []) }}">Reset</a>
+            </div>
         </form>
 
         <x-dashboard.section :title="$assignmentSectionTitle">

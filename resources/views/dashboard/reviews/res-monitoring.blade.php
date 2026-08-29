@@ -157,7 +157,9 @@
                 <span>{{ $reviewerWorkloads->total() }} enabled</span>
             </div>
 
-            <form class="review-monitoring-adviser-filters" method="GET" action="{{ route('res.review-monitoring.index') }}">
+            <form class="review-monitoring-adviser-filters unified-filter-panel" method="GET" action="{{ route('res.review-monitoring.index') }}">
+                <x-dashboard.filter-header description="Refine reviewer workload results." :reset-href="route('res.review-monitoring.index').'#review-monitoring-capacity'" />
+                <div class="unified-filter-fields">
                 <div class="application-field application-search-field review-monitoring-filter-search">
                     <label for="monitoring-reviewer-q">Search</label>
                     <span><x-dashboard.icon name="search" size="18" /></span>
@@ -181,9 +183,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="review-monitoring-filter-actions">
-                    <button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="search" size="17" /><span>Apply Filters</span></button>
-                    <a class="dashboard-outline-action" href="{{ route('res.review-monitoring.index').'#review-monitoring-capacity' }}">Reset</a>
                 </div>
             </form>
 
@@ -227,7 +226,9 @@
                 <span>{{ $adviserWorkloads->total() }} Adviser{{ $adviserWorkloads->total() === 1 ? '' : 's' }}</span>
             </div>
 
-            <form class="review-monitoring-adviser-filters" method="GET" action="{{ route('res.review-monitoring.index') }}">
+            <form class="review-monitoring-adviser-filters unified-filter-panel" method="GET" action="{{ route('res.review-monitoring.index') }}">
+                <x-dashboard.filter-header description="Refine Adviser workload results." :reset-href="route('res.review-monitoring.index').'#review-monitoring-advisers'" />
+                <div class="unified-filter-fields">
                 <div class="application-field application-search-field review-monitoring-filter-search">
                     <label for="monitoring-adviser-q">Search</label>
                     <span><x-dashboard.icon name="search" size="18" /></span>
@@ -257,12 +258,6 @@
                     </select>
                 </div>
 
-                <div class="review-monitoring-filter-actions">
-                    <button class="dashboard-primary-action" type="submit">
-                        <x-dashboard.icon name="search" size="17" />
-                        <span>Apply Filters</span>
-                    </button>
-                    <a class="dashboard-outline-action" href="{{ route('res.review-monitoring.index').'#review-monitoring-advisers' }}">Reset</a>
                 </div>
             </form>
 

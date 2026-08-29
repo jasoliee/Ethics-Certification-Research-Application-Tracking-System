@@ -80,6 +80,9 @@
         @case('search')
             <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>
             @break
+        @case('filter')
+            <path d="M3 5h18l-7 8v5l-4 2v-7Z"/>
+            @break
         @case('plus')
             <path d="M12 5v14M5 12h14"/>
             @break

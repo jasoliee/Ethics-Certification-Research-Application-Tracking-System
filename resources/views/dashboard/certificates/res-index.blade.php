@@ -68,7 +68,9 @@
             </a>
         </section>
 
-        <form class="application-panel certificate-queue-filters" method="GET" action="{{ route('res.certificates.index') }}">
+        <form class="application-panel certificate-queue-filters unified-filter-panel" method="GET" action="{{ route('res.certificates.index') }}">
+            <x-dashboard.filter-header description="Refine decision and certificate records." :reset-href="route('res.certificates.index')" />
+            <div class="unified-filter-fields">
             <div class="application-field application-search-field certificate-filter-search">
                 <label for="certificate-q">Search</label>
                 <span><x-dashboard.icon name="search" size="18" /></span>
@@ -110,9 +112,6 @@
                     <option value="unavailable" @selected(($filters['claim'] ?? '') === 'unavailable')>Not available</option>
                 </select>
             </div>
-            <div class="certificate-filter-actions">
-                <button class="dashboard-primary-action" type="submit">Apply Filters</button>
-                <a class="dashboard-outline-action" href="{{ route('res.certificates.index') }}">Reset</a>
             </div>
         </form>
 

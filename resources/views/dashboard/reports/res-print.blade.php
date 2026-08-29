@@ -16,7 +16,7 @@
         .report-heading-copy { min-width: 0; }
         .report-scope { margin-top: 3px; color: #087241; font-size: 15px; font-weight: 700; }
         .report-generated { margin-top: 2px; color: #526071; }
-        .report-meta { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+        .report-meta { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .report-filter-summary { max-width: 620px; overflow-wrap: anywhere; }
         .summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 10px 0; }
         .summary div { border: 1px solid #b9d6c8; background: rgba(255,255,255,.9); padding: 7px; text-align: center; }
@@ -28,7 +28,8 @@
         th.numeric, td.numeric { text-align: center; vertical-align: middle; }
         tr { break-inside: avoid; }
         .section { break-inside: avoid-page; }
-        .no-print { min-height: 46px; margin: 0; border: 1px solid #087241; border-radius: 5px; padding: 10px 20px; background: #087241; color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .no-print { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; margin: 0; border: 1px solid #087241; border-radius: 5px; padding: 10px 20px; background: #087241; color: #fff; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
+        .no-print.is-secondary { background: #fff; color: #087241; }
         @media (max-width: 760px) { .report-head { align-items: stretch; flex-direction: column; } .report-meta { justify-content: flex-end; } .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media print { .no-print { display: none; } .dashboard-overflow-region { overflow: visible; } }
     </style>
@@ -37,7 +38,10 @@
     <main>
         <header class="report-head">
             <div class="report-heading-copy"><h1>ECRATS Research Ethics Unit Operational Report</h1><div class="report-scope">{{ $filterSummary === 'All Records' ? 'All Records' : 'Filtered Records' }}</div><p class="report-generated">Generated: {{ $generatedAt->format('M j, Y g:i A') }}</p>@if ($filterSummary !== 'All Records')<p class="report-filter-summary">{{ $filterSummary }}</p>@endif</div>
-            <div class="report-meta"><button class="no-print" type="button" onclick="window.print()">Print Report</button></div>
+            <div class="report-meta">
+                <a class="no-print is-secondary" href="{{ route('res.reports.export', array_filter($filters, fn ($value) => filled($value))) }}">Download CSV</a>
+                <button class="no-print" type="button" onclick="window.print()">Print Report</button>
+            </div>
         </header>
 
         <div class="summary">

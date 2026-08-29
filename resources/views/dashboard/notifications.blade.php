@@ -9,7 +9,21 @@
         @endif
     </header>
 
-    <form class="notification-filter-bar" method="GET"><div class="notification-filter-field"><label for="notification-term">Academic Term</label><select id="notification-term" name="academic_term_id"><option value="">All</option>@foreach($termOptions as $term)<option value="{{ $term->id }}" @selected((string)($filters['academic_term_id'] ?? '')===(string)$term->id)>{{ $term->filterLabel() }}</option>@endforeach</select></div><div class="notification-filter-field"><label for="notification-date">Date</label><input id="notification-date" name="date" type="date" value="{{ $filters['date'] ?? '' }}"></div><div class="notification-filter-field"><label for="notification-type">Type</label><select id="notification-type" name="type"><option value="">All types</option>@foreach($notificationTypes as $value=>$label)<option value="{{ $value }}" @selected(($filters['type'] ?? '')===$value)>{{ $label }}</option>@endforeach</select></div><div class="notification-filter-field"><label for="notification-read-status">Read status</label><select id="notification-read-status" name="read_status"><option value="">All statuses</option><option value="unread" @selected(($filters['read_status'] ?? '')==='unread')>Unread</option><option value="read" @selected(($filters['read_status'] ?? '')==='read')>Read</option></select></div><button class="dashboard-primary-action" type="submit">Apply Filters</button>@if(array_filter($filters))<a class="dashboard-outline-action" href="{{ $binMode ? route('notifications.bin') : route($dashboardNotificationsRoute) }}">Clear</a>@endif</form>
+    <form class="notification-filter-bar unified-filter-panel" method="GET">
+        <x-dashboard.filter-header
+            description="Refine notification results."
+            :reset-href="$binMode ? route('notifications.bin') : route($dashboardNotificationsRoute)"
+        />
+        <div class="unified-filter-fields">
+            <div class="notification-filter-field">
+                <label for="notification-term">Academic Term</label>
+                <select id="notification-term" name="academic_term_id"><option value="">All</option>@foreach($termOptions as $term)<option value="{{ $term->id }}" @selected((string)($filters['academic_term_id'] ?? '')===(string)$term->id)>{{ $term->filterLabel() }}</option>@endforeach</select>
+            </div>
+            <div class="notification-filter-field"><label for="notification-date">Date</label><input id="notification-date" name="date" type="date" value="{{ $filters['date'] ?? '' }}"></div>
+            <div class="notification-filter-field"><label for="notification-type">Type</label><select id="notification-type" name="type"><option value="">All types</option>@foreach($notificationTypes as $value=>$label)<option value="{{ $value }}" @selected(($filters['type'] ?? '')===$value)>{{ $label }}</option>@endforeach</select></div>
+            <div class="notification-filter-field"><label for="notification-read-status">Read status</label><select id="notification-read-status" name="read_status"><option value="">All statuses</option><option value="unread" @selected(($filters['read_status'] ?? '')==='unread')>Unread</option><option value="read" @selected(($filters['read_status'] ?? '')==='read')>Read</option></select></div>
+        </div>
+    </form>
 
     @if($notifications->isNotEmpty())
         <div class="notification-bulk-bar">

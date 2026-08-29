@@ -1149,7 +1149,7 @@ class UserManagementTest extends TestCase
                 'account_type' => 'student_researcher',
                 'accounts_file' => UploadedFile::fake()->create(
                     'too-large.xlsx',
-                    2049,
+                    102401,
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 ),
             ])
@@ -1519,7 +1519,8 @@ class UserManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Apply Action')
             ->assertDontSee('Dropdown Options')
-            ->assertSee('identity-button-warning', false)
+            ->assertSee('unified-filter-panel', false)
+            ->assertSee('Reset Filters')
             ->assertDontSee('>Setup Email<', false)
             ->assertDontSee('>Subject<', false);
 

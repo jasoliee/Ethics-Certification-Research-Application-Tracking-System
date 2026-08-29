@@ -25,7 +25,7 @@ class ClassifyResearchApplicationRequest extends FormRequest
     {
         return [
             'review_type' => ['required', Rule::enum(ReviewType::class)],
-            'classification_reason' => ['required', 'string', 'min:15', 'max:2000'],
+            'classification_reason' => ['required', 'string', 'min:5', 'max:2000'],
         ];
     }
 }

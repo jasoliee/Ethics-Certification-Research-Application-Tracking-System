@@ -32,11 +32,11 @@ class SaveReviewerFormRequest extends FormRequest
             'responses' => ['nullable', 'array', 'max:20'],
             'responses.*' => ['array:answer,comment'],
             'responses.*.answer' => ['nullable', Rule::in(['yes', 'no', 'unable_to_assess'])],
-            'responses.*.comment' => ['nullable', 'string', 'max:1000'],
+            'responses.*.comment' => ['nullable', 'string', 'min:5', 'max:1000'],
             'consent_required' => ['nullable', 'boolean'],
-            'consent_not_required_explanation' => ['nullable', 'string', 'max:2000'],
+            'consent_not_required_explanation' => ['nullable', 'string', 'min:5', 'max:2000'],
             'recommendation' => ['nullable', Rule::enum(ReviewDecision::class)],
-            'recommendation_comments' => ['nullable', 'string', 'max:2000'],
+            'recommendation_comments' => ['nullable', 'string', 'min:5', 'max:2000'],
         ];
     }
 }

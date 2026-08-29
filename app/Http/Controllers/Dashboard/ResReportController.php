@@ -328,6 +328,14 @@ class ResReportController extends Controller
                 'issued',
                 'unclaimed',
             ])],
+            'summary_filter' => ['nullable', Rule::in([
+                'unique_applicants',
+                'submitted',
+                'not_submitted',
+                'failed',
+                'certificates_claimed',
+                'certificates_unclaimed',
+            ])],
         ])->validate();
     }
 
