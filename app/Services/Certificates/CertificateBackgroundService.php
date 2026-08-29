@@ -84,8 +84,8 @@ class CertificateBackgroundService
                     'asset_version' => ((int) $typedBackgrounds->max('asset_version')) + 1,
                     'source_kind' => self::OFFICIAL_SOURCE_KIND,
                     'original_file_name' => $type === CertificateBackground::TYPE_CERTIFICATE
-                        ? 'RES Certificate official background.jpeg'
-                        : 'RES Review Worksheet official background.png',
+                        ? 'REU Certificate official background.jpeg'
+                        : 'REU Review Worksheet official background.png',
                     'stored_file_path' => $path,
                     'mime_type' => $expectedMime,
                     'file_size_bytes' => filesize($resource),

@@ -62,7 +62,7 @@
                             image="no-requirements"
                             alt="No configured requirements"
                             title="Requirements not configured"
-                            message="The RES must configure active requirements for this research type before submission."
+                            message="The REU must configure active requirements for this research type before submission."
                         />
                     </section>
                 @endforelse
@@ -100,8 +100,8 @@
                 @endunless
             </div>
             <ul class="application-submit-checklist">
-                <li class="{{ $submissionWindow['open'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$submissionWindow['open'] ? 'check' : 'clock'" size="17" /><span>Application submission is open by the RES Lead.</span></li>
-                <li class="{{ $submissionLimit['can_submit'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$submissionLimit['can_submit'] ? 'check' : 'clock'" size="17" /><span>{{ $submissionLimit['can_submit'] ? 'A formal application slot is available.' : \App\Services\Applications\ApplicationSubmissionLimit::REACHED_MESSAGE }}</span></li>
+                <li class="{{ $submissionWindow['open'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$submissionWindow['open'] ? 'check' : 'clock'" size="17" /><span>Application submission is open by the REU Lead.</span></li>
+                <li class="{{ $submissionLimit['can_submit'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$submissionLimit['can_submit'] ? 'check' : 'clock'" size="17" /><span>{{ $submissionLimit['can_submit'] ? 'A formal application slot is available.' : $submissionLimit['block_message'] }}</span></li>
                 <li class="{{ $informationSummary['complete'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$informationSummary['complete'] ? 'check' : 'clock'" size="17" /><span>All required application information is complete.</span></li>
                 <li class="{{ $informationSummary['adviser_ready'] ? 'is-complete' : '' }}"><x-dashboard.icon :name="$informationSummary['adviser_ready'] ? 'check' : 'clock'" size="17" /><span>An eligible Research Adviser is assigned.</span></li>
                 <li class="{{ $requirementSummary['ready'] ? 'is-complete' : '' }}" data-requirement-readiness>

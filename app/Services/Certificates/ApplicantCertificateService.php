@@ -57,7 +57,7 @@ class ApplicantCertificateService
 
             if (! $allReleased) {
                 throw ValidationException::withMessages([
-                    'survey' => 'The required evaluation becomes available after RES releases a generated certificate.',
+                    'survey' => 'The required evaluation becomes available after REU releases a generated certificate.',
                 ])->errorBag('certificateSurvey');
             }
 
@@ -184,7 +184,7 @@ class ApplicantCertificateService
                 });
             if (! $claimable || ! $survey) {
                 throw ValidationException::withMessages([
-                    'certificate' => 'These certificates are not claimable. Confirm RES release, successful generation, and survey completion.',
+                    'certificate' => 'These certificates are not claimable. Confirm REU release, successful generation, and survey completion.',
                 ])->errorBag('certificateClaim');
             }
 

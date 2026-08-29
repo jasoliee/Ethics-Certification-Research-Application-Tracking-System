@@ -8,11 +8,7 @@
 >
     <section class="settings-section settings-requirements-section" aria-labelledby="requirements-configuration-title">
         <div class="settings-section-heading settings-requirements-heading">
-            <span><x-dashboard.icon name="file-text" size="23" /></span>
-            <div>
-                <h2 id="requirements-configuration-title">Requirements Configuration</h2>
-                <p>Manage the mandatory documents shown to Applicants and reviewed by authorized Advisers, Reviewers, and the RES Lead.</p>
-            </div>
+            <h2 id="requirements-configuration-title">Requirements Configuration</h2>
         </div>
 
         @if ($requirementsLockedTerm)
@@ -56,7 +52,6 @@
 
         <div class="settings-requirement-summary">
             <strong>{{ $documentRequirements->count() }} active {{ Str::plural('requirement', $documentRequirements->count()) }}</strong>
-            <span>Changes use the shared server-side requirement catalogue.</span>
         </div>
 
         <div class="settings-requirement-list">

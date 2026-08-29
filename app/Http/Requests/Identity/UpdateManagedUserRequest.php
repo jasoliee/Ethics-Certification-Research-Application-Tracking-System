@@ -46,10 +46,8 @@ class UpdateManagedUserRequest extends FormRequest
             'position_title' => ['nullable', 'string', 'max:150'],
             'reviewer_enabled' => [Rule::prohibitedIf($subject->role !== UserRole::Adviser), 'nullable', 'boolean'],
             'reviewer_capacity' => [
-                Rule::requiredIf($subject->role === UserRole::Adviser && $this->boolean('reviewer_enabled')),
                 'nullable',
                 'integer',
-                'between:1,30',
             ],
         ];
     }
@@ -68,7 +66,6 @@ class UpdateManagedUserRequest extends FormRequest
             'institution.in' => $options->validationMessage(ProfileOptionField::Institute),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
         ];
     }
 }

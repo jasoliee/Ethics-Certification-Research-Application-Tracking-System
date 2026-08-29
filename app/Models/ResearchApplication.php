@@ -137,7 +137,7 @@ class ResearchApplication extends Model
     }
 
     /**
-     * Resolve the database-enforced single initial RES screening decision.
+     * Resolve the database-enforced single initial REU screening decision.
      */
     public function screening(): HasOne
     {

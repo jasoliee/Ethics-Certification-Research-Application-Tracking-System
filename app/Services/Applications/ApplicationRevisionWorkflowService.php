@@ -407,7 +407,7 @@ class ApplicationRevisionWorkflowService
 
             if (! $reviewWindow['configured'] || ! $reviewDeadline || $reviewDeadline->isPast()) {
                 throw ValidationException::withMessages([
-                    'revision' => 'The RES Lead must configure a current reviewing-revision deadline before this revision can be routed.',
+                    'revision' => 'The REU Lead must configure a current reviewing-revision deadline before this revision can be routed.',
                 ])->errorBag('revisionSubmission');
             }
 

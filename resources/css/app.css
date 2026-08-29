@@ -609,7 +609,7 @@
         line-height: 1.65;
     }
 
-    /* Reuses the administrator destination with an explicit RES Coordinator label. */
+    /* Reuses the administrator destination with an explicit REU Coordinator label. */
     .login-modal p a {
         color: #177645;
         font-weight: 750;

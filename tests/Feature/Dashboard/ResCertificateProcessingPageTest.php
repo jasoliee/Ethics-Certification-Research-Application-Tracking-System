@@ -227,7 +227,7 @@ class ResCertificateProcessingPageTest extends TestCase
             ->get(route('res.certificates.workspace', $pending))
             ->assertOk()
             ->assertSee('Read-only Review Workspace')
-            ->assertSee('RES read-only access')
+            ->assertSee('REU read-only access')
             ->assertDontSee('Add Comment')
             ->assertDontSee('Open Review Worksheet')
             ->assertDontSee('Submit Review');
@@ -235,7 +235,7 @@ class ResCertificateProcessingPageTest extends TestCase
         $this->actingAs($resLead)
             ->post(route('reviewer.assignments.comments.store', $assignment), [
                 'category' => 'general',
-                'body' => 'RES must not be allowed to write this Reviewer comment.',
+                'body' => 'REU must not be allowed to write this Reviewer comment.',
             ])
             ->assertForbidden();
 

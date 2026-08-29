@@ -250,7 +250,7 @@ class DashboardDemoSeeder extends Seeder
             ['application-submission', 'Application submission deadline', UserRole::Applicant, 2, 5],
             ['adviser-endorsement', 'Remaining days to complete endorsement', UserRole::Adviser, 2, 5],
             ['reviewer-submission', 'Reviewer submission deadline', UserRole::Reviewer, 2, 5],
-            ['res-screening', 'RES screening and classification deadline', UserRole::ResLead, 4, 4],
+            ['res-screening', 'REU screening and classification deadline', UserRole::ResLead, 4, 4],
         ];
 
         foreach ($deadlines as [$key, $title, $role, $days, $priority]) {
@@ -269,7 +269,7 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * Preserve idempotent Adviser endorsement and RES classification history for post-screening demo records.
+     * Preserve idempotent Adviser endorsement and REU classification history for post-screening demo records.
      */
     private function seedResWorkflowContext(User $resLead, User $adviser): void
     {
@@ -286,7 +286,7 @@ class DashboardDemoSeeder extends Seeder
                     'endorsement_status' => EndorsementStatus::Endorsed->value,
                 ],
                 [
-                    'endorsement_remarks' => 'Demo application endorsed for RES processing.',
+                    'endorsement_remarks' => 'Demo application endorsed for REU processing.',
                     'endorsed_at' => $application->submitted_at?->copy()->addDay() ?? now(),
                 ],
             );
@@ -314,7 +314,7 @@ class DashboardDemoSeeder extends Seeder
         $events = [
             ['submission', 'Submission of Application', -10, -10],
             ['endorsement', 'Endorsement Period', -9, -7],
-            ['res-screening', 'RES Screening', -6, -3],
+            ['res-screening', 'REU Screening', -6, -3],
             ['reviewing', 'Reviewing Period', -2, 7],
             ['revision', 'Revision Period', 8, 14],
         ];

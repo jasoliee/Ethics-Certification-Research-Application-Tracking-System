@@ -101,10 +101,10 @@
                 </label>
                 @error('reviewer_enabled')<span class="identity-field-error">{{ $message }}</span>@enderror
             </div>
-            <div class="identity-field">
-                <label for="reviewer_capacity">Reviewer Capacity</label>
-                <input id="reviewer_capacity" name="reviewer_capacity" type="number" value="{{ old('reviewer_capacity', $managedUser?->reviewer_capacity) }}" min="1" max="30" data-reviewer-capacity @required((bool) $reviewerEnabled)>
-                @error('reviewer_capacity')<span class="identity-field-error">{{ $message }}</span>@enderror
+            <div class="identity-field identity-fixed-capacity" role="note">
+                <span class="identity-field-label">Reviewer Capacity</span>
+                <strong>{{ \App\Support\ReviewerCapacity::MAX_ACTIVE_ASSIGNMENTS }} active assignments</strong>
+                <small>Fixed by ECRATS and not manually configurable.</small>
             </div>
         @endif
     </div>

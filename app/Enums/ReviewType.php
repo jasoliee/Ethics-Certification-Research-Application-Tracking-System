@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * Defines the RES classification that controls reviewer count and the next workflow state.
+ * Defines the REU classification that controls reviewer count and the next workflow state.
  */
 enum ReviewType: string
 {

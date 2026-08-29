@@ -9,7 +9,7 @@
         ];
         $deadlineHasErrors = collect($errors->keys())->contains(
             fn (string $key): bool => str_starts_with($key, 'processes.')
-                || in_array($key, ['semester', 'academic_year', 'term_starts_on', 'term_ends_on'], true)
+                || in_array($key, ['semester', 'academic_year', 'term_starts_on', 'term_ends_on', 'academic_term'], true)
         );
         $profileHasErrors = collect(['first_name', 'middle_name', 'last_name', 'suffix', 'phone_number', 'institution', 'position_title'])
             ->contains(fn (string $field): bool => $errors->has($field));
@@ -141,7 +141,7 @@
                         <div class="settings-certificate-asset">
                             <div class="settings-certificate-current">
                                 <span>Current Signature</span>
-                                <img class="settings-current-signature" src="{{ route('res.settings.signatory.preview') }}" alt="Current authorized RES certificate signature">
+                                <img class="settings-current-signature" src="{{ route('res.settings.signatory.preview') }}" alt="Current authorized REU certificate signature">
                                 <small class="settings-certificate-warning">The signature must be a transparent PNG file without a background.</small>
                             </div>
                             <label class="settings-file-control settings-certificate-replace" for="settings_signature" data-settings-file-control>
@@ -182,8 +182,7 @@
         >
             <section class="settings-section" aria-labelledby="dropdown-options-title">
                 <div class="settings-section-heading">
-                    <span><x-dashboard.icon name="settings" size="23" /></span>
-                    <div><h2 id="dropdown-options-title">Dropdown Options</h2><p>Manage controlled account-form and workbook values without changing historical account labels.</p></div>
+                    <h2 id="dropdown-options-title">Dropdown Options</h2>
                 </div>
 
                 @php
@@ -378,6 +377,28 @@
             <section class="settings-section settings-deadline-section" aria-labelledby="deadline-settings-title">
                 <h2 class="sr-only" id="deadline-settings-title">Deadline Configuration</h2>
 
+                @if ($configuredTerm)
+                    <section class="settings-term-lifecycle" aria-labelledby="configured-term-title">
+                        <div>
+                            <span class="status-badge {{ $configuredTerm->isPaused() ? 'status-badge-orange' : 'status-badge-green' }}">{{ $configuredTerm->status->label() }}</span>
+                            <h3 id="configured-term-title">{{ $configuredTerm->label() }}</h3>
+                            <p>{{ $configuredTerm->starts_at->format('M j, Y') }} – {{ $configuredTerm->ends_at->format('M j, Y') }}</p>
+                        </div>
+                        <div class="settings-term-lifecycle-actions">
+                            <a class="dashboard-secondary-action" href="#academic-term-form"><x-dashboard.icon name="edit" size="17" />Edit</a>
+                            @if ($configuredTerm->isPaused())
+                                <form method="POST" action="{{ route('res.settings.academic-terms.reactivate', $configuredTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="reactivate"><button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="refresh" size="17" />Reactivate</button></form>
+                            @else
+                                <form method="POST" action="{{ route('res.settings.academic-terms.pause', $configuredTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="pause"><button class="dashboard-secondary-action" type="submit"><x-dashboard.icon name="clock" size="17" />Pause</button></form>
+                            @endif
+                            <form method="POST" action="{{ route('res.settings.academic-terms.end', $configuredTerm) }}" data-settings-confirm-form data-confirm-title="End academic term?" data-confirm-message="This ends the term and closes its deadlines. Applications, files, and audit records will be preserved.">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="end"><button class="identity-button identity-button-danger" type="submit">End</button></form>
+                        </div>
+                    </section>
+                @else
+                    <details class="settings-add-term-disclosure" @if ($deadlineHasErrors) open @endif>
+                        <summary><x-dashboard.icon name="plus" size="18" />Add Active Academic Term</summary>
+                @endif
+
                 @if ($deadlineHasErrors)
                     <div class="identity-validation-summary settings-validation-summary" role="alert">
                         <strong>Deadline configuration could not be saved.</strong>
@@ -385,7 +406,7 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('res.settings.deadlines.update') }}" data-application-submit-once data-deadline-settings-form>
+                <form id="academic-term-form" method="POST" action="{{ route('res.settings.deadlines.update') }}" data-application-submit-once data-deadline-settings-form>
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="settings_tab" value="deadlines">
@@ -396,11 +417,17 @@
                             <div class="settings-term-fields">
                                 <div class="settings-field">
                                     <label for="semester">Semester</label>
-                                    <input id="semester" name="semester" type="text" value="{{ old('semester', $configuredTerm?->semester) }}" maxlength="50" placeholder="1st Semester" required>
+                                    <select id="semester" name="semester" required>
+                                        <option value="">Select semester</option>
+                                        @foreach ($semesterOptions as $semester)<option value="{{ $semester }}" @selected(old('semester', $configuredTerm?->semester) === $semester)>{{ $semester }}</option>@endforeach
+                                    </select>
                                 </div>
                                 <div class="settings-field">
                                     <label for="academic_year">Academic Year</label>
-                                    <input id="academic_year" name="academic_year" type="text" value="{{ old('academic_year', $configuredTerm?->academic_year) }}" maxlength="20" inputmode="numeric" placeholder="2026-2027" required>
+                                    <select id="academic_year" name="academic_year" required>
+                                        <option value="">Select school year</option>
+                                        @foreach ($academicYearOptions as $academicYear)<option value="{{ $academicYear }}" @selected(old('academic_year', $configuredTerm?->academic_year) === $academicYear)>{{ $academicYear }}</option>@endforeach
+                                    </select>
                                 </div>
                                 <div class="settings-field settings-date-field">
                                     <label for="term_starts_on">Starting Date</label>
@@ -527,6 +554,18 @@
                         </button>
                     </div>
                 </form>
+
+                @unless ($configuredTerm)
+                    </details>
+                    @if ($termHistory->where('status', \App\Enums\AcademicTermStatus::Ended)->isNotEmpty())
+                        <section class="settings-term-history" aria-labelledby="ended-terms-title">
+                            <h3 id="ended-terms-title">Ended Academic Terms</h3>
+                            @foreach ($termHistory->where('status', \App\Enums\AcademicTermStatus::Ended) as $historicalTerm)
+                                <article><div><strong>{{ $historicalTerm->label() }}</strong><span>{{ $historicalTerm->starts_at->format('M j, Y') }} – {{ $historicalTerm->ends_at->format('M j, Y') }}</span></div><form method="POST" action="{{ route('res.settings.academic-terms.reactivate', $historicalTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="reactivate"><button class="dashboard-secondary-action" type="submit"><x-dashboard.icon name="refresh" size="17" />Reactivate</button></form></article>
+                            @endforeach
+                        </section>
+                    @endif
+                @endunless
             </section>
         </section>
 
@@ -619,7 +658,7 @@
                         data-settings-password-form
                         data-settings-confirm
                         data-confirm-title="Confirm Password Change"
-                        data-confirm-message="Change the password for your RES Lead account?"
+                        data-confirm-message="Change the password for your REU Lead account?"
                         data-confirm-action="Change Password"
                     >
                         @csrf

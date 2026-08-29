@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * Records the RES Lead's administrative completeness finding at classification time.
+ * Records the REU Lead's administrative completeness finding at classification time.
  */
 enum ScreeningCompletenessStatus: string
 {

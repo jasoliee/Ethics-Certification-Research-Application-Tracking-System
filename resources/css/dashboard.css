@@ -1552,7 +1552,7 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
-    /* Uses five equal columns for the RES Lead administrative summary. */
+    /* Uses five equal columns for the REU Lead administrative summary. */
     .dashboard-summary-grid-five {
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
@@ -2820,7 +2820,7 @@
 }
 
 @media (max-width: 1350px) {
-    /* Wraps the five-card RES Lead grid to three columns before cards become cramped. */
+    /* Wraps the five-card REU Lead grid to three columns before cards become cramped. */
     .dashboard-summary-grid-five {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -8423,6 +8423,108 @@
         margin-top: 20px;
     }
 
+    .settings-term-lifecycle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 18px 20px;
+        border-bottom: 1px solid #d4dfd8;
+        background: #f6fbf8;
+    }
+
+    .settings-term-lifecycle > div:first-child {
+        min-width: 0;
+    }
+
+    .settings-term-lifecycle h3,
+    .settings-term-lifecycle p {
+        margin: 5px 0 0;
+    }
+
+    .settings-term-lifecycle p,
+    .settings-term-history span {
+        color: #647168;
+        font-size: 12px;
+    }
+
+    .settings-term-lifecycle-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .settings-term-lifecycle-actions form {
+        margin: 0;
+    }
+
+    .settings-add-term-disclosure {
+        padding: 18px 20px 0;
+    }
+
+    .settings-add-term-disclosure > summary {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid #087241;
+        border-radius: 7px;
+        color: #087241;
+        background: #f5fbf8;
+        font-weight: 800;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .settings-add-term-disclosure > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .settings-add-term-disclosure[open] > summary {
+        margin-bottom: 16px;
+        background: #e8f4ee;
+    }
+
+    .settings-add-term-disclosure .settings-deadline-overview,
+    .settings-add-term-disclosure .settings-form-actions {
+        padding-inline: 0;
+    }
+
+    .settings-add-term-disclosure .settings-deadline-table-wrap {
+        width: 100%;
+        margin-inline: 0;
+    }
+
+    .settings-term-history {
+        display: grid;
+        gap: 9px;
+        margin: 18px 20px 0;
+    }
+
+    .settings-term-history h3 {
+        margin: 0;
+        font-size: 14px;
+    }
+
+    .settings-term-history article {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #d4dfd8;
+        border-radius: 7px;
+        background: #fff;
+    }
+
+    .settings-term-history article > div {
+        display: grid;
+        gap: 3px;
+    }
+
     .settings-deadline-overview {
         width: 100%;
         min-width: 0;
@@ -8842,6 +8944,19 @@
 }
 
 @media (max-width: 760px) {
+    .settings-term-lifecycle,
+    .settings-term-history article {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .settings-term-lifecycle-actions,
+    .settings-term-lifecycle-actions > *,
+    .settings-term-history form,
+    .settings-term-history button {
+        width: 100%;
+    }
+
     .settings-deadline-overview {
         padding: 14px;
     }
@@ -8961,7 +9076,7 @@
 }
 
 @layer components {
-    /* Keeps the complete RES workflow dense, scan-friendly, and bounded by the dashboard workspace. */
+    /* Keeps the complete REU workflow dense, scan-friendly, and bounded by the dashboard workspace. */
     .res-workflow-page {
         gap: 16px;
     }
@@ -11201,6 +11316,22 @@ form[class*='filter'] :is(input, select):focus-visible,
     align-items: center;
 }
 
+.report-page-heading p,
+.report-page .application-panel-heading p {
+    margin: 4px 0 0;
+    color: #647168;
+    font-size: 12px;
+}
+
+.report-heading-actions,
+.report-section-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
 .report-filter-panel {
     display: grid;
     gap: 14px;
@@ -11212,8 +11343,12 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .report-filter-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 13px;
+}
+
+.report-filter-search {
+    grid-column: span 2;
 }
 
 .report-filter-grid label {
@@ -11245,8 +11380,44 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .report-summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
+    padding: 16px;
+}
+
+.report-overall-card {
+    overflow: hidden;
+}
+
+.report-classification-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid #e2eae5;
+}
+
+.report-classification-strip article {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 13px 16px;
+    border-left: 1px solid #e2eae5;
+}
+
+.report-classification-strip article:first-child {
+    border-left: 0;
+}
+
+.report-classification-strip strong {
+    color: #087241;
+    font-size: 22px;
+}
+
+.report-classification-strip span {
+    color: #415148;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .report-chart-grid {
@@ -11320,6 +11491,13 @@ form[class*='filter'] :is(input, select):focus-visible,
     vertical-align: middle;
 }
 
+.report-title-cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 @media (max-width: 1180px) {
     .settings-tabs {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -11332,6 +11510,10 @@ form[class*='filter'] :is(input, select):focus-visible,
     .monitoring-drilldown-filters-wide,
     .report-filter-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .report-filter-search {
+        grid-column: span 2;
     }
 
     .report-summary-grid {
@@ -11419,6 +11601,31 @@ form[class*='filter'] :is(input, select):focus-visible,
 
     .report-page-heading > * {
         width: 100%;
+    }
+
+    .report-filter-search {
+        grid-column: auto;
+    }
+
+    .report-heading-actions,
+    .report-section-actions,
+    .report-heading-actions > *,
+    .report-section-actions > * {
+        width: 100%;
+    }
+
+    .report-classification-strip {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .report-classification-strip article,
+    .report-classification-strip article:first-child {
+        border-top: 1px solid #e2eae5;
+        border-left: 0;
+    }
+
+    .report-classification-strip article:first-child {
+        border-top: 0;
     }
 }
 
@@ -13515,10 +13722,10 @@ form[class*='filter'] :is(input, select):focus-visible,
     }
 
     .reviewer-review-studio {
-        height: clamp(620px, calc(100svh - 250px), 820px);
+        height: auto;
         display: grid;
-        grid-template-columns: minmax(150px, 0.34fr) minmax(360px, 1.35fr) minmax(300px, 0.82fr);
-        align-items: stretch;
+        grid-template-columns: minmax(190px, 0.34fr) minmax(420px, 1.66fr);
+        align-items: start;
         gap: 12px;
     }
 
@@ -13531,9 +13738,8 @@ form[class*='filter'] :is(input, select):focus-visible,
     }
 
     .reviewer-document-library,
-    .reviewer-document-pane,
-    .reviewer-review-rail {
-        height: 100%;
+    .reviewer-document-pane {
+        height: clamp(620px, calc(100svh - 250px), 820px);
         overflow: hidden;
     }
 
@@ -13544,18 +13750,23 @@ form[class*='filter'] :is(input, select):focus-visible,
     }
 
     .reviewer-review-rail {
+        grid-column: 1 / -1;
         display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-auto-rows: max-content;
         align-content: start;
         gap: 12px;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        scrollbar-gutter: stable;
+        height: auto;
+        overflow: visible;
     }
 
     .reviewer-review-rail > .application-panel {
         min-height: max-content;
         align-self: start;
+    }
+
+    .reviewer-review-rail > .reviewer-decision-panel {
+        grid-column: 1 / -1;
     }
 
     .reviewer-document-list {
@@ -14753,6 +14964,14 @@ form[class*='filter'] :is(input, select):focus-visible,
 
     .reviewer-review-studio {
         height: auto;
+    }
+
+    .reviewer-review-rail {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reviewer-review-rail > .reviewer-decision-panel {
+        grid-column: auto;
     }
 
     .reviewer-document-library,

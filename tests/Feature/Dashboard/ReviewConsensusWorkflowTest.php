@@ -289,7 +289,7 @@ class ReviewConsensusWorkflowTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder(['Supporting Documents', 'Decision release blocked.', $assignments->first()->reviewer->name])
             ->assertDontSee('Application Decision')
-            ->assertSee('The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.')
+            ->assertSee('The three current Full Board submissions do not agree. A Reviewer must re-submit before REU can release a result.')
             ->assertDontSee('Release All Decisions');
 
         try {

@@ -74,7 +74,7 @@ class AdviserEndorsementWorkflowTest extends TestCase
             function (DashboardUpdateNotification $notification) use ($activeResLead, $application): bool {
                 $data = $notification->toDatabase($activeResLead);
 
-                return $data['title'] === 'Application ready for RES screening'
+                return $data['title'] === 'Application ready for REU screening'
                     && $data['route'] === 'res.applications.show'
                     && $data['route_parameters'] === ['researchApplication' => $application->id]
                     && ! str_contains($data['message'], $application->research_title);

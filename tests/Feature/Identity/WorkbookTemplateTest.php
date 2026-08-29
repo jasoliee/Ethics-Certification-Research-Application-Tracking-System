@@ -60,7 +60,7 @@ class WorkbookTemplateTest extends TestCase
     #[DataProvider('accountTypeProvider')]
     public function test_each_role_template_survives_a_verified_xlsx_round_trip(string $accountType): void
     {
-        // Arrange a permitted RES Lead, role definition, and the current active database options.
+        // Arrange a permitted REU Lead, role definition, and the current active database options.
         Storage::fake('local');
         $actor = User::factory()->create(['role' => UserRole::ResLead]);
         $type = app(AccountTypeCatalog::class)->authorized($actor, $accountType);

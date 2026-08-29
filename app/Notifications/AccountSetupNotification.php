@@ -38,6 +38,6 @@ class AccountSetupNotification extends Notification
             ->action($this->initialSetup ? 'Set Up Password' : 'Reset Password', $url)
             ->line('This one-time link expires in seven days and becomes invalid after successful use.')
             ->line('ECRATS will never send or ask an account creator to choose your password.')
-            ->salutation('KLD Research Ethics Section');
+            ->salutation('KLD Research Ethics Unit');
     }
 }

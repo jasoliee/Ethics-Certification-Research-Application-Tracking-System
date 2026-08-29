@@ -59,7 +59,7 @@ class AppServiceProvider extends ServiceProvider
         // Limit private document writes while allowing ordinary page and download access.
         RateLimiter::for('application-upload', fn (Request $request) => Limit::perMinute(10)->by($key($request)));
         RateLimiter::for('application-submit', fn (Request $request) => Limit::perMinute(5)->by($key($request)));
-        // Bound RES classification and assignment writes independently from read-only queue traffic.
+        // Bound REU classification and assignment writes independently from read-only queue traffic.
         RateLimiter::for('res-workflow', fn (Request $request) => Limit::perMinute(8)->by($key($request)));
         // Reviewer drafts, comments, forms, and decisions share one role-specific write budget.
         RateLimiter::for('reviewer-workflow', fn (Request $request) => Limit::perMinute(20)->by($key($request)));
@@ -67,5 +67,6 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('certificate-workflow', fn (Request $request) => Limit::perMinute(6)->by($key($request)));
         RateLimiter::for('certificate-bulk', fn (Request $request) => Limit::perMinute(2)->by($key($request)));
         RateLimiter::for('certificate-background', fn (Request $request) => Limit::perMinute(4)->by($key($request)));
+        RateLimiter::for('report-export', fn (Request $request) => Limit::perMinute(6)->by($key($request)));
     }
 }

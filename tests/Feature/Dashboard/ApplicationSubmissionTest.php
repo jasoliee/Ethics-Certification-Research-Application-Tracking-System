@@ -272,7 +272,7 @@ class ApplicationSubmissionTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Assert the RES Lead can manually reopen an expired date range.
+        // Assert the REU Lead can manually reopen an expired date range.
         $this->actingAs($firstApplicant)
             ->post(route('applicant.applications.submit', $firstApplication))
             ->assertRedirect(route('applicant.applications.show', $firstApplication));

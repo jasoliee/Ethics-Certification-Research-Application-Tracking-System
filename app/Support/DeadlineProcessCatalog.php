@@ -5,7 +5,7 @@ namespace App\Support;
 use App\Enums\UserRole;
 
 /**
- * Defines the approved deadline processes shown in RES Lead Settings.
+ * Defines the approved deadline processes shown in REU Lead Settings.
  */
 final class DeadlineProcessCatalog
 {
@@ -39,11 +39,11 @@ final class DeadlineProcessCatalog
                 'sort_order' => 1,
             ],
             'res-screening' => [
-                'title' => 'RES Screening and Classification',
-                'description' => 'Defines the planned period for RES completeness screening and review classification.',
+                'title' => 'REU Screening and Classification',
+                'description' => 'Defines the planned period for REU completeness screening and review classification.',
                 'audience_role' => UserRole::ResLead,
                 'timeline_key' => 'res-screening',
-                'timeline_label' => 'RES Screening',
+                'timeline_label' => 'REU Screening',
                 'sort_order' => 2,
             ],
             'reviewer-submission' => [

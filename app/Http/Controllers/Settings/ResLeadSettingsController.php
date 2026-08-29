@@ -17,12 +17,14 @@ use App\Http\Requests\Settings\UpdateOwnUsernameRequest;
 use App\Http\Requests\Settings\UpdateSignatoryRequest;
 use App\Http\Requests\Settings\UploadManagedBackgroundRequest;
 use App\Models\CertificateBackground;
+use App\Models\AcademicTerm;
 use App\Models\DocumentRequirement;
 use App\Models\ProfileOption;
 use App\Services\Certificates\CertificateBackgroundService;
 use App\Services\Certificates\DefaultCertificateQrService;
 use App\Services\Identity\ProfileOptionCatalog;
 use App\Services\Settings\AcademicTermResolver;
+use App\Services\Settings\AcademicTermLifecycleService;
 use App\Services\Settings\DeadlineConfigurationService;
 use App\Services\Settings\DocumentRequirementConfigurationService;
 use App\Services\Settings\SelfAccountSettingsService;
@@ -36,7 +38,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Presents and updates the RES Lead-only configuration workspace.
+ * Presents and updates the REU Lead-only configuration workspace.
  */
 class ResLeadSettingsController extends Controller
 {
@@ -50,6 +52,14 @@ class ResLeadSettingsController extends Controller
     ): View {
         $configuredTerm = $terms->latestConfigured();
         $currentTerm = $terms->current();
+        $termHistory = AcademicTerm::query()->latest('starts_at')->latest('id')->get();
+        $schoolYearStart = now()->year - 2;
+        $academicYearOptions = collect(range($schoolYearStart, now()->year + 5))
+            ->map(fn (int $year): string => $year.'-'.($year + 1))
+            ->when($configuredTerm, fn ($years) => $years->push($configuredTerm->academic_year))
+            ->unique()
+            ->sort()
+            ->values();
         $settings = $deadlines->settings($configuredTerm);
         $upcomingDeadline = collect($settings)
             ->filter(fn (array $process): bool => $process['configuration']?->due_at?->isFuture() === true)
@@ -79,7 +89,10 @@ class ResLeadSettingsController extends Controller
             'pageTitle' => 'Settings',
             'settings' => $settings,
             'configuredTerm' => $configuredTerm,
-            'activeTermLabel' => $currentTerm?->label() ?? AcademicTermResolver::FALLBACK_LABEL,
+            'activeTermLabel' => $currentTerm?->label() ?? $configuredTerm?->label() ?? AcademicTermResolver::FALLBACK_LABEL,
+            'termHistory' => $termHistory,
+            'semesterOptions' => ['1st Semester', '2nd Semester', 'Summer Term'],
+            'academicYearOptions' => $academicYearOptions,
             'upcomingDeadline' => $upcomingDeadline,
             'minimumDate' => now()->toDateString(),
             'minimumDeadline' => now()->addMinute()->startOfMinute()->format('Y-m-d\TH:i'),
@@ -141,6 +154,42 @@ class ResLeadSettingsController extends Controller
         $deadlines->update($request->user(), $request->validated());
 
         return back()->with('status', 'Semester, academic year, deadlines, and process availability were updated.');
+    }
+
+    public function pauseAcademicTerm(
+        Request $request,
+        AcademicTerm $academicTerm,
+        AcademicTermLifecycleService $lifecycle,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:pause']]);
+        $lifecycle->pause($request->user(), $academicTerm);
+
+        return redirect()->route('res.settings.index', ['tab' => 'deadlines'])
+            ->with('status', 'The academic term is paused. Non-REU accounts are locked until it is reactivated.');
+    }
+
+    public function endAcademicTerm(
+        Request $request,
+        AcademicTerm $academicTerm,
+        AcademicTermLifecycleService $lifecycle,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:end']]);
+        $lifecycle->end($request->user(), $academicTerm);
+
+        return redirect()->route('res.settings.index', ['tab' => 'deadlines'])
+            ->with('status', 'The academic term ended. All historical applications, deadlines, and audit records were preserved.');
+    }
+
+    public function reactivateAcademicTerm(
+        Request $request,
+        AcademicTerm $academicTerm,
+        AcademicTermLifecycleService $lifecycle,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:reactivate']]);
+        $lifecycle->reactivate($request->user(), $academicTerm);
+
+        return redirect()->route('res.settings.index', ['tab' => 'deadlines'])
+            ->with('status', 'The academic term and its preserved deadline configuration were reactivated.');
     }
 
     public function updateUsername(

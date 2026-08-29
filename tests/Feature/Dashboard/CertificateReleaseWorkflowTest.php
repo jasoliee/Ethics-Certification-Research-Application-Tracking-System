@@ -789,7 +789,7 @@ class CertificateReleaseWorkflowTest extends TestCase
 
         try {
             app(CertificateReleaseService::class)->release($applicant, $application);
-            $this->fail('Only an RES Lead may initialize certificate release state.');
+            $this->fail('Only an REU Lead may initialize certificate release state.');
         } catch (AuthorizationException) {
             $this->assertTrue(true);
         }

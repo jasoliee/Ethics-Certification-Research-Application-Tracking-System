@@ -21,6 +21,7 @@ use App\Models\Endorsement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
+use App\Services\Privacy\ApplicationIdentityVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -32,6 +33,12 @@ class OperationalReportService
 {
     private const DUE_SOON_DAYS = 7;
 
+    public const REVIEWER_CAPACITY = 30;
+
+    public function __construct(
+        private readonly ApplicationIdentityVisibilityService $identityVisibility,
+    ) {}
+
     /** @param array<string, mixed> $filters */
     public function report(array $filters): array
     {
@@ -40,6 +47,10 @@ class OperationalReportService
 
         return [
             'summary' => $this->summary($applications, $filters),
+            'applications' => $this->applicationRows($applications),
+            'visible_applicants' => $this->visibleApplicants($filters),
+            'institute_summary' => $this->instituteSummary($applications, $filters),
+            'adviser_reviewer_summary' => $this->adviserReviewerSummary($filters),
             'pipeline' => $this->pipeline($applications),
             'submission_trend' => $this->submissionTrend($applications, $filters),
             'classifications' => $this->classifications($applications),
@@ -82,7 +93,35 @@ class OperationalReportService
             ->when(filled($filters['institute'] ?? null), fn (Builder $q) => $q
                 ->where('institution', $filters['institute']))
             ->when(filled($filters['application_status'] ?? null), fn (Builder $q) => $q
-                ->where('application_status', $filters['application_status']));
+                ->where('application_status', $filters['application_status']))
+            ->when(filled($filters['q'] ?? null), function (Builder $q) use ($filters): void {
+                $search = '%'.trim((string) $filters['q']).'%';
+                // Applicant identity is intentionally excluded from this pre-release search.
+                $q->where(fn (Builder $matches) => $matches
+                    ->whereLike('application_code', $search)
+                    ->orWhereLike('research_title', $search));
+            })
+            ->when(filled($filters['certificate_status'] ?? null), function (Builder $q) use ($filters): void {
+                $status = (string) $filters['certificate_status'];
+
+                if ($status === 'unclaimed') {
+                    $q->whereHas('certificates', fn (Builder $certificates) => $certificates
+                        ->where('status', CertificateStatus::Released->value)
+                        ->whereNull('claimed_at'));
+
+                    return;
+                }
+
+                if ($status === 'issued') {
+                    $q->whereHas('certificates', fn (Builder $certificates) => $certificates
+                        ->whereIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value]));
+
+                    return;
+                }
+
+                $q->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->where('status', $status));
+            });
     }
 
     /** @param array<string, mixed> $filters */
@@ -99,7 +138,10 @@ class OperationalReportService
         $dueItems = $this->dueAssignments($filters)->count() + $this->dueRevisions($filters)->count();
 
         return [
+            'unique_applicants' => (clone $applications)->whereNotNull('applicant_user_id')->distinct()->count('applicant_user_id'),
             'submitted' => (clone $applications)->count(),
+            'not_submitted' => $this->notSubmittedApplicants($filters),
+            'failed' => (clone $applications)->where('application_status', ApplicationStatus::Failed->value)->count(),
             'screening' => (clone $applications)->whereIn('application_status', [
                 ApplicationStatus::AdviserEndorsed->value,
                 ApplicationStatus::UnderResScreening->value,
@@ -112,9 +154,153 @@ class OperationalReportService
                 ApplicationStatus::ForCertificateRelease->value,
             ])->count(),
             'certificates_released' => $this->fullyReleasedApplications(clone $applications)->count(),
+            'certificates_claimed' => (clone $certificates)->where('status', CertificateStatus::Claimed->value)->count(),
+            'certificates_unclaimed' => (clone $certificates)
+                ->where('status', CertificateStatus::Released->value)
+                ->whereNull('claimed_at')
+                ->count(),
             'due_items' => $dueItems,
             'certificate_records' => (clone $certificates)->count(),
         ];
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function notSubmittedApplicants(array $filters): int
+    {
+        return User::query()
+            ->where('role', UserRole::Applicant->value)
+            ->where('account_status', AccountStatus::Active->value)
+            ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
+                ->where('institution', $filters['institute']))
+            ->when(filled($filters['applicant_type'] ?? null), fn (Builder $users) => $users
+                ->where('applicant_type', $filters['applicant_type']))
+            ->whereDoesntHave('researchApplications', fn (Builder $applications) => $this
+                ->applyApplicationFilters($applications->whereNotNull('submitted_at'), $filters))
+            ->count();
+    }
+
+    private function applicationRows(Builder $applications): Collection
+    {
+        return (clone $applications)
+            ->with(['certificates:id,research_application_id,status,released_at,claimed_at'])
+            ->latest('submitted_at')
+            ->limit(100)
+            ->get([
+                'id',
+                'application_code',
+                'research_title',
+                'institution',
+                'application_status',
+                'review_type',
+                'submitted_at',
+            ])
+            ->map(function (ResearchApplication $application): array {
+                $certificates = $application->certificates;
+                $certificateStatus = $certificates->isEmpty()
+                    ? 'Not issued'
+                    : ($certificates->every(fn (Certificate $certificate) => $certificate->status === CertificateStatus::Claimed)
+                        ? 'Claimed'
+                        : ($certificates->every(fn (Certificate $certificate) => in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true))
+                            ? 'Issued / unclaimed'
+                            : ($certificates->contains(fn (Certificate $certificate) => $certificate->status === CertificateStatus::GenerationFailed)
+                                ? 'Generation failed'
+                                : 'Pending release')));
+
+                return [
+                    'application' => $application,
+                    'certificate_status' => $certificateStatus,
+                ];
+            });
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function visibleApplicants(array $filters): Collection
+    {
+        $visibleApplications = $this->identityVisibility->visibleApplications(
+            $this->applicationQuery($filters),
+        );
+
+        return User::query()
+            ->where('role', UserRole::Applicant->value)
+            ->whereHas('researchApplications', fn (Builder $applications) => $applications
+                ->whereIn('research_applications.id', (clone $visibleApplications)->select('id')))
+            ->withCount(['researchApplications as released_application_count' => fn (Builder $applications) => $applications
+                ->whereIn('research_applications.id', (clone $visibleApplications)->select('id'))])
+            ->orderBy('name')
+            ->limit(100)
+            ->get(['id', 'name', 'institutional_identifier', 'institution']);
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function instituteSummary(Builder $applications, array $filters): Collection
+    {
+        $records = (clone $applications)->get([
+            'id',
+            'applicant_user_id',
+            'institution',
+            'application_status',
+        ]);
+        $applicationIds = $records->pluck('id');
+        $certificates = Certificate::query()
+            ->whereIn('research_application_id', $applicationIds)
+            ->get(['research_application_id', 'status', 'claimed_at'])
+            ->groupBy('research_application_id');
+        $activeApplicants = User::query()
+            ->where('role', UserRole::Applicant->value)
+            ->where('account_status', AccountStatus::Active->value)
+            ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
+                ->where('institution', $filters['institute']))
+            ->get(['id', 'institution'])
+            ->groupBy(fn (User $user): string => trim((string) $user->institution));
+
+        $applicationGroups = $records
+            ->groupBy(fn (ResearchApplication $application): string => trim((string) $application->institution) ?: 'Not specified');
+
+        return $applicationGroups->keys()
+            ->merge($activeApplicants->keys())
+            ->filter()
+            ->unique()
+            ->map(function (string $institute) use ($applicationGroups, $certificates, $activeApplicants): array {
+                $instituteApplications = $applicationGroups->get($institute, collect());
+                $submittedApplicantIds = $instituteApplications->pluck('applicant_user_id')->filter()->unique();
+                $instituteCertificates = $instituteApplications
+                    ->flatMap(fn (ResearchApplication $application) => $certificates->get($application->id, collect()));
+                $applicantAccounts = $activeApplicants->get($institute, collect());
+
+                return [
+                    'institute' => $institute,
+                    'unique_applicants' => $submittedApplicantIds->count(),
+                    'submitted' => $instituteApplications->count(),
+                    'not_submitted' => $applicantAccounts->pluck('id')->diff($submittedApplicantIds)->count(),
+                    'failed' => $instituteApplications->where('application_status', ApplicationStatus::Failed)->count(),
+                    'claimed' => $instituteCertificates->where('status', CertificateStatus::Claimed)->count(),
+                    'unclaimed' => $instituteCertificates
+                        ->where('status', CertificateStatus::Released)
+                        ->whereNull('claimed_at')
+                        ->count(),
+                ];
+            })
+            ->sortBy('institute')
+            ->values();
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function adviserReviewerSummary(array $filters): Collection
+    {
+        return User::query()
+            ->where('role', UserRole::Adviser->value)
+            ->where('account_status', AccountStatus::Active->value)
+            ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
+                ->where('institution', $filters['institute']))
+            ->get(['id', 'institution', 'reviewer_enabled'])
+            ->groupBy(fn (User $user): string => trim((string) $user->institution) ?: 'Not specified')
+            ->map(fn (Collection $accounts, string $institute): array => [
+                'institute' => $institute,
+                'advisers' => $accounts->count(),
+                'reviewers' => $accounts->where('reviewer_enabled', true)->count(),
+            ])
+            ->sortBy('institute')
+            ->values();
     }
 
     private function pipeline(Builder $applications): array
@@ -250,37 +436,44 @@ class OperationalReportService
     private function reviewerWorkload(array $filters): Collection
     {
         $activeStatuses = ReviewerAssignmentStatus::activeValues();
-        $placeholders = implode(', ', array_fill(0, count($activeStatuses), '?'));
         $now = now();
         $dueSoon = $now->copy()->addDays(self::DUE_SOON_DAYS);
-        $aggregates = $this->relatedApplications(
+        $assignments = $this->relatedApplications(
             ReviewerAssignment::query()->whereNull('superseded_at'),
             $filters,
         )
-            ->select('reviewer_user_id')
-            ->selectRaw("SUM(CASE WHEN assignment_status IN ({$placeholders}) THEN 1 ELSE 0 END) AS active_count", $activeStatuses)
-            ->selectRaw('SUM(CASE WHEN assignment_status = ? THEN 1 ELSE 0 END) AS completed_count', [ReviewerAssignmentStatus::DecisionSubmitted->value])
-            ->selectRaw("SUM(CASE WHEN assignment_status IN ({$placeholders}) AND review_deadline_at < ? THEN 1 ELSE 0 END) AS overdue_count", [...$activeStatuses, $now])
-            ->selectRaw("SUM(CASE WHEN assignment_status IN ({$placeholders}) AND review_deadline_at BETWEEN ? AND ? THEN 1 ELSE 0 END) AS due_soon_count", [...$activeStatuses, $now, $dueSoon])
-            ->groupBy('reviewer_user_id')
-            ->get()
-            ->keyBy('reviewer_user_id');
+            ->with('researchApplication:id,review_type,institution')
+            ->get([
+                'id',
+                'research_application_id',
+                'reviewer_user_id',
+                'assignment_status',
+                'review_deadline_at',
+            ])
+            ->groupBy('reviewer_user_id');
 
         return User::query()->reviewerEnabled()->where('account_status', AccountStatus::Active->value)
-            ->get(['id', 'name', 'reviewer_capacity'])
-            ->map(function (User $reviewer) use ($aggregates): array {
-                $aggregate = $aggregates->get($reviewer->id);
-                $active = (int) ($aggregate?->active_count ?? 0);
-                $capacity = max(0, (int) $reviewer->reviewer_capacity);
+            ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
+                ->where('institution', $filters['institute']))
+            ->get(['id', 'name', 'institution'])
+            ->map(function (User $reviewer) use ($assignments, $activeStatuses, $now, $dueSoon): array {
+                $records = $assignments->get($reviewer->id, collect());
+                $active = $records->filter(fn (ReviewerAssignment $assignment) => in_array($assignment->assignment_status->value, $activeStatuses, true));
+                $completed = $records->where('assignment_status', ReviewerAssignmentStatus::DecisionSubmitted);
 
                 return [
                     'reviewer' => $reviewer,
-                    'active' => $active,
-                    'capacity' => $capacity,
-                    'remaining' => max(0, $capacity - $active),
-                    'completed' => (int) ($aggregate?->completed_count ?? 0),
-                    'overdue' => (int) ($aggregate?->overdue_count ?? 0),
-                    'due_soon' => (int) ($aggregate?->due_soon_count ?? 0),
+                    'institute' => $reviewer->institution ?: 'Not specified',
+                    'expedited' => $records->filter(fn (ReviewerAssignment $assignment) => $assignment->researchApplication?->review_type === ReviewType::Expedited->value)->count(),
+                    'full_board' => $records->filter(fn (ReviewerAssignment $assignment) => $assignment->researchApplication?->review_type === ReviewType::FullBoard->value)->count(),
+                    'total' => $records->count(),
+                    'active' => $active->count(),
+                    'capacity' => self::REVIEWER_CAPACITY,
+                    'remaining' => max(0, self::REVIEWER_CAPACITY - $active->count()),
+                    'completed' => $completed->count(),
+                    'pending' => $records->count() - $completed->count(),
+                    'overdue' => $active->filter(fn (ReviewerAssignment $assignment) => $assignment->review_deadline_at?->lt($now))->count(),
+                    'due_soon' => $active->filter(fn (ReviewerAssignment $assignment) => $assignment->review_deadline_at?->between($now, $dueSoon))->count(),
                 ];
             })->sortByDesc('active')->values();
     }
@@ -289,40 +482,49 @@ class OperationalReportService
     private function adviserWorkload(array $filters): Collection
     {
         $deadline = $this->endorsementDeadline($filters);
-        $applicationAggregates = $this->applyApplicationFilters(
+        $applications = $this->applyApplicationFilters(
             ResearchApplication::query()->whereNotNull('submitted_at'),
             $filters,
         )
-            ->select('adviser_user_id')
-            ->selectRaw('COUNT(*) AS received_count')
-            ->selectRaw('SUM(CASE WHEN application_status = ? THEN 1 ELSE 0 END) AS awaiting_count', [ApplicationStatus::SubmittedToAdviser->value])
-            ->groupBy('adviser_user_id')
-            ->get()
-            ->keyBy('adviser_user_id');
-        $endorsementAggregates = $this->relatedApplications(
+            ->get(['id', 'adviser_user_id', 'applicant_user_id', 'application_status'])
+            ->groupBy('adviser_user_id');
+        $endorsedApplications = $this->relatedApplications(
             Endorsement::query()->where('endorsement_status', EndorsementStatus::Endorsed->value),
             $filters,
         )
-            ->select('adviser_user_id')
-            ->selectRaw('COUNT(DISTINCT research_application_id) AS endorsed_count')
-            ->groupBy('adviser_user_id')
-            ->get()
-            ->keyBy('adviser_user_id');
+            ->with('researchApplication:id,applicant_user_id')
+            ->get(['id', 'adviser_user_id', 'research_application_id'])
+            ->groupBy('adviser_user_id');
 
         return User::query()->where('role', UserRole::Adviser->value)->where('account_status', AccountStatus::Active->value)
-            ->get(['id', 'name', 'expected_endorsement_count'])
-            ->map(function (User $adviser) use ($applicationAggregates, $endorsementAggregates, $deadline): array {
-                $applicationAggregate = $applicationAggregates->get($adviser->id);
-                $received = (int) ($applicationAggregate?->received_count ?? 0);
-                $endorsed = (int) ($endorsementAggregates->get($adviser->id)?->endorsed_count ?? 0);
-                $awaiting = (int) ($applicationAggregate?->awaiting_count ?? 0);
+            ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
+                ->where('institution', $filters['institute']))
+            ->get(['id', 'name', 'institution', 'expected_endorsement_count'])
+            ->map(function (User $adviser) use ($applications, $endorsedApplications, $deadline): array {
+                $records = $applications->get($adviser->id, collect());
+                $endorsedApplicantIds = $endorsedApplications->get($adviser->id, collect())
+                    ->pluck('researchApplication.applicant_user_id')
+                    ->filter()
+                    ->unique();
+                $receivedApplicantIds = $records->pluck('applicant_user_id')->filter()->unique();
+                $awaitingApplicantIds = $records
+                    ->where('application_status', ApplicationStatus::SubmittedToAdviser)
+                    ->pluck('applicant_user_id')
+                    ->filter()
+                    ->unique()
+                    ->diff($endorsedApplicantIds);
+                $expected = max(0, (int) $adviser->expected_endorsement_count);
+                $endorsed = $endorsedApplicantIds->count();
+                $awaiting = $awaitingApplicantIds->count();
 
                 return [
                     'adviser' => $adviser,
-                    'expected' => max(0, (int) $adviser->expected_endorsement_count),
-                    'received' => $received,
+                    'institute' => $adviser->institution ?: 'Not specified',
+                    'expected' => $expected,
+                    'received' => $receivedApplicantIds->count(),
                     'endorsed' => $endorsed,
                     'awaiting' => $awaiting,
+                    'not_received' => max(0, $expected - $endorsed - $awaiting),
                     'delayed' => $deadline?->isPast() ? $awaiting : 0,
                 ];
             })->sortByDesc('awaiting')->values();
@@ -438,11 +640,7 @@ class OperationalReportService
 
     private function fullyReleasedApplications(Builder $applications): Builder
     {
-        return $applications
-            ->whereHas('certificates')
-            ->whereDoesntHave('certificates', fn (Builder $certificates) => $certificates
-                ->whereNotIn('status', [CertificateStatus::Released->value, CertificateStatus::Claimed->value]))
-            ->whereRaw('(SELECT COUNT(*) FROM certificates WHERE certificates.research_application_id = research_applications.id) = (SELECT COUNT(*) FROM application_certificate_recipients WHERE application_certificate_recipients.research_application_id = research_applications.id)');
+        return $this->identityVisibility->visibleApplications($applications);
     }
 
     /** @param array<string, mixed> $filters */

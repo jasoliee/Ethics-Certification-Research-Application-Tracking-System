@@ -11,7 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class RestoreArchivedImportRequest extends FormRequest
 {
     /**
-     * Restrict every individual and bulk restoration request to the RES Lead policy.
+     * Restrict every individual and bulk restoration request to the REU Lead policy.
      */
     public function authorize(): bool
     {

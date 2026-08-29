@@ -53,15 +53,15 @@ class DeadlineProcessAvailability
                 'configured' => false,
                 'open' => false,
                 'state' => 'unconfigured',
-                'message' => "{$processLabel} is unavailable until the RES Lead configures its schedule.",
+                'message' => "{$processLabel} is unavailable until the REU Lead configures its schedule.",
                 'deadline' => null,
             ];
         }
 
         $state = $this->states->status($deadline);
         $message = match ($state['state']) {
-            'manually_open' => "{$processLabel} is manually open by the RES Lead.",
-            'manually_closed' => "{$processLabel} is currently closed by the RES Lead.",
+            'manually_open' => "{$processLabel} is manually open by the REU Lead.",
+            'manually_closed' => "{$processLabel} is currently closed by the REU Lead.",
             'upcoming' => "{$processLabel} opens on ".$deadline->starts_at?->format('M j, Y \a\t g:i A').'.',
             'closed' => "{$processLabel} closed on ".$deadline->due_at->format('M j, Y \a\t g:i A').'.',
             'open' => "{$processLabel} is open.",

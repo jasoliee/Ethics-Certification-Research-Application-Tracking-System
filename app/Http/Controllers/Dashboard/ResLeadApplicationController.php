@@ -28,12 +28,12 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * Lists, screens, classifies, and assigns adviser-endorsed applications for RES Leads.
+ * Lists, screens, classifies, and assigns adviser-endorsed applications for REU Leads.
  */
 class ResLeadApplicationController extends Controller
 {
     /**
-     * Display the searchable and filterable RES applications queue.
+     * Display the searchable and filterable REU applications queue.
      */
     public function index(Request $request, AcademicTermResolver $terms): View
     {
@@ -213,7 +213,7 @@ class ResLeadApplicationController extends Controller
     }
 
     /**
-     * Apply an authorized screening correction and route the RES Lead to the resulting workflow state.
+     * Apply an authorized screening correction and route the REU Lead to the resulting workflow state.
      */
     public function updateScreening(
         UpdateResearchApplicationScreeningRequest $request,
@@ -336,7 +336,6 @@ class ResLeadApplicationController extends Controller
         $assignmentReviewType = $reviewCycle === 0 ? 'initial_review' : 'revision_review';
 
         return $application->loadMissing([
-            'applicant:id,name,email,institutional_identifier,institution,program,role,applicant_type',
             'adviser:id,name,email,institution',
             'latestEndorsement.adviser:id,name',
             'screening.screenedBy:id,name',

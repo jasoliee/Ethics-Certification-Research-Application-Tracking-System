@@ -4,20 +4,27 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\ApplicantType;
 use App\Enums\ApplicationStatus;
+use App\Enums\CertificateStatus;
 use App\Enums\ResearchType;
 use App\Enums\ReviewType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
 use App\Models\User;
+use App\Services\Certificates\CertificateBackgroundService;
+use App\Services\Privacy\ApplicationIdentityVisibilityService;
 use App\Services\Reports\ApplicantSurveyReportService;
 use App\Services\Reports\OperationalReportService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResReportController extends Controller
 {
@@ -28,16 +35,7 @@ class ResReportController extends Controller
         AcademicTermResolver $terms,
     ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
-        $filters = $request->validate([
-            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
-            'research_type' => ['nullable', Rule::enum(ResearchType::class)],
-            'applicant_type' => ['nullable', Rule::enum(ApplicantType::class)],
-            'review_type' => ['nullable', Rule::enum(ReviewType::class)],
-            'institute' => ['nullable', 'string', 'max:150'],
-            'application_status' => ['nullable', Rule::enum(ApplicationStatus::class)],
-        ]);
+        $filters = $this->validatedFilters($request);
 
         return view('dashboard.reports.res-index', [
             'pageTitle' => 'Reports',
@@ -53,7 +51,167 @@ class ResReportController extends Controller
             'applicantTypes' => ApplicantType::cases(),
             'reviewTypes' => ReviewType::cases(),
             'applicationStatuses' => ApplicationStatus::cases(),
-            'institutes' => ResearchApplication::query()->whereNotNull('institution')->where('institution', '<>', '')->distinct()->orderBy('institution')->pluck('institution'),
+            'certificateStatuses' => $this->certificateStatusOptions(),
+            'institutes' => $this->instituteOptions(),
+        ]);
+    }
+
+    public function export(
+        Request $request,
+        ApplicantSurveyReportService $surveyReports,
+        OperationalReportService $operationalReports,
+    ): StreamedResponse {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+        $report = $operationalReports->report($filters);
+        $survey = $surveyReports->summary($filters);
+
+        return response()->streamDownload(function () use ($report, $survey, $filters): void {
+            $output = fopen('php://output', 'wb');
+            abort_unless(is_resource($output), 500);
+            $write = function (array $row) use ($output): void {
+                fputcsv($output, array_map(fn (mixed $value): string => $this->csvCell($value), $row), ',', '"', '', "\r\n");
+            };
+
+            $write(['ECRATS REU Operational Report']);
+            $write(['Generated', now()->format('M j, Y g:i A')]);
+            $write(['Filters', collect($filters)->map(fn ($value, $key) => Str::headline($key).': '.$value)->implode(' | ') ?: 'All records']);
+            $write([]);
+            $write(['Overall Summary']);
+            foreach ($report['summary'] as $key => $value) {
+                $write([Str::headline($key), $value]);
+            }
+
+            $write([]);
+            $write(['Applicant and Application Summary by Institute']);
+            $write(['Institute', 'Unique Applicants', 'Applications Submitted', 'Applicants Not Yet Submitted', 'Failed Applications', 'Certificates Claimed', 'Certificates Unclaimed']);
+            foreach ($report['institute_summary'] as $row) {
+                $write([$row['institute'], $row['unique_applicants'], $row['submitted'], $row['not_submitted'], $row['failed'], $row['claimed'], $row['unclaimed']]);
+            }
+
+            $write([]);
+            $write(['Adviser and Reviewer Summary']);
+            $write(['Institute', 'Research Advisers', 'Reviewer-enabled Advisers']);
+            foreach ($report['adviser_reviewer_summary'] as $row) {
+                $write([$row['institute'], $row['advisers'], $row['reviewers']]);
+            }
+
+            $write([]);
+            $write(['Reviewer Workload']);
+            $write(['Reviewer', 'Institute', 'Expedited', 'Full Board', 'Total Assigned', 'Completed', 'Pending', 'Overdue']);
+            foreach ($report['reviewer_workload'] as $row) {
+                $write([$row['reviewer']->name, $row['institute'], $row['expedited'], $row['full_board'], $row['total'], $row['completed'], $row['pending'], $row['overdue']]);
+            }
+
+            $write([]);
+            $write(['Applications (double-blind)']);
+            $write(['Application Code', 'Research Title', 'Institute', 'Review Type', 'Workflow Status', 'Certificate Status', 'Submitted']);
+            foreach ($report['applications'] as $row) {
+                $application = $row['application'];
+                $write([
+                    $application->application_code,
+                    $application->research_title,
+                    $application->institution,
+                    $application->review_type ? ReviewType::tryFrom((string) $application->review_type)?->label() : 'Not classified',
+                    $application->statusLabel(),
+                    $row['certificate_status'],
+                    $application->submitted_at?->format('M j, Y g:i A'),
+                ]);
+            }
+
+            $write([]);
+            $write(['Certificate-Released Applicants']);
+            $write(['Applicant', 'Institutional ID', 'Institute', 'Released Applications']);
+            foreach ($report['visible_applicants'] as $applicant) {
+                $write([
+                    $applicant->name,
+                    $applicant->institutional_identifier,
+                    $applicant->institution,
+                    $applicant->released_application_count,
+                ]);
+            }
+
+            $write([]);
+            $write(['Applicant Feedback (anonymous aggregate only)']);
+            $write(['Responses', $survey['response_count']]);
+            $write(['Overall Average', $survey['overall_average'] === null ? 'No data' : $survey['overall_average'].' / 5']);
+            foreach ($survey['sections'] as $section) {
+                $write([$section['title'], $section['average'] === null ? 'No data' : $section['average'].' / 5']);
+            }
+
+            fclose($output);
+        }, 'ecrats-reu-report-'.now()->format('Ymd-His').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    public function printReport(
+        Request $request,
+        ApplicantSurveyReportService $surveyReports,
+        OperationalReportService $operationalReports,
+        CertificateBackgroundService $backgrounds,
+    ): View {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+
+        return view('dashboard.reports.res-print', [
+            'report' => $operationalReports->report($filters),
+            'surveySummary' => $surveyReports->summary($filters),
+            'filters' => $filters,
+            'worksheetBackground' => $this->worksheetBackgroundDataUri($backgrounds),
+            'generatedAt' => now(),
+        ]);
+    }
+
+    public function printSurvey(
+        Request $request,
+        ApplicantSurveyReportService $surveyReports,
+        CertificateBackgroundService $backgrounds,
+    ): View {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+
+        return view('dashboard.reports.survey-print', [
+            'surveySummary' => $surveyReports->summary($filters),
+            'filters' => $filters,
+            'worksheetBackground' => $this->worksheetBackgroundDataUri($backgrounds),
+            'generatedAt' => now(),
+        ]);
+    }
+
+    public function applicant(
+        Request $request,
+        User $applicant,
+        ApplicationIdentityVisibilityService $identityVisibility,
+    ): View {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        abort_unless($applicant->role === UserRole::Applicant, 404);
+        abort_unless($identityVisibility->applicantIsVisible($applicant), 404);
+
+        $applications = $identityVisibility->forApplicant($applicant)
+            ->with(['certificates:id,research_application_id,recipient_name,certificate_number,status,released_at,claimed_at'])
+            ->latest('submitted_at')
+            ->get([
+                'id',
+                'application_code',
+                'research_title',
+                'institution',
+                'application_status',
+                'review_type',
+                'submitted_at',
+            ]);
+
+        return view('dashboard.reports.applicant', [
+            'pageTitle' => 'Released Applicant Record',
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Reports', 'route' => 'res.reports.index'],
+                ['label' => 'Released Applicant Record'],
+            ],
+            'applicant' => $applicant,
+            'applications' => $applications,
         ]);
     }
 
@@ -114,5 +272,73 @@ class ResReportController extends Controller
                 ['label' => 'Audit Log'],
             ],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function validatedFilters(Request $request): array
+    {
+        return validator($request->query(), [
+            'q' => ['nullable', 'string', 'max:100'],
+            'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'research_type' => ['nullable', Rule::enum(ResearchType::class)],
+            'applicant_type' => ['nullable', Rule::enum(ApplicantType::class)],
+            'review_type' => ['nullable', Rule::enum(ReviewType::class)],
+            'institute' => ['nullable', 'string', 'max:150'],
+            'application_status' => ['nullable', Rule::enum(ApplicationStatus::class)],
+            'certificate_status' => ['nullable', Rule::in([
+                CertificateStatus::PendingRelease->value,
+                CertificateStatus::GenerationFailed->value,
+                CertificateStatus::Released->value,
+                CertificateStatus::Claimed->value,
+                'issued',
+                'unclaimed',
+            ])],
+        ])->validate();
+    }
+
+    private function instituteOptions()
+    {
+        return ResearchApplication::query()
+            ->whereNotNull('institution')
+            ->where('institution', '<>', '')
+            ->pluck('institution')
+            ->merge(User::query()->whereNotNull('institution')->where('institution', '<>', '')->pluck('institution'))
+            ->unique()
+            ->sort()
+            ->values();
+    }
+
+    /** @return array<string, string> */
+    private function certificateStatusOptions(): array
+    {
+        return [
+            'issued' => 'Issued (released or claimed)',
+            'unclaimed' => 'Unclaimed',
+            CertificateStatus::Claimed->value => 'Claimed',
+            CertificateStatus::Released->value => 'Released',
+            CertificateStatus::PendingRelease->value => 'Pending release',
+            CertificateStatus::GenerationFailed->value => 'Generation failed',
+        ];
+    }
+
+    private function worksheetBackgroundDataUri(CertificateBackgroundService $backgrounds): ?string
+    {
+        $background = $backgrounds->active(CertificateBackground::TYPE_REVIEW_WORKSHEET);
+        if (! str_starts_with($background->mime_type, 'image/')) {
+            return null;
+        }
+
+        $contents = Storage::disk('local')->get($background->stored_file_path);
+
+        return 'data:'.$background->mime_type.';base64,'.base64_encode($contents);
+    }
+
+    private function csvCell(mixed $value): string
+    {
+        $cell = str_replace(["\r", "\n"], ' ', (string) ($value ?? ''));
+
+        return preg_match('/^[=+\-@]/', $cell) === 1 ? "'".$cell : $cell;
     }
 }

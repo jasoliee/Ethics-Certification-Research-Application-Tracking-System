@@ -198,7 +198,7 @@ class ResLeadSettingsTest extends TestCase
         $this->assertStringNotContainsString('termEnd.dataset.minimumDate', $javascript);
     }
 
-    public function test_settings_term_label_uses_only_the_current_configured_timeframe(): void
+    public function test_settings_keeps_the_configured_term_visible_until_it_is_explicitly_ended(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $term = AcademicTerm::create([
@@ -219,8 +219,8 @@ class ResLeadSettingsTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.settings.index'))
             ->assertOk()
-            ->assertSee('Semester and Academic Year')
-            ->assertDontSee('Current Semester, A.Y. 2026-2027');
+            ->assertSee('Current Semester, A.Y. 2026-2027')
+            ->assertSee('End academic term?');
     }
 
     public function test_res_lead_can_update_own_username_and_password_with_current_password(): void

@@ -51,7 +51,7 @@ Route::middleware('no-store')->group(function (): void {
         ->middleware('auth')
         ->name('logout');
 
-    Route::middleware(['auth', 'dashboard.context'])->group(function (): void {
+    Route::middleware(['auth', 'term.operational', 'dashboard.context'])->group(function (): void {
         // All roles enter through one stable URL while retaining role-specific data and authorization.
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
@@ -350,6 +350,10 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('certificates.applications.download-all');
                 Route::controller(ResReportController::class)->prefix('reports')->name('reports.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
+                    Route::get('/export', 'export')->middleware('throttle:report-export')->name('export');
+                    Route::get('/print', 'printReport')->name('print');
+                    Route::get('/survey/print', 'printSurvey')->name('survey.print');
+                    Route::get('/applicants/{applicant}', 'applicant')->name('applicants.show');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');
                 });
                 Route::controller(UserManagementController::class)->prefix('users')->name('users.')->group(function (): void {
@@ -358,11 +362,11 @@ Route::middleware('no-store')->group(function (): void {
                     Route::post('/', 'store')->middleware('throttle:account-write')->name('store');
                     Route::get('/import', 'importForm')->name('import.form');
                     Route::post('/import', 'import')->middleware('throttle:account-import')->name('import.store');
-                    // Restoration routes exist only in the RES Lead group and consume server-owned preview targets.
+                    // Restoration routes exist only in the REU Lead group and consume server-owned preview targets.
                     Route::post('/import/restore-account', 'restoreImportAccount')->middleware('throttle:import-confirm')->name('import.restore-account');
                     Route::post('/import/restore-all', 'restoreImportAccounts')->middleware('throttle:import-confirm')->name('import.restore-all');
                     Route::post('/import/confirm', 'confirmImport')->middleware('throttle:import-confirm')->name('import.confirm');
-                    // Rate-limit verified workbook generation while retaining the RES Lead role and catalog checks.
+                    // Rate-limit verified workbook generation while retaining the REU Lead role and catalog checks.
                     Route::get('/import/template', 'template')->middleware('throttle:account-template')->name('import.template');
                     Route::post('/mass-action', 'massAction')->middleware('throttle:account-mass-action')->name('mass-action');
                     Route::post('/reviewer-reconciliations/{reviewerIdentityReconciliation}/keep-separate', [ReviewerIdentityReconciliationController::class, 'keepSeparate'])
@@ -393,6 +397,9 @@ Route::middleware('no-store')->group(function (): void {
                     Route::put('/requirements/{documentRequirement}', 'updateDocumentRequirement')->middleware('throttle:account-write')->name('requirements.update');
                     Route::delete('/requirements/{documentRequirement}', 'destroyDocumentRequirement')->middleware('throttle:account-write')->name('requirements.destroy');
                     Route::put('/deadlines', 'updateDeadlines')->middleware('throttle:account-write')->name('deadlines.update');
+                    Route::patch('/academic-terms/{academicTerm}/pause', 'pauseAcademicTerm')->middleware('throttle:account-write')->name('academic-terms.pause');
+                    Route::patch('/academic-terms/{academicTerm}/end', 'endAcademicTerm')->middleware('throttle:account-write')->name('academic-terms.end');
+                    Route::patch('/academic-terms/{academicTerm}/reactivate', 'reactivateAcademicTerm')->middleware('throttle:account-write')->name('academic-terms.reactivate');
                     Route::put('/profile', 'updateProfile')->middleware('throttle:account-write')->name('profile.update');
                     Route::patch('/username', 'updateUsername')->middleware('throttle:security-change')->name('username.update');
                     Route::patch('/email', 'updateEmail')->middleware('throttle:security-change')->name('email.update');

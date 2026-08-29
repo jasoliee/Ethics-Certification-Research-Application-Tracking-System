@@ -41,7 +41,7 @@ class UserManagementTest extends TestCase
     {
         $resLead = User::factory()->create([
             'role' => UserRole::ResLead,
-            'name' => 'Primary RES Lead',
+            'name' => 'Primary REU Lead',
             'institutional_identifier' => 'RES-LEAD-HIDDEN',
         ]);
         $pending = User::factory()->pendingSetup()->create(['name' => 'Pending Student']);
@@ -173,7 +173,7 @@ class UserManagementTest extends TestCase
         $this->assertContains('Position / Designation', $adviserType['optional_headers']);
     }
 
-    public function test_adviser_creation_exposes_and_enforces_reviewer_capability_capacity_conditionally(): void
+    public function test_adviser_creation_exposes_reviewer_capability_and_fixes_enabled_capacity_at_thirty(): void
     {
         Notification::fake();
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
@@ -185,7 +185,9 @@ class UserManagementTest extends TestCase
             ->assertSee('name="reviewer_enabled"', false)
             ->assertSee('data-reviewer-capability-toggle', false)
             ->assertSee('Reviewer Capacity')
-            ->assertSee('data-reviewer-capacity', false)
+            ->assertSee('30 active assignments')
+            ->assertDontSee('data-reviewer-capacity', false)
+            ->assertDontSee('name="reviewer_capacity"', false)
             ->assertDontSee('Reviewer Classification');
 
         $payload = $this->reviewerPayload([
@@ -198,15 +200,10 @@ class UserManagementTest extends TestCase
         ]);
         $this->actingAs($resLead)
             ->post(route('res.users.store'), $payload)
-            ->assertSessionHasErrors('reviewer_capacity');
-        $this->assertDatabaseMissing('users', ['email' => 'conditional.reviewer@ecrats.test']);
-
-        $this->actingAs($resLead)
-            ->post(route('res.users.store'), [...$payload, 'reviewer_capacity' => 8])
             ->assertSessionDoesntHaveErrors();
         $created = User::query()->where('email', 'conditional.reviewer@ecrats.test')->firstOrFail();
         $this->assertTrue($created->reviewer_enabled);
-        $this->assertSame(8, $created->reviewer_capacity);
+        $this->assertSame(30, $created->reviewer_capacity);
         $this->assertNull($created->position_title);
     }
 
@@ -547,34 +544,17 @@ class UserManagementTest extends TestCase
         $this->assertSame(1, User::where('email', 'excel.student@school.edu')->count());
     }
 
-    public function test_adviser_bulk_import_matches_individual_reviewer_capability_validation(): void
+    public function test_adviser_bulk_import_uses_yes_no_capability_and_fixed_capacity(): void
     {
         Notification::fake();
         Storage::fake('local');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-
-        $invalidPath = $this->templatePath($resLead, 'adviser');
-        $invalidRow = $this->adviserRow(
-            email: 'bulk.invalid.reviewer@ecrats.test',
-            identifier: 'KLD-EMP-BULK-INVALID',
-            reviewerEnabled: 'Yes',
-            reviewerCapacity: '',
-        );
-        $this->replaceSpreadsheetRow($invalidPath, 3, $invalidRow);
-        $this->actingAs($resLead)->post(route('res.users.import.store'), [
-            'account_type' => 'adviser',
-            'accounts_file' => $this->uploadedWorkbook($invalidPath, 'invalid-adviser-capacity.xlsx'),
-        ])->assertOk()
-            ->assertSee('Excel Row 3')
-            ->assertSee('Reviewer Capacity')
-            ->assertSee('required when Reviewer capability is enabled');
 
         $validPath = $this->templatePath($resLead, 'adviser');
         $this->replaceSpreadsheetRow($validPath, 3, $this->adviserRow(
             email: 'bulk.valid.reviewer@ecrats.test',
             identifier: 'KLD-EMP-BULK-VALID',
             reviewerEnabled: 'Yes',
-            reviewerCapacity: '9',
         ));
         $this->actingAs($resLead)->post(route('res.users.import.store'), [
             'account_type' => 'adviser',
@@ -591,7 +571,7 @@ class UserManagementTest extends TestCase
         $created = User::query()->where('email', 'bulk.valid.reviewer@ecrats.test')->firstOrFail();
         $this->assertSame(UserRole::Adviser, $created->role);
         $this->assertTrue($created->reviewer_enabled);
-        $this->assertSame(9, $created->reviewer_capacity);
+        $this->assertSame(30, $created->reviewer_capacity);
     }
 
     public function test_phone_numbers_require_exactly_eleven_digits_and_bulk_import_accepts_alphanumeric_student_ids(): void
@@ -651,7 +631,7 @@ class UserManagementTest extends TestCase
      */
     public function test_import_preview_is_user_bound_and_expires(): void
     {
-        // Arrange one valid private preview owned by the first authorized RES Lead.
+        // Arrange one valid private preview owned by the first authorized REU Lead.
         Storage::fake('local');
         $owner = User::factory()->create(['role' => UserRole::ResLead]);
         $otherActor = User::factory()->create(['role' => UserRole::ResLead]);
@@ -917,7 +897,7 @@ class UserManagementTest extends TestCase
         ])->assertOk();
         $token = $this->previewTokenFor($owner);
 
-        // Act and assert that actor-directory isolation blocks a different RES Lead.
+        // Act and assert that actor-directory isolation blocks a different REU Lead.
         $this->actingAs($otherActor)->post(route('res.users.import.restore-all'), [
             'import_token' => $token,
         ])->assertSessionHasErrors('import_token');
@@ -960,7 +940,7 @@ class UserManagementTest extends TestCase
         ]);
         $response->assertOk()
             ->assertSee('Archived Accounts Found (1)')
-            ->assertSee('Contact the RES Lead')
+            ->assertSee('Contact the REU Lead')
             ->assertDontSee('data-restore-confirm', false)
             ->assertDontSee('Restore All Flagged Archived Accounts');
 
@@ -1609,7 +1589,7 @@ class UserManagementTest extends TestCase
             ->assertSee('identity-template-heading', false)
             ->assertSee('identity-template-actions', false);
 
-        // Assert RES Lead and Adviser account lists contain keyboard-focusable internal horizontal-scroll regions.
+        // Assert REU Lead and Adviser account lists contain keyboard-focusable internal horizontal-scroll regions.
         $this->actingAs($resLead)
             ->get(route('res.users.index'))
             ->assertOk()
@@ -1764,7 +1744,6 @@ class UserManagementTest extends TestCase
         string $email,
         string $identifier,
         string $reviewerEnabled,
-        string $reviewerCapacity,
     ): array {
         return [
             'Bulk',
@@ -1777,7 +1756,6 @@ class UserManagementTest extends TestCase
             'Institute of Engineering',
             '',
             $reviewerEnabled,
-            $reviewerCapacity,
         ];
     }
 

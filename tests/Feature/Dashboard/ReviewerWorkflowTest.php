@@ -435,7 +435,7 @@ class ReviewerWorkflowTest extends TestCase
         $this->assertStringContainsString('data-reviewer-submit-confirmation', $blade);
         $this->assertStringContainsString('data-reviewer-submit-result', $blade);
         $this->assertStringContainsString('A permanent submission version will be created.', $blade);
-        $this->assertStringContainsString('You may continue editing and submit a newer version until RES releases the decision.', $blade);
+        $this->assertStringContainsString('You may continue editing and submit a newer version until REU releases the decision.', $blade);
 
         $this->assertStringContainsString('draftSaveInFlight', $javascript);
         $this->assertStringContainsString('setWorksheetControlsLocked', $javascript);

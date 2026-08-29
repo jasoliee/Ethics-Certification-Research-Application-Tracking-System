@@ -235,7 +235,7 @@ class OfficialCertificateGenerationService
             .' through '.$validityDate->format('F j, Y').'.';
 
         $pdf->SetTextColor(0, 0, 0);
-        $this->centeredText($pdf, 'Research Ethics Section', 43.8, 7.3, 10, 'I');
+        $this->centeredText($pdf, 'Research Ethics Unit', 43.8, 7.3, 10, 'I');
         $pdf->SetFont('Helvetica', 'B', 9);
         $pdf->SetXY(145, 48.6);
         $pdf->Cell(50, 5, $this->encoded($certificate->certificate_number), 0, 0, 'R');
@@ -284,7 +284,7 @@ class OfficialCertificateGenerationService
             $pdf->Image($qrPath, self::QR_X_MM, self::QR_Y_MM, self::QR_SIZE_MM, self::QR_SIZE_MM, 'PNG');
         }
         $this->centeredText($pdf, Str::upper($signatoryName), 254.5, 6, 10, 'B');
-        $this->centeredText($pdf, 'Coordinator, Research Ethics Section', 261, 6, 9, 'I');
+        $this->centeredText($pdf, 'Coordinator, Research Ethics Unit', 261, 6, 9, 'I');
     }
 
     private function centeredText(
@@ -378,7 +378,7 @@ class OfficialCertificateGenerationService
             $disk = Storage::disk('local');
             if (! $disk->exists($actor->certificate_signature_path)) {
                 throw new CertificateGenerationException(
-                    'The configured RES signatory signature is unavailable.',
+                    'The configured REU signatory signature is unavailable.',
                     'configured_signature_missing',
                 );
             }
@@ -391,7 +391,7 @@ class OfficialCertificateGenerationService
                 || ! is_array($dimensions)
                 || ($dimensions['mime'] ?? null) !== 'image/png') {
                 throw new CertificateGenerationException(
-                    'The configured RES signatory signature failed integrity verification.',
+                    'The configured REU signatory signature failed integrity verification.',
                     'configured_signature_invalid',
                 );
             }

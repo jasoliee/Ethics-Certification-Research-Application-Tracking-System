@@ -22,7 +22,7 @@ class ResearchApplicationPolicy
     }
 
     /**
-     * Scope record visibility by ownership, formal Adviser submission, assignment, or RES authority.
+     * Scope record visibility by ownership, formal Adviser submission, assignment, or REU authority.
      */
     public function view(User $user, ResearchApplication $researchApplication): bool
     {
@@ -160,7 +160,7 @@ class ResearchApplicationPolicy
     }
 
     /**
-     * Restrict initial administrative classification to RES Leads and eligible screening states.
+     * Restrict initial administrative classification to REU Leads and eligible screening states.
      */
     public function classify(User $user, ResearchApplication $researchApplication): bool
     {
@@ -173,7 +173,7 @@ class ResearchApplicationPolicy
     }
 
     /**
-     * Allow RES Leads to correct a persisted screening while the service protects started review work.
+     * Allow REU Leads to correct a persisted screening while the service protects started review work.
      */
     public function updateScreening(User $user, ResearchApplication $researchApplication): bool
     {

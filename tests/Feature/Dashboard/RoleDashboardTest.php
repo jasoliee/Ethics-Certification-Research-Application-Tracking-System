@@ -67,7 +67,7 @@ class RoleDashboardTest extends TestCase
         // Arrange the first expected card for each dashboard role that owns a summary-card grid.
         $cases = [
             UserRole::Adviser->value => 'Pending',
-            UserRole::ResLead->value => 'For RES Screening',
+            UserRole::ResLead->value => 'For REU Screening',
         ];
 
         foreach ($cases as $role => $label) {
@@ -148,7 +148,7 @@ class RoleDashboardTest extends TestCase
         ]);
         TimelineCalendarEvent::create([
             'milestone_key' => 'test-screening',
-            'label' => 'RES Screening',
+            'label' => 'REU Screening',
             'term_label' => '1st Semester, A.Y. 2026-2027',
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addDay(),
@@ -161,7 +161,7 @@ class RoleDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('ECRATS-TEST-0001')
             ->assertSee('Ethical Use of Learning Analytics')
-            ->assertSee('Under RES Screening')
+            ->assertSee('Under REU Screening')
             ->assertSee('1 of 2 mandatory completed')
             ->assertDontSee('Application submission deadline')
             ->assertSee('1st Semester, A.Y. 2026-2027')
@@ -234,7 +234,7 @@ class RoleDashboardTest extends TestCase
         TimelineCalendarEvent::create([
             'academic_term_id' => $applicationTerm->id,
             'milestone_key' => "term-{$applicationTerm->id}-res-screening",
-            'label' => 'Historical RES Screening Window',
+            'label' => 'Historical REU Screening Window',
             'term_label' => $applicationTerm->label(),
             'starts_at' => now()->subMonths(9),
             'ends_at' => now()->subMonths(8),
@@ -269,7 +269,7 @@ class RoleDashboardTest extends TestCase
             ->assertSee('Wrong Current-Term Screening')
             ->assertSee(now()->format('M j, Y').' - '.now()->addDay()->format('M j, Y'))
             ->assertDontSee('Historical Submission Window')
-            ->assertDontSee('Historical RES Screening Window');
+            ->assertDontSee('Historical REU Screening Window');
     }
 
     public function test_applicant_deadline_alert_uses_active_term_dates_and_manual_availability(): void
@@ -302,7 +302,7 @@ class RoleDashboardTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Submission closed')
-            ->assertSee('currently closed by the RES Lead');
+            ->assertSee('currently closed by the REU Lead');
 
         $deadline->update([
             'starts_at' => now()->addDay(),
@@ -313,7 +313,7 @@ class RoleDashboardTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('days remaining')
-            ->assertSee('Application submission is manually open by the RES Lead.');
+            ->assertSee('Application submission is manually open by the REU Lead.');
 
         $deadline->update([
             'starts_at' => now()->subDays(3),
@@ -382,7 +382,7 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('aria-label="For RES Screening: 0"', false)
+            ->assertSee('aria-label="For REU Screening: 0"', false)
             ->assertDontSee('UNLINKED-RES-APP');
     }
 
@@ -466,7 +466,7 @@ class RoleDashboardTest extends TestCase
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         DeadlineConfiguration::create([
             'deadline_key' => 'mapped-res-screening',
-            'title' => 'Mapped RES Screening',
+            'title' => 'Mapped REU Screening',
             'audience_role' => UserRole::ResLead,
             'starts_at' => now()->subDay(),
             'due_at' => now()->addDay(),
@@ -485,7 +485,7 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Mapped RES Screening')
+            ->assertSee('Mapped REU Screening')
             ->assertDontSee('Release of Decision &amp; Certificate', false);
     }
 
@@ -720,8 +720,8 @@ class RoleDashboardTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('aria-label="For RES Screening: 1"', false)
-            ->assertSee('aria-label="Under RES Screening: 1"', false)
+            ->assertSee('aria-label="For REU Screening: 1"', false)
+            ->assertSee('aria-label="Under REU Screening: 1"', false)
             ->assertSee('aria-label="Awaiting Assignment: 1"', false)
             ->assertSee('aria-label="Under Review: 1"', false)
             ->assertSee('aria-label="For Result Release: 1"', false)
@@ -772,7 +772,7 @@ class RoleDashboardTest extends TestCase
         // Arrange the role-specific labels expected when the database contains no applications or assignments.
         $cases = [
             UserRole::Adviser->value => ['Pending', 'Endorsed', 'Returned'],
-            UserRole::ResLead->value => ['For RES Screening', 'Under RES Screening', 'Awaiting Assignment', 'Under Review', 'For Result Release'],
+            UserRole::ResLead->value => ['For REU Screening', 'Under REU Screening', 'Awaiting Assignment', 'Under Review', 'For Result Release'],
         ];
 
         foreach ($cases as $role => $labels) {

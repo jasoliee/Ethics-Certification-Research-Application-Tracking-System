@@ -46,10 +46,8 @@ class StoreManagedUserRequest extends FormRequest
             'position_title' => ['nullable', 'string', 'max:150'],
             'reviewer_enabled' => [Rule::prohibitedIf(! $isAdviser), 'nullable', 'boolean'],
             'reviewer_capacity' => [
-                Rule::requiredIf($isAdviser && $this->boolean('reviewer_enabled')),
                 'nullable',
                 'integer',
-                'between:1,30',
             ],
             'role' => ['required', Rule::enum(UserRole::class)],
             'applicant_type' => [Rule::requiredIf($isApplicant), 'nullable', Rule::enum(ApplicantType::class)],
@@ -69,7 +67,6 @@ class StoreManagedUserRequest extends FormRequest
             'institution.in' => $options->validationMessage(ProfileOptionField::Institute),
             'program.in' => $options->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $options->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
         ];
     }
 }

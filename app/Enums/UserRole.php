@@ -15,7 +15,7 @@ enum UserRole: string
             self::Applicant => 'Student/Faculty Researcher',
             self::Adviser => 'Adviser',
             self::Reviewer => 'Reviewer',
-            self::ResLead => 'RES Lead',
+            self::ResLead => 'REU Lead',
         };
     }
 

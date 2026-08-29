@@ -30,7 +30,7 @@
                 <span><x-dashboard.icon name="check" size="22" /></span>
                 <div>
                     <strong>Application classified as exempted</strong>
-                    <p>Standard reviewer assignment is not required. Direct documentation and certificate release remain a later RES process.</p>
+                    <p>Standard reviewer assignment is not required. Direct documentation and certificate release remain a later REU process.</p>
                 </div>
                 @if ($canUpdateScreening && ! $isEditingScreening)
                     <a class="dashboard-outline-action" href="{{ route('res.applications.show', [$application, 'edit_screening' => 1]) }}">
@@ -71,7 +71,7 @@
                         :tone="$requirementSummary['ready'] ? 'success' : 'orange'"
                     />
                 </header>
-                <x-dashboard.overflow label="RES requirement checklist" wide>
+                <x-dashboard.overflow label="REU requirement checklist" wide>
                     <table class="dashboard-table res-requirement-table">
                         <thead>
                             <tr><th>Document Type</th><th>Status</th><th>File Name / Version</th><th>Uploaded Date</th><th>Action</th></tr>
@@ -221,7 +221,7 @@
                     <dl class="res-screening-summary">
                         <div><dt>Review Type</dt><dd><x-dashboard.status-badge :label="$savedReviewType->label()" tone="success" /></dd></div>
                         <div><dt>Reviewers Required</dt><dd>{{ $savedReviewType->reviewerCount() }} {{ Str::plural('reviewer', $savedReviewType->reviewerCount()) }}</dd></div>
-                        <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived RES Lead' }}</dd></div>
+                        <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived REU Lead' }}</dd></div>
                         <div><dt>Classification Date</dt><dd>{{ $screening->classified_at->format('M j, Y g:i A') }}</dd></div>
                         <div class="res-detail-wide"><dt>Reason / Basis</dt><dd>{{ $screening->classification_reason }}</dd></div>
                     </dl>

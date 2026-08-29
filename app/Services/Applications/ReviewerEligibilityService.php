@@ -12,6 +12,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
+use App\Support\ReviewerCapacity;
 
 /**
  * Resolves and revalidates reviewer-enabled Advisers against account state, conflicts, and workload.
@@ -108,7 +109,7 @@ class ReviewerEligibilityService
         $activeLoad = $reviewer->reviewerAssignments()
             ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())
             ->count();
-        $capacity = (int) ($reviewer->reviewer_capacity ?? 0);
+        $capacity = ReviewerCapacity::MAX_ACTIVE_ASSIGNMENTS;
 
         if ($capacity < 1 || $activeLoad >= $capacity) {
             throw ValidationException::withMessages([

@@ -252,7 +252,7 @@ class DashboardNavigationTest extends TestCase
             'reviewer_user_id' => $reviewer->id,
         ]);
 
-        // Act across every record route and assert only owners, assignees, and the RES Lead receive access.
+        // Act across every record route and assert only owners, assignees, and the REU Lead receive access.
         $this->actingAs($owner)->get(route('applicant.applications.show', $application))->assertOk();
         $this->actingAs($owner)
             ->get(route('applicant.applications.requirements', $application))

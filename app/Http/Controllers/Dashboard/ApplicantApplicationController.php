@@ -95,10 +95,11 @@ class ApplicantApplicationController extends Controller
                     ->withErrors(['submission_window' => $windowStatus['message']]);
             }
 
-            if (! $submissionLimit->canCreate($request->user())) {
+            $limitStatus = $submissionLimit->status($request->user());
+            if ($limitStatus['reached']) {
                 return redirect()
                     ->route('applicant.applications.index')
-                    ->withErrors(['application_limit' => ApplicationSubmissionLimit::REACHED_MESSAGE]);
+                    ->withErrors(['application_limit' => $limitStatus['block_message']]);
             }
         }
 

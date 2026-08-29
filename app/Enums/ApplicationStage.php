@@ -25,7 +25,7 @@ enum ApplicationStage: string
             self::ApplicationInformation => 'Application Information',
             self::DocumentSubmission => 'Document Submission',
             self::AdviserReview => 'Adviser Review',
-            self::ResScreening => 'RES Screening',
+            self::ResScreening => 'REU Screening',
             self::EthicsReview => 'Ethics Review',
             self::Revision => 'Revision',
             self::DecisionRelease => 'Decision Release',

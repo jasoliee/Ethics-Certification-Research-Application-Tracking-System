@@ -39,7 +39,7 @@
             <span><x-dashboard.icon name="lock" size="20" /></span>
             <div>
                 <strong>Confidential blind review</strong>
-                <p>Use the application code when referring to this study. Review content and comments remain restricted until an official RES release.</p>
+                <p>Use the application code when referring to this study. Review content and comments remain restricted until an official REU release.</p>
             </div>
         </section>
 
@@ -67,7 +67,7 @@
             </dl>
         </section>
 
-        {{-- Desktop mirrors the high-fidelity three-column workspace; smaller viewports stack without losing controls. --}}
+        {{-- Documents stay beside the viewer; review controls follow below in a focused two-column workspace. --}}
         <div class="reviewer-review-studio" data-reviewer-review-studio>
             <aside class="application-panel reviewer-document-library" aria-label="Submitted documents">
                 <header class="application-panel-heading"><div><h2>Documents</h2></div></header>
@@ -184,7 +184,7 @@
                     </div>
                     <div class="application-field application-field-full">
                         <label for="review-comment-body">Comment</label>
-                        <textarea id="review-comment-body" name="body" rows="4" minlength="3" maxlength="2000" @disabled(! $canWrite) required>{{ old('body') }}</textarea>
+                        <textarea id="review-comment-body" name="body" rows="4" minlength="5" maxlength="2000" @disabled(! $canWrite) required>{{ old('body') }}</textarea>
                     </div>
                     <p class="reviewer-comment-feedback" role="status" aria-live="polite" data-reviewer-comment-feedback></p>
                     <div class="reviewer-comment-form-actions">
@@ -268,7 +268,7 @@
                                                     <a href="{{ route('reviewer.assignments.forms.artifacts.download', [$assignment, $form, $form->artifact]) }}">Download</a>
                                                 </span>
                                             @elseif ($formCompleted)
-                                                <span>{{ $canWrite ? 'Editable until RES releases the decision.' : 'Read-only.' }}</span>
+                                                <span>{{ $canWrite ? 'Editable until REU releases the decision.' : 'Read-only.' }}</span>
                                             @endif
                                         </div>
                                         @if ($worksheetVersions->isNotEmpty())
@@ -514,7 +514,7 @@
                         <span class="application-modal-icon"><x-dashboard.icon name="clipboard" size="24" /></span>
                         <div>
                             <h2 id="reviewer-submit-title">Submit Final Review</h2>
-                            <p id="reviewer-submit-description">Confirm the decision that will be sent into the protected RES workflow.</p>
+                            <p id="reviewer-submit-description">Confirm the decision that will be sent into the protected REU workflow.</p>
                         </div>
                     </header>
 
@@ -531,7 +531,7 @@
 
                     <div class="reviewer-submit-warning" id="reviewer-submit-warning" role="note">
                         <x-dashboard.icon name="alert-triangle" size="20" />
-                        <p><strong>A permanent submission version will be created.</strong> You may continue editing and submit a newer version until RES releases the decision.</p>
+                        <p><strong>A permanent submission version will be created.</strong> You may continue editing and submit a newer version until REU releases the decision.</p>
                     </div>
                     <p class="reviewer-submit-feedback" role="alert" aria-live="assertive" data-reviewer-submit-feedback></p>
 
@@ -549,7 +549,7 @@
                         <span class="application-modal-icon reviewer-submit-result-icon"><x-dashboard.icon name="check" size="24" /></span>
                         <div>
                             <h2 id="reviewer-submit-result-title">Review Submitted</h2>
-                            <p id="reviewer-submit-result-description" data-reviewer-submit-result-message>Your final review was recorded and is pending the next authorized RES action.</p>
+                            <p id="reviewer-submit-result-description" data-reviewer-submit-result-message>Your final review was recorded and is pending the next authorized REU action.</p>
                         </div>
                     </header>
                     <dl class="reviewer-submit-summary">

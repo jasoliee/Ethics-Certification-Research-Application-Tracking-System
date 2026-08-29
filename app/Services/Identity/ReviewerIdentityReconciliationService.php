@@ -2,6 +2,7 @@
 
 namespace App\Services\Identity;
 
+use App\Support\ReviewerCapacity;
 use App\Enums\AccountStatus;
 use App\Enums\UserRole;
 use App\Models\ReviewerIdentityReconciliation;
@@ -123,11 +124,7 @@ class ReviewerIdentityReconciliationService
 
             $target->forceFill([
                 'reviewer_enabled' => true,
-                'reviewer_capacity' => max(
-                    (int) ($target->reviewer_capacity ?? 0),
-                    (int) ($source->reviewer_capacity ?? 0),
-                    1,
-                ),
+                'reviewer_capacity' => ReviewerCapacity::MAX_ACTIVE_ASSIGNMENTS,
             ])->save();
 
             // Preserve the source User row and attribution while permanently preventing a
@@ -168,7 +165,7 @@ class ReviewerIdentityReconciliationService
 
             $target->notify(new DashboardUpdateNotification([
                 'title' => 'Reviewer history reconciled',
-                'message' => 'RES linked preserved Reviewer history to your Adviser account.',
+                'message' => 'The REU linked preserved Reviewer history to your Adviser account.',
                 'icon' => 'refresh',
                 'tone' => 'green',
                 'route' => 'reviewer.dashboard',
@@ -181,7 +178,7 @@ class ReviewerIdentityReconciliationService
     private function authorizeActor(User $actor): void
     {
         if ($actor->role !== UserRole::ResLead) {
-            throw new AuthorizationException('Only the RES Lead may reconcile Reviewer identities.');
+            throw new AuthorizationException('Only the REU Lead may reconcile Reviewer identities.');
         }
     }
 

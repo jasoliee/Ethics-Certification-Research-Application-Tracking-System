@@ -435,7 +435,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
             ->assertSeeInOrder([
                 'Submission Checklist',
                 'data-final-submit-open',
-                'Application submission is open by the RES Lead.',
+                'Application submission is open by the REU Lead.',
                 'A formal application slot is available.',
                 'All required application information is complete.',
                 'An eligible Research Adviser is assigned.',

@@ -31,7 +31,7 @@
                 <div class="identity-table-summary">
                     <span>
                         <strong id="reviewer-reconciliation-heading">Reviewer identity reconciliation</strong>
-                        <small>{{ $identityReconciliations->count() }} possible duplicate {{ str('identity')->plural($identityReconciliations->count()) }} require an RES decision. No record is merged automatically.</small>
+                        <small>{{ $identityReconciliations->count() }} possible duplicate {{ str('identity')->plural($identityReconciliations->count()) }} require an REU decision. No record is merged automatically.</small>
                     </span>
                 </div>
                 <div class="identity-table-scroll dashboard-overflow-region" role="region" aria-label="Pending Reviewer identity reconciliations" tabindex="0">
@@ -66,7 +66,7 @@
             </section>
         @endif
 
-        {{-- RES Lead retains role tabs; Adviser receives one accurate applicant-count header. --}}
+        {{-- REU Lead retains role tabs; Adviser receives one accurate applicant-count header. --}}
         <nav class="identity-role-tabs {{ $isResLead ? 'is-four' : 'is-one' }}" aria-label="Account category filters">
             @if ($isResLead)
                 <a class="{{ empty($filters['role']) ? 'is-active' : '' }}" href="{{ route($routeBase.'.index') }}">

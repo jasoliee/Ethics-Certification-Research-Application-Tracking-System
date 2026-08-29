@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Support\ReviewerCapacity;
 use Illuminate\Validation\ValidationException;
 
 class UserAccountService
@@ -277,10 +278,8 @@ class UserAccountService
                 'boolean',
             ],
             'reviewer_capacity' => [
-                Rule::requiredIf($targetRole === UserRole::Adviser && $reviewerEnabled),
                 'nullable',
                 'integer',
-                'between:1,30',
             ],
         ];
     }
@@ -330,8 +329,6 @@ class UserAccountService
             'institution.in' => $this->profileOptions->validationMessage(ProfileOptionField::Institute),
             'program.in' => $this->profileOptions->validationMessage(ProfileOptionField::Program),
             'year_level.in' => $this->profileOptions->validationMessage(ProfileOptionField::YearLevel),
-            'reviewer_capacity.required' => 'Reviewer Capacity is required when Reviewer capability is enabled.',
-            'reviewer_capacity.between' => 'Reviewer Capacity must be between 1 and 30.',
         ];
     }
 
@@ -410,7 +407,7 @@ class UserAccountService
         } else {
             $values['reviewer_enabled'] = (bool) ($validated['reviewer_enabled'] ?? false);
             $values['reviewer_capacity'] = $values['reviewer_enabled']
-                ? (int) $validated['reviewer_capacity']
+                ? ReviewerCapacity::MAX_ACTIVE_ASSIGNMENTS
                 : null;
         }
 

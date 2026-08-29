@@ -28,7 +28,7 @@ class AdviserEndorsementController extends Controller
 
         return redirect()
             ->route('adviser.applications.show', $researchApplication)
-            ->with('status', 'Application endorsed for RES screening.');
+            ->with('status', 'Application endorsed for REU screening.');
     }
 
     public function returnForCorrection(

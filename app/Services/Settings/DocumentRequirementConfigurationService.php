@@ -23,7 +23,7 @@ class DocumentRequirementConfigurationService
 
     public function structuralChangesLocked(): ?AcademicTerm
     {
-        return $this->terms->current();
+        return $this->terms->currentOrPaused();
     }
 
     /** @param array{name: string, description?: string|null} $attributes */

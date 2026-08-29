@@ -40,7 +40,7 @@ class UserFactory extends Factory
                 'reviewer_enabled' => true,
                 'reviewer_classification' => $classification,
                 'reviewer_classifications' => $user->reviewer_classifications ?: [$classification],
-                'reviewer_capacity' => $user->reviewer_capacity ?: 6,
+                'reviewer_capacity' => $user->reviewer_capacity ?: 30,
             ]);
         });
     }
@@ -107,7 +107,7 @@ class UserFactory extends Factory
             'position_title' => 'Ethics Reviewer',
             'reviewer_classification' => $classifications[0] ?? null,
             'reviewer_classifications' => array_values($classifications),
-            'reviewer_capacity' => 6,
+            'reviewer_capacity' => 30,
             'reviewer_enabled' => true,
         ]);
     }

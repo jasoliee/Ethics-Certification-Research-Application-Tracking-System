@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AcademicTermStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,6 +19,7 @@ class AcademicTerm extends Model
         'starts_at',
         'ends_at',
         'is_active',
+        'status',
     ];
 
     protected function casts(): array
@@ -26,6 +28,7 @@ class AcademicTerm extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'is_active' => 'boolean',
+            'status' => AcademicTermStatus::class,
         ];
     }
 
@@ -35,6 +38,7 @@ class AcademicTerm extends Model
 
         return $query
             ->where('is_active', true)
+            ->where('status', AcademicTermStatus::Active->value)
             ->where('starts_at', '<=', $at)
             ->where('ends_at', '>=', $at);
     }
@@ -49,8 +53,19 @@ class AcademicTerm extends Model
         $at ??= now();
 
         return $this->is_active
+            && $this->status === AcademicTermStatus::Active
             && $this->starts_at?->lessThanOrEqualTo($at)
             && $this->ends_at?->greaterThanOrEqualTo($at);
+    }
+
+    public function isPaused(): bool
+    {
+        return $this->status === AcademicTermStatus::Paused;
+    }
+
+    public function isEnded(): bool
+    {
+        return $this->status === AcademicTermStatus::Ended;
     }
 
     public function filterLabel(?Carbon $at = null): string

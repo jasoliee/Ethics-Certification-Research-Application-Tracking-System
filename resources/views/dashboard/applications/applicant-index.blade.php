@@ -30,8 +30,9 @@
             <div class="application-limit-notice" id="application-limit-message" role="alert">
                 <x-dashboard.icon name="alert-triangle" size="20" />
                 <div>
-                    <strong>Application Submission Limit Reached</strong>
-                    <span>You already have {{ $submissionLimit['submitted_count'] }} formally submitted applications. Drafts do not count toward this limit.</span>
+                    <strong>{{ $submissionLimit['certified_blocked'] ? 'New Application Restricted' : 'Application Submission Limit Reached' }}</strong>
+                    <span>{{ $submissionLimit['block_message'] }}</span>
+                    @unless ($submissionLimit['certified_blocked'])<span>Drafts do not count toward this limit.</span>@endunless
                 </div>
             </div>
         @endif

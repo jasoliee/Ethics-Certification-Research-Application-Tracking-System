@@ -74,7 +74,7 @@ class ProfileOptionCatalog
         $values = $this->values($field);
 
         if ($values === []) {
-            return "No accepted {$field->label()} options are configured. Ask the RES Lead to add one first.";
+            return "No accepted {$field->label()} options are configured. Ask the REU Lead to add one first.";
         }
 
         return "Select an accepted {$field->label()}: ".implode(', ', $values).'.';
@@ -322,7 +322,7 @@ class ProfileOptionCatalog
     private function authorize(User $actor): void
     {
         if ($actor->role !== UserRole::ResLead) {
-            throw new AuthorizationException('Only the RES Lead may manage shared dropdown options.');
+            throw new AuthorizationException('Only the REU Lead may manage shared dropdown options.');
         }
     }
 

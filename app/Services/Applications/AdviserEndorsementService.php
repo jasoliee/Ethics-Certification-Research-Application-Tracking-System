@@ -118,7 +118,7 @@ class AdviserEndorsementService
                 $applicant->notify(new DashboardUpdateNotification([
                     'title' => $isEndorsed ? 'Application endorsed' : 'Application returned',
                     'message' => $isEndorsed
-                        ? 'Your Research Adviser endorsed the application for RES screening.'
+                        ? 'Your Research Adviser endorsed the application for REU screening.'
                         : 'Your Research Adviser returned the application for required corrections.',
                     'icon' => $isEndorsed ? 'check' : 'refresh',
                     'tone' => $isEndorsed ? 'green' : 'red',
@@ -129,15 +129,15 @@ class AdviserEndorsementService
             }
 
             if ($isEndorsed) {
-                // Chunk active RES Leads so one endorsement remains bounded even if administrative staffing grows.
+                // Chunk active REU Leads so one endorsement remains bounded even if administrative staffing grows.
                 User::query()
                     ->where('role', UserRole::ResLead->value)
                     ->where('account_status', AccountStatus::Active->value)
                     ->select('id')
                     ->eachById(function (User $resLead) use ($locked): void {
                         $resLead->notify(new DashboardUpdateNotification([
-                            'title' => 'Application ready for RES screening',
-                            'message' => 'An adviser-endorsed application entered the RES screening queue.',
+                            'title' => 'Application ready for REU screening',
+                            'message' => 'An adviser-endorsed application entered the REU screening queue.',
                             'icon' => 'file-text',
                             'tone' => 'orange',
                             'route' => 'res.applications.show',

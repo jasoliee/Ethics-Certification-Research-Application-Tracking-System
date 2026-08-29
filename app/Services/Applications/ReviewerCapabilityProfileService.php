@@ -5,6 +5,7 @@ namespace App\Services\Applications;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\ReviewerCapacity;
 
 /**
  * Presents the RES-managed Reviewer entitlement and its live capacity state.
@@ -33,7 +34,7 @@ class ReviewerCapabilityProfileService
             ->whereNull('superseded_at')
             ->whereIn('assignment_status', ReviewerAssignmentStatus::activeValues())
             ->count();
-        $capacity = max(0, (int) ($user->reviewer_capacity ?? 0));
+        $capacity = ReviewerCapacity::MAX_ACTIVE_ASSIGNMENTS;
         $accessActive = $user->hasReviewerAccess();
         $setupComplete = $user->password_setup_completed_at !== null;
         $eligible = $accessActive
@@ -45,7 +46,6 @@ class ReviewerCapabilityProfileService
             ! $user->reviewer_enabled => 'Reviewer access disabled',
             ! $accessActive => 'Account unavailable',
             ! $setupComplete => 'Account setup incomplete',
-            $capacity < 1 => 'Capacity not configured',
             $activeLoad >= $capacity => 'At active capacity',
             default => 'Eligible for assignment',
         };

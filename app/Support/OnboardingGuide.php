@@ -19,7 +19,7 @@ class OnboardingGuide
                 [
                     ['title' => 'Manage applicants', 'description' => 'Create student or faculty accounts and resend setup links when needed.'],
                     ['title' => 'Review submissions', 'description' => 'Check required documents and research details before endorsement.'],
-                    ['title' => 'Return or endorse', 'description' => 'Return incomplete work with clear guidance or endorse a complete initial submission to RES.'],
+                    ['title' => 'Return or endorse', 'description' => 'Return incomplete work with clear guidance or endorse a complete initial submission to the REU.'],
                     ['title' => 'Watch deadlines', 'description' => 'Use dashboard alerts and notifications to keep assigned applications moving.'],
                 ],
             ),
@@ -34,13 +34,13 @@ class OnboardingGuide
                 ],
             ),
             UserRole::ResLead => self::guide(
-                'RES Lead Guide',
+                'REU Lead Guide',
                 'Coordinate screening, reviewer assignments, result release, account administration, and audit-ready records.',
                 [
                     ['title' => 'Screen applications', 'description' => 'Verify endorsed applications and classify the approved review pathway.'],
                     ['title' => 'Manage reviewers', 'description' => 'Assign qualified reviewer-enabled Advisers while checking capacity and conflicts.'],
                     ['title' => 'Release official outcomes', 'description' => 'Monitor completed reviews and release only authorized decisions and documents.'],
-                    ['title' => 'Administer accounts', 'description' => 'Create non-RES accounts, monitor setup delivery, and use controlled status or archive actions.'],
+                    ['title' => 'Administer accounts', 'description' => 'Create non-REU accounts, monitor setup delivery, and use controlled status or archive actions.'],
                 ],
             ),
         };
@@ -70,7 +70,7 @@ class OnboardingGuide
             'title' => $title,
             'introduction' => $introduction,
             'steps' => $steps,
-            'support' => 'For account or workflow help, contact the KLD Research Ethics Section through the institutional contact channels in the footer.',
+            'support' => 'For account or workflow help, contact the KLD Research Ethics Unit through the institutional contact channels in the footer.',
         ];
     }
 }

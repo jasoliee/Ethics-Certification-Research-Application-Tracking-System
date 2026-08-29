@@ -338,7 +338,7 @@
                             <div class="revision-complete-state">
                                 <x-dashboard.icon name="check" size="34" />
                                 <h3>Revision submitted for direct re-review</h3>
-                                <p>Submitted {{ $activeRevision->submitted_at?->format('M j, Y g:i A') }}. It did not return to Adviser endorsement or initial RES screening.</p>
+                                <p>Submitted {{ $activeRevision->submitted_at?->format('M j, Y g:i A') }}. It did not return to Adviser endorsement or initial REU screening.</p>
                             </div>
                         @elseif ($latestRelease?->decision === \App\Enums\ReviewDecision::Approved)
                             <div class="revision-complete-state">
@@ -442,14 +442,14 @@
                                 <a class="dashboard-primary-action applicant-certificate-download-all" href="{{ route('applicant.revision-certificates.certificates.download-all', $application) }}"><x-dashboard.icon name="download" size="17" /><span>Download All</span></a>
                             </div>
                         @elseif ($certificationState === \App\Enums\CertificationState::GenerationFailed)
-                            <div class="certificate-action-state is-error"><x-dashboard.icon name="alert-triangle" size="34" /><h3>Generation failed safely</h3><p>RES has been asked to retry. No incomplete certificate is available.</p></div>
+                            <div class="certificate-action-state is-error"><x-dashboard.icon name="alert-triangle" size="34" /><h3>Generation failed safely</h3><p>REU has been asked to retry. No incomplete certificate is available.</p></div>
                         @else
                             <div class="certificate-action-state">
                                 <x-dashboard.icon name="clock" size="34" />
                                 <h3>{{ $certificationState->label() }}</h3>
                                 <p>{{ match ($certificationState) {
-                                    \App\Enums\CertificationState::Eligible => 'Final approval is complete. RES must generate and release the official certificate.',
-                                    \App\Enums\CertificationState::PendingResRelease => 'Certificate release is currently being processed by RES.',
+                                    \App\Enums\CertificationState::Eligible => 'Final approval is complete. REU must generate and release the official certificate.',
+                                    \App\Enums\CertificationState::PendingResRelease => 'Certificate release is currently being processed by the REU.',
                                     \App\Enums\CertificationState::PendingFinalApproval => 'The application must receive a final released approval first.',
                                     default => 'This application does not currently satisfy certification eligibility.',
                                 } }}</p>

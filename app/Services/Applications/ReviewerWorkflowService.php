@@ -413,7 +413,7 @@ class ReviewerWorkflowService
                     && $application->application_status !== ApplicationStatus::Failed) {
                     $this->notifyResLeads(
                         'Reviewer consensus ready for decision release',
-                        'All required current Reviewer submissions agree and are ready for RES release.',
+                        'All required current Reviewer submissions agree and are ready for REU release.',
                         $application,
                     );
                 }

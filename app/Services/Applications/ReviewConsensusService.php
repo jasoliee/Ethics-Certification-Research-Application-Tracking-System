@@ -187,7 +187,7 @@ class ReviewConsensusService
         }
         if ($application->review_consensus_status !== ReviewConsensusStatus::Consensus) {
             throw ValidationException::withMessages([
-                'review_submission_id' => 'Every required current Reviewer must submit matching, up-to-date work before RES can release a decision.',
+                'review_submission_id' => 'Every required current Reviewer must submit matching, up-to-date work before REU can release a decision.',
             ])->errorBag('decisionRelease');
         }
 

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Applies the initial RES classification and reviewer-assignment transitions atomically.
+ * Applies the initial REU classification and reviewer-assignment transitions atomically.
  */
 class ResScreeningWorkflowService
 {
@@ -155,7 +155,7 @@ class ResScreeningWorkflowService
                     $assignment->update([
                         'superseded_at' => $updatedAt,
                         'superseded_by_user_id' => $actor->id,
-                        'supersession_reason' => 'Review classification changed by RES.',
+                        'supersession_reason' => 'Review classification changed by the REU.',
                         'superseded_from_status' => $assignment->assignment_status->value,
                         'assignment_status' => ReviewerAssignmentStatus::Superseded->value,
                     ]);
@@ -398,7 +398,7 @@ class ResScreeningWorkflowService
         $applicant->notify(new DashboardUpdateNotification([
             'title' => 'Application status updated',
             'message' => $exempted
-                ? 'Your application completed RES screening and moved to documentation processing.'
+                ? 'Your application completed REU screening and moved to documentation processing.'
                 : 'Your application moved to the next ethics review stage.',
             'icon' => 'clipboard',
             'tone' => 'blue',

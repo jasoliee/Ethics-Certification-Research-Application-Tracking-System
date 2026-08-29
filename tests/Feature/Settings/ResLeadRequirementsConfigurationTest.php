@@ -67,7 +67,7 @@ class ResLeadRequirementsConfigurationTest extends TestCase
         $this->actingAs($resLead)
             ->put(route('res.settings.requirements.update', $requirement), [
                 'name' => 'Complete Research Protocol',
-                'description' => 'Upload the final protocol specification selected by the RES Lead.',
+                'description' => 'Upload the final protocol specification selected by the REU Lead.',
             ])
             ->assertRedirect(route('res.settings.index', ['tab' => 'requirements']))
             ->assertSessionDoesntHaveErrors();
@@ -75,7 +75,7 @@ class ResLeadRequirementsConfigurationTest extends TestCase
         $this->assertDatabaseHas('document_requirements', [
             'id' => $requirement->id,
             'name' => 'Complete Research Protocol',
-            'description' => 'Upload the final protocol specification selected by the RES Lead.',
+            'description' => 'Upload the final protocol specification selected by the REU Lead.',
             'is_active' => true,
         ]);
         $this->assertDatabaseHas('audit_logs', [
@@ -87,7 +87,7 @@ class ResLeadRequirementsConfigurationTest extends TestCase
             ->get(route('applicant.applications.requirements', $application))
             ->assertOk()
             ->assertSee('Complete Research Protocol')
-            ->assertSee('Upload the final protocol specification selected by the RES Lead.')
+            ->assertSee('Upload the final protocol specification selected by the REU Lead.')
             ->assertDontSee('>Research Proposal<', false);
     }
 

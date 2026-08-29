@@ -53,6 +53,7 @@ class SafeSpreadsheet
         'year_level' => 'EcratsYearLevelOptions',
         'institution' => 'EcratsInstituteOptions',
         'program' => 'EcratsProgramOptions',
+        'reviewer_enabled' => 'EcratsReviewerEnabledOptions',
     ];
 
     /** Lists the minimum Open XML parts required before a generated workbook may be downloaded. */
@@ -182,6 +183,7 @@ class SafeSpreadsheet
     public function verifyGeneratedTemplate(string $path, array $type, array $options): void
     {
         $this->runtime->assertAvailable();
+        $options = $this->normalizeOptions($options);
 
         // Reject missing or empty temporary files before opening their ZIP container.
         if (! is_file($path) || filesize($path) === 0) {
@@ -317,15 +319,15 @@ class SafeSpreadsheet
         // Build exact references from the stable Options column order, omitting groups with no active values.
         $expectedRanges = [];
 
-        foreach (ProfileOptionField::managedCases() as $index => $field) {
-            $values = $options[$field->value] ?? [];
+        foreach ($this->templateOptionDefinitions() as $index => $field) {
+            $values = $options[$field['key']] ?? [];
 
             if ($values === []) {
                 continue;
             }
 
             $column = $this->columnName($index + 1);
-            $expectedRanges[self::RANGE_NAMES[$field->value]] = [
+            $expectedRanges[self::RANGE_NAMES[$field['key']]] = [
                 'column' => $column,
                 'reference' => "'Options'!\${$column}\$2:\${$column}\$".(count($values) + 1),
                 'values' => $values,
@@ -513,6 +515,8 @@ class SafeSpreadsheet
                 ->all();
         }
 
+        $normalized['reviewer_enabled'] = ['Yes', 'No'];
+
         return $normalized;
     }
 
@@ -522,7 +526,7 @@ class SafeSpreadsheet
      */
     private function optionsWorksheet(array $options): array
     {
-        $fields = ProfileOptionField::managedCases();
+        $fields = $this->templateOptionDefinitions();
         $headerCells = '';
         $definedNames = [];
         $warnings = [];
@@ -530,17 +534,17 @@ class SafeSpreadsheet
 
         foreach ($fields as $index => $field) {
             $column = $this->columnName($index + 1);
-            $headerCells .= $this->inlineCell($column.'1', $field->label(), 1);
-            $values = $options[$field->value] ?? [];
+            $headerCells .= $this->inlineCell($column.'1', $field['label'], 1);
+            $values = $options[$field['key']] ?? [];
             $maxValues = max($maxValues, count($values));
 
             if ($values === []) {
-                $warnings[] = "No active {$field->label()} options are configured.";
+                $warnings[] = "No active {$field['label']} options are configured.";
 
                 continue;
             }
 
-            $rangeName = self::RANGE_NAMES[$field->value];
+            $rangeName = self::RANGE_NAMES[$field['key']];
             $definedNames[] = '<definedName name="'.$rangeName.'">\'Options\'!$'.$column.'$2:$'.$column.'$'.(count($values) + 1).'</definedName>';
         }
 
@@ -551,7 +555,7 @@ class SafeSpreadsheet
             $cells = '';
 
             foreach ($fields as $columnIndex => $field) {
-                $value = $options[$field->value][$valueIndex] ?? null;
+                $value = $options[$field['key']][$valueIndex] ?? null;
 
                 if ($value !== null) {
                     $cells .= $this->inlineCell($this->columnName($columnIndex + 1).$rowNumber, $value, 3);
@@ -562,13 +566,8 @@ class SafeSpreadsheet
         }
 
         $lastColumn = $this->columnName(count($fields));
-        $columns = collect($fields)->values()->map(function (ProfileOptionField $field, int $index): string {
-            $width = match ($field) {
-                ProfileOptionField::YearLevel => 20,
-                ProfileOptionField::Institute => 48,
-                ProfileOptionField::Program => 46,
-                ProfileOptionField::ReviewerClassification => 30,
-            };
+        $columns = collect($fields)->values()->map(function (array $field, int $index): string {
+            $width = $field['width'];
             $column = $index + 1;
 
             return '<col min="'.$column.'" max="'.$column.'" width="'.$width.'" customWidth="1"/>';
@@ -580,6 +579,31 @@ class SafeSpreadsheet
             $definedNames,
             $warnings,
         ];
+    }
+
+    /** @return array<int, array{key: string, label: string, width: int}> */
+    private function templateOptionDefinitions(): array
+    {
+        $managed = collect(ProfileOptionField::managedCases())
+            ->map(fn (ProfileOptionField $field): array => [
+                'key' => $field->value,
+                'label' => $field->label(),
+                'width' => match ($field) {
+                    ProfileOptionField::YearLevel => 20,
+                    ProfileOptionField::Institute => 48,
+                    ProfileOptionField::Program => 46,
+                    ProfileOptionField::ReviewerClassification => 30,
+                },
+            ])
+            ->all();
+
+        $managed[] = [
+            'key' => 'reviewer_enabled',
+            'label' => 'Adviser / Reviewer',
+            'width' => 22,
+        ];
+
+        return $managed;
     }
 
     /** @param array<string, mixed> $type @param array<string, array<int, string>> $options */
@@ -624,7 +648,6 @@ class SafeSpreadsheet
                 'position_title' => 36,
                 'program' => 46,
                 'reviewer_enabled' => 20,
-                'reviewer_capacity' => 20,
                 default => 20,
             };
             $column = $index + 1;
@@ -660,6 +683,7 @@ class SafeSpreadsheet
             ->map(fn (ProfileOptionField $field): string => $field->label().': '.(($options[$field->value] ?? []) === []
                 ? 'No active options configured'
                 : implode(', ', $options[$field->value])))
+            ->push('Adviser / Reviewer: Yes, No')
             ->implode("\n");
         $instructions = [
             ['ECRATS Excel Account Template', 'This downloadable workbook is a convenience. ECRATS also accepts compatible .xlsx workbooks identified by required headers.'],
@@ -691,7 +715,7 @@ class SafeSpreadsheet
         ];
 
         foreach ($warnings as $warning) {
-            $instructions[] = ['Configuration Warning', $warning.' Contact the RES Lead before importing accounts that require this field.'];
+            $instructions[] = ['Configuration Warning', $warning.' Contact the REU Lead before importing accounts that require this field.'];
         }
 
         $rows = '';

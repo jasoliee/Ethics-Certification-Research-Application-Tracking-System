@@ -491,7 +491,7 @@ class OfficialReviewFormArtifactService
         $pdf->Cell(150, 7, $this->pdfText($type->code().' RESPONSE CONTINUATION'), 0, 1);
         $pdf->SetX(42);
         $pdf->SetFont('Helvetica', 'B', 8);
-        $pdf->Cell(150, 5, $this->pdfText('RESEARCH ETHICS SECTION - OFFICIAL REVIEW RECORD'), 0, 1);
+        $pdf->Cell(150, 5, $this->pdfText('RESEARCH ETHICS UNIT - OFFICIAL REVIEW RECORD'), 0, 1);
         $pdf->SetDrawColor(0, 111, 61);
         $pdf->Line(18, 35, 192, 35);
         $pdf->SetXY(18, 39);

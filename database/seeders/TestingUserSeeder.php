@@ -74,7 +74,7 @@ class TestingUserSeeder extends Seeder
                     'expected_endorsement_count' => $user['role'] === UserRole::Adviser ? 6 : null,
                     'reviewer_classification' => $reviewerEnabled ? 'Expedited' : null,
                     'reviewer_classifications' => $reviewerEnabled ? ['Expedited'] : null,
-                    'reviewer_capacity' => $reviewerEnabled ? 6 : null,
+                    'reviewer_capacity' => $reviewerEnabled ? 30 : null,
                     'reviewer_enabled' => $reviewerEnabled,
                     'password' => Hash::make($user['password']),
                     'password_changed_at' => now(),

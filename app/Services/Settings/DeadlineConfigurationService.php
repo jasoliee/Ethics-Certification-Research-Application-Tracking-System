@@ -2,6 +2,7 @@
 
 namespace App\Services\Settings;
 
+use App\Enums\AcademicTermStatus;
 use App\Enums\DeadlineManualStatus;
 use App\Models\AcademicTerm;
 use App\Models\DeadlineConfiguration;
@@ -11,6 +12,7 @@ use App\Services\AuditLogService;
 use App\Support\DeadlineProcessCatalog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Reads and atomically persists the current RES-managed process schedule.
@@ -76,6 +78,21 @@ class DeadlineConfigurationService
         DB::transaction(function () use ($actor, $attributes): void {
             $semester = trim((string) $attributes['semester']);
             $academicYear = trim((string) $attributes['academic_year']);
+            $existingTerm = AcademicTerm::query()
+                ->where('semester', $semester)
+                ->where('academic_year', $academicYear)
+                ->first();
+            $anotherConfiguredTermExists = AcademicTerm::query()
+                ->when($existingTerm, fn ($terms) => $terms->whereKeyNot($existingTerm->id))
+                ->where('is_active', true)
+                ->whereIn('status', [AcademicTermStatus::Active->value, AcademicTermStatus::Paused->value])
+                ->exists();
+            if ($anotherConfiguredTermExists) {
+                throw ValidationException::withMessages([
+                    'academic_term' => 'Pause or end the currently configured term before adding another academic term.',
+                ]);
+            }
+
             $term = AcademicTerm::query()->updateOrCreate(
                 [
                     'semester' => $semester,
@@ -85,6 +102,9 @@ class DeadlineConfigurationService
                     'starts_at' => Carbon::createFromFormat('Y-m-d', $attributes['term_starts_on'], 'Asia/Manila')->startOfDay(),
                     'ends_at' => Carbon::createFromFormat('Y-m-d', $attributes['term_ends_on'], 'Asia/Manila')->endOfDay(),
                     'is_active' => true,
+                    'status' => $existingTerm?->status === AcademicTermStatus::Paused
+                        ? AcademicTermStatus::Paused
+                        : AcademicTermStatus::Active,
                 ],
             );
             $termLabel = $term->label();

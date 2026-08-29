@@ -134,8 +134,8 @@ class ManagedUserMassActionService
                 $subject->notify(new DashboardUpdateNotification([
                     'title' => $enabled ? 'Reviewer access shown' : 'Reviewer access hidden',
                     'message' => $enabled
-                        ? 'The RES Lead enabled Reviewer features for your Adviser account.'
-                        : 'The RES Lead disabled new Reviewer access. Existing review records and assignments were preserved.',
+                        ? 'The REU Lead enabled Reviewer features for your Adviser account.'
+                        : 'The REU Lead disabled new Reviewer access. Existing review records and assignments were preserved.',
                     'icon' => 'file-search',
                     'tone' => $enabled ? 'green' : 'orange',
                     'route' => 'dashboard',

@@ -145,7 +145,7 @@
                         @forelse ($requirements as $requirement)
                             <li><span><strong>{{ $requirement['requirement']->name }}</strong><small>{{ $requirement['requirement']->is_mandatory ? 'Mandatory' : 'Optional' }}</small></span><x-dashboard.status-badge :label="$requirement['status']->label()" :tone="$requirement['status']->tone()" /></li>
                         @empty
-                            <li><span><strong>No requirements configured</strong><small>Contact the RES Lead.</small></span></li>
+                            <li><span><strong>No requirements configured</strong><small>Contact the REU Lead.</small></span></li>
                         @endforelse
                     </ul>
                     <div class="application-modal-actions"><button class="dashboard-outline-action" type="button" data-requirements-details-close>Close</button><a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $activeApplication) }}">Open Document Submission</a></div>

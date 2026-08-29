@@ -139,7 +139,7 @@ class User extends Authenticatable
     /**
      * Determine whether this account may enter supplementary Reviewer features.
      *
-     * Route middleware re-queries this state on every request so an RES Lead's
+     * Route middleware re-queries this state on every request so an REU Lead's
      * disable action takes effect immediately even for an existing session.
      */
     public function hasReviewerAccess(): bool

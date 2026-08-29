@@ -26,6 +26,6 @@ class UsernameChangedNotification extends Notification
             ->line('An authorized correction changed your ECRATS username.')
             ->line('Your new username is: '.$this->username)
             ->line('Your password and account permissions were not changed.')
-            ->salutation('KLD Research Ethics Section');
+            ->salutation('KLD Research Ethics Unit');
     }
 }

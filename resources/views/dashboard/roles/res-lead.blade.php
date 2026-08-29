@@ -3,14 +3,14 @@
 @section('content')
     <div class="dashboard-page">
         <header class="dashboard-page-heading">
-            <h1>Welcome back, RES Lead/Admin!</h1>
+            <h1>Welcome back, REU Lead/Admin!</h1>
         </header>
 
 
-        {{-- RES Lead summary cards use the shared vertical card component without changing administrative counts. --}}
+        {{-- REU Lead summary cards use the shared vertical card component without changing administrative counts. --}}
         <div class="dashboard-summary-grid dashboard-summary-grid-five" aria-label="Administrative application summary">
-            <x-dashboard.summary-card label="For RES Screening" :count="$counts['for_screening']" icon="file-text" tone="orange" :href="route('res.applications.index')" />
-            <x-dashboard.summary-card label="Under RES Screening" :count="$counts['screening']" icon="users" tone="blue" :href="route('res.applications.index')" />
+            <x-dashboard.summary-card label="For REU Screening" :count="$counts['for_screening']" icon="file-text" tone="orange" :href="route('res.applications.index')" />
+            <x-dashboard.summary-card label="Under REU Screening" :count="$counts['screening']" icon="users" tone="blue" :href="route('res.applications.index')" />
             <x-dashboard.summary-card label="Awaiting Assignment" :count="$counts['awaiting_assignment']" icon="user" tone="green" :href="route('res.review-monitoring.index')" />
             <x-dashboard.summary-card label="Under Review" :count="$counts['under_review']" icon="file-search" tone="violet" :href="route('res.review-monitoring.index')" />
             <x-dashboard.summary-card label="For Result Release" :count="$counts['for_release']" icon="clipboard" tone="cyan" :href="route('res.certificates.index')" />
@@ -25,8 +25,8 @@
                     message="There are currently no endorsed applications to screen, classify, or monitor."
                 />
             @else
-                {{-- The shared overflow class contains RES screening columns without widening the page. --}}
-                <div class="dashboard-table-wrap dashboard-overflow-region" role="region" aria-label="Recent RES applications" tabindex="0">
+                {{-- The shared overflow class contains REU screening columns without widening the page. --}}
+                <div class="dashboard-table-wrap dashboard-overflow-region" role="region" aria-label="Recent REU applications" tabindex="0">
                     <table class="dashboard-table">
                         <thead><tr><th>Application Code</th><th>Adviser</th><th class="dashboard-table-status">Current Status</th><th>Received Date</th><th class="dashboard-table-action">Action</th></tr></thead>
                         <tbody>

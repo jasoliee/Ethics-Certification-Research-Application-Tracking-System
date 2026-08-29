@@ -14,8 +14,8 @@ class ResLeadSeeder extends Seeder
         User::updateOrCreate(
             ['username' => 'reslead'],
             [
-                'name' => 'RES Lead',
-                'first_name' => 'RES',
+                'name' => 'REU Lead',
+                'first_name' => 'REU',
                 'middle_name' => 'E.',
                 'last_name' => 'Lead',
                 'suffix' => null,
@@ -24,7 +24,7 @@ class ResLeadSeeder extends Seeder
                 'institution' => 'Institute of Computing and Digital Innovation',
                 'program' => 'Bachelor of Science in Computer Science',
                 'phone_number' => '09170000000',
-                'position_title' => 'RES Lead',
+                'position_title' => 'REU Lead',
                 'password' => Hash::make('12345kld'),
                 'password_changed_at' => now(),
                 'password_setup_completed_at' => now(),

@@ -97,7 +97,7 @@ class ResReviewMonitoringTest extends TestCase
         $response = $this->actingAs($resLead)
             ->get(route('res.review-monitoring.index'))
             ->assertOk()
-            ->assertSee('Full Board decision conflicts require RES attention')
+            ->assertSee('Full Board decision conflicts require REU attention')
             ->assertSee('RES-FULLBOARD-CONFLICT-001')
             ->assertSeeInOrder(['Reviewer 1', 'Approved', 'Reviewer 2', 'Minor Revision', 'Reviewer 3', 'Disapproved'])
             ->assertSee(route('res.applications.show', $application), false)

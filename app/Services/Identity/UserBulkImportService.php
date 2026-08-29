@@ -228,9 +228,9 @@ class UserBulkImportService
      */
     public function restore(User $actor, string $token, ?int $archivedUserId = null): array
     {
-        // Defense in depth keeps restoration RES Lead-only even if a route is moved accidentally.
+        // Defense in depth keeps restoration REU Lead-only even if a route is moved accidentally.
         if ($actor->role !== UserRole::ResLead) {
-            throw new AuthorizationException('Only the RES Lead may restore archived accounts.');
+            throw new AuthorizationException('Only the REU Lead may restore archived accounts.');
         }
 
         $path = $this->previewPath($actor, $token);
@@ -714,7 +714,7 @@ class UserBulkImportService
 
         // Adviser previews explain the escalation path without exposing any restoration control.
         if ($actor->role === UserRole::Adviser && $archivedAccounts !== []) {
-            $warnings[] = 'An archived account was found. Contact the RES Lead to restore the original account.';
+            $warnings[] = 'An archived account was found. Contact the REU Lead to restore the original account.';
         }
 
         return [
@@ -819,7 +819,6 @@ class UserBulkImportService
             'institutional_identifier' => 'The official unique Student Number or Employee ID using letters, numbers, periods, underscores, or hyphens.',
             'year_level', 'institution', 'program' => 'A current active value from the database-backed dropdown list.',
             'reviewer_enabled' => 'Yes or No.',
-            'reviewer_capacity' => 'A whole number from 1 to 30 when Reviewer capability is enabled.',
             'first_name', 'middle_name', 'last_name', 'suffix', 'position_title' => 'Plain text within the documented length limit.',
             'phone_number' => 'Exactly 11 digits.',
             default => 'A value accepted by the selected official account template.',

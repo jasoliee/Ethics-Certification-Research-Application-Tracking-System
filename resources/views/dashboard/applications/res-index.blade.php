@@ -91,10 +91,10 @@
                     title="No applications found"
                     :message="$hasFilters
                         ? 'No records match the current search or filter criteria. Try adjusting your filters or search terms.'
-                        : 'Applications will appear here after a Research Adviser endorses them for RES screening.'"
+                        : 'Applications will appear here after a Research Adviser endorses them for REU screening.'"
                 />
             @else
-                <x-dashboard.overflow class="res-application-scroll" label="RES application queue records" wide>
+                <x-dashboard.overflow class="res-application-scroll" label="REU application queue records" wide>
                     <table class="dashboard-table application-table res-application-table">
                         <thead>
                             <tr>
@@ -123,7 +123,7 @@
                         </tbody>
                     </table>
                 </x-dashboard.overflow>
-                <x-dashboard.pagination :paginator="$applications" label="RES application queue pages" />
+                <x-dashboard.pagination :paginator="$applications" label="REU application queue pages" />
             @endif
         </section>
     </div>

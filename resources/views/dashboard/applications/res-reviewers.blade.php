@@ -49,7 +49,7 @@
                 <header class="res-workflow-panel-heading"><x-dashboard.icon name="user-check" size="21" /><h2>Screening and Classification</h2></header>
                 <dl class="res-screening-summary">
                     <div><dt>Classification Date</dt><dd>{{ $screening->classified_at->format('M j, Y') }}</dd></div>
-                    <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived RES Lead' }}</dd></div>
+                    <div><dt>Classified By</dt><dd>{{ $screening->screenedBy?->name ?? 'Archived REU Lead' }}</dd></div>
                     <div><dt>Review Type</dt><dd><x-dashboard.status-badge :label="$reviewType->label()" tone="success" /></dd></div>
                     <div><dt>Reviewers Required</dt><dd>{{ $requiredReviewerCount }} {{ Str::plural('reviewer', $requiredReviewerCount) }}</dd></div>
                     <div class="res-detail-wide"><dt>Reason / Basis</dt><dd>{{ $screening->classification_reason }}</dd></div>

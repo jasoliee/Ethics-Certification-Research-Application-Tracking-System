@@ -6,7 +6,7 @@ use App\Enums\ReviewFormType;
 
 /**
  * Immutable, server-owned transcription and placement manifest for the official
- * KLD Research Ethics Section review forms.
+ * KLD Research Ethics Unit review forms.
  */
 final class ReviewFormCatalog
 {

@@ -103,7 +103,7 @@ class ResLeadApplicationVisibilityTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.applications.index'))
             ->assertOk()
-            ->assertSee('aria-label="RES application queue pages"', false);
+            ->assertSee('aria-label="REU application queue pages"', false);
     }
 
     public function test_non_res_roles_cannot_open_the_res_endorsed_application_landing_page(): void

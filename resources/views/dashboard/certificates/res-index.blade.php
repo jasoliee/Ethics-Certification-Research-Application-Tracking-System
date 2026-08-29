@@ -134,7 +134,7 @@
                     title="No certification records match these filters"
                     :message="$hasFilters
                         ? 'Adjust the filters to see other certification records.'
-                        : 'Applications appear here when Reviewer decisions reach RES release processing or become certificate eligible.'"
+                        : 'Applications appear here when Reviewer decisions reach REU release processing or become certificate eligible.'"
                 />
             @else
                 <x-dashboard.overflow class="certificate-queue-scroll" label="Certificate processing queue records" wide>
@@ -288,7 +288,7 @@
                                 @endif
                             </div>
                             @if ($isConflicted)
-                                <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
+                                <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before REU can release a result.</span></div></div>
                             @elseif ($isFinalReviewFailed)
                                 <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Application already failed.</strong><span>The final review of the third revised submission still requires revision. No additional revision cycle or decision release is allowed.</span></div></div>
                             @endif

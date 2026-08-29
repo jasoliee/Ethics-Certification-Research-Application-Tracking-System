@@ -139,7 +139,7 @@
                 @endif
 
                 @if ($archivedAccounts !== [])
-                    {{-- Archived matches use a separate container and expose restoration only to the RES Lead. --}}
+                    {{-- Archived matches use a separate container and expose restoration only to the REU Lead. --}}
                     <section class="identity-existing-panel identity-archived-panel" aria-labelledby="archived-existing-heading">
                         <div class="identity-existing-heading">
                             <div>
@@ -196,7 +196,7 @@
                         </div>
                         @unless ($canRestoreArchived)
                             {{-- Advisers receive an escalation message and never receive restoration controls. --}}
-                            <p class="identity-archived-guidance">This account was previously archived. Contact the RES Lead to restore the original account.</p>
+                            <p class="identity-archived-guidance">This account was previously archived. Contact the REU Lead to restore the original account.</p>
                         @endunless
                     </section>
                 @endif

@@ -53,7 +53,7 @@ class UserPolicy
     }
 
     /**
-     * Reserve all archived-account restoration actions for the RES Lead.
+     * Reserve all archived-account restoration actions for the REU Lead.
      */
     public function restoreArchivedAccounts(User $actor): bool
     {

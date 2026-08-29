@@ -9,7 +9,7 @@
 
         <section class="reviewer-confidentiality-banner" role="note">
             <span><x-dashboard.icon name="lock" size="20" /></span>
-            <div><strong>RES read-only access</strong><p>Reviewer decisions, comments, worksheets, and supporting documents cannot be edited from this workspace.</p></div>
+            <div><strong>REU read-only access</strong><p>Reviewer decisions, comments, worksheets, and supporting documents cannot be edited from this workspace.</p></div>
         </section>
 
         <section class="application-panel reviewer-workspace-meta-bar" aria-label="Application review summary">
@@ -27,7 +27,7 @@
             @if ($application->documents->isEmpty())
                 <p class="reviewer-empty-copy">No current supporting documents are available.</p>
             @else
-                <x-dashboard.overflow label="RES read-only supporting documents" wide>
+                <x-dashboard.overflow label="REU read-only supporting documents" wide>
                     <table class="dashboard-table reviewer-document-table">
                         <thead><tr><th>Requirement</th><th>Document</th><th>Version</th><th>Uploaded</th><th>Action</th></tr></thead>
                         <tbody>
@@ -53,7 +53,7 @@
             && in_array($application->review_consensus_status, [\App\Enums\ReviewConsensusStatus::Conflicted, \App\Enums\ReviewConsensusStatus::Consensus], true))
             <section class="application-panel res-application-release-panel" aria-label="Decision release action">
                 @if ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Conflicted)
-                    <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before RES can release a result.</span></div></div>
+                    <div class="res-form-error-summary" role="alert"><x-dashboard.icon name="alert-triangle" size="19" /><div><strong>Decision release blocked.</strong><span>The three current Full Board submissions do not agree. A Reviewer must re-submit before REU can release a result.</span></div></div>
                 @elseif ($application->review_consensus_status === \App\Enums\ReviewConsensusStatus::Consensus)
                     <form method="POST" action="{{ route('res.certificates.decisions.release', $application) }}" data-disable-on-submit>
                         @csrf

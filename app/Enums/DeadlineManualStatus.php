@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 /**
- * Overrides automatic deadline-date evaluation when the RES Lead intervenes.
+ * Overrides automatic deadline-date evaluation when the REU Lead intervenes.
  */
 enum DeadlineManualStatus: string
 {

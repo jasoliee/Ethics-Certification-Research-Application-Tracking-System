@@ -2,6 +2,7 @@
 
 namespace App\Services\Settings;
 
+use App\Enums\AcademicTermStatus;
 use App\Models\AcademicTerm;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -39,7 +40,22 @@ class AcademicTermResolver
     {
         return AcademicTerm::query()
             ->where('is_active', true)
+            ->whereIn('status', [AcademicTermStatus::Active->value, AcademicTermStatus::Paused->value])
             ->latest('updated_at')
+            ->latest('id')
+            ->first();
+    }
+
+    public function currentOrPaused(): ?AcademicTerm
+    {
+        $now = now();
+
+        return AcademicTerm::query()
+            ->where('is_active', true)
+            ->whereIn('status', [AcademicTermStatus::Active->value, AcademicTermStatus::Paused->value])
+            ->where('starts_at', '<=', $now)
+            ->where('ends_at', '>=', $now)
+            ->latest('starts_at')
             ->latest('id')
             ->first();
     }
@@ -59,7 +75,7 @@ class AcademicTermResolver
         return AcademicTerm::query()
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
-            ->get(['id', 'semester', 'academic_year', 'starts_at', 'ends_at', 'is_active'])
+            ->get(['id', 'semester', 'academic_year', 'starts_at', 'ends_at', 'is_active', 'status'])
             ->sortByDesc(fn (AcademicTerm $term): bool => $term->isCurrent($now))
             ->values();
     }

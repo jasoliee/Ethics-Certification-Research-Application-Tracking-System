@@ -5,9 +5,10 @@ namespace App\Http\Requests\Settings;
 use App\Enums\UserRole;
 use App\Support\DeadlineProcessCatalog;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
- * Validates one complete semester deadline configuration from the RES Lead.
+ * Validates one complete semester deadline configuration from the REU Lead.
  */
 class UpdateDeadlineSettingsRequest extends FormRequest
 {
@@ -20,7 +21,7 @@ class UpdateDeadlineSettingsRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'semester' => ['required', 'string', 'max:50'],
+            'semester' => ['required', 'string', Rule::in(['1st Semester', '2nd Semester', 'Summer Term'])],
             'academic_year' => ['required', 'string', 'max:20', 'regex:/^\d{4}-\d{4}$/'],
             'term_starts_on' => ['required', 'date_format:Y-m-d'],
             'term_ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:term_starts_on'],

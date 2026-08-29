@@ -36,7 +36,7 @@
                     <div><dt>Received, Awaiting Endorsement</dt><dd>{{ $adviserStatistics['awaiting'] }}</dd></div>
                     <div><dt>Remaining Expected Total</dt><dd>{{ $adviserStatistics['remaining'] }}</dd></div>
                     <div><dt>Not Yet Received</dt><dd>{{ $adviserStatistics['not_received'] }}</dd></div>
-                    @if ($reviewerProfile)
+                    @if (($reviewerProfile['enabled'] ?? false) === true)
                         <div><dt>Reviewer Access</dt><dd>Enabled</dd></div>
                         <div><dt>Maximum Active Application Load</dt><dd>{{ $reviewerProfile['capacity'] ?: 'Not configured' }}</dd></div>
                         <div><dt>Current Active Assignment Load</dt><dd>{{ $reviewerProfile['active_load'] }}</dd></div>

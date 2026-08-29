@@ -7,9 +7,11 @@ use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\CertificateStatus;
 use App\Enums\ResearchType;
+use App\Enums\ReviewDecision;
 use App\Enums\ReviewType;
 use App\Enums\UserRole;
 use App\Models\AcademicTerm;
+use App\Models\ApplicationDecisionRelease;
 use App\Models\Certificate;
 use App\Models\ResearchApplication;
 use App\Models\User;
@@ -70,13 +72,16 @@ class ResOperationalReportTest extends TestCase
 
         $response->assertOk()
             ->assertSeeInOrder([
+                'Search',
                 'Academic Term',
-                'Date From',
-                'Research Type',
-                'Applicant Category',
-                'Review Type',
                 'Institute',
                 'Workflow Status',
+                'Certificate Status',
+                'Review Type',
+                'Research Type',
+                'Applicant Category',
+                'Date From',
+                'Date To',
             ])
             ->assertSeeInOrder([
                 'Current - Current Operations Term, A.Y. 2026-2027',
@@ -170,5 +175,82 @@ class ResOperationalReportTest extends TestCase
         $this->assertSame(2, $followUp['recipient_count']);
         $this->assertSame('Partial Release', $followUp['status']);
         $this->assertSame('0 of 2 claimed', $followUp['claim_status']);
+    }
+
+    public function test_report_identity_and_drill_down_remain_hidden_until_approval_and_every_certificate_are_issued(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $applicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'name' => 'Privacy Boundary Applicant',
+            'first_name' => 'Privacy',
+            'last_name' => 'Applicant',
+            'institutional_identifier' => 'KLD-STU-PRIVACY-001',
+        ]);
+        $application = ResearchApplication::factory()->create([
+            'applicant_user_id' => $applicant->id,
+            'application_code' => 'PRIVACY-REPORT-001',
+            'application_status' => ApplicationStatus::ForCertificateRelease,
+            'submitted_at' => now()->subDays(3),
+        ]);
+        $application->certificateRecipients()->delete();
+        $recipients = collect(['Privacy Recipient One', 'Privacy Recipient Two'])->map(
+            fn (string $name, int $index) => $application->certificateRecipients()->create([
+                'recipient_name' => $name,
+                'normalized_name' => mb_strtolower($name),
+                'sort_order' => $index + 1,
+            ]),
+        );
+        ApplicationDecisionRelease::create([
+            'research_application_id' => $application->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::Approved,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subDay(),
+        ]);
+        $certificates = $recipients->map(fn ($recipient, int $index) => Certificate::create([
+            'research_application_id' => $application->id,
+            'application_certificate_recipient_id' => $recipient->id,
+            'applicant_user_id' => $applicant->id,
+            'recipient_name' => $recipient->recipient_name,
+            'certificate_number' => 'PRIVACY-CERT-'.($index + 1),
+            'status' => $index === 0 ? CertificateStatus::Released : CertificateStatus::PendingRelease,
+            'released_at' => $index === 0 ? now()->subHour() : null,
+        ]));
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index'))
+            ->assertOk()
+            ->assertDontSee($applicant->name)
+            ->assertDontSee($applicant->institutional_identifier);
+        $this->actingAs($resLead)
+            ->get(route('res.reports.applicants.show', $applicant))
+            ->assertNotFound();
+        $this->assertStringNotContainsString(
+            $applicant->name,
+            $this->actingAs($resLead)->get(route('res.reports.export'))->streamedContent(),
+        );
+
+        $certificates->last()->update([
+            'status' => CertificateStatus::Released,
+            'released_at' => now(),
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index'))
+            ->assertOk()
+            ->assertSee($applicant->name)
+            ->assertSee($applicant->institutional_identifier);
+        $this->actingAs($resLead)
+            ->get(route('res.reports.applicants.show', $applicant))
+            ->assertOk()
+            ->assertSee($application->application_code)
+            ->assertSee('PRIVACY-CERT-1')
+            ->assertSee('PRIVACY-CERT-2');
+        $this->assertStringContainsString(
+            $applicant->name,
+            $this->actingAs($resLead)->get(route('res.reports.export'))->streamedContent(),
+        );
     }
 }

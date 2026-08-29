@@ -273,7 +273,7 @@
                         <span class="application-modal-icon"><x-dashboard.icon name="check" size="24" /></span>
                         <div>
                             <h2 id="adviser-endorse-title">Endorse Application</h2>
-                            <p>Confirm that this complete initial submission is ready for RES screening.</p>
+                            <p>Confirm that this complete initial submission is ready for REU screening.</p>
                         </div>
                     </header>
                     <form method="POST" action="{{ route('adviser.applications.endorse', $application) }}" data-application-submit-once>

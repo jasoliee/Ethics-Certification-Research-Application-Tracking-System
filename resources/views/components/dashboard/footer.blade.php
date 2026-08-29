@@ -2,7 +2,7 @@
     <div class="dashboard-footer-grid">
         <section>
             <h2>About ECRATS</h2>
-            <p>The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Section.</p>
+            <p>The Ethics Certification Review Application and Tracking System supports controlled research ethics submission, review, monitoring, and certification for the KLD Research Ethics Unit.</p>
             <div class="dashboard-footer-social" aria-label="KLD social media">
                 <a href="https://www.facebook.com/KLDOfficialFBPage" target="_blank" rel="noopener noreferrer" aria-label="KLD on Facebook">
                     <x-dashboard.icon name="facebook" size="18" />
@@ -43,5 +43,5 @@
         </section>
     </div>
 
-    <p class="dashboard-footer-copyright">&copy; {{ now()->year }} ECRATS, KLD Research Ethics Section. All rights reserved.</p>
+    <p class="dashboard-footer-copyright">&copy; {{ now()->year }} ECRATS, KLD Research Ethics Unit. All rights reserved.</p>
 </footer>

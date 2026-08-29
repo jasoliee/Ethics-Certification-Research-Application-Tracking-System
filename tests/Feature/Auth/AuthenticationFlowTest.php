@@ -70,7 +70,7 @@ class AuthenticationFlowTest extends TestCase
         $this->get(route('login'))
             ->assertOk()
             ->assertSee('Account Deactivated')
-            ->assertSee('RES Coordinator')
+            ->assertSee('REU Coordinator')
             ->assertSee('Back to Login Page')
             ->assertSee('data-inactive-account-dialog', false);
         $this->assertDatabaseHas('audit_logs', [
@@ -109,7 +109,7 @@ class AuthenticationFlowTest extends TestCase
             ['applicanttest', '12345678', 'No application yet'],
             ['advisertest', '12345678', 'Welcome back, Adviser!'],
             ['reviewertest', '12345678', 'Welcome back, Adviser!'],
-            ['reslead', '12345kld', 'Welcome back, RES Lead/Admin!'],
+            ['reslead', '12345kld', 'Welcome back, REU Lead/Admin!'],
         ];
 
         foreach ($accounts as [$username, $password, $landingTitle]) {

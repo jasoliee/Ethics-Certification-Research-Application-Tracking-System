@@ -244,7 +244,7 @@ class ReviewerWorkflowController extends Controller
                 'submitted_at' => $review->submitted_at?->toIso8601String(),
                 'submitted_at_label' => $review->submitted_at?->format('M j, Y g:i A'),
                 'message' => $submit
-                    ? 'Review submitted successfully and is pending RES release.'
+                    ? 'Review submitted successfully and is pending REU release.'
                     : 'Review decision draft saved.',
                 'redirect_url' => route('reviewer.assignments.show', $reviewerAssignment),
             ]]);
@@ -252,7 +252,7 @@ class ReviewerWorkflowController extends Controller
 
         return $submit
             ? redirect()->route('reviewer.assignments.show', $reviewerAssignment)
-                ->with('status', 'Review submitted successfully and is pending RES release.')
+                ->with('status', 'Review submitted successfully and is pending REU release.')
             : back()->with('status', 'Review decision draft saved.');
     }
 }

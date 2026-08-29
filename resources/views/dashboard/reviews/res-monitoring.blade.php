@@ -84,7 +84,7 @@
                         <x-dashboard.icon name="alert-triangle" size="22" />
                     </span>
                     <div>
-                        <h2 id="review-monitoring-conflict-title">Full Board decision conflicts require RES attention</h2>
+                        <h2 id="review-monitoring-conflict-title">Full Board decision conflicts require REU attention</h2>
                         <p>Submitted outcomes disagree. Reviewer identities remain anonymous here; inspect the authorized read-only workspace before any release action.</p>
                     </div>
                     <x-dashboard.status-badge :label="$metrics['conflicted_applications'].' unresolved'" tone="red" />

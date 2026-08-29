@@ -138,7 +138,7 @@
                 <h2 id="inactive-account-title">Account Deactivated</h2>
                 <p>
                     Your account has been deactivated. Please contact your
-                    <a href="https://kld.edu.ph/office_of_the_vice_president_for_research_mission_and_external_affairs.php" target="_blank" rel="noopener noreferrer">RES Coordinator</a>
+                    <a href="https://kld.edu.ph/office_of_the_vice_president_for_research_mission_and_external_affairs.php" target="_blank" rel="noopener noreferrer">REU Coordinator</a>
                     for further information and reactivation.
                 </p>
                 <button class="login-submit" type="button" data-inactive-account-close>Back to Login Page</button>

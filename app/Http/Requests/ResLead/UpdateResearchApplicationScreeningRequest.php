@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validates an authorized correction to an existing RES screening decision.
+ * Validates an authorized correction to an existing REU screening decision.
  */
 class UpdateResearchApplicationScreeningRequest extends FormRequest
 {
