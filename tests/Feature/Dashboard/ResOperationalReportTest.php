@@ -2,21 +2,27 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Enums\AcademicTermStatus;
 use App\Enums\ApplicantType;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\CertificateStatus;
+use App\Enums\CertificateVersionStatus;
 use App\Enums\ResearchType;
 use App\Enums\ReviewDecision;
+use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewType;
 use App\Enums\UserRole;
 use App\Models\AcademicTerm;
 use App\Models\ApplicationDecisionRelease;
 use App\Models\Certificate;
+use App\Models\CertificateVersion;
 use App\Models\ResearchApplication;
+use App\Models\ReviewerAssignment;
 use App\Models\User;
 use App\Services\Reports\OperationalReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -24,7 +30,7 @@ class ResOperationalReportTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_res_report_applies_validated_filters_and_renders_every_management_section(): void
+    public function test_reu_report_applies_validated_filters_and_renders_the_required_concise_sections(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $current = AcademicTerm::create([
@@ -88,20 +94,23 @@ class ResOperationalReportTest extends TestCase
                 'Historical Operations Term, A.Y. 2025-2026',
             ])
             ->assertSee('Workflow Pipeline')
-            ->assertSee('Application Submission Trend')
-            ->assertSee('Turnaround Time')
-            ->assertSee('Reviewer Capacity and Delay')
+            ->assertSee('Filtered Application List')
+            ->assertSee('Applicant Certification')
+            ->assertSee('Reviewer Review Workload')
             ->assertSee('Adviser Endorsement Workload')
-            ->assertSee('Action Required')
-            ->assertSee('Certificate Follow-up')
-            ->assertSee('Operations and Data Quality');
+            ->assertSee('View All')
+            ->assertDontSee('Application Submission Trend')
+            ->assertDontSee('Turnaround Time')
+            ->assertDontSee('Reviewer Capacity and Delay')
+            ->assertDontSee('Action Required')
+            ->assertDontSee('Certificate Follow-up')
+            ->assertDontSee('Operations and Data Quality')
+            ->assertDontSee('Delayed');
         $report = $response->viewData('report');
         $this->assertSame(1, $report['summary']['submitted']);
         $this->assertTrue($report['has_data']);
-        $this->assertSame(
-            6,
-            collect($report['data_quality'])->firstWhere('label', 'Missing deadline configuration')['count'],
-        );
+        $this->assertInstanceOf(LengthAwarePaginator::class, $report['applications']);
+        $this->assertSame(10, $report['applications']->perPage());
     }
 
     public function test_reports_are_res_only_and_reject_unknown_term_ids_server_side(): void
@@ -117,6 +126,190 @@ class ResOperationalReportTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.reports.index', ['academic_term_id' => 999999]))
             ->assertSessionHasErrors('academic_term_id');
+    }
+
+    public function test_filtered_application_list_paginates_at_ten_and_view_all_preserves_filters(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $matching = ResearchApplication::factory()->count(12)->create([
+            'institution' => 'Pagination Institute',
+            'research_type' => ResearchType::Thesis,
+            'submitted_at' => now()->subDay(),
+        ]);
+        $outside = ResearchApplication::factory()->create([
+            'institution' => 'Outside Institute',
+            'research_type' => ResearchType::Thesis,
+            'submitted_at' => now()->subDay(),
+        ]);
+        $filters = [
+            'institute' => 'Pagination Institute',
+            'research_type' => ResearchType::Thesis->value,
+        ];
+
+        $firstPage = $this->actingAs($resLead)->get(route('res.reports.index', $filters));
+        $paginator = $firstPage->viewData('report')['applications'];
+        $firstPage->assertOk()
+            ->assertSee('View All')
+            ->assertSee(route('res.reports.applications.index', [
+                'research_type' => ResearchType::Thesis->value,
+                'institute' => 'Pagination Institute',
+            ]))
+            ->assertSee(route('res.applications.show', $matching->last()), false)
+            ->assertDontSee($outside->application_code);
+        $this->assertSame(10, $paginator->count());
+        $this->assertSame(12, $paginator->total());
+
+        $secondPage = $this->actingAs($resLead)->get(route('res.reports.index', [
+            ...$filters,
+            'applications_page' => 2,
+        ]));
+        $this->assertSame(2, $secondPage->viewData('report')['applications']->count());
+
+        $all = $this->actingAs($resLead)->get(route('res.reports.applications.index', $filters));
+        $all->assertOk()
+            ->assertSee($matching->last()->application_code)
+            ->assertDontSee($outside->application_code);
+        $this->assertCount(12, $all->viewData('applications'));
+        $this->assertEquals($filters, $all->viewData('filters'));
+    }
+
+    public function test_claimed_and_unclaimed_metrics_count_distinct_applicant_accounts_not_certificate_rows(): void
+    {
+        $claimedApplicant = User::factory()->create(['institution' => 'Counting Institute']);
+        $unclaimedApplicant = User::factory()->create(['institution' => 'Counting Institute']);
+        $claimedApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $claimedApplicant->id,
+            'institution' => 'Counting Institute',
+            'submitted_at' => now()->subDay(),
+        ]);
+        $unclaimedApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $unclaimedApplicant->id,
+            'institution' => 'Counting Institute',
+            'submitted_at' => now()->subDay(),
+        ]);
+
+        foreach ([[$claimedApplication, $claimedApplicant, CertificateStatus::Claimed], [$unclaimedApplication, $unclaimedApplicant, CertificateStatus::Released]] as [$application, $applicant, $status]) {
+            $application->certificateRecipients()->delete();
+            foreach (range(1, 5) as $index) {
+                $recipient = $application->certificateRecipients()->create([
+                    'recipient_name' => "Recipient {$index}",
+                    'normalized_name' => "recipient {$index}",
+                    'sort_order' => $index,
+                ]);
+                Certificate::create([
+                    'research_application_id' => $application->id,
+                    'application_certificate_recipient_id' => $recipient->id,
+                    'applicant_user_id' => $applicant->id,
+                    'recipient_name' => $recipient->recipient_name,
+                    'certificate_number' => $application->application_code.'-'.$index,
+                    'status' => $status,
+                    'released_at' => now()->subDay(),
+                    'claimed_at' => $status === CertificateStatus::Claimed ? now()->subHour() : null,
+                ]);
+            }
+        }
+
+        $report = app(OperationalReportService::class)->report([]);
+        $institute = $report['institute_summary']->firstWhere('institute', 'Counting Institute');
+
+        $this->assertSame(1, $report['summary']['certificates_claimed']);
+        $this->assertSame(1, $report['summary']['certificates_unclaimed']);
+        $this->assertSame(1, $institute['claimed']);
+        $this->assertSame(1, $institute['unclaimed']);
+    }
+
+    public function test_reviewer_workload_uses_only_the_current_active_term_and_fixed_capacity(): void
+    {
+        $current = AcademicTerm::create([
+            'semester' => 'Current Term',
+            'academic_year' => '2026-2027',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonth(),
+            'is_active' => true,
+            'status' => AcademicTermStatus::Active,
+        ]);
+        $historical = AcademicTerm::create([
+            'semester' => 'Historical Term',
+            'academic_year' => '2025-2026',
+            'starts_at' => now()->subYear(),
+            'ends_at' => now()->subMonths(9),
+            'is_active' => false,
+            'status' => AcademicTermStatus::Ended,
+        ]);
+        $reviewer = User::factory()->reviewer()->create();
+
+        foreach (range(1, 2) as $index) {
+            $application = ResearchApplication::factory()->create([
+                'academic_term_id' => $current->id,
+                'review_type' => ReviewType::Expedited,
+                'submitted_at' => now()->subDays($index),
+            ]);
+            ReviewerAssignment::factory()->create([
+                'research_application_id' => $application->id,
+                'reviewer_user_id' => $reviewer->id,
+                'assignment_status' => ReviewerAssignmentStatus::Pending,
+            ]);
+        }
+        foreach (range(1, 3) as $index) {
+            $application = ResearchApplication::factory()->create([
+                'academic_term_id' => $historical->id,
+                'review_type' => ReviewType::FullBoard,
+                'submitted_at' => now()->subMonths(9)->subDays($index),
+            ]);
+            ReviewerAssignment::factory()->create([
+                'research_application_id' => $application->id,
+                'reviewer_user_id' => $reviewer->id,
+                'assignment_status' => ReviewerAssignmentStatus::DecisionSubmitted,
+            ]);
+        }
+
+        $row = app(OperationalReportService::class)
+            ->report(['academic_term_id' => $historical->id])['reviewer_workload']
+            ->firstWhere(fn (array $item): bool => $item['reviewer']->is($reviewer));
+
+        $this->assertSame(2, $row['total']);
+        $this->assertSame(2, $row['expedited']);
+        $this->assertSame(0, $row['full_board']);
+        $this->assertSame(28, $row['remaining']);
+    }
+
+    public function test_print_export_and_survey_print_keep_the_current_filter_scope_and_updated_headers(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $matching = ResearchApplication::factory()->create([
+            'application_code' => 'PRINT-FILTER-MATCH',
+            'institution' => 'Print Institute',
+            'submitted_at' => now()->subDay(),
+        ]);
+        $outside = ResearchApplication::factory()->create([
+            'application_code' => 'PRINT-FILTER-OUTSIDE',
+            'institution' => 'Outside Institute',
+            'submitted_at' => now()->subDay(),
+        ]);
+        $filters = ['institute' => 'Print Institute'];
+
+        $this->actingAs($resLead)->get(route('res.reports.print', $filters))
+            ->assertOk()
+            ->assertSee('ECRATS Research Ethics Unit Operational Report')
+            ->assertSee('Filtered Records')
+            ->assertSeeInOrder(['Filtered Records', 'Generated:'])
+            ->assertSee('@page { size: A4 landscape; margin: 1in; }', false)
+            ->assertSee($matching->application_code)
+            ->assertDontSee($outside->application_code)
+            ->assertDontSee('Filtered management report')
+            ->assertDontSee('Privacy boundary:');
+
+        $csv = $this->actingAs($resLead)->get(route('res.reports.export', $filters))->streamedContent();
+        $this->assertStringContainsString($matching->application_code, $csv);
+        $this->assertStringNotContainsString($outside->application_code, $csv);
+
+        $this->actingAs($resLead)->get(route('res.reports.survey.print', $filters))
+            ->assertOk()
+            ->assertSeeInOrder(['Print Institute', 'Generated:'])
+            ->assertSee('@page { size: A4 portrait; margin: 1in; }', false)
+            ->assertSeeInOrder(['Responses', 'Average'])
+            ->assertDontSee('Preserved legacy responses excluded')
+            ->assertSee('Print Report');
     }
 
     public function test_report_query_count_does_not_grow_with_reviewer_or_adviser_rows(): void
@@ -140,7 +333,7 @@ class ResOperationalReportTest extends TestCase
         $this->assertLessThanOrEqual($baseline + 1, $expanded);
     }
 
-    public function test_partial_recipient_certificate_sets_are_followed_up_but_never_counted_complete(): void
+    public function test_partial_recipient_certificate_sets_count_one_unclaimed_account_but_remain_identity_hidden(): void
     {
         $application = ResearchApplication::factory()->create([
             'application_status' => ApplicationStatus::ForCertificateRelease,
@@ -168,13 +361,8 @@ class ResOperationalReportTest extends TestCase
 
         $report = app(OperationalReportService::class)->report([]);
 
-        $this->assertSame(0, $report['summary']['certificates_released']);
-        $followUp = $report['certificate_follow_up']->firstWhere(
-            fn (array $row): bool => $row['application']->is($application),
-        );
-        $this->assertSame(2, $followUp['recipient_count']);
-        $this->assertSame('Partial Release', $followUp['status']);
-        $this->assertSame('0 of 2 claimed', $followUp['claim_status']);
+        $this->assertSame(1, $report['summary']['certificates_unclaimed']);
+        $this->assertTrue($report['applicant_certification']->isEmpty());
     }
 
     public function test_report_identity_and_drill_down_remain_hidden_until_approval_and_every_certificate_are_issued(): void
@@ -218,6 +406,25 @@ class ResOperationalReportTest extends TestCase
             'status' => $index === 0 ? CertificateStatus::Released : CertificateStatus::PendingRelease,
             'released_at' => $index === 0 ? now()->subHour() : null,
         ]));
+        $version = CertificateVersion::create([
+            'certificate_id' => $certificates->first()->id,
+            'certificate_version' => 1,
+            'status' => CertificateVersionStatus::Ready,
+            'stored_file_path' => 'certificates/privacy-report-001.pdf',
+            'original_file_name' => 'privacy-report-001.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size_bytes' => 256,
+            'sha256' => hash('sha256', 'certificate'),
+            'official_template_version' => 'test-v1',
+            'official_template_sha256' => hash('sha256', 'template'),
+            'background_sha256' => hash('sha256', 'background'),
+            'generator_version' => 'test-generator',
+            'generated_by_user_id' => $resLead->id,
+            'generated_at' => now()->subHour(),
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subHour(),
+        ]);
+        $certificates->first()->update(['current_certificate_version_id' => $version->id]);
 
         $this->actingAs($resLead)
             ->get(route('res.reports.index'))
@@ -227,6 +434,7 @@ class ResOperationalReportTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.reports.applicants.show', $applicant))
             ->assertNotFound();
+        $this->assertTrue(app(OperationalReportService::class)->report([])['applicant_certification']->isEmpty());
         $this->assertStringNotContainsString(
             $applicant->name,
             $this->actingAs($resLead)->get(route('res.reports.export'))->streamedContent(),
@@ -247,7 +455,9 @@ class ResOperationalReportTest extends TestCase
             ->assertOk()
             ->assertSee($application->application_code)
             ->assertSee('PRIVACY-CERT-1')
-            ->assertSee('PRIVACY-CERT-2');
+            ->assertSee('PRIVACY-CERT-2')
+            ->assertSee(route('res.certificates.versions.preview', [$certificates->first(), $version]), false);
+        $this->assertCount(2, app(OperationalReportService::class)->report([])['applicant_certification']);
         $this->assertStringContainsString(
             $applicant->name,
             $this->actingAs($resLead)->get(route('res.reports.export'))->streamedContent(),

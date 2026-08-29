@@ -289,10 +289,7 @@ class ResLeadScreeningWorkflowTest extends TestCase
             'name' => 'Different Discipline Reviewer',
             'institution' => 'Institute of Governance and Development Studies',
         ]);
-        $otherApplication = ResearchApplication::factory()->create();
-
-        ReviewerAssignment::create([
-            'research_application_id' => $otherApplication->id,
+        ReviewerAssignment::factory()->count(30)->create([
             'reviewer_user_id' => $full->id,
             'review_type' => 'initial_review',
             'assignment_status' => ReviewerAssignmentStatus::InReview,

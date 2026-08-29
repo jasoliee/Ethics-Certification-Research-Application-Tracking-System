@@ -74,6 +74,29 @@ export function initializeDashboard() {
     const sidebarOpen = shell.querySelector('[data-sidebar-open]');
     const sidebarClose = shell.querySelector('[data-sidebar-close]');
     const sidebarBackdrop = shell.querySelector('[data-sidebar-backdrop]');
+    const desktopSidebarToggle = shell.querySelector('[data-sidebar-toggle]');
+    const desktopSidebarStorageKey = 'ecrats:dashboard-sidebar-collapsed';
+
+    const setDesktopSidebarState = (isCollapsed, persist = false) => {
+        if (isCollapsed) {
+            document.documentElement.dataset.dashboardSidebarCollapsed = 'true';
+        } else {
+            delete document.documentElement.dataset.dashboardSidebarCollapsed;
+        }
+
+        const actionLabel = isCollapsed ? 'Show navigation sidebar' : 'Hide navigation sidebar';
+        desktopSidebarToggle?.setAttribute('aria-expanded', String(! isCollapsed));
+        desktopSidebarToggle?.setAttribute('aria-label', actionLabel);
+        desktopSidebarToggle?.setAttribute('title', actionLabel);
+
+        if (persist) {
+            try {
+                window.localStorage.setItem(desktopSidebarStorageKey, String(isCollapsed));
+            } catch (error) {
+                // The current page still reflects the selected state without storage.
+            }
+        }
+    };
 
     const setSidebarState = (isOpen) => {
         shell.classList.toggle('sidebar-open', isOpen);
@@ -93,6 +116,12 @@ export function initializeDashboard() {
     sidebarOpen?.addEventListener('click', () => setSidebarState(true));
     sidebarClose?.addEventListener('click', closeSidebar);
     sidebarBackdrop?.addEventListener('click', closeSidebar);
+    desktopSidebarToggle?.addEventListener('click', () => {
+        const isCollapsed = document.documentElement.dataset.dashboardSidebarCollapsed === 'true';
+        setDesktopSidebarState(! isCollapsed, true);
+    });
+
+    setDesktopSidebarState(document.documentElement.dataset.dashboardSidebarCollapsed === 'true');
 
     shell.querySelectorAll('.dashboard-nav-link, .dashboard-sidebar-profile').forEach((link) => {
         link.addEventListener('click', () => {

@@ -23,6 +23,7 @@ use App\Models\ReviewerAssignment;
 use App\Models\User;
 use App\Services\Privacy\ApplicationIdentityVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -40,30 +41,28 @@ class OperationalReportService
     ) {}
 
     /** @param array<string, mixed> $filters */
-    public function report(array $filters): array
+    public function report(array $filters, ?int $applicationPageSize = null): array
     {
         $applications = $this->applicationQuery($filters);
-        $applicationIds = (clone $applications)->pluck('id');
 
         return [
             'summary' => $this->summary($applications, $filters),
-            'applications' => $this->applicationRows($applications),
-            'visible_applicants' => $this->visibleApplicants($filters),
+            'applications' => $this->applicationRows($applications, $applicationPageSize),
+            'applicant_certification' => $this->applicantCertification($filters),
             'institute_summary' => $this->instituteSummary($applications, $filters),
             'adviser_reviewer_summary' => $this->adviserReviewerSummary($filters),
             'pipeline' => $this->pipeline($applications),
-            'submission_trend' => $this->submissionTrend($applications, $filters),
             'classifications' => $this->classifications($applications),
-            'decisions' => $this->decisions($applications),
-            'turnaround' => $this->turnaround($applications),
             'reviewer_workload' => $this->reviewerWorkload($filters),
             'adviser_workload' => $this->adviserWorkload($filters),
-            'certificate_operations' => $this->certificateOperations($filters),
-            'action_required' => $this->actionRequired($filters),
-            'certificate_follow_up' => $this->certificateFollowUp($filters),
-            'data_quality' => $this->dataQuality($applications, $filters),
-            'has_data' => $applicationIds->isNotEmpty(),
+            'has_data' => (clone $applications)->exists(),
         ];
+    }
+
+    /** @param array<string, mixed> $filters */
+    public function allApplicationRows(array $filters): Collection
+    {
+        return $this->applicationRows($this->applicationQuery($filters));
     }
 
     /** @param array<string, mixed> $filters */
@@ -135,32 +134,23 @@ class OperationalReportService
     private function summary(Builder $applications, array $filters): array
     {
         $certificates = $this->relatedApplications(Certificate::query(), $filters);
-        $dueItems = $this->dueAssignments($filters)->count() + $this->dueRevisions($filters)->count();
 
         return [
             'unique_applicants' => (clone $applications)->whereNotNull('applicant_user_id')->distinct()->count('applicant_user_id'),
             'submitted' => (clone $applications)->count(),
             'not_submitted' => $this->notSubmittedApplicants($filters),
             'failed' => (clone $applications)->where('application_status', ApplicationStatus::Failed->value)->count(),
-            'screening' => (clone $applications)->whereIn('application_status', [
-                ApplicationStatus::AdviserEndorsed->value,
-                ApplicationStatus::UnderResScreening->value,
-            ])->count(),
-            'assignment' => (clone $applications)->where('application_status', ApplicationStatus::AwaitingReviewerAssignment->value)->count(),
-            'review' => (clone $applications)->whereIn('application_status', ApplicationStatus::values(ApplicationStatus::underReview()))->count(),
-            'decision_release' => (clone $applications)->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value)->count(),
-            'certificate_release' => (clone $applications)->whereIn('application_status', [
-                ApplicationStatus::ResultReleasedAccepted->value,
-                ApplicationStatus::ForCertificateRelease->value,
-            ])->count(),
-            'certificates_released' => $this->fullyReleasedApplications(clone $applications)->count(),
-            'certificates_claimed' => (clone $certificates)->where('status', CertificateStatus::Claimed->value)->count(),
+            'certificates_claimed' => (clone $certificates)
+                ->whereNotNull('applicant_user_id')
+                ->where('status', CertificateStatus::Claimed->value)
+                ->distinct()
+                ->count('applicant_user_id'),
             'certificates_unclaimed' => (clone $certificates)
+                ->whereNotNull('applicant_user_id')
                 ->where('status', CertificateStatus::Released->value)
                 ->whereNull('claimed_at')
-                ->count(),
-            'due_items' => $dueItems,
-            'certificate_records' => (clone $certificates)->count(),
+                ->distinct()
+                ->count('applicant_user_id'),
         ];
     }
 
@@ -179,56 +169,84 @@ class OperationalReportService
             ->count();
     }
 
-    private function applicationRows(Builder $applications): Collection
+    private function applicationRows(Builder $applications, ?int $pageSize = null): Collection|LengthAwarePaginator
     {
-        return (clone $applications)
+        $query = (clone $applications)
             ->with(['certificates:id,research_application_id,status,released_at,claimed_at'])
             ->latest('submitted_at')
-            ->limit(100)
-            ->get([
-                'id',
-                'application_code',
-                'research_title',
-                'institution',
-                'application_status',
-                'review_type',
-                'submitted_at',
-            ])
-            ->map(function (ResearchApplication $application): array {
-                $certificates = $application->certificates;
-                $certificateStatus = $certificates->isEmpty()
-                    ? 'Not issued'
-                    : ($certificates->every(fn (Certificate $certificate) => $certificate->status === CertificateStatus::Claimed)
-                        ? 'Claimed'
-                        : ($certificates->every(fn (Certificate $certificate) => in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true))
-                            ? 'Issued / unclaimed'
-                            : ($certificates->contains(fn (Certificate $certificate) => $certificate->status === CertificateStatus::GenerationFailed)
-                                ? 'Generation failed'
-                                : 'Pending release')));
+            ->latest('id');
+        $columns = [
+            'id',
+            'application_code',
+            'research_title',
+            'institution',
+            'application_status',
+            'review_type',
+            'submitted_at',
+        ];
 
-                return [
-                    'application' => $application,
-                    'certificate_status' => $certificateStatus,
-                ];
-            });
+        if ($pageSize !== null) {
+            return $query
+                ->paginate($pageSize, $columns, 'applications_page')
+                ->withQueryString()
+                ->through(fn (ResearchApplication $application): array => $this->applicationRow($application));
+        }
+
+        return $query->get($columns)->map(
+            fn (ResearchApplication $application): array => $this->applicationRow($application),
+        );
+    }
+
+    /** @return array{application: ResearchApplication, certificate_status: string} */
+    private function applicationRow(ResearchApplication $application): array
+    {
+        $certificates = $application->certificates;
+        $certificateStatus = $certificates->isEmpty()
+            ? 'Not issued'
+            : ($certificates->every(fn (Certificate $certificate) => $certificate->status === CertificateStatus::Claimed)
+                ? 'Claimed'
+                : ($certificates->every(fn (Certificate $certificate) => in_array($certificate->status, [CertificateStatus::Released, CertificateStatus::Claimed], true))
+                    ? 'Issued / unclaimed'
+                    : ($certificates->contains(fn (Certificate $certificate) => $certificate->status === CertificateStatus::GenerationFailed)
+                        ? 'Generation failed'
+                        : 'Pending release')));
+
+        return [
+            'application' => $application,
+            'certificate_status' => $certificateStatus,
+        ];
     }
 
     /** @param array<string, mixed> $filters */
-    private function visibleApplicants(array $filters): Collection
+    private function applicantCertification(array $filters): Collection
     {
-        $visibleApplications = $this->identityVisibility->visibleApplications(
-            $this->applicationQuery($filters),
-        );
+        return $this->identityVisibility
+            ->visibleApplications($this->applicationQuery($filters))
+            ->with([
+                'applicant:id,name,institutional_identifier,institution',
+                'certificates:id,research_application_id,recipient_name,certificate_number,status,current_certificate_version_id,released_at,claimed_at',
+                'certificates.currentVersion:id,certificate_id,status,stored_file_path,original_file_name',
+            ])
+            ->orderBy('application_code')
+            ->get(['id', 'applicant_user_id', 'application_code', 'institution'])
+            ->flatMap(function (ResearchApplication $application): Collection {
+                return $application->certificates
+                    ->sortBy([['recipient_name', 'asc'], ['id', 'asc']])
+                    ->map(function (Certificate $certificate) use ($application): array {
+                        $releasedAt = $certificate->released_at;
 
-        return User::query()
-            ->where('role', UserRole::Applicant->value)
-            ->whereHas('researchApplications', fn (Builder $applications) => $applications
-                ->whereIn('research_applications.id', (clone $visibleApplications)->select('id')))
-            ->withCount(['researchApplications as released_application_count' => fn (Builder $applications) => $applications
-                ->whereIn('research_applications.id', (clone $visibleApplications)->select('id'))])
-            ->orderBy('name')
-            ->limit(100)
-            ->get(['id', 'name', 'institutional_identifier', 'institution']);
+                        return [
+                            'applicant' => $application->applicant,
+                            'application' => $application,
+                            'certificate' => $certificate,
+                            'released_at' => $releasedAt,
+                            'ageing_days' => $releasedAt
+                                ? intdiv(max(0, $releasedAt->diffInSeconds(now(), false)), 86400)
+                                : null,
+                        ];
+                    });
+            })
+            ->values();
     }
 
     /** @param array<string, mixed> $filters */
@@ -263,9 +281,22 @@ class OperationalReportService
             ->map(function (string $institute) use ($applicationGroups, $certificates, $activeApplicants): array {
                 $instituteApplications = $applicationGroups->get($institute, collect());
                 $submittedApplicantIds = $instituteApplications->pluck('applicant_user_id')->filter()->unique();
-                $instituteCertificates = $instituteApplications
-                    ->flatMap(fn (ResearchApplication $application) => $certificates->get($application->id, collect()));
                 $applicantAccounts = $activeApplicants->get($institute, collect());
+                $claimedApplicantIds = $instituteApplications
+                    ->filter(fn (ResearchApplication $application): bool => $certificates
+                        ->get($application->id, collect())
+                        ->contains(fn (Certificate $certificate): bool => $certificate->status === CertificateStatus::Claimed))
+                    ->pluck('applicant_user_id')
+                    ->filter()
+                    ->unique();
+                $unclaimedApplicantIds = $instituteApplications
+                    ->filter(fn (ResearchApplication $application): bool => $certificates
+                        ->get($application->id, collect())
+                        ->contains(fn (Certificate $certificate): bool => $certificate->status === CertificateStatus::Released
+                            && $certificate->claimed_at === null))
+                    ->pluck('applicant_user_id')
+                    ->filter()
+                    ->unique();
 
                 return [
                     'institute' => $institute,
@@ -273,11 +304,8 @@ class OperationalReportService
                     'submitted' => $instituteApplications->count(),
                     'not_submitted' => $applicantAccounts->pluck('id')->diff($submittedApplicantIds)->count(),
                     'failed' => $instituteApplications->where('application_status', ApplicationStatus::Failed)->count(),
-                    'claimed' => $instituteCertificates->where('status', CertificateStatus::Claimed)->count(),
-                    'unclaimed' => $instituteCertificates
-                        ->where('status', CertificateStatus::Released)
-                        ->whereNull('claimed_at')
-                        ->count(),
+                    'claimed' => $claimedApplicantIds->count(),
+                    'unclaimed' => $unclaimedApplicantIds->count(),
                 ];
             })
             ->sortBy('institute')
@@ -438,19 +466,24 @@ class OperationalReportService
         $activeStatuses = ReviewerAssignmentStatus::activeValues();
         $now = now();
         $dueSoon = $now->copy()->addDays(self::DUE_SOON_DAYS);
-        $assignments = $this->relatedApplications(
-            ReviewerAssignment::query()->whereNull('superseded_at'),
-            $filters,
-        )
-            ->with('researchApplication:id,review_type,institution')
-            ->get([
-                'id',
-                'research_application_id',
-                'reviewer_user_id',
-                'assignment_status',
-                'review_deadline_at',
-            ])
-            ->groupBy('reviewer_user_id');
+        $currentTermId = AcademicTerm::query()->current()->value('id');
+        $workloadFilters = $filters;
+        $workloadFilters['academic_term_id'] = $currentTermId;
+        $assignments = $currentTermId
+            ? $this->relatedApplications(
+                ReviewerAssignment::query()->whereNull('superseded_at'),
+                $workloadFilters,
+            )
+                ->with('researchApplication:id,review_type,institution')
+                ->get([
+                    'id',
+                    'research_application_id',
+                    'reviewer_user_id',
+                    'assignment_status',
+                    'review_deadline_at',
+                ])
+                ->groupBy('reviewer_user_id')
+            : collect();
 
         return User::query()->reviewerEnabled()->where('account_status', AccountStatus::Active->value)
             ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
@@ -469,7 +502,7 @@ class OperationalReportService
                     'total' => $records->count(),
                     'active' => $active->count(),
                     'capacity' => self::REVIEWER_CAPACITY,
-                    'remaining' => max(0, self::REVIEWER_CAPACITY - $active->count()),
+                    'remaining' => max(0, self::REVIEWER_CAPACITY - $records->count()),
                     'completed' => $completed->count(),
                     'pending' => $records->count() - $completed->count(),
                     'overdue' => $active->filter(fn (ReviewerAssignment $assignment) => $assignment->review_deadline_at?->lt($now))->count(),
@@ -481,7 +514,6 @@ class OperationalReportService
     /** @param array<string, mixed> $filters */
     private function adviserWorkload(array $filters): Collection
     {
-        $deadline = $this->endorsementDeadline($filters);
         $applications = $this->applyApplicationFilters(
             ResearchApplication::query()->whereNotNull('submitted_at'),
             $filters,
@@ -500,7 +532,7 @@ class OperationalReportService
             ->when(filled($filters['institute'] ?? null), fn (Builder $users) => $users
                 ->where('institution', $filters['institute']))
             ->get(['id', 'name', 'institution', 'expected_endorsement_count'])
-            ->map(function (User $adviser) use ($applications, $endorsedApplications, $deadline): array {
+            ->map(function (User $adviser) use ($applications, $endorsedApplications): array {
                 $records = $applications->get($adviser->id, collect());
                 $endorsedApplicantIds = $endorsedApplications->get($adviser->id, collect())
                     ->pluck('researchApplication.applicant_user_id')
@@ -525,7 +557,6 @@ class OperationalReportService
                     'endorsed' => $endorsed,
                     'awaiting' => $awaiting,
                     'not_received' => max(0, $expected - $endorsed - $awaiting),
-                    'delayed' => $deadline?->isPast() ? $awaiting : 0,
                 ];
             })->sortByDesc('awaiting')->values();
     }

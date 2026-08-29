@@ -212,7 +212,10 @@ class ResLeadSettingsTest extends TestCase
         $this->actingAs($resLead)
             ->get(route('res.settings.index'))
             ->assertOk()
-            ->assertSee('Current Semester, A.Y. 2026-2027');
+            ->assertSee('Current Semester, A.Y. 2026-2027')
+            ->assertSee('dashboard-outline-action', false)
+            ->assertSee('settings-term-pause-action', false)
+            ->assertSee('dashboard-danger-action', false);
 
         $term->update(['ends_at' => now()->subMinute()]);
 

@@ -183,9 +183,9 @@ class AdviserApplicantScopeAndProfileTest extends TestCase
 
         $profile = app(ReviewerCapabilityProfileService::class)->for($adviser);
         $this->assertTrue($profile['enabled']);
-        $this->assertSame(4, $profile['capacity']);
+        $this->assertSame(30, $profile['capacity']);
         $this->assertSame(2, $profile['active_load']);
-        $this->assertSame(2, $profile['available_capacity']);
+        $this->assertSame(28, $profile['available_capacity']);
         $this->assertTrue($profile['eligible']);
         $this->assertSame('Eligible for assignment', $profile['eligibility_label']);
 

@@ -137,7 +137,7 @@ class AdviserReviewerEntitlementTest extends TestCase
         // Historical fields remain intact but no longer participate in current eligibility.
         $this->assertSame(['Expedited'], $adviser->reviewer_classifications);
         $this->assertSame('Expedited', $adviser->reviewer_classification);
-        $this->assertSame(7, $adviser->reviewer_capacity);
+        $this->assertSame(30, $adviser->reviewer_capacity);
 
         $this->actingAs($resLead)
             ->get(route('res.users.show', $adviser))

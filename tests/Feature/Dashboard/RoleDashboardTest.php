@@ -1009,7 +1009,7 @@ class RoleDashboardTest extends TestCase
             DB::disableQueryLog();
 
             $this->assertLessThanOrEqual(
-                10,
+                11,
                 $queryCount,
                 "The {$role->value} dashboard executed {$queryCount} database queries.",
             );

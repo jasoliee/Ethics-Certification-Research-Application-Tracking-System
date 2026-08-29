@@ -9,6 +9,7 @@ use App\Enums\ResearchType;
 use App\Enums\ReviewType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\AcademicTerm;
 use App\Models\AuditLog;
 use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
@@ -44,7 +45,7 @@ class ResReportController extends Controller
                 ['label' => 'Reports'],
             ],
             'surveySummary' => $surveyReports->summary($filters),
-            'report' => $operationalReports->report($filters),
+            'report' => $operationalReports->report($filters, 10),
             'filters' => $filters,
             'termOptions' => $terms->filterOptions(),
             'researchTypes' => ResearchType::cases(),
@@ -53,6 +54,24 @@ class ResReportController extends Controller
             'applicationStatuses' => ApplicationStatus::cases(),
             'certificateStatuses' => $this->certificateStatusOptions(),
             'institutes' => $this->instituteOptions(),
+        ]);
+    }
+
+    public function applications(Request $request, OperationalReportService $operationalReports): View
+    {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+
+        return view('dashboard.reports.applications', [
+            'pageTitle' => 'Filtered Applications',
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Reports', 'route' => 'res.reports.index', 'parameters' => $filters],
+                ['label' => 'Filtered Applications'],
+            ],
+            'applications' => $operationalReports->allApplicationRows($filters),
+            'filters' => $filters,
+            'filterSummary' => $this->filterSummary($filters),
         ]);
     }
 
@@ -75,7 +94,7 @@ class ResReportController extends Controller
 
             $write(['ECRATS REU Operational Report']);
             $write(['Generated', now()->format('M j, Y g:i A')]);
-            $write(['Filters', collect($filters)->map(fn ($value, $key) => Str::headline($key).': '.$value)->implode(' | ') ?: 'All records']);
+            $write(['Reporting Scope', $this->filterSummary($filters)]);
             $write([]);
             $write(['Overall Summary']);
             foreach ($report['summary'] as $key => $value) {
@@ -97,10 +116,10 @@ class ResReportController extends Controller
             }
 
             $write([]);
-            $write(['Reviewer Workload']);
-            $write(['Reviewer', 'Institute', 'Expedited', 'Full Board', 'Total Assigned', 'Completed', 'Pending', 'Overdue']);
+            $write(['Reviewer Review Workload']);
+            $write(['Reviewer', 'Institute', 'Expedited', 'Full Board', 'Total Assigned', 'Completed', 'Pending', 'Overdue', 'Remaining Capacity']);
             foreach ($report['reviewer_workload'] as $row) {
-                $write([$row['reviewer']->name, $row['institute'], $row['expedited'], $row['full_board'], $row['total'], $row['completed'], $row['pending'], $row['overdue']]);
+                $write([$row['reviewer']->name, $row['institute'], $row['expedited'], $row['full_board'], $row['total'], $row['completed'], $row['pending'], $row['overdue'], $row['remaining']]);
             }
 
             $write([]);
@@ -120,14 +139,18 @@ class ResReportController extends Controller
             }
 
             $write([]);
-            $write(['Certificate-Released Applicants']);
-            $write(['Applicant', 'Institutional ID', 'Institute', 'Released Applications']);
-            foreach ($report['visible_applicants'] as $applicant) {
+            $write(['Applicant Certification']);
+            $write(['Applicant', 'Institutional ID', 'Institute', 'Application Code', 'Recipient', 'Certificate Status', 'Released Date', 'Ageing']);
+            foreach ($report['applicant_certification'] as $row) {
                 $write([
-                    $applicant->name,
-                    $applicant->institutional_identifier,
-                    $applicant->institution,
-                    $applicant->released_application_count,
+                    $row['applicant']?->name,
+                    $row['applicant']?->institutional_identifier,
+                    $row['application']->institution,
+                    $row['application']->application_code,
+                    $row['certificate']->recipient_name,
+                    $row['certificate']->status->label(),
+                    $row['released_at']?->format('M j, Y g:i A'),
+                    $row['ageing_days'] === null ? null : $row['ageing_days'].' days',
                 ]);
             }
 
@@ -160,6 +183,7 @@ class ResReportController extends Controller
             'report' => $operationalReports->report($filters),
             'surveySummary' => $surveyReports->summary($filters),
             'filters' => $filters,
+            'filterSummary' => $this->filterSummary($filters),
             'worksheetBackground' => $this->worksheetBackgroundDataUri($backgrounds),
             'generatedAt' => now(),
         ]);
@@ -176,6 +200,7 @@ class ResReportController extends Controller
         return view('dashboard.reports.survey-print', [
             'surveySummary' => $surveyReports->summary($filters),
             'filters' => $filters,
+            'filterSummary' => $this->filterSummary($filters),
             'worksheetBackground' => $this->worksheetBackgroundDataUri($backgrounds),
             'generatedAt' => now(),
         ]);
@@ -189,9 +214,15 @@ class ResReportController extends Controller
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         abort_unless($applicant->role === UserRole::Applicant, 404);
         abort_unless($identityVisibility->applicantIsVisible($applicant), 404);
+        $filters = $this->validatedFilters($request);
 
         $applications = $identityVisibility->forApplicant($applicant)
-            ->with(['certificates:id,research_application_id,recipient_name,certificate_number,status,released_at,claimed_at'])
+            ->when($request->integer('application') > 0, fn ($applications) => $applications
+                ->whereKey($request->integer('application')))
+            ->with([
+                'certificates:id,research_application_id,recipient_name,certificate_number,status,current_certificate_version_id,released_at,claimed_at',
+                'certificates.currentVersion:id,certificate_id,status,stored_file_path,original_file_name',
+            ])
             ->latest('submitted_at')
             ->get([
                 'id',
@@ -202,6 +233,7 @@ class ResReportController extends Controller
                 'review_type',
                 'submitted_at',
             ]);
+        abort_if($applications->isEmpty(), 404);
 
         return view('dashboard.reports.applicant', [
             'pageTitle' => 'Released Applicant Record',
@@ -212,6 +244,7 @@ class ResReportController extends Controller
             ],
             'applicant' => $applicant,
             'applications' => $applications,
+            'backToReportsUrl' => route('res.reports.index', $filters),
         ]);
     }
 
@@ -321,6 +354,29 @@ class ResReportController extends Controller
             CertificateStatus::PendingRelease->value => 'Pending release',
             CertificateStatus::GenerationFailed->value => 'Generation failed',
         ];
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function filterSummary(array $filters): string
+    {
+        $active = collect($filters)->filter(fn (mixed $value): bool => filled($value));
+        if ($active->isEmpty()) {
+            return 'All Records';
+        }
+
+        return $active->map(function (mixed $value, string $key): string {
+            $display = match ($key) {
+                'academic_term_id' => AcademicTerm::query()->find((int) $value)?->filterLabel() ?? (string) $value,
+                'research_type' => ResearchType::tryFrom((string) $value)?->label() ?? (string) $value,
+                'applicant_type' => ApplicantType::tryFrom((string) $value)?->label() ?? (string) $value,
+                'review_type' => ReviewType::tryFrom((string) $value)?->label() ?? (string) $value,
+                'application_status' => ApplicationStatus::tryFrom((string) $value)?->label() ?? (string) $value,
+                'certificate_status' => $this->certificateStatusOptions()[(string) $value] ?? Str::headline((string) $value),
+                default => (string) $value,
+            };
+
+            return Str::headline($key).': '.$display;
+        })->implode(' | ');
     }
 
     private function worksheetBackgroundDataUri(CertificateBackgroundService $backgrounds): ?string

@@ -601,7 +601,7 @@ class CertificateReleaseWorkflowTest extends TestCase
             ->assertSee('Section 2 – Ethics Review Process')
             ->assertSee('3.00 / 5')
             ->assertSee('The system was easy to navigate and use.')
-            ->assertSee('1 preserved earlier-questionnaire response excluded')
+            ->assertDontSee('preserved earlier-questionnaire response excluded')
             ->assertDontSee('Private suggestion that must never appear')
             ->assertDontSee('Legacy private positive feedback')
             ->assertDontSee('Legacy private improvement feedback')

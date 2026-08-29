@@ -34,6 +34,30 @@ class DashboardNavigationTest extends TestCase
         }
     }
 
+    public function test_every_role_receives_the_persistent_desktop_sidebar_toggle(): void
+    {
+        foreach (UserRole::cases() as $role) {
+            $user = User::factory()->create(['role' => $role]);
+            $homeRoute = DashboardNavigation::for($role)[0]['route'];
+
+            $this->actingAs($user)
+                ->get(route($homeRoute))
+                ->assertOk()
+                ->assertSee('data-sidebar-toggle', false)
+                ->assertSee('aria-controls="dashboard-sidebar"', false)
+                ->assertSee('Hide navigation sidebar');
+        }
+
+        $layout = (string) file_get_contents(resource_path('views/layouts/dashboard.blade.php'));
+        $javascript = (string) file_get_contents(resource_path('js/dashboard.js'));
+        $stylesheet = (string) file_get_contents(resource_path('css/dashboard.css'));
+
+        $this->assertStringContainsString('ecrats:dashboard-sidebar-collapsed', $layout);
+        $this->assertStringContainsString('ecrats:dashboard-sidebar-collapsed', $javascript);
+        $this->assertStringContainsString("top: 50vh;", $stylesheet);
+        $this->assertStringContainsString("html[data-dashboard-sidebar-collapsed='true']", $stylesheet);
+    }
+
     public function test_temporary_pages_have_clickable_home_breadcrumb_and_non_clickable_current_crumb(): void
     {
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);

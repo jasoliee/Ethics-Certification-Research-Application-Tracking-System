@@ -353,6 +353,7 @@ Route::middleware('no-store')->group(function (): void {
                     Route::get('/export', 'export')->middleware('throttle:report-export')->name('export');
                     Route::get('/print', 'printReport')->name('print');
                     Route::get('/survey/print', 'printSurvey')->name('survey.print');
+                    Route::get('/applications', 'applications')->name('applications.index');
                     Route::get('/applicants/{applicant}', 'applicant')->name('applicants.show');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');
                 });

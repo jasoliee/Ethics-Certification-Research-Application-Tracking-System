@@ -31,7 +31,7 @@ class OfficialCertificateGenerationService
 
     public const QR_SIZE_MM = 30.0;
 
-    public const TEMPLATE_VERSION = 'RES-CERTIFICATE-2026-03';
+    public const TEMPLATE_VERSION = 'REU-CERTIFICATE-2026-03';
 
     public const OFFICIAL_TEMPLATE_SHA256 = '998e7a943c81a83afb13df162a85eb08007c4eb2aa1ea51fedfa9909cd5ff960';
 

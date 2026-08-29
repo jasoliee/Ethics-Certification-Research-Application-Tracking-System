@@ -55,7 +55,7 @@ class LoginPageTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Ethics Review Section')
+            ->assertSee('Research Ethics Unit')
             ->assertSee('Login Account');
     }
 

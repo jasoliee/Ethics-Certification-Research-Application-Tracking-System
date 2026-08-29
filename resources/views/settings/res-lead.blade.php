@@ -385,13 +385,13 @@
                             <p>{{ $configuredTerm->starts_at->format('M j, Y') }} – {{ $configuredTerm->ends_at->format('M j, Y') }}</p>
                         </div>
                         <div class="settings-term-lifecycle-actions">
-                            <a class="dashboard-secondary-action" href="#academic-term-form"><x-dashboard.icon name="edit" size="17" />Edit</a>
+                            <a class="dashboard-outline-action" href="#academic-term-form"><x-dashboard.icon name="edit" size="17" /><span>Edit</span></a>
                             @if ($configuredTerm->isPaused())
-                                <form method="POST" action="{{ route('res.settings.academic-terms.reactivate', $configuredTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="reactivate"><button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="refresh" size="17" />Reactivate</button></form>
+                                <form method="POST" action="{{ route('res.settings.academic-terms.reactivate', $configuredTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="reactivate"><button class="dashboard-primary-action" type="submit"><x-dashboard.icon name="refresh" size="17" /><span>Reactivate</span></button></form>
                             @else
-                                <form method="POST" action="{{ route('res.settings.academic-terms.pause', $configuredTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="pause"><button class="dashboard-secondary-action" type="submit"><x-dashboard.icon name="clock" size="17" />Pause</button></form>
+                                <form method="POST" action="{{ route('res.settings.academic-terms.pause', $configuredTerm) }}">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="pause"><button class="dashboard-outline-action settings-term-pause-action" type="submit"><x-dashboard.icon name="clock" size="17" /><span>Pause</span></button></form>
                             @endif
-                            <form method="POST" action="{{ route('res.settings.academic-terms.end', $configuredTerm) }}" data-settings-confirm-form data-confirm-title="End academic term?" data-confirm-message="This ends the term and closes its deadlines. Applications, files, and audit records will be preserved.">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="end"><button class="identity-button identity-button-danger" type="submit">End</button></form>
+                            <form method="POST" action="{{ route('res.settings.academic-terms.end', $configuredTerm) }}" data-settings-confirm-form data-confirm-title="End academic term?" data-confirm-message="This ends the term and closes its deadlines. Applications, files, and audit records will be preserved.">@csrf @method('PATCH')<input type="hidden" name="confirmation" value="end"><button class="dashboard-danger-action" type="submit"><x-dashboard.icon name="x" size="17" /><span>End</span></button></form>
                         </div>
                     </section>
                 @else

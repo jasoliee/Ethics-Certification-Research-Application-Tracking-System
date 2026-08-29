@@ -115,7 +115,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
                 $code = ResearchApplication::where('applicant_user_id', $applicant->id)
                     ->value('application_code');
                 $this->assertMatchesRegularExpression(
-                    "/^RES-2026-S-{$acronym}-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\\d)[A-Z0-9]{6}$/",
+                    "/^REU-2026-S-{$acronym}-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\\d)[A-Z0-9]{6}$/",
                     $code,
                 );
             }
@@ -128,7 +128,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
                 ->post(route('applicant.applications.store'), $this->applicationPayload($adviser))
                 ->assertRedirect();
             $this->assertMatchesRegularExpression(
-                '/^RES-2026-F-ICDI-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{6}$/',
+                '/^REU-2026-F-ICDI-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{6}$/',
                 ResearchApplication::where('applicant_user_id', $faculty->id)->value('application_code'),
             );
 
@@ -162,7 +162,7 @@ class ApplicantApplicationWorkflowTest extends TestCase
                 ->assertSessionDoesntHaveErrors();
 
             $this->assertMatchesRegularExpression(
-                '/^RES-2026-S-DIGI-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{6}$/',
+                '/^REU-2026-S-DIGI-08102026-(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{6}$/',
                 (string) ResearchApplication::query()
                     ->where('applicant_user_id', $applicant->id)
                     ->value('application_code'),

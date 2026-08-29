@@ -178,8 +178,10 @@ class ReviewerReassignmentWorkflowTest extends TestCase
         $conflicted = $this->reviewer();
         $endorser = $this->reviewer();
 
-        $otherApplication = ResearchApplication::factory()->create();
-        $this->assignment($otherApplication, $full, 0, ReviewerAssignmentStatus::InReview);
+        ReviewerAssignment::factory()->count(30)->create([
+            'reviewer_user_id' => $full->id,
+            'assignment_status' => ReviewerAssignmentStatus::InReview,
+        ]);
         ReviewerConflict::create([
             'research_application_id' => $application->id,
             'reviewer_user_id' => $conflicted->id,

@@ -8,11 +8,34 @@
     <title>{{ $pageTitle ?? 'Dashboard' }} | ECRATS</title>
     <link rel="icon" type="image/png" href="{{ Vite::asset('assets/logo-256.png') }}">
 
+    <script>
+        try {
+            if (window.localStorage.getItem('ecrats:dashboard-sidebar-collapsed') === 'true') {
+                document.documentElement.dataset.dashboardSidebarCollapsed = 'true';
+            }
+        } catch (error) {
+            // The dashboard remains usable when browser storage is unavailable.
+        }
+    </script>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="ecrats-dashboard-body">
     <div class="dashboard-shell" data-dashboard-shell>
         <x-dashboard.sidebar />
+
+        <button
+            class="dashboard-sidebar-toggle"
+            type="button"
+            aria-label="Hide navigation sidebar"
+            aria-controls="dashboard-sidebar"
+            aria-expanded="true"
+            title="Hide navigation sidebar"
+            data-sidebar-toggle
+        >
+            <span data-sidebar-toggle-expanded-icon><x-dashboard.icon name="chevron-left" size="19" /></span>
+            <span data-sidebar-toggle-collapsed-icon><x-dashboard.icon name="chevron-right" size="19" /></span>
+        </button>
 
         <div class="dashboard-sidebar-backdrop" data-sidebar-backdrop hidden></div>
 

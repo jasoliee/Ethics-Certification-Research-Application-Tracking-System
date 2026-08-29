@@ -2,12 +2,12 @@
 
 @section('content')
     <div class="dashboard-page report-page">
-        <header class="dashboard-page-heading report-page-heading">
+        <header class="dashboard-page-heading report-page-heading report-record-heading">
             <div>
                 <h1>Released Applicant Record</h1>
                 <p>Only applications with a complete issued certificate set are shown.</p>
             </div>
-            <a class="dashboard-secondary-action" href="{{ route('res.reports.index') }}"><x-dashboard.icon name="arrow-left" size="18" />Back to Reports</a>
+            <a class="dashboard-outline-action" href="{{ $backToReportsUrl }}"><x-dashboard.icon name="arrow-left" size="18" />Back to Reports</a>
         </header>
 
         <section class="application-panel" aria-labelledby="released-applicant-identity-title">
@@ -24,7 +24,7 @@
             <section class="application-panel" aria-labelledby="released-application-{{ $application->id }}">
                 <header class="application-panel-heading">
                     <div><h2 id="released-application-{{ $application->id }}">{{ $application->application_code }}</h2><p>{{ $application->research_title }}</p></div>
-                    <a class="dashboard-secondary-action" href="{{ route('res.certificates.workspace', $application) }}">View Certificate Record</a>
+                    <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}">View Certificate Record</a>
                 </header>
                 <dl class="application-detail-grid">
                     <div><dt>Institute</dt><dd>{{ $application->institution }}</dd></div>
@@ -34,8 +34,8 @@
                 </dl>
                 <x-dashboard.overflow label="Issued certificates for {{ $application->application_code }}">
                     <table class="dashboard-table report-table">
-                        <thead><tr><th>Recipient</th><th>Certificate Number</th><th>Status</th><th>Released</th><th>Claimed</th></tr></thead>
-                        <tbody>@foreach ($application->certificates as $certificate)<tr><td>{{ $certificate->recipient_name }}</td><td>{{ $certificate->certificate_number }}</td><td>{{ $certificate->status->label() }}</td><td>{{ $certificate->released_at?->format('M j, Y g:i A') ?? '—' }}</td><td>{{ $certificate->claimed_at?->format('M j, Y g:i A') ?? '—' }}</td></tr>@endforeach</tbody>
+                        <thead><tr><th>Recipient</th><th>Certificate Number</th><th>Status</th><th>Released</th><th>Claimed</th><th class="report-action">Action</th></tr></thead>
+                        <tbody>@foreach ($application->certificates as $certificate)<tr><td>{{ $certificate->recipient_name }}</td><td>{{ $certificate->certificate_number }}</td><td>{{ $certificate->status->label() }}</td><td>{{ $certificate->released_at?->format('M j, Y g:i A') ?? '—' }}</td><td>{{ $certificate->claimed_at?->format('M j, Y g:i A') ?? '—' }}</td><td class="report-action">@if ($certificate->currentVersion)<a class="dashboard-action-link" href="{{ route('res.certificates.versions.preview', [$certificate, $certificate->currentVersion]) }}" target="_blank" rel="noopener">View</a>@else<span aria-label="Certificate file unavailable">—</span>@endif</td></tr>@endforeach</tbody>
                     </table>
                 </x-dashboard.overflow>
             </section>

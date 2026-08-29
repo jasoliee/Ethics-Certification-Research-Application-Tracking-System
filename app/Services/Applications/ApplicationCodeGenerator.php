@@ -58,7 +58,7 @@ class ApplicationCodeGenerator
                 ApplicantType::Student => 'S',
                 ApplicantType::Faculty => 'F',
             };
-            $prefix = "RES-{$now->format('Y')}-{$typeCode}-{$institutionAcronym}-{$now->format('mdY')}-";
+            $prefix = "REU-{$now->format('Y')}-{$typeCode}-{$institutionAcronym}-{$now->format('mdY')}-";
 
             for ($attempt = 0; $attempt < 20; $attempt++) {
                 $code = $prefix.$this->randomSuffix();
