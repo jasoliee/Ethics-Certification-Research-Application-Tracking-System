@@ -6,8 +6,10 @@ use App\Enums\ApplicationStatus;
 use App\Enums\BulkReleaseType;
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateVersionStatus;
+use App\Enums\ResearchType;
 use App\Enums\ReviewConsensusStatus;
 use App\Enums\ReviewDecision;
+use App\Enums\ReviewType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ResLead\ReleaseApplicationDecisionRequest;
@@ -45,6 +47,10 @@ class ResCertificationController extends Controller
             'status' => ['nullable', Rule::enum(ApplicationStatus::class)],
             'decision' => ['nullable', Rule::enum(ReviewDecision::class)],
             'claim' => ['nullable', Rule::in(['claimed', 'unclaimed', 'unavailable'])],
+            'review_type' => ['nullable', Rule::enum(ReviewType::class)],
+            'research_type' => ['nullable', Rule::enum(ResearchType::class)],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'academic_term_id' => ['nullable', 'integer', Rule::exists('academic_terms', 'id')],
         ]);
         $queueStatuses = [
@@ -88,55 +94,30 @@ class ResCertificationController extends Controller
                 ->where('application_status', ApplicationStatus::Failed->value)
                 ->count(),
         ];
-        $applications = (clone $relevantApplications)
-            ->when(filled($filters['q'] ?? null), function (Builder $query) use ($filters): void {
-                $search = trim((string) $filters['q']);
-                $query->where(fn (Builder $matching) => $matching
-                    ->where('application_code', 'like', "%{$search}%")
-                    ->orWhere('research_title', 'like', "%{$search}%"));
-            })
-            ->when(filled($filters['status'] ?? null), fn (Builder $query) => $query
-                ->where('application_status', $filters['status']))
-            ->when(filled($filters['decision'] ?? null), function (Builder $query) use ($filters): void {
-                $decision = (string) $filters['decision'];
-                $query->where(fn (Builder $matching) => $matching
-                    ->where('review_consensus_decision', $decision)
-                    ->orWhereHas('decisionReleases', fn (Builder $releases) => $releases->where('decision', $decision)));
-            })
-            ->when(($filters['claim'] ?? null) === 'claimed', fn (Builder $query) => $query
-                ->whereHas('certificateRecipients')
-                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
-                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->claimedCertificate($certificates))))
-            ->when(($filters['claim'] ?? null) === 'unclaimed', fn (Builder $query) => $query
-                ->whereHas('certificateRecipients')
-                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
-                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
-                ->whereHas('certificates', fn (Builder $certificates) => $certificates
-                    ->where('status', CertificateStatus::Released->value)))
-            ->when(($filters['claim'] ?? null) === 'unavailable', fn (Builder $query) => $query
-                ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
-                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates))))
-            ->with([
-                'certificateRecipients:id,research_application_id,sort_order',
-                'certificates.recipient:id,recipient_name',
-                'certificates.currentVersion:id,certificate_id,certificate_version,status,generated_at,issued_date,valid_until,certificate_background_id',
-                'certificates.versions' => fn ($versions) => $versions
-                    ->with('background:id,asset_version,source_kind')
-                    ->orderByDesc('certificate_version'),
-                'documents' => fn ($documents) => $documents
-                    ->where('is_current', true)
-                    ->with('requirement:id,name')
-                    ->orderBy('document_requirement_id')
-                    ->orderBy('id'),
-                'decisionReleases' => fn ($releases) => $releases->latest('review_cycle'),
-                'reviewerAssignments' => fn ($assignments) => $assignments
-                    ->current()
-                    ->with([
-                        'reviewSubmission.currentVersion',
-                    ])
-                    ->orderBy('review_cycle')
-                    ->orderBy('id'),
-            ])
+        $applicationRelations = [
+            'certificateRecipients:id,research_application_id,sort_order',
+            'certificates.recipient:id,recipient_name',
+            'certificates:id,research_application_id,application_certificate_recipient_id,applicant_user_id,recipient_name,certificate_number,status,generation_failure_code,current_certificate_version_id,released_at,claimed_at,created_at',
+            'certificates.currentVersion:id,certificate_id,certificate_version,status,generated_at,issued_date,valid_until,certificate_background_id',
+            'certificates.versions' => fn ($versions) => $versions
+                ->with('background:id,asset_version,source_kind')
+                ->orderByDesc('certificate_version'),
+            'documents' => fn ($documents) => $documents
+                ->where('is_current', true)
+                ->with('requirement:id,name')
+                ->orderBy('document_requirement_id')
+                ->orderBy('id'),
+            'decisionReleases' => fn ($releases) => $releases->latest('review_cycle'),
+            'reviewerAssignments' => fn ($assignments) => $assignments
+                ->current()
+                ->with([
+                    'reviewSubmission.currentVersion',
+                ])
+                ->orderBy('review_cycle')
+                ->orderBy('id'),
+        ];
+        $applications = $this->applyIndexFilters((clone $relevantApplications), $filters)
+            ->with($applicationRelations)
             ->orderByRaw('CASE WHEN application_status = ? THEN 0 ELSE 1 END', [ApplicationStatus::Failed->value])
             ->orderByRaw('CASE WHEN review_consensus_status = ? THEN 0 ELSE 1 END', [ReviewConsensusStatus::Conflicted->value])
             ->latest('status_updated_at')
@@ -144,17 +125,38 @@ class ResCertificationController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $states = $applications->getCollection()->mapWithKeys(
+        $certificationApplicationsQuery = ResearchApplication::query()
+            ->whereHas('certificates');
+        $terms->applyFilters($certificationApplicationsQuery, $filters);
+        $certificationApplications = $this->applyIndexFilters($certificationApplicationsQuery, $filters)
+            ->with($applicationRelations)
+            ->withMax([
+                'certificates as latest_certificate_created_at',
+            ], 'created_at')
+            ->orderByDesc('latest_certificate_created_at')
+            ->latest('id')
+            ->paginate(15, ['*'], 'certifications_page')
+            ->withQueryString();
+
+        $modalApplications = $applications->getCollection()
+            ->merge($certificationApplications->getCollection())
+            ->unique('id')
+            ->values();
+        $states = $modalApplications->mapWithKeys(
             fn (ResearchApplication $application): array => [$application->id => $eligibility->state($application)],
         );
 
         return view('dashboard.certificates.res-index', [
             'pageTitle' => 'Decision & Certificates',
             'applications' => $applications,
+            'certificationApplications' => $certificationApplications,
+            'modalApplications' => $modalApplications,
             'queueMetrics' => $queueMetrics,
             'certificationStates' => $states,
             'filters' => $filters,
             'queueStatuses' => $queueStatuses,
+            'reviewTypes' => ReviewType::cases(),
+            'researchTypes' => ResearchType::cases(),
             'termOptions' => $terms->filterOptions(),
             'bulkEligibleCounts' => $bulkReleases->eligibleCounts($request->user()),
             'breadcrumbs' => [
@@ -162,6 +164,47 @@ class ResCertificationController extends Controller
                 ['label' => 'Decision & Certificates'],
             ],
         ]);
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function applyIndexFilters(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when(filled($filters['q'] ?? null), function (Builder $applications) use ($filters): void {
+                $search = trim((string) $filters['q']);
+                $applications->where(fn (Builder $matching) => $matching
+                    ->where('application_code', 'like', "%{$search}%")
+                    ->orWhere('research_title', 'like', "%{$search}%"));
+            })
+            ->when(filled($filters['status'] ?? null), fn (Builder $applications) => $applications
+                ->where('application_status', $filters['status']))
+            ->when(filled($filters['review_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('review_type', $filters['review_type']))
+            ->when(filled($filters['research_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('research_type', $filters['research_type']))
+            ->when(filled($filters['date_from'] ?? null), fn (Builder $applications) => $applications
+                ->whereDate('status_updated_at', '>=', $filters['date_from']))
+            ->when(filled($filters['date_to'] ?? null), fn (Builder $applications) => $applications
+                ->whereDate('status_updated_at', '<=', $filters['date_to']))
+            ->when(filled($filters['decision'] ?? null), function (Builder $applications) use ($filters): void {
+                $decision = (string) $filters['decision'];
+                $applications->where(fn (Builder $matching) => $matching
+                    ->where('review_consensus_decision', $decision)
+                    ->orWhereHas('decisionReleases', fn (Builder $releases) => $releases->where('decision', $decision)));
+            })
+            ->when(($filters['claim'] ?? null) === 'claimed', fn (Builder $applications) => $applications
+                ->whereHas('certificateRecipients')
+                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->claimedCertificate($certificates))))
+            ->when(($filters['claim'] ?? null) === 'unclaimed', fn (Builder $applications) => $applications
+                ->whereHas('certificateRecipients')
+                ->whereDoesntHave('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates)))
+                ->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->where('status', CertificateStatus::Released->value)))
+            ->when(($filters['claim'] ?? null) === 'unavailable', fn (Builder $applications) => $applications
+                ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
+                    ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates))));
     }
 
     public function releaseDecision(

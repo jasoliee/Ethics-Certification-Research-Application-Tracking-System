@@ -44,7 +44,7 @@ class DashboardDemoSeeder extends Seeder
         $applicant = User::where('username', 'applicanttest')->firstOrFail();
         $adviser = User::where('username', 'advisertest')->firstOrFail();
         $reviewer = User::where('username', 'reviewertest')->firstOrFail();
-        $resLead = User::where('username', 'reslead')->firstOrFail();
+        $resLead = User::where('username', 'reulead')->firstOrFail();
 
         $additionalApplicants = collect([
             ['name' => 'Juan Dela Cruz', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'institutional_identifier' => 'KLD-STU-101', 'username' => 'demostudent1', 'email' => 'demostudent1@ecrats.test', 'applicant_type' => ApplicantType::Student],

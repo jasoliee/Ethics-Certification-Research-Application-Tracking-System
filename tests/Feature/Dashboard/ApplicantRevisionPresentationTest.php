@@ -128,7 +128,7 @@ class ApplicantRevisionPresentationTest extends TestCase
         $this->assertSame('For Revision C2', $application->refresh()->statusLabel());
     }
 
-    public function test_final_approval_shows_released_feedback_before_pending_certificate_and_hides_revision_submission(): void
+    public function test_final_approval_shows_released_feedback_but_hides_certification_until_release(): void
     {
         [$applicant, $application, , $reviewer, $assignment, $release, $first] = $this->releasedApplication(
             ApplicationStatus::ForCertificateRelease,
@@ -150,8 +150,9 @@ class ApplicantRevisionPresentationTest extends TestCase
             ->assertSee('Reviewer 1')
             ->assertDontSee($reviewer->name)
             ->assertDontSee('id="revision-documents-title"', false)
-            ->assertSeeInOrder(['id="released-feedback-title"', 'id="certification-state-title"'], false)
-            ->assertSee('Pending Certificate Release')
+            ->assertSee('is-certification-hidden', false)
+            ->assertDontSee('id="certification-state-title"', false)
+            ->assertDontSee('Pending Certificate Release')
             ->assertDontSee('Claim Certificate')
             ->assertDontSee('View Certificate')
             ->assertDontSee('Download Certificate');

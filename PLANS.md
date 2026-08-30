@@ -60,6 +60,74 @@ Date:
 
 ## Active Plans
 
+## Plan: August 30 REU reporting and cross-viewport corrections
+
+Status: Completed on 2026-08-30. Connected-browser viewport interaction remains pending because no in-app browser surface was available.
+
+### Goal
+
+Implement the supplied August 30 UI and reporting corrections across the REU Lead, Applicant, and Adviser/Reviewer viewports, including application-level certificate reporting, Excel/PDF report downloads, worksheet layout fixes, shared filter interactions, profile-image replacement, notification alignment, and the requested REU Lead seed username.
+
+### Source Documents
+
+- Primary requirement: `C:\Users\Jefferson\Downloads\WAHAHAHA.txt` and the screenshots supplied in the current conversation.
+- Safety authority: the user-pasted project safety and data-protection rules in the current conversation.
+- Existing project rules and current implementation remain supporting sources; the August 30 request supersedes older UI/report labels where they conflict.
+
+### Scope
+
+Included:
+
+- REU Applications, Review Monitoring, Reports, Released Applicant Record, Settings, Decision & Certificates, and Notifications changes.
+- Applicant Revision & Certificates visibility/layout changes and Adviser/Reviewer worksheet/configuration changes.
+- Shared filter, cursor, search-icon, application-detail, profile-image, report-background, Excel wrapping, and REU Lead seed username behavior.
+- Focused tests, local generated-file inspection, build/static checks, and browser verification if a local browser connection becomes available.
+
+Excluded:
+
+- Destructive database operations, external uploads/services, dependency changes, unrelated refactors, deployment, commits, and pushes.
+
+### Implementation Approach
+
+- Backend: reuse existing report, certificate, worksheet, notification, and profile services; keep queries application-scoped and role-authorized.
+- Frontend: make targeted Blade/CSS/JavaScript changes using the existing dashboard component system and responsive breakpoints.
+- Database: avoid schema changes unless inspection proves one is indispensable; retain historical certificate and application records.
+- Files/storage: keep generated PDFs, Excel workbooks, profile images, signatures, and configured backgrounds on the existing private/local storage paths.
+- Verification: use isolated tests and synthetic data; do not expose local project data externally.
+
+### Files Expected to Change
+
+- Relevant controllers/services under `app/Http/Controllers` and `app/Services`
+- Relevant Blade templates under `resources/views`
+- `resources/css/dashboard.css` and, only if necessary, `resources/js/dashboard.js`
+- Focused feature tests, seeders/factories, and required implementation documentation
+
+### Tests and Verification
+
+- Focused PHPUnit tests for report aggregation/downloads, worksheet layout contracts, role visibility, filters, notifications, profile image handling, and seed credentials.
+- PDF rendering/text inspection and Excel structure/style inspection with generated synthetic records.
+- Blade compilation, Pint on changed PHP files, Vite production build, route discovery, `git diff --check`, and the complete test suite when safe isolation is confirmed.
+
+### Completion Evidence
+
+- Complete isolated SQLite in-memory suite: 353 tests, 5,450 assertions, passed.
+- Focused report/certification/profile coverage: 20 tests, 699 assertions, passed; broader workflow/settings/authentication coverage: 58 tests, 932 assertions, passed.
+- Final Applicant workspace and certificate-filter/UI slices passed after the screenshot follow-ups.
+- Pint, Blade compilation, Vite production build, route discovery, and whitespace checks passed.
+- Synthetic operational and survey PDFs were generated with the active worksheet background, rasterized locally, and visually inspected. Generated Excel workbooks were reopened and every populated cell was verified as wrapped.
+- A connected in-app browser was unavailable, so authenticated desktop/tablet/mobile pointer and pixel acceptance remains a manual follow-up rather than an automated Pass.
+
+### Risks and Rollback
+
+- Application-level certificate aggregation must not alter issued artifacts or recipient history.
+- Report downloads and worksheet rendering must preserve authorization and private-storage rules.
+- All changes are targeted source edits and can be reverted file-by-file; no destructive data operation is planned.
+
+### Approval Notes
+
+Approved by: user request in this conversation.
+Date: 2026-08-30.
+
 ## Plan: INFINITY SAGA continuation and database-recovery handover
 
 Status: **Stopped by user on 2026-08-23. Feature work is incomplete. The local MySQL database was successfully restored and verified on 2026-08-23.**

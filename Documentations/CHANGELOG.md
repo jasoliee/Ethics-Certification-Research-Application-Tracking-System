@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-30
+
+### Added
+
+- Added filter-aware operational and anonymous-survey downloads in Excel and PDF, shared format-selection dialogs, application-level Institute/certification View All pages, and active Review Worksheet Background composition for generated report PDFs.
+- Added a newest-first generated Certification List to Decision & Certificates and expanded its server-side review type, research type, status, decision, claim, and date filtering.
+- Added authenticated private JPEG/PNG profile-image replacement and initials fallback for Applicant, Adviser/Reviewer, and RES Lead accounts.
+
+### Corrected
+
+- Reports now aggregates recipient certificates into one application row, counts submitted Applicants distinctly, removes the retired workflow pipeline/double-blind labels, opens each Released Applicant Record for the selected application, and wraps all populated Excel cells.
+- Applicant Certification controls remain hidden during active revisions and before the complete configured certificate set is Released/Claimed with Ready current versions. When Certification is hidden, Released Feedback and Revision Submission use the complete workspace width.
+- Corrected shared filter text/cursors/actions, including equal Apply/Reset dimensions and protected search-icon spacing; Review Monitoring navigation; notification bulk alignment; settings requirement/background controls; report long-value layout; and official worksheet signature/name/date sizing without continuation-page overlap.
+- Changed the idempotent singleton RES Lead seed login to `reulead` / `reulead@ecrats.test` while preserving the configured seed password.
+
+### Verification
+
+- Report and survey PDFs were generated with synthetic records, rasterized locally, and visually inspected for readable background composition, wrapping, table bounds, and zero-value rendering. Spreadsheet tests reopen the workbook and verify wrapping on every populated cell.
+- Complete isolated SQLite in-memory suite: 353 tests and 5,450 assertions passed. Pint, Blade compilation, Vite production build, route discovery, and whitespace checks also passed.
+- Authenticated cross-viewport browser interaction remains pending because no in-app browser surface is connected.
+
 ## 2026-08-23 — stopped INFINITY SAGA continuation
 
 - Added RES Requirements Configuration and shared Reviewer Worksheet Configuration; earlier focused settings/artifact coverage passed.

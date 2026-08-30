@@ -84,6 +84,8 @@ An RES Lead may:
 
 The RES page presents four unfiltered lifecycle counts—relevant applications, released certificates, pending final approvals, and released certificates still requiring a survey—above a filtered, paginated queue. Search and queue-state filters change only the table results; the summary remains a stable overview of the complete relevant-record scope.
 
+The page now keeps two explicit application-level surfaces: **Decision & Certificate Release** for workflow work and **Certification List** for applications that already have generated certificates. Both are newest-first within their role/term scope, and review type, research type, status, decision, claim, and date filters are enforced on the server. Multiple configured recipients remain visible inside the selected application workspace but never duplicate the application-level list row.
+
 Each numbered row exposes the authoritative final-review, released-decision, certificate-generation, survey, claim, and last-updated states. Opening a record keeps all record-specific work together in one dialog: released-decision details and selected comments, decision release and any required legacy document mapping when eligible, certificate generation or retry, preview/download/regeneration, and immutable version history. Bulk release has an explicit confirmation dialog. Background administration is intentionally separate and retains its own preview, upload, activation, reset, version history, and pagination.
 
 These dialogs are a presentation boundary only. Their actions remain ordinary authenticated server-rendered routes, including server-side authorization, validation, audit/notification effects, and postback feedback. Validation reopens the affected application or background dialog so entered values and errors remain in context.
@@ -91,6 +93,8 @@ These dialogs are a presentation boundary only. Their actions remain ordinary au
 Accepted background formats are a decodable one-page portrait A4-compatible PDF, JPEG, or PNG. Raster assets must be at least 596 by 842 pixels. Activation affects future generations only; each existing version retains its background ID and hashes.
 
 Applicants cannot preview or download a merely released certificate. After the required evaluation is stored, an explicit claim binds the Applicant to the current ready version. Regeneration clears the aggregate claim pointer, preserves prior version claim metadata, and requires a new explicit claim of the replacement version.
+
+The Applicant Certification panel is not rendered while an active revision remains. It is also withheld until every configured recipient certificate is actually Released or Claimed and the current generated version is Ready; an application status label alone cannot expose the survey or claim controls early. Whenever Certification is hidden, Released Feedback and Revision Submission occupy the complete workspace width instead of retaining an empty sidebar column.
 
 Evaluation validation is shown inside the Certification panel and preserves the Applicant's submitted ratings and text. Both required feedback fields enforce five to 500 characters in the browser and on the server. A rejected evaluation creates no response and keeps the certificate at `Survey Required`; a valid response immediately changes the rendered state to `Claimable`, after which the Applicant performs the separate explicit claim action.
 

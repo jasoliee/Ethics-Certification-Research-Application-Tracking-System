@@ -9,7 +9,17 @@
 
         <section class="dashboard-profile-card">
             <div class="dashboard-profile-summary">
-                <span class="dashboard-avatar dashboard-profile-avatar" aria-hidden="true">{{ $dashboardUserInitials }}</span>
+                <div class="profile-image-settings-control">
+                    <form class="profile-image-form" method="POST" action="{{ route('profile-image.store') }}" enctype="multipart/form-data" data-profile-image-form>
+                        @csrf
+                        <label class="profile-image-control" title="Replace profile image">
+                            <span class="dashboard-avatar dashboard-profile-avatar" aria-hidden="true">@if ($dashboardHasProfileImage)<img src="{{ $dashboardProfileImageUrl }}" alt="">@else{{ $dashboardUserInitials }}@endif</span>
+                            <span class="profile-image-replace">Replace</span>
+                            <input name="profile_image" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" data-profile-image-input>
+                        </label>
+                    </form>
+                    @error('profile_image')<small class="settings-field-error">{{ $message }}</small>@enderror
+                </div>
                 <div>
                     <h2>{{ $profileUser->name }}</h2>
                     <p>{{ $profileUser->displayRoleLabel() }}</p>
@@ -50,6 +60,7 @@
             </dl>
 
             <div class="dashboard-profile-actions">
+                @if ($dashboardHasProfileImage)<form method="POST" action="{{ route('profile-image.destroy') }}">@csrf @method('DELETE')<button class="dashboard-outline-action" type="submit"><x-dashboard.icon name="refresh" size="18" />Use Initials</button></form>@endif
                 <a class="dashboard-outline-action" href="{{ route($dashboardSettingsRoute, ['tab' => 'security']) }}"><x-dashboard.icon name="lock" size="18" />Security &amp; Privacy</a>
             </div>
         </section>

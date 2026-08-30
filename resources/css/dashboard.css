@@ -5503,6 +5503,7 @@
         gap: 5px;
         border-bottom: 1px solid #e5ebe7;
         padding: 15px 22px;
+        cursor: pointer;
     }
 
     /* Spans narrative application details across both columns. */
@@ -10423,8 +10424,13 @@
 }
 
 .unified-filter-actions > * {
-    min-height: 42px;
+    width: 154px;
+    height: 52px;
+    min-width: 154px;
+    min-height: 52px;
+    flex: 0 0 154px;
     justify-content: center;
+    white-space: nowrap;
 }
 
 .unified-filter-fields {
@@ -10457,6 +10463,10 @@
 .unified-filter-fields select {
     width: 100%;
     min-height: 42px;
+}
+
+.unified-filter-fields select {
+    cursor: pointer;
 }
 
 .report-summary-grid .dashboard-summary-card[href] {
@@ -10591,8 +10601,8 @@ form[class*='filter'] :is(input, select):focus-visible,
 }
 
 .settings-requirements-heading {
-    text-align: center;
-    justify-content: center;
+    text-align: left;
+    justify-content: flex-start;
 }
 
 .settings-requirements-lock,
@@ -11018,14 +11028,22 @@ form[class*='filter'] :is(input, select):focus-visible,
 }
 
 .settings-background-header-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: center;
-    justify-content: flex-end;
-    gap: 14px;
+    gap: 10px;
 }
 
 .settings-background-header-actions > * {
     margin: 0;
+    min-width: 0;
+    text-align: center;
+}
+
+.settings-background-header-actions form,
+.settings-background-header-actions button,
+.settings-background-header-actions a {
+    width: 100%;
 }
 
 .settings-background-heading {
@@ -11284,7 +11302,8 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .notification-bulk-bar {
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
 }
 
 .notification-selected-actions {
@@ -11292,7 +11311,7 @@ form[class*='filter'] :is(input, select):focus-visible,
     display: flex;
     align-items: center;
     flex: 1 1 430px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 10px;
 }
 
@@ -11304,6 +11323,13 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .notification-selected-actions select {
     width: min(100%, 220px);
+}
+
+@media (max-width: 900px) {
+    .notification-bulk-bar,
+    .notification-selected-actions {
+        flex-wrap: wrap;
+    }
 }
 
 .certificate-metric-strip > a {
@@ -11344,8 +11370,16 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .certificate-queue-filters .application-search-field > span,
 .review-monitoring-filter-search > span {
-    top: 50%;
-    transform: translateY(-50%);
+    top: auto;
+    bottom: 12px;
+    transform: none;
+}
+
+.settings-requirement-create fieldset:disabled .settings-requirement-specification textarea:hover,
+.settings-requirement-create fieldset:disabled .settings-requirement-specification textarea:focus {
+    border-color: #cbd5ce;
+    outline: none;
+    background: #f3f4f6;
 }
 
 .certificate-queue-table .certificate-row-action {
@@ -11859,6 +11893,97 @@ form[class*='filter'] :is(input, select):focus-visible,
     align-items: center;
 }
 
+.report-download-modal {
+    width: min(520px, calc(100vw - 32px));
+}
+
+.report-download-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 20px 24px;
+}
+
+.report-download-options > * {
+    min-height: 54px;
+    justify-content: center;
+}
+
+.report-title-wrap {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.report-cell-centered {
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+.dashboard-avatar {
+    overflow: hidden;
+}
+
+.dashboard-avatar img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.profile-image-settings-control {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+}
+
+.profile-image-form {
+    margin: 0;
+}
+
+.profile-image-control {
+    position: relative;
+    display: block;
+    border-radius: 999px;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.profile-image-control input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.profile-image-replace {
+    position: absolute;
+    inset: auto 0 0;
+    padding: 5px 3px;
+    background: rgba(5, 63, 37, .88);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    transform: translateY(100%);
+    transition: transform .16s ease;
+}
+
+.profile-image-control:hover .profile-image-replace,
+.profile-image-control:focus-within .profile-image-replace {
+    transform: translateY(0);
+}
+
+.profile-image-default {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #087241;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 .report-feedback-panel {
     padding-bottom: 18px;
 }
@@ -12191,7 +12316,8 @@ form[class*='filter'] :is(input, select):focus-visible,
     }
 
     .revision-workspace-grid.is-revision-active,
-    .revision-workspace-grid.is-final-approved {
+    .revision-workspace-grid.is-final-approved,
+    .revision-workspace-grid.is-certification-hidden {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -13649,6 +13775,10 @@ form[class*='filter'] :is(input, select):focus-visible,
         padding: 8px 10px;
         background: #fff;
         font: inherit;
+    }
+
+    .certificate-queue-filters .application-search-field input {
+        padding-left: 42px;
     }
 
     .certificate-queue {

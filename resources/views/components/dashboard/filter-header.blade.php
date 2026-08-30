@@ -12,7 +12,6 @@
         <span class="unified-filter-icon"><x-dashboard.icon name="filter" size="22" /></span>
         <span>
             <strong>Filters</strong>
-            <small>{{ $description }}</small>
         </span>
     </div>
     <div class="unified-filter-actions {{ $actionsClass }}">

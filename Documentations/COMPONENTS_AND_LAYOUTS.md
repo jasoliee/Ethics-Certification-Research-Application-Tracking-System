@@ -17,7 +17,7 @@ The desktop sidebar is 264 pixels wide and becomes an off-canvas panel below the
 
 ## Header and Menus
 
-The header contains the mobile navigation control, breadcrumbs, notification bell, avatar or initials, user name, and profile menu arrow. Notification and profile menus are mutually exclusive. The notification panel is aligned to the bell and remains within the viewport on mobile.
+The header contains the mobile navigation control, breadcrumbs, notification bell, private profile image or initials fallback, user name, and profile menu arrow. The sidebar uses the same private profile image/fallback. Notification and profile menus are mutually exclusive. The notification panel is aligned to the bell and remains within the viewport on mobile.
 
 ## Footer
 

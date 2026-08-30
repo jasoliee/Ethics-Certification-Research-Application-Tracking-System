@@ -1,6 +1,6 @@
 # Role Settings and Managed Assets
 
-Last updated: 2026-08-17
+Last updated: 2026-08-30
 
 ## Scope
 
@@ -14,6 +14,14 @@ The Applicant, Adviser, and RES Lead account areas now expose real, authenticate
 - Adviser fields cover identity, contact, Institute, position, and the expected-endorsement declaration. Reviewer eligibility data is read-only on the Adviser profile.
 - RES Lead fields cover permitted identity/contact information plus the separately authorized certificate signatory.
 - Every accepted profile write creates a `settings.profile_updated` audit record containing only the changed field names.
+
+### Profile images
+
+- Applicant, Adviser/Reviewer, and RES Lead users may replace or remove only their own profile image from the shared Profile and Settings surfaces.
+- Uploads are limited to validated JPEG/PNG images up to 2 MB and dimensions from 120 through 4096 pixels.
+- Each account uses a deterministic private-local path, so replacement does not accumulate unreferenced profile files. Removing the image restores the initials fallback.
+- The top bar and sidebar load the image through an authenticated, no-store controller route; no profile image is published through `public/` storage.
+- Accepted replacement/removal writes create bounded audit events without recording private paths or image bytes.
 
 ## Security & Privacy
 
@@ -53,5 +61,6 @@ Focused coverage is in:
 - `tests/Feature/Settings/RoleAccountSettingsTest.php`
 - `tests/Feature/Settings/ResAssetSettingsTest.php`
 - `tests/Feature/Settings/ResLeadSettingsTest.php`
+- `tests/Feature/Settings/ProfileImageTest.php`
 
 The focused settings run completed with 19 passing tests and 199 assertions. Blade compilation, the production Vite build, the settings route listing, and targeted Pint checks also pass.

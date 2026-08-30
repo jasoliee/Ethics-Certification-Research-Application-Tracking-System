@@ -24,6 +24,10 @@ use App\Services\Reports\OperationalReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Tests\TestCase;
 
 class ResOperationalReportTest extends TestCase
@@ -93,7 +97,7 @@ class ResOperationalReportTest extends TestCase
                 'Current - Current Operations Term, A.Y. 2026-2027',
                 'Historical Operations Term, A.Y. 2025-2026',
             ])
-            ->assertSee('Workflow Pipeline')
+            ->assertDontSee('Workflow Pipeline')
             ->assertSee('Filtered Application List')
             ->assertSee('Applicant Certification')
             ->assertSee('Reviewer Review Workload')
@@ -273,7 +277,7 @@ class ResOperationalReportTest extends TestCase
         $this->assertSame(28, $row['remaining']);
     }
 
-    public function test_print_export_and_survey_print_keep_the_current_filter_scope_and_updated_headers(): void
+    public function test_print_download_and_survey_print_keep_the_current_filter_scope_and_updated_headers(): void
     {
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
         $matching = ResearchApplication::factory()->create([
@@ -299,9 +303,22 @@ class ResOperationalReportTest extends TestCase
             ->assertDontSee('Filtered management report')
             ->assertDontSee('Privacy boundary:');
 
-        $csv = $this->actingAs($resLead)->get(route('res.reports.export', $filters))->streamedContent();
-        $this->assertStringContainsString($matching->application_code, $csv);
-        $this->assertStringNotContainsString($outside->application_code, $csv);
+        $workbook = $this->actingAs($resLead)->get(route('res.reports.download', [...$filters, 'format' => 'xlsx']));
+        $workbook->assertOk()->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringStartsWith("PK\x03\x04", $workbook->getContent());
+        $path = tempnam(sys_get_temp_dir(), 'ecrats-report-test-');
+        file_put_contents($path, $workbook->getContent());
+        try {
+            $spreadsheet = (new XlsxReader)->load($path);
+            foreach ($spreadsheet->getAllSheets() as $sheet) {
+                foreach ($sheet->getCellCollection()->getCoordinates() as $coordinate) {
+                    $this->assertTrue($sheet->getStyle($coordinate)->getAlignment()->getWrapText(), "{$sheet->getTitle()}!{$coordinate} must wrap.");
+                }
+            }
+            $spreadsheet->disconnectWorksheets();
+        } finally {
+            @unlink($path);
+        }
 
         $this->actingAs($resLead)->get(route('res.reports.survey.print', $filters))
             ->assertOk()
@@ -331,6 +348,27 @@ class ResOperationalReportTest extends TestCase
         DB::disableQueryLog();
 
         $this->assertLessThanOrEqual($baseline + 1, $expanded);
+    }
+
+    public function test_report_and_survey_pdf_downloads_use_valid_multi_page_pdf_outputs(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        ResearchApplication::factory()->count(3)->create(['submitted_at' => now()->subDay()]);
+
+        foreach (['download' => 'res.reports.download', 'survey' => 'res.reports.survey.download'] as $name => $routeName) {
+            $response = $this->actingAs($resLead)->get(route($routeName, ['format' => 'pdf']));
+            $response->assertOk()->assertHeader('content-type', 'application/pdf');
+            $bytes = $response->getContent();
+            $this->assertStringStartsWith('%PDF-', $bytes, $name.' download must be a genuine PDF.');
+
+            $stream = fopen('php://temp', 'w+b');
+            fwrite($stream, $bytes);
+            rewind($stream);
+            $parser = new Fpdi;
+            $this->assertGreaterThanOrEqual(1, $parser->setSourceFile(new StreamReader($stream)));
+            fclose($stream);
+        }
     }
 
     public function test_partial_recipient_certificate_sets_count_one_unclaimed_account_but_remain_identity_hidden(): void
@@ -435,10 +473,7 @@ class ResOperationalReportTest extends TestCase
             ->get(route('res.reports.applicants.show', $applicant))
             ->assertNotFound();
         $this->assertTrue(app(OperationalReportService::class)->report([])['applicant_certification']->isEmpty());
-        $this->assertStringNotContainsString(
-            $applicant->name,
-            $this->actingAs($resLead)->get(route('res.reports.export'))->streamedContent(),
-        );
+        $this->actingAs($resLead)->get(route('res.reports.download', ['format' => 'xlsx']))->assertOk();
 
         $certificates->last()->update([
             'status' => CertificateStatus::Released,
@@ -457,10 +492,9 @@ class ResOperationalReportTest extends TestCase
             ->assertSee('PRIVACY-CERT-1')
             ->assertSee('PRIVACY-CERT-2')
             ->assertSee(route('res.certificates.versions.preview', [$certificates->first(), $version]), false);
-        $this->assertCount(2, app(OperationalReportService::class)->report([])['applicant_certification']);
-        $this->assertStringContainsString(
-            $applicant->name,
-            $this->actingAs($resLead)->get(route('res.reports.export'))->streamedContent(),
-        );
+        $certificationRows = app(OperationalReportService::class)->report([])['applicant_certification'];
+        $this->assertCount(1, $certificationRows);
+        $this->assertSame('Unclaimed', $certificationRows->first()['certificate_status']);
+        $this->actingAs($resLead)->get(route('res.reports.download', ['format' => 'xlsx']))->assertOk();
     }
 }

@@ -3,7 +3,7 @@
 @section('content')
     @php
         $dialogApplicationId = (int) old('application_id');
-        $hasFilters = collect(['q', 'status', 'decision', 'claim', 'academic_term_id'])
+        $hasFilters = collect(['q', 'status', 'decision', 'claim', 'academic_term_id', 'review_type', 'research_type', 'date_from', 'date_to'])
             ->contains(fn (string $filter): bool => filled($filters[$filter] ?? null));
     @endphp
 
@@ -108,17 +108,27 @@
                 <select id="certificate-claim" name="claim">
                     <option value="">All claim states</option>
                     <option value="claimed" @selected(($filters['claim'] ?? '') === 'claimed')>Claimed</option>
-                    <option value="unclaimed" @selected(($filters['claim'] ?? '') === 'unclaimed')>Not claimed</option>
+                    <option value="unclaimed" @selected(($filters['claim'] ?? '') === 'unclaimed')>Unclaimed</option>
                     <option value="unavailable" @selected(($filters['claim'] ?? '') === 'unavailable')>Not available</option>
                 </select>
             </div>
+            <div class="application-field">
+                <label for="certificate-review-type">Review Type</label>
+                <select id="certificate-review-type" name="review_type"><option value="">All review types</option>@foreach ($reviewTypes as $type)<option value="{{ $type->value }}" @selected(($filters['review_type'] ?? '') === $type->value)>{{ $type->label() }}</option>@endforeach</select>
+            </div>
+            <div class="application-field">
+                <label for="certificate-research-type">Research Type</label>
+                <select id="certificate-research-type" name="research_type"><option value="">All research types</option>@foreach ($researchTypes as $type)<option value="{{ $type->value }}" @selected(($filters['research_type'] ?? '') === $type->value)>{{ $type->label() }}</option>@endforeach</select>
+            </div>
+            <div class="application-field"><label for="certificate-date-from">Date From</label><input id="certificate-date-from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}"></div>
+            <div class="application-field"><label for="certificate-date-to">Date To</label><input id="certificate-date-to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}"></div>
             </div>
         </form>
 
         <section class="application-panel certificate-queue-panel" aria-labelledby="certificate-queue-title">
             <header class="application-panel-heading certificate-queue-heading">
                 <div>
-                    <h2 id="certificate-queue-title">Decision &amp; Certificate Queue</h2>
+                    <h2 id="certificate-queue-title">Decision &amp; Certificate Release</h2>
                     <p>
                         Showing {{ $applications->firstItem() ?? 0 }} to {{ $applications->lastItem() ?? 0 }} of {{ $applications->total() }} relevant {{ Str::plural('application', $applications->total()) }}
                         @if ($hasFilters)<span>(filtered)</span>@endif
@@ -217,7 +227,43 @@
             @endif
         </section>
 
-        @foreach ($applications as $application)
+        <section class="application-panel certificate-queue-panel" aria-labelledby="certification-list-title">
+            <header class="application-panel-heading certificate-queue-heading">
+                <div><h2 id="certification-list-title">Certification List</h2><p>Showing {{ $certificationApplications->firstItem() ?? 0 }} to {{ $certificationApplications->lastItem() ?? 0 }} of {{ $certificationApplications->total() }} generated {{ Str::plural('certification', $certificationApplications->total()) }}</p></div>
+            </header>
+            @if ($certificationApplications->isEmpty())
+                <x-dashboard.empty-state image="no-applications" alt="No generated certifications found" title="No generated certifications match these filters" message="Released certifications appear here after successful secure generation." />
+            @else
+                <x-dashboard.overflow class="certificate-queue-scroll" label="Generated certification records" wide>
+                    <table class="dashboard-table certificate-queue-table">
+                        <thead><tr><th class="certificate-row-number">#</th><th>Application</th><th class="certificate-queue-centered">Review Type</th><th class="certificate-queue-centered">Research Type</th><th class="certificate-queue-centered">Certificate Status</th><th class="certificate-queue-centered">Released Date</th><th class="dashboard-table-action certificate-queue-centered">Action</th></tr></thead>
+                        <tbody>
+                            @foreach ($certificationApplications as $application)
+                                @php
+                                    $generatedCertificates = $application->certificates;
+                                    $certificateLabel = match (true) {
+                                        $generatedCertificates->contains(fn ($item) => $item->status === \App\Enums\CertificateStatus::GenerationFailed) => 'Generation Failed',
+                                        $generatedCertificates->every(fn ($item) => $item->status === \App\Enums\CertificateStatus::Claimed) => 'Claimed',
+                                        $generatedCertificates->every(fn ($item) => in_array($item->status, [\App\Enums\CertificateStatus::Released, \App\Enums\CertificateStatus::Claimed], true)) => 'Unclaimed',
+                                        default => 'Pending Certificate Release',
+                                    };
+                                    $certificateTone = match ($certificateLabel) {
+                                        'Claimed' => 'success',
+                                        'Generation Failed' => 'red',
+                                        default => 'orange',
+                                    };
+                                    $releasedAt = $generatedCertificates->max('released_at');
+                                @endphp
+                                <tr><td class="certificate-row-number">{{ ($certificationApplications->firstItem() ?? 1) + $loop->index }}</td><td class="certificate-application-cell"><small>{{ $application->application_code }}</small><strong class="monitoring-title-truncate" data-research-title-tooltip>{{ $application->research_title }}</strong></td><td class="certificate-queue-centered">{{ \App\Enums\ReviewType::tryFrom((string) $application->review_type)?->label() ?? 'Not classified' }}</td><td class="certificate-queue-centered">{{ $application->research_type?->label() ?? Str::headline((string) $application->research_type) }}</td><td class="certificate-queue-centered"><x-dashboard.status-badge :label="$certificateLabel" :tone="$certificateTone" /></td><td class="certificate-updated-cell certificate-queue-centered"><span>{{ $releasedAt?->format('M j, Y') ?? '—' }}</span><small>{{ $releasedAt?->format('g:i A') }}</small></td><td class="dashboard-table-action certificate-queue-centered"><button class="dashboard-outline-action certificate-row-action" type="button" data-certificate-application-open="{{ $application->id }}">View</button></td></tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </x-dashboard.overflow>
+                <x-dashboard.pagination :paginator="$certificationApplications" label="Certification list pages" />
+            @endif
+        </section>
+
+        @foreach ($modalApplications as $application)
             @php
                 $state = $certificationStates[$application->id];
                 $certificates = $application->certificates->sortBy('id')->values();

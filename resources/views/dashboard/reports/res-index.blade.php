@@ -21,7 +21,8 @@
             <h1>Reports</h1>
             <div class="report-heading-actions">
                 <a class="dashboard-outline-action" href="{{ route('res.reports.audit.index') }}"><x-dashboard.icon name="clipboard" size="18" /><span>Audit Log</span></a>
-                <a class="dashboard-outline-action" href="{{ route('res.reports.export', $query) }}"><x-dashboard.icon name="download" size="18" /><span>Export CSV</span></a>
+                <button class="dashboard-outline-action" type="button" data-download-format-open="report"><x-dashboard.icon name="download" size="18" /><span>Download Report</span></button>
+                <button class="dashboard-outline-action" type="button" data-download-format-open="survey"><x-dashboard.icon name="download" size="18" /><span>Download Survey</span></button>
                 <a class="dashboard-primary-action" href="{{ route('res.reports.print', $query) }}" target="_blank" rel="noopener"><x-dashboard.icon name="printer" size="18" /><span>Print Report</span></a>
             </div>
         </header>
@@ -72,15 +73,15 @@
             <header class="application-panel-heading"><h2 id="institute-summary-title">Applicant &amp; Application Summary</h2></header>
             <x-dashboard.overflow label="Applicant and application summary by institute">
                 <table class="dashboard-table report-table">
-                    <thead><tr><th>Institute</th><th class="report-numeric">Unique Applicants</th><th class="report-numeric">Applications Submitted</th><th class="report-numeric">Not Yet Submitted</th><th class="report-numeric">Failed</th><th class="report-numeric">Certificates Claimed</th><th class="report-numeric">Certificates Unclaimed</th></tr></thead>
-                    <tbody>@forelse ($report['institute_summary'] as $row)<tr><th scope="row">{{ $row['institute'] }}</th><td class="report-numeric">{{ $row['unique_applicants'] }}</td><td class="report-numeric">{{ $row['submitted'] }}</td><td class="report-numeric">{{ $row['not_submitted'] }}</td><td class="report-numeric">{{ $row['failed'] }}</td><td class="report-numeric">{{ $row['claimed'] }}</td><td class="report-numeric">{{ $row['unclaimed'] }}</td></tr>@empty<tr><td colspan="7">No institute summary records match the selected filters.</td></tr>@endforelse</tbody>
+                    <thead><tr><th>Institute</th><th class="report-numeric">Unique Applicants</th><th class="report-numeric">Applications Submitted</th><th class="report-numeric">Not Yet Submitted</th><th class="report-numeric">Failed</th><th class="report-numeric">Certificates Claimed</th><th class="report-numeric">Certificates Unclaimed</th><th class="report-action">Action</th></tr></thead>
+                    <tbody>@forelse ($report['institute_summary'] as $row)<tr><th scope="row">{{ $row['institute'] }}</th><td class="report-numeric">{{ $row['unique_applicants'] }}</td><td class="report-numeric">{{ $row['submitted'] }}</td><td class="report-numeric">{{ $row['not_submitted'] }}</td><td class="report-numeric">{{ $row['failed'] }}</td><td class="report-numeric">{{ $row['claimed'] }}</td><td class="report-numeric">{{ $row['unclaimed'] }}</td><td class="report-action"><a class="dashboard-action-link" href="{{ route('res.reports.institutes.applicants', array_merge($query, ['institute' => $row['institute']])) }}">View</a></td></tr>@empty<tr><td colspan="8">No institute summary records match the selected filters.</td></tr>@endforelse</tbody>
                 </table>
             </x-dashboard.overflow>
         </section>
 
         <section id="filtered-application-list" class="application-panel" aria-labelledby="application-list-title">
-            <header class="application-panel-heading"><h2 id="application-list-title">Filtered Application List</h2><span class="status-badge status-badge-green">Double-blind</span></header>
-            <x-dashboard.overflow label="Filtered double-blind application list">
+            <header class="application-panel-heading"><h2 id="application-list-title">Filtered Application List</h2><a class="dashboard-outline-action" href="{{ route('res.reports.applications.index', $query) }}">View All</a></header>
+            <x-dashboard.overflow label="Filtered application list">
                 <table class="dashboard-table report-table">
                     <thead><tr><th>Application Code</th><th>Research Title</th><th>Institute</th><th>Review Type</th><th>Status</th><th>Certificate Status</th><th>Submitted</th><th class="report-action">Action</th></tr></thead>
                     <tbody>@forelse ($report['applications'] as $row)@php($application = $row['application'])<tr><td>{{ $application->application_code }}</td><td class="report-title-cell" title="{{ $application->research_title }}">{{ $application->research_title }}</td><td>{{ $application->institution }}</td><td>{{ $application->review_type ? App\Enums\ReviewType::tryFrom((string) $application->review_type)?->label() : 'Not classified' }}</td><td>{{ $application->statusLabel() }}</td><td>{{ $row['certificate_status'] }}</td><td>{{ $application->submitted_at?->format('M j, Y') ?? '—' }}</td><td class="report-action"><a class="dashboard-action-link" href="{{ route('res.applications.show', $application) }}">View</a></td></tr>@empty<tr><td colspan="8">No applications match the selected filters.</td></tr>@endforelse</tbody>
@@ -88,16 +89,15 @@
             </x-dashboard.overflow>
             <footer class="report-list-navigation">
                 <x-dashboard.pagination :paginator="$report['applications']" label="Filtered application pages" />
-                <a class="dashboard-outline-action" href="{{ route('res.reports.applications.index', $query) }}">View All</a>
             </footer>
         </section>
 
         <section class="application-panel" aria-labelledby="applicant-certification-title">
-            <header class="application-panel-heading"><h2 id="applicant-certification-title">Applicant Certification</h2></header>
+            <header class="application-panel-heading"><h2 id="applicant-certification-title">Applicant Certification</h2><a class="dashboard-outline-action" href="{{ route('res.reports.certifications.index', $query) }}">View All</a></header>
             <x-dashboard.overflow label="Applicant certification records">
                 <table class="dashboard-table report-table">
-                    <thead><tr><th>Applicant</th><th>Institutional ID</th><th>Institute</th><th>Application Code</th><th>Recipient</th><th>Certificate Status</th><th>Released Date</th><th class="report-numeric">Ageing</th><th class="report-action">Action</th></tr></thead>
-                    <tbody>@forelse ($report['applicant_certification'] as $row)<tr><td>{{ $row['applicant']?->name }}</td><td>{{ $row['applicant']?->institutional_identifier }}</td><td>{{ $row['application']->institution }}</td><td>{{ $row['application']->application_code }}</td><td>{{ $row['certificate']->recipient_name }}</td><td>{{ $row['certificate']->status->label() }}</td><td>{{ $row['released_at']?->format('M j, Y g:i A') ?? '—' }}</td><td class="report-numeric">{{ $row['ageing_days'] === null ? '—' : $row['ageing_days'].' days' }}</td><td class="report-action">@if ($row['applicant'])<a class="dashboard-action-link" href="{{ route('res.reports.applicants.show', array_merge($query, ['applicant' => $row['applicant']->id, 'application' => $row['application']->id])) }}">View</a>@endif</td></tr>@empty<tr><td colspan="9">No applicant certification records match the selected filters.</td></tr>@endforelse</tbody>
+                    <thead><tr><th>Applicant</th><th>Institutional ID</th><th>Institute</th><th>Application Code</th><th class="report-cell-centered">Certificate Status</th><th class="report-cell-centered">Released Date</th><th class="report-cell-centered">Ageing</th><th class="report-action">Action</th></tr></thead>
+                    <tbody>@forelse ($report['applicant_certification'] as $row)<tr><td>{{ $row['applicant']?->name }}</td><td>{{ $row['applicant']?->institutional_identifier }}</td><td>{{ $row['application']->institution }}</td><td>{{ $row['application']->application_code }}</td><td class="report-cell-centered">{{ $row['certificate_status'] }}</td><td class="report-cell-centered">{{ $row['released_at']?->format('M j, Y g:i A') ?? '—' }}</td><td class="report-cell-centered">{{ $row['ageing_days'] === null ? '—' : $row['ageing_days'].' days' }}</td><td class="report-action">@if ($row['applicant'])<a class="dashboard-action-link" href="{{ route('res.reports.applicants.show', array_merge($query, ['applicant' => $row['applicant']->id, 'application' => $row['application']->id])) }}">View</a>@endif</td></tr>@empty<tr><td colspan="8">No applicant certification records match the selected filters.</td></tr>@endforelse</tbody>
                 </table>
             </x-dashboard.overflow>
         </section>
@@ -117,15 +117,11 @@
             <x-dashboard.overflow label="Adviser endorsement workload report"><table class="dashboard-table report-table"><thead><tr><th>Adviser</th><th>Institute</th><th class="report-numeric">Declared Expected</th><th class="report-numeric">Applicants Received</th><th class="report-numeric">Completed</th><th class="report-numeric">Awaiting</th><th class="report-numeric">Not Yet Received</th></tr></thead><tbody>@forelse ($report['adviser_workload'] as $row)<tr><td>{{ $row['adviser']->name }}</td><td>{{ $row['institute'] }}</td><td class="report-numeric">{{ $row['expected'] }}</td><td class="report-numeric">{{ $row['received'] }}</td><td class="report-numeric">{{ $row['endorsed'] }}</td><td class="report-numeric">{{ $row['awaiting'] }}</td><td class="report-numeric">{{ $row['not_received'] }}</td></tr>@empty<tr><td colspan="7">No Adviser workload records match the selected filters.</td></tr>@endforelse</tbody></table></x-dashboard.overflow>
         </section>
 
-        <section class="application-panel" aria-labelledby="pipeline-title">
-            <header class="application-panel-heading"><h2 id="pipeline-title">Workflow Pipeline</h2></header>
-            <x-dashboard.overflow label="Workflow pipeline"><table class="dashboard-table report-compact-table"><thead><tr><th>Stage</th><th class="report-numeric">Applications</th></tr></thead><tbody>@foreach ($report['pipeline'] as $row)<tr><th scope="row">{{ $row['label'] }}</th><td class="report-numeric">{{ $row['count'] }}</td></tr>@endforeach</tbody></table></x-dashboard.overflow>
-        </section>
-
         <section class="application-panel report-feedback-panel" aria-labelledby="applicant-feedback-report-title">
             <header class="application-panel-heading report-feedback-heading">
                 <h2 id="applicant-feedback-report-title">Applicant Feedback Summary</h2>
                 <strong class="report-response-counter">{{ $surveySummary['response_count'] }} {{ Str::plural('response', $surveySummary['response_count']) }}</strong>
+                <button class="dashboard-outline-action" type="button" data-download-format-open="survey"><x-dashboard.icon name="download" size="16" />Download Survey</button>
                 <a class="dashboard-outline-action" href="{{ route('res.reports.survey.print', $query) }}" target="_blank" rel="noopener"><x-dashboard.icon name="printer" size="16" />Print Survey</a>
             </header>
             @if ($surveySummary['response_count'] > 0)
@@ -138,5 +134,7 @@
                 <p class="report-inline-empty">No current-questionnaire responses match the selected filters.</p>
             @endif
         </section>
+        <x-dashboard.download-format-modal kind="report" title="Download Report" route="res.reports.download" :query="$query" />
+        <x-dashboard.download-format-modal kind="survey" title="Download Survey" route="res.reports.survey.download" :query="$query" />
     </div>
 @endsection

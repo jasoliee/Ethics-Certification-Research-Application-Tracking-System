@@ -5,11 +5,13 @@ namespace Tests\Feature\Dashboard;
 use App\Enums\ApplicationStage;
 use App\Enums\ApplicationStatus;
 use App\Enums\BulkReleaseType;
+use App\Enums\CertificateStatus;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
 use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicationDecisionRelease;
+use App\Models\Certificate;
 use App\Models\ResearchApplication;
 use App\Models\ReviewerAssignment;
 use App\Models\User;
@@ -47,7 +49,8 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertSee('Failed After Final Revision')
             ->assertSeeInOrder([$failed->application_code, $pending->application_code])
             ->assertSee('is-final-review-failed', false)
-            ->assertSee('Decision &amp; Certificate Queue', false)
+            ->assertSee('Decision &amp; Certificate Release', false)
+            ->assertSee('Certification List')
             ->assertSeeInOrder(['Status', 'Decision', 'Claim', 'Last Updated', 'Action'])
             ->assertDontSee('Manage Certificate Background')
             ->assertSee('Release All')
@@ -83,6 +86,14 @@ class ResCertificateProcessingPageTest extends TestCase
             '/\.certificate-metric-strip\s+article\s*\{[^}]*justify-content:\s*center;/s',
             $css,
         );
+        $this->assertMatchesRegularExpression(
+            '/\.unified-filter-actions\s*>\s*\*\s*\{[^}]*width:\s*154px;[^}]*height:\s*52px;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.certificate-queue-filters\s+\.application-search-field\s+input\s*\{[^}]*padding-left:\s*42px;/s',
+            $css,
+        );
     }
 
     public function test_queue_filters_still_scope_the_table_while_metrics_remain_global(): void
@@ -101,6 +112,31 @@ class ResCertificateProcessingPageTest extends TestCase
             ->assertSee($eligible->research_title)
             ->assertDontSee($pending->research_title)
             ->assertSee('(filtered)');
+    }
+
+    public function test_certification_list_includes_generated_certificates_before_release(): void
+    {
+        Storage::fake('local');
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $application = $this->application('GENERATED-PENDING', ApplicationStatus::ResultReleasedAccepted, $resLead);
+        Certificate::create([
+            'research_application_id' => $application->id,
+            'applicant_user_id' => $application->applicant_user_id,
+            'certificate_number' => $application->application_code,
+            'status' => CertificateStatus::PendingRelease,
+        ]);
+
+        $this->actingAs($resLead)
+            ->get(route('res.certificates.index'))
+            ->assertOk()
+            ->assertViewHas('certificationApplications', fn ($applications): bool => $applications->total() === 1
+                && $applications->first()->is($application))
+            ->assertSee('Certification List')
+            ->assertSee('Pending Certificate Release')
+            ->assertSee('name="review_type"', false)
+            ->assertSee('name="research_type"', false)
+            ->assertSee('name="date_from"', false)
+            ->assertSee('name="date_to"', false);
     }
 
     public function test_queue_numbers_continue_across_pagination(): void

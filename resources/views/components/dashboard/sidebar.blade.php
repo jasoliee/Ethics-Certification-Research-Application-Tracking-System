@@ -60,7 +60,7 @@
         href="{{ route($dashboardProfileRoute) }}"
         @if (request()->routeIs($dashboardProfileRoute)) aria-current="page" @endif
     >
-        <span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true">{{ $dashboardUserInitials }}</span>
+        <span class="dashboard-avatar dashboard-avatar-light" aria-hidden="true">@if ($dashboardHasProfileImage)<img src="{{ $dashboardProfileImageUrl }}" alt="">@else{{ $dashboardUserInitials }}@endif</span>
         <span class="dashboard-sidebar-person">
             <strong>{{ auth()->user()->name }}</strong>
             <span>{{ $dashboardRoleLabel }}</span>

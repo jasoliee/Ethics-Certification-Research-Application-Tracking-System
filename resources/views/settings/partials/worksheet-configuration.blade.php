@@ -1,10 +1,7 @@
 <section class="settings-section" aria-labelledby="worksheet-configuration-title">
     <div class="settings-section-heading settings-worksheet-heading">
         <span><x-dashboard.icon name="file-text" size="23" /></span>
-        <div>
-            <h2 id="worksheet-configuration-title">Worksheet Configuration</h2>
-            <p>The saved name and signature apply only to future finalized Protocol Review and Informed Consent worksheet PDFs.</p>
-        </div>
+        <div><h2 id="worksheet-configuration-title">Worksheet Configuration</h2></div>
     </div>
     <form class="settings-account-form settings-worksheet-form" method="POST" action="{{ route($settingsRouteBase.'.worksheet-signatory.update') }}" enctype="multipart/form-data" data-disable-on-submit>
         @csrf

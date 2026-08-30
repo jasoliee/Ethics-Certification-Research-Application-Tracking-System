@@ -27,7 +27,7 @@ class AuthenticationFlowTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $response = $this->from('/login')->post('/login', [
-            'username' => 'reslead',
+            'username' => 'reulead',
             'password' => 'wrongpass',
         ]);
 
@@ -38,7 +38,7 @@ class AuthenticationFlowTest extends TestCase
             ]);
 
         $this->followingRedirects()->from('/login')->post('/login', [
-            'username' => 'reslead',
+            'username' => 'reulead',
             'password' => 'wrongpass',
         ])
             ->assertOk()
@@ -109,7 +109,7 @@ class AuthenticationFlowTest extends TestCase
             ['applicanttest', '12345678', 'No application yet'],
             ['advisertest', '12345678', 'Welcome back, Adviser!'],
             ['reviewertest', '12345678', 'Welcome back, Adviser!'],
-            ['reslead', '12345kld', 'Welcome back, REU Lead/Admin!'],
+            ['reulead', '12345kld', 'Welcome back, REU Lead/Admin!'],
         ];
 
         foreach ($accounts as [$username, $password, $landingTitle]) {
@@ -137,7 +137,7 @@ class AuthenticationFlowTest extends TestCase
             'applicanttest' => ['applicant.settings.index'],
             'advisertest' => ['adviser.settings.index'],
             'reviewertest' => ['adviser.settings.index', 'reviewer.settings.index'],
-            'reslead' => ['res.settings.index'],
+            'reulead' => ['res.settings.index'],
         ];
 
         foreach ($accounts as $username => $authorizedRoutes) {
@@ -163,7 +163,7 @@ class AuthenticationFlowTest extends TestCase
     public function test_logout_clears_authenticated_session(): void
     {
         $this->seed(DatabaseSeeder::class);
-        $user = User::where('username', 'reslead')->firstOrFail();
+        $user = User::where('username', 'reulead')->firstOrFail();
 
         $this->actingAs($user)
             ->post('/logout')
@@ -182,7 +182,7 @@ class AuthenticationFlowTest extends TestCase
             'applicanttest',
             'advisertest',
             'reviewertest',
-            'reslead',
+            'reulead',
         ];
 
         foreach ($accounts as $username) {
@@ -225,7 +225,7 @@ class AuthenticationFlowTest extends TestCase
             'applicanttest' => ['12345678', UserRole::Applicant],
             'advisertest' => ['12345678', UserRole::Adviser],
             'reviewertest' => ['12345678', UserRole::Adviser],
-            'reslead' => ['12345kld', UserRole::ResLead],
+            'reulead' => ['12345kld', UserRole::ResLead],
         ];
 
         foreach ($accounts as $username => [$plainPassword, $role]) {
@@ -252,13 +252,13 @@ class AuthenticationFlowTest extends TestCase
         ])->assertSessionHasErrors('username');
 
         $this->post('/login', [
-            'username' => 'reslead',
+            'username' => 'reulead',
             'password' => '1234567',
         ])->assertSessionDoesntHaveErrors('password')
             ->assertSessionHasErrors('credentials');
 
         $this->post('/login', [
-            'username' => 'reslead',
+            'username' => 'reulead',
             'password' => str_repeat('a', 65),
         ])->assertSessionHasErrors('password');
     }

@@ -54,7 +54,6 @@ class OperationalReportService
             'applicant_certification' => $this->applicantCertification($filters),
             'institute_summary' => $this->instituteSummary($applications, $filters),
             'adviser_reviewer_summary' => $this->adviserReviewerSummary($filters),
-            'pipeline' => $this->pipeline($applications),
             'classifications' => $this->classifications($applications),
             'reviewer_workload' => $this->reviewerWorkload($filters),
             'adviser_workload' => $this->adviserWorkload($filters),
@@ -66,6 +65,52 @@ class OperationalReportService
     public function allApplicationRows(array $filters): Collection
     {
         return $this->applicationRows($this->applicationQuery($filters));
+    }
+
+    /** @param array<string, mixed> $filters */
+    public function allApplicantCertificationRows(array $filters): Collection
+    {
+        return $this->applicantCertification($filters);
+    }
+
+    /** @param array<string, mixed> $filters */
+    public function instituteApplicantRows(string $institute, array $filters): Collection
+    {
+        $applicants = User::query()
+            ->where('role', UserRole::Applicant->value)
+            ->where('account_status', AccountStatus::Active->value)
+            ->where('institution', $institute)
+            ->with(['researchApplications' => fn ($applications) => $this
+                ->applyApplicationFilters($applications, $filters)
+                ->latest('submitted_at')])
+            ->orderBy('name')
+            ->get();
+
+        $applicationIds = $applicants->flatMap->researchApplications->pluck('id');
+        $visibleApplicationIds = $this->identityVisibility
+            ->visibleApplications(ResearchApplication::query()->whereKey($applicationIds))
+            ->pluck('id')
+            ->all();
+
+        return $applicants->flatMap(function (User $applicant) use ($visibleApplicationIds): Collection {
+            if ($applicant->researchApplications->isEmpty()) {
+                return collect([[
+                    'applicant' => $applicant,
+                    'application' => null,
+                    'application_code' => 'Hidden',
+                    'status' => 'Not Yet Submitted',
+                ]]);
+            }
+
+            return $applicant->researchApplications->map(fn (ResearchApplication $application): array => [
+                'applicant' => $applicant,
+                'application' => $application,
+                'application_code' => in_array($application->id, $visibleApplicationIds, true)
+                    ? $application->application_code
+                    : 'Hidden',
+                'status' => $application->statusLabel(),
+            ]);
+        })->values();
     }
 
     /** @param array<string, mixed> $filters */
@@ -260,25 +305,26 @@ class OperationalReportService
                 'certificates:id,research_application_id,recipient_name,certificate_number,status,current_certificate_version_id,released_at,claimed_at',
                 'certificates.currentVersion:id,certificate_id,status,stored_file_path,original_file_name',
             ])
-            ->orderBy('application_code')
             ->get(['id', 'applicant_user_id', 'application_code', 'institution'])
-            ->flatMap(function (ResearchApplication $application): Collection {
-                return $application->certificates
-                    ->sortBy([['recipient_name', 'asc'], ['id', 'asc']])
-                    ->map(function (Certificate $certificate) use ($application): array {
-                        $releasedAt = $certificate->released_at;
+            ->map(function (ResearchApplication $application): array {
+                $certificates = $application->certificates;
+                $releasedAt = $certificates->max('released_at');
 
-                        return [
-                            'applicant' => $application->applicant,
-                            'application' => $application,
-                            'certificate' => $certificate,
-                            'released_at' => $releasedAt,
-                            'ageing_days' => $releasedAt
-                                ? intdiv(max(0, $releasedAt->diffInSeconds(now(), false)), 86400)
-                                : null,
-                        ];
-                    });
+                return [
+                    'applicant' => $application->applicant,
+                    'application' => $application,
+                    'certificate_count' => $certificates->count(),
+                    'certificate_status' => $certificates->isNotEmpty()
+                        && $certificates->every(fn (Certificate $certificate): bool => $certificate->status === CertificateStatus::Claimed)
+                            ? 'Claimed'
+                            : 'Unclaimed',
+                    'released_at' => $releasedAt,
+                    'ageing_days' => $releasedAt
+                        ? intdiv(max(0, $releasedAt->diffInSeconds(now(), false)), 86400)
+                        : null,
+                ];
             })
+            ->sortByDesc(fn (array $row): int => $row['released_at']?->getTimestamp() ?? 0)
             ->values();
     }
 
@@ -366,24 +412,6 @@ class OperationalReportService
             ])
             ->sortBy('institute')
             ->values();
-    }
-
-    private function pipeline(Builder $applications): array
-    {
-        $stages = [
-            'Submitted' => fn (Builder $q) => $q,
-            'Screening' => fn (Builder $q) => $q->whereIn('application_status', [ApplicationStatus::AdviserEndorsed->value, ApplicationStatus::UnderResScreening->value]),
-            'Assignment' => fn (Builder $q) => $q->where('application_status', ApplicationStatus::AwaitingReviewerAssignment->value),
-            'Under Review' => fn (Builder $q) => $q->whereIn('application_status', ApplicationStatus::values(ApplicationStatus::underReview())),
-            'Decision Release' => fn (Builder $q) => $q->where('application_status', ApplicationStatus::ReviewSubmittedPendingRelease->value),
-            'Certificate Release' => fn (Builder $q) => $q->whereIn('application_status', [ApplicationStatus::ResultReleasedAccepted->value, ApplicationStatus::ForCertificateRelease->value]),
-            'Completed' => fn (Builder $q) => $this->fullyReleasedApplications($q),
-        ];
-
-        return collect($stages)->map(fn (callable $scope, string $label) => [
-            'label' => $label,
-            'count' => $scope(clone $applications)->count(),
-        ])->values()->all();
     }
 
     /** @param array<string, mixed> $filters */
@@ -704,11 +732,6 @@ class OperationalReportService
                         : null,
                 ];
             });
-    }
-
-    private function fullyReleasedApplications(Builder $applications): Builder
-    {
-        return $this->identityVisibility->visibleApplications($applications);
     }
 
     /** @param array<string, mixed> $filters */

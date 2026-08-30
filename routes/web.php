@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\ReviewFormArtifactController;
 use App\Http\Controllers\Identity\ReviewerIdentityReconciliationController;
 use App\Http\Controllers\Identity\UserManagementController;
 use App\Http\Controllers\Settings\AccountSettingsController;
+use App\Http\Controllers\Settings\ProfileImageController;
 use App\Http\Controllers\Settings\ResLeadSettingsController;
 use App\Http\Controllers\Settings\ReviewerSettingsController;
 use App\Support\RoleHome;
@@ -54,6 +55,9 @@ Route::middleware('no-store')->group(function (): void {
     Route::middleware(['auth', 'term.operational', 'dashboard.context'])->group(function (): void {
         // All roles enter through one stable URL while retaining role-specific data and authorization.
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/profile-image', [ProfileImageController::class, 'show'])->name('profile-image.show');
+        Route::post('/profile-image', [ProfileImageController::class, 'store'])->middleware('throttle:account-write')->name('profile-image.store');
+        Route::delete('/profile-image', [ProfileImageController::class, 'destroy'])->middleware('throttle:account-write')->name('profile-image.destroy');
 
         Route::post('/notifications/mark-all-read', [NotificationPageController::class, 'markAllRead'])
             ->middleware('throttle:notification-actions')
@@ -350,10 +354,13 @@ Route::middleware('no-store')->group(function (): void {
                     ->name('certificates.applications.download-all');
                 Route::controller(ResReportController::class)->prefix('reports')->name('reports.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
-                    Route::get('/export', 'export')->middleware('throttle:report-export')->name('export');
+                    Route::get('/download', 'downloadReport')->middleware('throttle:report-export')->name('download');
                     Route::get('/print', 'printReport')->name('print');
                     Route::get('/survey/print', 'printSurvey')->name('survey.print');
+                    Route::get('/survey/download', 'downloadSurvey')->middleware('throttle:report-export')->name('survey.download');
                     Route::get('/applications', 'applications')->name('applications.index');
+                    Route::get('/certifications', 'certifications')->name('certifications.index');
+                    Route::get('/institute-applicants', 'instituteApplicants')->name('institutes.applicants');
                     Route::get('/applicants/{applicant}', 'applicant')->name('applicants.show');
                     Route::get('/audit-log', 'auditIndex')->name('audit.index');
                 });

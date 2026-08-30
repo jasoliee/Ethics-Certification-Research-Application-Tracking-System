@@ -23,17 +23,6 @@
             </a>
         </header>
 
-        <nav class="review-monitoring-section-links" aria-label="Review monitoring sections">
-            <a href="#review-monitoring-capacity">
-                <x-dashboard.icon name="file-search" size="18" />
-                <span>Reviewer Workload</span>
-            </a>
-            <a href="#review-monitoring-advisers">
-                <x-dashboard.icon name="user-check" size="18" />
-                <span>Adviser Endorsements</span>
-            </a>
-        </nav>
-
         <div class="dashboard-summary-grid dashboard-summary-grid-five" aria-label="Review operations summary">
             <x-dashboard.summary-card
                 label="Active Applications"

@@ -142,7 +142,19 @@ export function initializeDashboard() {
     initializeApplicationTools(shell);
     initializeSettingsTools(shell);
     initializeNotificationTools(shell);
+    initializeProfileImageTools(shell);
     initializeOnboardingGuide(shell);
+}
+
+function initializeProfileImageTools(shell) {
+    shell.querySelectorAll('[data-profile-image-form]').forEach((form) => {
+        const input = form.querySelector('[data-profile-image-input]');
+        input?.addEventListener('change', () => {
+            if (input.files?.length) {
+                form.requestSubmit();
+            }
+        });
+    });
 }
 
 function initializeNotificationTools(shell) {
@@ -357,6 +369,16 @@ function initializeApplicationTools(shell) {
             dialog: shell.querySelector('[data-certificate-bulk-dialog]'),
             openSelector: '[data-certificate-bulk-open]',
             closeSelector: '[data-certificate-bulk-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-download-format-dialog="report"]'),
+            openSelector: '[data-download-format-open="report"]',
+            closeSelector: '[data-download-format-close]',
+        },
+        {
+            dialog: shell.querySelector('[data-download-format-dialog="survey"]'),
+            openSelector: '[data-download-format-open="survey"]',
+            closeSelector: '[data-download-format-close]',
         },
     ];
     const reviewerWorksheetDialog = shell.querySelector('[data-reviewer-worksheet-dialog]');

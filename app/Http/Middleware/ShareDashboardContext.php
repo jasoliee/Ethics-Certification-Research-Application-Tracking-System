@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Settings\ProfileImageService;
 use App\Support\DashboardNavigation;
 use App\Support\OnboardingGuide;
 use Closure;
@@ -12,6 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ShareDashboardContext
 {
+    public function __construct(private readonly ProfileImageService $profileImages) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -58,6 +61,8 @@ class ShareDashboardContext
                     ->take(2)
                     ->map(fn (string $part): string => Str::upper(Str::substr($part, 0, 1)))
                     ->implode(''),
+                'dashboardHasProfileImage' => $this->profileImages->path($user) !== null,
+                'dashboardProfileImageUrl' => route('profile-image.show'),
             ]);
         }
 

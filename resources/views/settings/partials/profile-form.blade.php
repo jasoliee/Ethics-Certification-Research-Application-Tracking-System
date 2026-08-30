@@ -28,7 +28,18 @@
 
 <section class="settings-inline-profile-card" aria-label="Account profile">
     <div class="dashboard-profile-summary settings-inline-profile-summary">
-        <span class="dashboard-avatar dashboard-profile-avatar" aria-hidden="true">{{ $dashboardUserInitials }}</span>
+        <div class="profile-image-settings-control">
+            <form class="profile-image-form" method="POST" action="{{ route('profile-image.store') }}" enctype="multipart/form-data" data-profile-image-form>
+                @csrf
+                <label class="profile-image-control" title="Replace profile image">
+                    <span class="dashboard-avatar dashboard-profile-avatar" aria-hidden="true">@if ($dashboardHasProfileImage)<img src="{{ $dashboardProfileImageUrl }}" alt="">@else{{ $dashboardUserInitials }}@endif</span>
+                    <span class="profile-image-replace">Replace</span>
+                    <input name="profile_image" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" data-profile-image-input>
+                </label>
+            </form>
+            @if ($dashboardHasProfileImage)<form method="POST" action="{{ route('profile-image.destroy') }}">@csrf @method('DELETE')<button class="profile-image-default" type="submit">Use initials</button></form>@endif
+            @error('profile_image')<small class="settings-field-error">{{ $message }}</small>@enderror
+        </div>
         <div>
             <h3 data-inline-profile-name>{{ $settingsUser->name }}</h3>
             <p>{{ $settingsUser->displayRoleLabel() }}</p>

@@ -82,7 +82,7 @@
                 aria-expanded="false"
                 data-menu-toggle="profile"
             >
-                <span class="dashboard-avatar" aria-hidden="true">{{ $dashboardUserInitials }}</span>
+                <span class="dashboard-avatar" aria-hidden="true">@if ($dashboardHasProfileImage)<img src="{{ $dashboardProfileImageUrl }}" alt="">@else{{ $dashboardUserInitials }}@endif</span>
                 <span class="dashboard-profile-name">{{ auth()->user()->name }}</span>
                 <x-dashboard.icon name="chevron-down" size="18" />
             </button>

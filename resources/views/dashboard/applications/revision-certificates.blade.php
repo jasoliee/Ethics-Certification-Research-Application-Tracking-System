@@ -10,7 +10,12 @@
         $revisionSubmitted = $activeRevision?->status === \App\Enums\ApplicationRevisionStatus::UnderReview;
         $surveyComplete = $application?->surveyResponse !== null;
         $finalApproved = $latestRelease?->decision === \App\Enums\ReviewDecision::Approved && ! $activeRevision;
-        $showCertification = ! $activeRevision;
+        $showCertification = ! $activeRevision
+            && $certificates->isNotEmpty()
+            && $certificates->every(fn ($item) => in_array($item->status, [
+                \App\Enums\CertificateStatus::Released,
+                \App\Enums\CertificateStatus::Claimed,
+            ], true) && $item->currentVersion?->status === \App\Enums\CertificateVersionStatus::Ready);
         $step = match (true) {
             ! $application => 1,
             $certificationState === \App\Enums\CertificationState::Claimed,
@@ -100,6 +105,7 @@
                 'revision-workspace-grid',
                 'is-revision-active' => (bool) $activeRevision,
                 'is-final-approved' => $finalApproved,
+                'is-certification-hidden' => ! $showCertification,
             ])>
                 <main>
                     <details class="application-panel revision-feedback-panel revision-major-disclosure">

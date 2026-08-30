@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\Certificates\CertificateBackgroundService;
 use App\Services\Privacy\ApplicationIdentityVisibilityService;
 use App\Services\Reports\ApplicantSurveyReportService;
+use App\Services\Reports\OperationalReportExportService;
 use App\Services\Reports\OperationalReportService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class ResReportController extends Controller
 {
@@ -75,96 +76,49 @@ class ResReportController extends Controller
         ]);
     }
 
-    public function export(
+    public function downloadReport(
         Request $request,
         ApplicantSurveyReportService $surveyReports,
+        OperationalReportExportService $exports,
         OperationalReportService $operationalReports,
-    ): StreamedResponse {
+    ): Response {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $this->validatedFilters($request);
+        $format = validator($request->query(), ['format' => ['required', Rule::in(['xlsx', 'pdf'])]])->validate()['format'];
         $report = $operationalReports->report($filters);
         $survey = $surveyReports->summary($filters);
+        $bytes = $format === 'xlsx'
+            ? $exports->reportExcel($report, $survey, $this->filterSummary($filters))
+            : $exports->reportPdf($report, $this->filterSummary($filters));
 
-        return response()->streamDownload(function () use ($report, $survey, $filters): void {
-            $output = fopen('php://output', 'wb');
-            abort_unless(is_resource($output), 500);
-            $write = function (array $row) use ($output): void {
-                fputcsv($output, array_map(fn (mixed $value): string => $this->csvCell($value), $row), ',', '"', '', "\r\n");
-            };
+        return response($bytes, 200, [
+            'Content-Type' => $format === 'xlsx'
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="ecrats-reu-report-'.now()->format('Ymd-His').'.'.$format.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
 
-            $write(['ECRATS REU Operational Report']);
-            $write(['Generated', now()->format('M j, Y g:i A')]);
-            $write(['Reporting Scope', $this->filterSummary($filters)]);
-            $write([]);
-            $write(['Overall Summary']);
-            foreach ($report['summary'] as $key => $value) {
-                $write([Str::headline($key), $value]);
-            }
+    public function downloadSurvey(
+        Request $request,
+        ApplicantSurveyReportService $surveyReports,
+        OperationalReportExportService $exports,
+    ): Response {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+        $format = validator($request->query(), ['format' => ['required', Rule::in(['xlsx', 'pdf'])]])->validate()['format'];
+        $survey = $surveyReports->summary($filters);
+        $bytes = $format === 'xlsx'
+            ? $exports->surveyExcel($survey, $this->filterSummary($filters))
+            : $exports->surveyPdf($survey, $this->filterSummary($filters));
 
-            $write([]);
-            $write(['Applicant and Application Summary by Institute']);
-            $write(['Institute', 'Unique Applicants', 'Applications Submitted', 'Applicants Not Yet Submitted', 'Failed Applications', 'Certificates Claimed', 'Certificates Unclaimed']);
-            foreach ($report['institute_summary'] as $row) {
-                $write([$row['institute'], $row['unique_applicants'], $row['submitted'], $row['not_submitted'], $row['failed'], $row['claimed'], $row['unclaimed']]);
-            }
-
-            $write([]);
-            $write(['Adviser and Reviewer Summary']);
-            $write(['Institute', 'Research Advisers', 'Reviewer-enabled Advisers']);
-            foreach ($report['adviser_reviewer_summary'] as $row) {
-                $write([$row['institute'], $row['advisers'], $row['reviewers']]);
-            }
-
-            $write([]);
-            $write(['Reviewer Review Workload']);
-            $write(['Reviewer', 'Institute', 'Expedited', 'Full Board', 'Total Assigned', 'Completed', 'Pending', 'Overdue', 'Remaining Capacity']);
-            foreach ($report['reviewer_workload'] as $row) {
-                $write([$row['reviewer']->name, $row['institute'], $row['expedited'], $row['full_board'], $row['total'], $row['completed'], $row['pending'], $row['overdue'], $row['remaining']]);
-            }
-
-            $write([]);
-            $write(['Applications (double-blind)']);
-            $write(['Application Code', 'Research Title', 'Institute', 'Review Type', 'Workflow Status', 'Certificate Status', 'Submitted']);
-            foreach ($report['applications'] as $row) {
-                $application = $row['application'];
-                $write([
-                    $application->application_code,
-                    $application->research_title,
-                    $application->institution,
-                    $application->review_type ? ReviewType::tryFrom((string) $application->review_type)?->label() : 'Not classified',
-                    $application->statusLabel(),
-                    $row['certificate_status'],
-                    $application->submitted_at?->format('M j, Y g:i A'),
-                ]);
-            }
-
-            $write([]);
-            $write(['Applicant Certification']);
-            $write(['Applicant', 'Institutional ID', 'Institute', 'Application Code', 'Recipient', 'Certificate Status', 'Released Date', 'Ageing']);
-            foreach ($report['applicant_certification'] as $row) {
-                $write([
-                    $row['applicant']?->name,
-                    $row['applicant']?->institutional_identifier,
-                    $row['application']->institution,
-                    $row['application']->application_code,
-                    $row['certificate']->recipient_name,
-                    $row['certificate']->status->label(),
-                    $row['released_at']?->format('M j, Y g:i A'),
-                    $row['ageing_days'] === null ? null : $row['ageing_days'].' days',
-                ]);
-            }
-
-            $write([]);
-            $write(['Applicant Feedback (anonymous aggregate only)']);
-            $write(['Responses', $survey['response_count']]);
-            $write(['Overall Average', $survey['overall_average'] === null ? 'No data' : $survey['overall_average'].' / 5']);
-            foreach ($survey['sections'] as $section) {
-                $write([$section['title'], $section['average'] === null ? 'No data' : $section['average'].' / 5']);
-            }
-
-            fclose($output);
-        }, 'ecrats-reu-report-'.now()->format('Ymd-His').'.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+        return response($bytes, 200, [
+            'Content-Type' => $format === 'xlsx'
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="ecrats-applicant-feedback-'.now()->format('Ymd-His').'.'.$format.'"',
             'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);
@@ -245,6 +199,42 @@ class ResReportController extends Controller
             'applicant' => $applicant,
             'applications' => $applications,
             'backToReportsUrl' => route('res.reports.index', $filters),
+        ]);
+    }
+
+    public function certifications(Request $request, OperationalReportService $operationalReports): View
+    {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+
+        return view('dashboard.reports.certifications', [
+            'pageTitle' => 'Applicant Certification',
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Reports', 'route' => 'res.reports.index', 'parameters' => $filters],
+                ['label' => 'Applicant Certification'],
+            ],
+            'rows' => $operationalReports->allApplicantCertificationRows($filters),
+            'filters' => $filters,
+        ]);
+    }
+
+    public function instituteApplicants(Request $request, OperationalReportService $operationalReports): View
+    {
+        abort_unless($request->user()->role === UserRole::ResLead, 403);
+        $filters = $this->validatedFilters($request);
+        $institute = validator($request->query(), ['institute' => ['required', 'string', 'max:150']])->validate()['institute'];
+
+        return view('dashboard.reports.institute-applicants', [
+            'pageTitle' => 'Institute Applicant List',
+            'breadcrumbs' => [
+                ['label' => 'Home', 'route' => 'dashboard'],
+                ['label' => 'Reports', 'route' => 'res.reports.index', 'parameters' => $filters],
+                ['label' => 'Institute Applicant List'],
+            ],
+            'institute' => $institute,
+            'rows' => $operationalReports->instituteApplicantRows($institute, $filters),
+            'filters' => $filters,
         ]);
     }
 
@@ -397,12 +387,5 @@ class ResReportController extends Controller
         $contents = Storage::disk('local')->get($background->stored_file_path);
 
         return 'data:'.$background->mime_type.';base64,'.base64_encode($contents);
-    }
-
-    private function csvCell(mixed $value): string
-    {
-        $cell = str_replace(["\r", "\n"], ' ', (string) ($value ?? ''));
-
-        return preg_match('/^[=+\-@]/', $cell) === 1 ? "'".$cell : $cell;
     }
 }

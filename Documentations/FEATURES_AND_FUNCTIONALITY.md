@@ -1,6 +1,18 @@
 # Features and Functionality
 
-This file began as the August 3 feature catalog and retains that historical detail below. The August 22 section is the current superseding contract for changed review, revision, certificate, notification, reporting, draft, retention, and academic-term behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+This file began as the August 3 feature catalog and retains that historical detail below. The August 30 section is the current superseding contract for changed reporting, certification, profile-image, worksheet, notification, and shared-interface behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+
+## Current August 30 Contract
+
+- RES Reports is application-level: the filtered list, Institute drill-down, and certification aggregate retain one row per application. The filtered list distinguishes complete, pending, and failed certificate states, while the released certification aggregate summarizes recipient certificates as Claimed or Unclaimed.
+- The retired workflow-pipeline section is absent. Report controls provide an Audit Log, Excel/PDF Download Report, Excel/PDF Download Survey, printable operational report, and printable anonymous survey report.
+- Generated report PDFs automatically use the active private Review Worksheet Background with a readable overlay. Excel report and survey workbooks wrap all populated cells and use separate worksheets.
+- Reports exposes dedicated View All pages for the filtered application list and generated certification list. Each application-level certification action opens the Released Applicant Record for that specific application and its recipient certificates.
+- Decision & Certificates keeps its workflow queue and adds a separate newest-first Certification List for generated application certificates, with expanded review/research/date filters.
+- Applicant Certification remains hidden while an active revision exists or until every configured recipient certificate is actually Released or Claimed and the current generated version is Ready. While it is hidden, Released Feedback and Revision Submission collapse into one full-width workspace column.
+- Applicant, Adviser/Reviewer, and RES Lead users can replace or remove their own validated JPEG/PNG profile image. The deterministic private file is served only through an authenticated no-store route; initials remain the fallback.
+- Shared filter descriptions and the Review Monitoring quick-link strip are removed. Filter/dropdown pointers, notification bulk controls, settings headings/actions, worksheet signatures, and long report/application values use the corrected desktop and responsive layout contracts.
+- The seeded RES Lead login is `reulead` with `reulead@ecrats.test`; the seeder updates the existing singleton RES Lead instead of creating a duplicate.
 
 ## Current August 22 Contract
 
@@ -9,7 +21,7 @@ This file began as the August 3 feature catalog and retains that historical deta
 - Never-formally-submitted replaced Applicant uploads are removed from private storage and history. Formally submitted initial/C1/C2 evidence remains immutable, authorized, and capped at business V1/V2/V3 per requirement.
 - Reviewer Settings owns the worksheet printed name and private signature. Generated worksheets snapshot those values, support multiline study titles, and place a centered larger date/name with the signature above the name.
 - Certificate generation has an offline default QR for the exact KLD OVPRII destination whenever no replacement is configured. Every generated version snapshots QR path/hash/dimensions/configuration and retains fixed 30 mm lower-left placement.
-- The RES Reports page provides all required filters, eight operational cards, pipeline/trend/distribution/turnaround/workload/certificate aggregates, action/follow-up/data-quality tables, accessible equivalents, empty states, and fixed aggregate query counts.
+- The RES Reports page provides validated operational filters, summary/trend/distribution/turnaround/workload/certificate aggregates, action/follow-up/data-quality tables, accessible equivalents, empty states, and fixed aggregate query counts. The August 30 contract removes the former workflow-pipeline presentation.
 - The full current evidence and outstanding connected-browser/raster/scanner acceptance are in `ENDGAME_REQUIREMENTS_TRACEABILITY_2026-08-22.md`.
 
 ## Current August 21 Contract

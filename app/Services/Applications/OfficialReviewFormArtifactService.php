@@ -329,7 +329,7 @@ class OfficialReviewFormArtifactService
         $signatureY = $isProtocol ? 244.0 : 201.0;
         $signaturePath = $this->verifiedWorksheetSignature($context);
         if ($signaturePath !== null) {
-            $pdf->Image($signaturePath, 54.0, $signatureY - 10.0, 52.0, 8.0, 'PNG');
+            $pdf->Image($signaturePath, 54.0, $signatureY - 13.0, 52.0, 11.0, 'PNG');
         }
         $this->writeFittedCenteredLine(
             $pdf,
@@ -337,8 +337,8 @@ class OfficialReviewFormArtifactService
             $signatureY,
             110.0,
             (string) ($context['worksheet_signatory_name'] ?? $context['reviewer_name'] ?? ''),
-            9.0,
-            7.0,
+            11.0,
+            8.0,
         );
         $this->writeFittedCenteredLine(
             $pdf,
@@ -346,8 +346,8 @@ class OfficialReviewFormArtifactService
             $signatureY,
             40.0,
             (string) ($context['review_date'] ?? ''),
-            9.0,
-            7.5,
+            11.0,
+            8.5,
         );
     }
 

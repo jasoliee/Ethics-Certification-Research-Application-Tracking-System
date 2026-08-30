@@ -324,9 +324,10 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             ->assertSee($versionTwoComment)
             ->assertSee($versionThreeComment)
             ->assertSee('The first revised version still needs correction.')
-            ->assertSee('The second revised version is acceptable.')
-            ->assertSee('Pending Certificate Release');
-        $finalApplicantHistory->assertDontSee('data-revision-upload-form', false);
+            ->assertSee('The second revised version is acceptable.');
+        $finalApplicantHistory
+            ->assertDontSee('data-revision-upload-form', false)
+            ->assertDontSee('id="certification-state-title"', false);
     }
 
     public function test_res_cannot_override_a_submitted_revision_decision_and_overall_feedback_still_creates_actionable_documents(): void
