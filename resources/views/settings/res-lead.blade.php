@@ -593,6 +593,7 @@
                     <span><x-dashboard.icon name="lock" size="23" /></span>
                     <div>
                         <h2 id="security-settings-title">Security and Privacy</h2>
+                        <p>Manage your account security and personal information.</p>
                     </div>
                 </div>
 

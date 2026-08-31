@@ -13,7 +13,7 @@
             <div><h2 id="download-{{ $kind }}-title">{{ $title }}</h2><p>Choose the file format to download.</p></div>
         </header>
         <div class="report-download-options">
-            <a class="dashboard-outline-action" href="{{ route($route, array_merge($query, ['format' => 'xlsx'])) }}"><x-dashboard.icon name="file-text" size="19" /><span>Excel (.xlsx)</span></a>
+            <a class="dashboard-outline-action" href="{{ route($route, array_merge($query, ['format' => 'xlsx'])) }}"><x-dashboard.icon name="file-text" size="19" /><span>Excel</span></a>
             <a class="dashboard-outline-action" href="{{ route($route, array_merge($query, ['format' => 'pdf'])) }}"><x-dashboard.icon name="file-text" size="19" /><span>PDF</span></a>
         </div>
         <div class="application-modal-actions"><button class="dashboard-outline-action" type="button" data-download-format-close>Cancel</button></div>

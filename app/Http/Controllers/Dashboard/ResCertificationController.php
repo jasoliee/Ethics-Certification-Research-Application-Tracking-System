@@ -43,6 +43,7 @@ class ResCertificationController extends Controller
     ): View {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $request->validate([
+            'tab' => ['nullable', Rule::in(['release', 'certifications'])],
             'q' => ['nullable', 'string', 'max:150'],
             'status' => ['nullable', Rule::enum(ApplicationStatus::class)],
             'decision' => ['nullable', Rule::enum(ReviewDecision::class)],
@@ -126,9 +127,13 @@ class ResCertificationController extends Controller
             ->withQueryString();
 
         $certificationApplicationsQuery = ResearchApplication::query()
-            ->whereHas('certificates');
+            ->whereHas('certificates', fn (Builder $certificates) => $certificates->whereIn('status', [
+                CertificateStatus::PendingRelease->value,
+                CertificateStatus::Released->value,
+                CertificateStatus::Claimed->value,
+            ]));
         $terms->applyFilters($certificationApplicationsQuery, $filters);
-        $certificationApplications = $this->applyIndexFilters($certificationApplicationsQuery, $filters)
+        $certificationApplications = $this->applyCertificationFilters($certificationApplicationsQuery, $filters)
             ->with($applicationRelations)
             ->withMax([
                 'certificates as latest_certificate_created_at',
@@ -154,6 +159,7 @@ class ResCertificationController extends Controller
             'queueMetrics' => $queueMetrics,
             'certificationStates' => $states,
             'filters' => $filters,
+            'activeTab' => $filters['tab'] ?? 'release',
             'queueStatuses' => $queueStatuses,
             'reviewTypes' => ReviewType::cases(),
             'researchTypes' => ResearchType::cases(),
@@ -205,6 +211,36 @@ class ResCertificationController extends Controller
             ->when(($filters['claim'] ?? null) === 'unavailable', fn (Builder $applications) => $applications
                 ->whereHas('certificateRecipients', fn (Builder $recipients) => $recipients
                     ->whereDoesntHave('certificate', fn (Builder $certificates) => $this->releasedCertificate($certificates))));
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function applyCertificationFilters(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when(filled($filters['q'] ?? null), function (Builder $applications) use ($filters): void {
+                $search = trim((string) $filters['q']);
+                $applications->where(fn (Builder $matching) => $matching
+                    ->where('application_code', 'like', "%{$search}%")
+                    ->orWhere('research_title', 'like', "%{$search}%"));
+            })
+            ->when(filled($filters['review_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('review_type', $filters['review_type']))
+            ->when(filled($filters['research_type'] ?? null), fn (Builder $applications) => $applications
+                ->where('research_type', $filters['research_type']))
+            ->when(filled($filters['date_from'] ?? null), fn (Builder $applications) => $applications
+                ->whereHas('certificates', fn (Builder $certificates) => $this->releasedCertificate($certificates)
+                    ->whereDate('released_at', '>=', $filters['date_from'])))
+            ->when(filled($filters['date_to'] ?? null), fn (Builder $applications) => $applications
+                ->whereHas('certificates', fn (Builder $certificates) => $this->releasedCertificate($certificates)
+                    ->whereDate('released_at', '<=', $filters['date_to'])))
+            ->when(($filters['claim'] ?? null) === 'claimed', fn (Builder $applications) => $applications
+                ->whereHas('certificates', fn (Builder $certificates) => $this->claimedCertificate($certificates)))
+            ->when(($filters['claim'] ?? null) === 'unclaimed', fn (Builder $applications) => $applications
+                ->whereHas('certificates', fn (Builder $certificates) => $certificates
+                    ->whereIn('status', [
+                        CertificateStatus::PendingRelease->value,
+                        CertificateStatus::Released->value,
+                    ])));
     }
 
     public function releaseDecision(

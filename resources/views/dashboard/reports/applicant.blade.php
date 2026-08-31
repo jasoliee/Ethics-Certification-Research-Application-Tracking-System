@@ -1,10 +1,14 @@
 @extends('layouts.dashboard')
 
 @section('content')
+    @php($workspaceApplication = $applications->first())
     <div class="dashboard-page report-page">
         <header class="dashboard-page-heading report-page-heading report-record-heading">
             <div><h1>Released Applicant Record</h1></div>
-            <a class="dashboard-outline-action" href="{{ $backToReportsUrl }}"><x-dashboard.icon name="arrow-left" size="18" />Back to Reports</a>
+            <div class="report-record-actions">
+                <a class="dashboard-outline-action" href="{{ $backToReportsUrl }}"><x-dashboard.icon name="arrow-left" size="18" />Back to Reports</a>
+                @if($workspaceApplication)<a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $workspaceApplication) }}"><x-dashboard.icon name="eye" size="17" />View Read Only Workspace</a>@endif
+            </div>
         </header>
 
         <section class="application-panel" aria-labelledby="released-applicant-identity-title">
@@ -21,7 +25,6 @@
             <section class="application-panel" aria-labelledby="released-application-{{ $application->id }}">
                 <header class="application-panel-heading">
                     <div><h2 id="released-application-{{ $application->id }}">{{ $application->application_code }}</h2><p class="report-title-wrap">{{ $application->research_title }}</p></div>
-                    <a class="dashboard-outline-action" href="{{ route('res.certificates.workspace', $application) }}"><x-dashboard.icon name="eye" size="17" />View Read-Only Workspace</a>
                 </header>
                 <dl class="application-detail-grid">
                     <div><dt>Institute</dt><dd>{{ $application->institution }}</dd></div>

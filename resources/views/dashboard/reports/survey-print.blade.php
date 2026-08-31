@@ -51,6 +51,6 @@
         @endforelse
         <p class="privacy">This report contains anonymous aggregates only. Individual responses, free-text comments, and applicant identities are intentionally excluded.</p>
     </main>
-    <dialog id="survey-download-dialog" class="download-dialog"><h2>Download Survey</h2><p>Choose the file format to download.</p><div class="download-options"><a class="no-print is-secondary" href="{{ route('res.reports.survey.download', array_merge(array_filter($filters, fn ($value) => filled($value)), ['format' => 'xlsx'])) }}">Excel (.xlsx)</a><a class="no-print is-secondary" href="{{ route('res.reports.survey.download', array_merge(array_filter($filters, fn ($value) => filled($value)), ['format' => 'pdf'])) }}">PDF</a></div><form method="dialog"><button class="no-print" type="submit">Close</button></form></dialog>
+    <dialog id="survey-download-dialog" class="download-dialog"><h2>Download Survey</h2><p>Choose the file format to download.</p><div class="download-options"><a class="no-print is-secondary" href="{{ route('res.reports.survey.download', array_merge(array_filter($filters, fn ($value) => filled($value)), ['format' => 'xlsx'])) }}">Excel</a><a class="no-print is-secondary" href="{{ route('res.reports.survey.download', array_merge(array_filter($filters, fn ($value) => filled($value)), ['format' => 'pdf'])) }}">PDF</a></div><form method="dialog"><button class="no-print" type="submit">Close</button></form></dialog>
 </body>
 </html>

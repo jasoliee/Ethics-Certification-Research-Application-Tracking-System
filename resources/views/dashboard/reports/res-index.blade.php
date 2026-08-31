@@ -121,8 +121,10 @@
             <header class="application-panel-heading report-feedback-heading">
                 <h2 id="applicant-feedback-report-title">Applicant Feedback Summary</h2>
                 <strong class="report-response-counter">{{ $surveySummary['response_count'] }} {{ Str::plural('response', $surveySummary['response_count']) }}</strong>
-                <button class="dashboard-outline-action" type="button" data-download-format-open="survey"><x-dashboard.icon name="download" size="16" />Download Survey</button>
-                <a class="dashboard-outline-action" href="{{ route('res.reports.survey.print', $query) }}" target="_blank" rel="noopener"><x-dashboard.icon name="printer" size="16" />Print Survey</a>
+                <div class="report-feedback-actions">
+                    <a class="dashboard-outline-action" href="{{ route('res.reports.survey.print', $query) }}" target="_blank" rel="noopener"><x-dashboard.icon name="printer" size="16" />Print Survey</a>
+                    <button class="dashboard-outline-action" type="button" data-download-format-open="survey"><x-dashboard.icon name="download" size="16" />Download Survey</button>
+                </div>
             </header>
             @if ($surveySummary['response_count'] > 0)
                 <div class="report-feedback-metrics"><article><span>Overall average</span><strong>{{ number_format($surveySummary['overall_average'], 2) }} / 5</strong></article>@foreach ($surveySummary['sections'] as $section)<article><span>{{ $section['title'] }}</span><strong>{{ number_format($section['average'], 2) }} / 5</strong></article>@endforeach</div>

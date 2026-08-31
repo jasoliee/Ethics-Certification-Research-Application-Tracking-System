@@ -36,11 +36,7 @@ class ReportPdfDocument extends Fpdi
             $this->Image($this->backgroundImage, 0, 0, $this->GetPageWidth(), $this->GetPageHeight());
         }
 
-        $this->setAlpha(0.9);
-        $this->SetFillColor(255, 255, 255);
-        $this->Rect(5, 5, $this->GetPageWidth() - 10, $this->GetPageHeight() - 10, 'F');
-        $this->setAlpha(1);
-        $this->SetY(10);
+        $this->SetY($this->tMargin);
     }
 
     public function reportTitle(string $title, string $scope, string $generated): void

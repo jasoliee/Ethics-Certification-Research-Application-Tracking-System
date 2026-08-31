@@ -37,7 +37,7 @@
                     <input name="profile_image" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" data-profile-image-input>
                 </label>
             </form>
-            @if ($dashboardHasProfileImage)<form method="POST" action="{{ route('profile-image.destroy') }}">@csrf @method('DELETE')<button class="profile-image-default" type="submit">Use initials</button></form>@endif
+            @if ($dashboardHasProfileImage)<form class="profile-image-initials-form" method="POST" action="{{ route('profile-image.destroy') }}">@csrf @method('DELETE')<button class="profile-image-default" type="submit">Use initials</button></form>@endif
             @error('profile_image')<small class="settings-field-error">{{ $message }}</small>@enderror
         </div>
         <div>

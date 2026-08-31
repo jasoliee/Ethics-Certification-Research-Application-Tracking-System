@@ -23,6 +23,7 @@ use App\Models\ReviewerAssignment;
 use App\Models\User;
 use App\Services\Privacy\ApplicationIdentityVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -82,7 +83,8 @@ class OperationalReportService
             ->where('institution', $institute)
             ->with(['researchApplications' => fn ($applications) => $this
                 ->applyApplicationFilters($applications, $filters)
-                ->latest('submitted_at')])
+                ->latest('submitted_at')
+                ->latest('id')])
             ->orderBy('name')
             ->get();
 
@@ -92,24 +94,26 @@ class OperationalReportService
             ->pluck('id')
             ->all();
 
-        return $applicants->flatMap(function (User $applicant) use ($visibleApplicationIds): Collection {
-            if ($applicant->researchApplications->isEmpty()) {
-                return collect([[
+        return $applicants->map(function (User $applicant) use ($visibleApplicationIds): array {
+            $application = $applicant->researchApplications->first();
+
+            if (! $application) {
+                return [
                     'applicant' => $applicant,
                     'application' => null,
                     'application_code' => 'Hidden',
                     'status' => 'Not Yet Submitted',
-                ]]);
+                ];
             }
 
-            return $applicant->researchApplications->map(fn (ResearchApplication $application): array => [
+            return [
                 'applicant' => $applicant,
                 'application' => $application,
                 'application_code' => in_array($application->id, $visibleApplicationIds, true)
                     ? $application->application_code
                     : 'Hidden',
                 'status' => $application->statusLabel(),
-            ]);
+            ];
         })->values();
     }
 
@@ -122,7 +126,7 @@ class OperationalReportService
     }
 
     /** @param array<string, mixed> $filters */
-    private function applyApplicationFilters(Builder $query, array $filters): Builder
+    private function applyApplicationFilters(Builder|Relation $query, array $filters): Builder|Relation
     {
         return $query
             ->when(filled($filters['academic_term_id'] ?? null), fn (Builder $q) => $q

@@ -140,6 +140,7 @@ export function initializeDashboard() {
     initializeResearchTitleTooltips(shell);
     initializeManagedAccountTools(shell);
     initializeApplicationTools(shell);
+    initializeCertificateTabs(shell);
     initializeSettingsTools(shell);
     initializeNotificationTools(shell);
     initializeProfileImageTools(shell);
@@ -2758,6 +2759,62 @@ function initializeApplicationTools(shell) {
         });
     });
 
+}
+
+function initializeCertificateTabs(shell) {
+    const container = shell.querySelector('[data-certificate-tabs]');
+
+    if (! container) {
+        return;
+    }
+
+    const tabs = [...container.querySelectorAll('[data-certificate-tab]')];
+    const panels = [...container.querySelectorAll('[data-certificate-panel]')];
+    let activeTab = container.dataset.certificateActiveTab ?? 'release';
+
+    const activateTab = (name, updateLocation = false) => {
+        if (! tabs.some((tab) => tab.dataset.certificateTab === name)) {
+            return;
+        }
+
+        activeTab = name;
+        tabs.forEach((tab) => {
+            const selected = tab.dataset.certificateTab === name;
+            tab.setAttribute('aria-selected', String(selected));
+            tab.tabIndex = selected ? 0 : -1;
+        });
+        panels.forEach((panel) => {
+            panel.hidden = panel.dataset.certificatePanel !== name;
+        });
+
+        if (updateLocation) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', name);
+            url.searchParams.delete('page');
+            url.searchParams.delete('certifications_page');
+            window.history.replaceState(null, '', url);
+        }
+    };
+
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => activateTab(tab.dataset.certificateTab, true));
+        tab.addEventListener('keydown', (event) => {
+            if (! ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                return;
+            }
+
+            event.preventDefault();
+            const nextIndex = event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                    ? tabs.length - 1
+                    : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+            tabs[nextIndex].focus();
+            activateTab(tabs[nextIndex].dataset.certificateTab, true);
+        });
+    });
+
+    activateTab(activeTab);
 }
 
 function initializeSettingsTools(shell) {

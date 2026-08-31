@@ -102,8 +102,8 @@ class OperationalReportExportService
     private function pdf(string $orientation): ReportPdfDocument
     {
         $pdf = new ReportPdfDocument($orientation, 'mm', 'A4');
-        $pdf->SetMargins(10, 10, 10);
-        $pdf->SetAutoPageBreak(true, 12);
+        $pdf->SetMargins(10, 34, 10);
+        $pdf->SetAutoPageBreak(true, 14);
         $pdf->useBackground($this->backgrounds->active(CertificateBackground::TYPE_REVIEW_WORKSHEET));
         $pdf->AddPage();
 
@@ -158,6 +158,23 @@ class OperationalReportExportService
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE8F4EE']],
         ]);
         $sheet->getStyle('A'.$headerRow.':'.$lastColumn.$lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFB7C7BE');
+        $centeredTextHeaders = ['Review Type', 'Certificate Status', 'Submitted', 'Released Date', 'Ageing'];
+        foreach ($headers as $column => $header) {
+            $values = collect($rows)
+                ->map(fn (array $values) => $values[$column] ?? null)
+                ->filter(fn (mixed $value): bool => $value !== null && $value !== '');
+            $isNumericColumn = $values->isNotEmpty()
+                && $values->every(fn (mixed $value): bool => is_int($value) || is_float($value));
+
+            if (! $isNumericColumn && ! in_array($header, $centeredTextHeaders, true)) {
+                continue;
+            }
+
+            $columnName = Coordinate::stringFromColumnIndex($column + 1);
+            $sheet->getStyle($columnName.$headerRow.':'.$columnName.$lastRow)
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
         $row += 2;
     }
 
