@@ -103,16 +103,18 @@ class OperationalReportService
                     'application' => null,
                     'application_code' => 'Hidden',
                     'status' => 'Not Yet Submitted',
+                    'can_view' => false,
                 ];
             }
+
+            $canView = in_array($application->id, $visibleApplicationIds, true);
 
             return [
                 'applicant' => $applicant,
                 'application' => $application,
-                'application_code' => in_array($application->id, $visibleApplicationIds, true)
-                    ? $application->application_code
-                    : 'Hidden',
+                'application_code' => $canView ? $application->application_code : 'Hidden',
                 'status' => $application->statusLabel(),
+                'can_view' => $canView,
             ];
         })->values();
     }

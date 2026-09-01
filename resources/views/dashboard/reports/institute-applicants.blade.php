@@ -14,7 +14,7 @@
                     <thead><tr><th>Applicant Name</th><th>Institutional ID</th><th>Application Code</th><th>Application Status</th><th class="report-action">Action</th></tr></thead>
                     <tbody>
                         @forelse ($rows as $row)
-                            <tr><td>{{ $row['applicant']->name }}</td><td>{{ $row['applicant']->institutional_identifier ?: 'Not specified' }}</td><td>{{ $row['application_code'] }}</td><td>{{ $row['status'] }}</td><td class="report-action">@if ($row['application'])<a class="dashboard-action-link" href="{{ route('res.applications.show', $row['application']) }}">View</a>@else<span>—</span>@endif</td></tr>
+                            <tr><td>{{ $row['applicant']->name }}</td><td>{{ $row['applicant']->institutional_identifier ?: 'Not specified' }}</td><td>{{ $row['application_code'] }}</td><td>{{ $row['status'] }}</td><td class="report-action">@if ($row['can_view'])<a class="dashboard-action-link" href="{{ route('res.applications.show', $row['application']) }}">View</a>@else<span>—</span>@endif</td></tr>
                         @empty
                             <tr><td colspan="5">No applicant accounts match this institute and reporting scope.</td></tr>
                         @endforelse

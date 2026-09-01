@@ -32,7 +32,11 @@
         .no-print.is-secondary { background: #fff; color: #087241; }
         .download-dialog { width: min(440px, calc(100vw - 32px)); border: 1px solid #b9d6c8; border-radius: 8px; padding: 22px; }
         .download-dialog::backdrop { background: rgba(15, 23, 42, .56); }
+        .download-dialog h2, .download-dialog > p { text-align: center; }
+        .download-dialog h2 { margin-top: 0; }
         .download-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+        .download-options .no-print { display: inline-flex; align-items: center; justify-content: center; width: 100%; text-align: center; }
+        .download-dialog form { display: flex; justify-content: flex-end; }
         @media (max-width: 620px) { header { align-items: stretch; flex-direction: column; } .no-print { align-self: flex-end; } .summary { grid-template-columns: minmax(0, 1fr); } col.responses, col.average { width: 88px; } }
         @media print { .no-print { display: none; } .dashboard-overflow-region { overflow: visible; } }
     </style>

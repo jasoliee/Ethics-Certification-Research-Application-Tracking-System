@@ -11,6 +11,7 @@ use App\Support\ReviewFormCatalog;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Throwable;
 
 /**
@@ -111,6 +112,20 @@ class OfficialReviewFormArtifactService
             if ($backgroundPageCount !== 1) {
                 throw new OfficialReviewFormGenerationException('The active review worksheet background must contain exactly one page.');
             }
+            $backgroundTemplateId = $pdf->importPage(1);
+        } else {
+            $backgroundPdf = new Fpdi('P', 'mm', 'A4');
+            $backgroundPdf->SetAutoPageBreak(false);
+            $backgroundPdf->AddPage();
+            $backgroundPdf->Image(
+                $backgroundPath,
+                0,
+                0,
+                210,
+                297,
+                $backgroundMimeType === 'image/png' ? 'PNG' : 'JPEG',
+            );
+            $pdf->setSourceFile(StreamReader::createByString($backgroundPdf->Output('S')));
             $backgroundTemplateId = $pdf->importPage(1);
         }
 
@@ -327,15 +342,16 @@ class OfficialReviewFormArtifactService
         }
 
         $signatureY = $isProtocol ? 244.0 : 201.0;
+        $signatureTextY = $signatureY - 2.0;
         $signaturePath = $this->verifiedWorksheetSignature($context);
         if ($signaturePath !== null) {
-            $pdf->Image($signaturePath, 54.0, $signatureY - 13.0, 52.0, 11.0, 'PNG');
+            $pdf->Image($signaturePath, 56.0, $signatureY - 13.0, 52.0, 11.0, 'PNG');
         }
         $this->writeFittedCenteredLine(
             $pdf,
-            25.0,
-            $signatureY,
-            110.0,
+            25.5,
+            $signatureTextY,
+            113.0,
             (string) ($context['worksheet_signatory_name'] ?? $context['reviewer_name'] ?? ''),
             11.0,
             8.0,
@@ -343,7 +359,7 @@ class OfficialReviewFormArtifactService
         $this->writeFittedCenteredLine(
             $pdf,
             145.0,
-            $signatureY,
+            $signatureTextY,
             40.0,
             (string) ($context['review_date'] ?? ''),
             11.0,
@@ -442,21 +458,41 @@ class OfficialReviewFormArtifactService
         array $context,
         string $backgroundPath,
         string $backgroundMimeType,
-        ?int $backgroundTemplateId,
+        mixed $backgroundTemplateId,
     ): void {
-        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->SetAutoPageBreak(false);
         $this->startContinuationPage($pdf, $type, $context, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
 
         foreach ($comments as $entry) {
-            if ($pdf->GetY() > 255) {
+            $pdf->SetFont('Helvetica', 'B', 8);
+            $labelLines = $this->wrappedPdfLines($pdf, 174, $entry['label']);
+            $pdf->SetFont('Helvetica', '', 8);
+            $commentLines = $this->wrappedPdfLines($pdf, 174, 'Comment: '.$entry['comment']);
+
+            if ($pdf->GetY() + ((count($labelLines) + 1) * 4.5) + 2 > 248) {
                 $this->startContinuationPage($pdf, $type, $context, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
             }
 
             $pdf->SetFont('Helvetica', 'B', 8);
-            $pdf->MultiCell(174, 4.5, $this->pdfText($entry['label']));
-            $pdf->SetFont('Helvetica', '', 8);
-            $pdf->MultiCell(174, 4.5, $this->pdfText('Comment: '.$entry['comment']));
-            $pdf->Ln(2);
+            $this->writePdfLines($pdf, $labelLines, 4.5);
+
+            while ($commentLines !== []) {
+                $availableLines = (int) floor((248 - $pdf->GetY()) / 4.5);
+                if ($availableLines < 1) {
+                    $this->startContinuationPage($pdf, $type, $context, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
+                    $pdf->SetFont('Helvetica', 'B', 8);
+                    $this->writePdfLines($pdf, $this->wrappedPdfLines($pdf, 174, $entry['label'].' (continued)'), 4.5);
+                    $pdf->SetFont('Helvetica', '', 8);
+                    $availableLines = (int) floor((248 - $pdf->GetY()) / 4.5);
+                }
+
+                $pdf->SetFont('Helvetica', '', 8);
+                $this->writePdfLines($pdf, array_splice($commentLines, 0, $availableLines), 4.5);
+            }
+
+            if ($pdf->GetY() + 2 <= 248) {
+                $pdf->Ln(2);
+            }
         }
     }
 
@@ -467,12 +503,13 @@ class OfficialReviewFormArtifactService
         array $context,
         string $backgroundPath,
         string $backgroundMimeType,
-        ?int $backgroundTemplateId,
+        mixed $backgroundTemplateId,
     ): void {
         $pdf->AddPage('P', 'A4');
+        $pdf->SetAutoPageBreak(false, 0);
         $this->applyBackground($pdf, $backgroundPath, $backgroundMimeType, $backgroundTemplateId);
         $pdf->SetMargins(18, 18, 18);
-        $pdf->SetXY(18, 55);
+        $pdf->SetXY(18, 58);
         $pdf->SetTextColor(0, 73, 35);
         $pdf->SetFont('Helvetica', 'B', 13);
         $pdf->Cell(174, 7, $this->pdfText($type->code().' SUPPLEMENTAL REVIEW RECORD'), 0, 1, 'C');
@@ -480,8 +517,8 @@ class OfficialReviewFormArtifactService
         $pdf->SetFont('Helvetica', 'B', 8);
         $pdf->Cell(174, 5, $this->pdfText('RESEARCH ETHICS UNIT'), 0, 1, 'C');
         $pdf->SetDrawColor(0, 111, 61);
-        $pdf->Line(18, 70, 192, 70);
-        $pdf->SetXY(18, 74);
+        $pdf->Line(18, 73, 192, 73);
+        $pdf->SetXY(18, 77);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFont('Helvetica', '', 8);
         $pdf->MultiCell(174, 5, $this->pdfText(
@@ -490,24 +527,79 @@ class OfficialReviewFormArtifactService
         $pdf->Ln(3);
     }
 
+    /** @return list<string> */
+    private function wrappedPdfLines(Fpdi $pdf, float $width, string $text): array
+    {
+        $value = str_replace("\r", '', $this->pdfText($text));
+        $lines = [];
+
+        foreach (explode("\n", $value) as $paragraph) {
+            if ($paragraph === '') {
+                $lines[] = '';
+
+                continue;
+            }
+
+            $words = preg_split('/\s+/', trim($paragraph)) ?: [];
+            $line = '';
+            foreach ($words as $word) {
+                $candidate = $line === '' ? $word : $line.' '.$word;
+                if ($pdf->GetStringWidth($candidate) <= $width) {
+                    $line = $candidate;
+
+                    continue;
+                }
+
+                if ($line !== '') {
+                    $lines[] = $line;
+                    $line = '';
+                }
+
+                while ($word !== '' && $pdf->GetStringWidth($word) > $width) {
+                    $segment = '';
+                    while ($word !== '') {
+                        $candidate = $segment.$word[0];
+                        if ($segment !== '' && $pdf->GetStringWidth($candidate) > $width) {
+                            break;
+                        }
+                        $segment = $candidate;
+                        $word = substr($word, 1);
+                    }
+                    $lines[] = $segment;
+                }
+
+                $line = $word;
+            }
+
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+        }
+
+        return $lines === [] ? [''] : $lines;
+    }
+
+    /** @param list<string> $lines */
+    private function writePdfLines(Fpdi $pdf, array $lines, float $lineHeight): void
+    {
+        foreach ($lines as $line) {
+            $y = $pdf->GetY();
+            $pdf->Text(18, $y + $lineHeight - 1, $line);
+            $pdf->SetY($y + $lineHeight);
+        }
+    }
+
     private function applyBackground(
         Fpdi $pdf,
         string $backgroundPath,
         string $backgroundMimeType,
-        ?int $backgroundTemplateId,
+        mixed $backgroundTemplateId,
     ): void {
-        if ($backgroundMimeType === 'application/pdf') {
-            if ($backgroundTemplateId === null) {
-                throw new OfficialReviewFormGenerationException('The active review worksheet background could not be imported.');
-            }
-
-            $pdf->useTemplate($backgroundTemplateId, 0, 0, 210, 297);
-
-            return;
+        if ($backgroundTemplateId === null) {
+            throw new OfficialReviewFormGenerationException('The active review worksheet background could not be imported.');
         }
 
-        $imageType = $backgroundMimeType === 'image/png' ? 'PNG' : 'JPEG';
-        $pdf->Image($backgroundPath, 0, 0, 210, 297, $imageType);
+        $pdf->useTemplate($backgroundTemplateId, 0, 0, 210, 297);
     }
 
     private function writeSingleLine(Fpdi $pdf, float $x, float $y, float $width, string $text): void
@@ -565,6 +657,17 @@ class OfficialReviewFormArtifactService
         while ($fontSize > $minimumSize && $pdf->GetStringWidth($value) > $width) {
             $fontSize -= 0.25;
             $pdf->SetFont('Helvetica', 'B', $fontSize);
+        }
+
+        if ($pdf->GetStringWidth($value) > $width) {
+            $suffix = '...';
+
+            while (mb_strlen($value) > 1
+                && $pdf->GetStringWidth($value.$suffix) > $width) {
+                $value = mb_substr($value, 0, -1);
+            }
+
+            $value = rtrim($value).$suffix;
         }
 
         $pdf->SetXY($x, $y);

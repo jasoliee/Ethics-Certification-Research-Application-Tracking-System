@@ -5,13 +5,12 @@ namespace App\Services\Reports;
 use App\Models\CertificateBackground;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 
 class ReportPdfDocument extends Fpdi
 {
     /** @var array<int, array<string, mixed>> */
     protected array $extGStates = [];
-
-    private ?string $backgroundImage = null;
 
     private mixed $backgroundTemplate = null;
 
@@ -25,15 +24,29 @@ class ReportPdfDocument extends Fpdi
             return;
         }
 
-        $this->backgroundImage = $path;
+        // Reusing a transparent PNG directly through FPDF can omit opaque image
+        // regions on alternating pages. Flatten the complete image once into a
+        // one-page PDF and reuse that imported page as an identical template.
+        $backgroundPdf = new Fpdi('P', 'mm', 'A4');
+        $backgroundPdf->SetAutoPageBreak(false);
+        $backgroundPdf->AddPage();
+        $backgroundPdf->Image(
+            $path,
+            0,
+            0,
+            210,
+            297,
+            $background->mime_type === 'image/png' ? 'PNG' : 'JPEG',
+        );
+        $backgroundBytes = $backgroundPdf->Output('S');
+        $this->setSourceFile(StreamReader::createByString($backgroundBytes));
+        $this->backgroundTemplate = $this->importPage(1);
     }
 
     public function Header(): void
     {
         if ($this->backgroundTemplate !== null) {
             $this->useTemplate($this->backgroundTemplate, 0, 0, $this->GetPageWidth(), $this->GetPageHeight());
-        } elseif ($this->backgroundImage !== null) {
-            $this->Image($this->backgroundImage, 0, 0, $this->GetPageWidth(), $this->GetPageHeight());
         }
 
         $this->SetY($this->tMargin);
@@ -56,7 +69,10 @@ class ReportPdfDocument extends Fpdi
 
     public function sectionTitle(string $title): void
     {
-        if ($this->GetY() > $this->GetPageHeight() - 25) {
+        // Keep the heading with at least the table header that follows it. The
+        // page-break trigger accounts for the branded footer margin, whereas
+        // the physical page height does not.
+        if ($this->GetY() > $this->PageBreakTrigger - 12) {
             $this->AddPage();
         }
         $this->SetTextColor(7, 95, 56);
@@ -74,43 +90,94 @@ class ReportPdfDocument extends Fpdi
     {
         $this->tableRow($headers, $widths, $alignments, true);
         foreach ($rows as $row) {
-            $this->tableRow($row, $widths, $alignments);
+            $this->tableRow($row, $widths, $alignments, false, $headers);
         }
         $this->Ln(3);
     }
 
     /** @param list<mixed> $cells @param list<float> $widths @param list<string> $alignments */
-    private function tableRow(array $cells, array $widths, array $alignments, bool $header = false): void
-    {
+    private function tableRow(
+        array $cells,
+        array $widths,
+        array $alignments,
+        bool $header = false,
+        array $repeatingHeaders = [],
+    ): void {
         $lineHeight = 4.2;
-        $lineCount = 1;
-        foreach ($cells as $index => $cell) {
-            $lineCount = max($lineCount, $this->numberOfLines($widths[$index], $this->pdfText((string) ($cell ?? ''))));
-        }
-        $height = max(6, $lineCount * $lineHeight);
-
-        if ($this->GetY() + $height > $this->GetPageHeight() - 12) {
-            $this->AddPage();
-        }
-
         $header ? $this->SetFillColor(232, 244, 238) : $this->SetFillColor(255, 255, 255);
         $this->SetTextColor($header ? 7 : 23, $header ? 95 : 32, $header ? 56 : 43);
         $this->SetFont('Arial', $header ? 'B' : '', 7.2);
-        $x = $this->GetX();
-        $y = $this->GetY();
-
+        $wrappedCells = [];
         foreach ($cells as $index => $cell) {
-            $width = $widths[$index];
-            $this->Rect($x, $y, $width, $height, 'DF');
-            $this->SetXY($x, $y + 0.8);
-            $this->MultiCell($width, $lineHeight, $this->pdfText((string) ($cell ?? '')), 0, $alignments[$index] ?? 'L');
-            $x += $width;
+            $wrappedCells[] = $this->wrappedLines(
+                $widths[$index],
+                $this->pdfText((string) ($cell ?? '')),
+            );
         }
 
-        $this->SetXY($this->lMargin, $y + $height);
+        $firstChunk = true;
+        while (max(array_map('count', $wrappedCells)) > 0) {
+            $remainingLines = max(array_map('count', $wrappedCells));
+            $fullHeight = max(6, ($remainingLines * $lineHeight) + 1.6);
+            $availableHeight = $this->PageBreakTrigger - $this->GetY();
+
+            // Keep ordinary rows together. Rows taller than one content area are
+            // intentionally split into bounded chunks instead of letting MultiCell
+            // create headerless or background-only pages.
+            if ($firstChunk
+                && $fullHeight > $availableHeight
+                && $this->GetY() > $this->tMargin + 12) {
+                $this->startTablePage($widths, $alignments, $header ? [] : $repeatingHeaders);
+                $availableHeight = $this->PageBreakTrigger - $this->GetY();
+            }
+
+            $availableLines = (int) floor(max(0, $availableHeight - 1.6) / $lineHeight);
+            if ($availableLines < 1 || max(6, ($availableLines * $lineHeight) + 1.6) > $availableHeight + 0.01) {
+                $this->startTablePage($widths, $alignments, $header ? [] : $repeatingHeaders);
+
+                continue;
+            }
+
+            $chunkLineCount = min($remainingLines, $availableLines);
+            $height = max(6, ($chunkLineCount * $lineHeight) + 1.6);
+            $x = $this->lMargin;
+            $y = $this->GetY();
+
+            foreach ($wrappedCells as $index => &$cellLines) {
+                $width = $widths[$index];
+                $chunk = array_splice($cellLines, 0, $chunkLineCount);
+                $this->Rect($x, $y, $width, $height, 'DF');
+                foreach ($chunk as $lineIndex => $line) {
+                    $this->SetXY($x, $y + 0.8 + ($lineIndex * $lineHeight));
+                    $this->Cell($width, $lineHeight, $line, 0, 0, $alignments[$index] ?? 'L');
+                }
+                $x += $width;
+            }
+            unset($cellLines);
+
+            $this->SetXY($this->lMargin, $y + $height);
+            $firstChunk = false;
+
+            if (max(array_map('count', $wrappedCells)) > 0) {
+                $this->startTablePage($widths, $alignments, $repeatingHeaders);
+            }
+        }
     }
 
-    private function numberOfLines(float $width, string $text): int
+    /** @param list<float> $widths @param list<string> $alignments @param list<mixed> $headers */
+    private function startTablePage(array $widths, array $alignments, array $headers): void
+    {
+        $this->AddPage();
+        if ($headers !== []) {
+            $this->tableRow($headers, $widths, $alignments, true);
+            $this->SetFillColor(255, 255, 255);
+            $this->SetTextColor(23, 32, 43);
+            $this->SetFont('Arial', '', 7.2);
+        }
+    }
+
+    /** @return list<string> */
+    private function wrappedLines(float $width, string $text): array
     {
         $characterWidths = $this->CurrentFont['cw'];
         $availableWidth = ($width - 2 * $this->cMargin) * 1000 / $this->FontSize;
@@ -120,16 +187,16 @@ class ReportPdfDocument extends Fpdi
         $index = 0;
         $lineStart = 0;
         $lineWidth = 0;
-        $lines = 1;
+        $lines = [];
 
         while ($index < $length) {
             $character = $text[$index];
             if ($character === "\n") {
+                $lines[] = rtrim(substr($text, $lineStart, $index - $lineStart));
                 $index++;
                 $separator = -1;
                 $lineStart = $index;
                 $lineWidth = 0;
-                $lines++;
 
                 continue;
             }
@@ -138,20 +205,29 @@ class ReportPdfDocument extends Fpdi
             }
             $lineWidth += $characterWidths[$character] ?? 500;
             if ($lineWidth > $availableWidth) {
-                $index = $separator === -1
-                    ? ($index === $lineStart ? $index + 1 : $index)
-                    : $separator + 1;
+                if ($separator === -1) {
+                    if ($index === $lineStart) {
+                        $index++;
+                    }
+                    $lines[] = substr($text, $lineStart, $index - $lineStart);
+                } else {
+                    $lines[] = rtrim(substr($text, $lineStart, $separator - $lineStart));
+                    $index = $separator + 1;
+                }
                 $separator = -1;
                 $lineStart = $index;
                 $lineWidth = 0;
-                $lines++;
 
                 continue;
             }
             $index++;
         }
 
-        return $lines;
+        if ($lineStart < $length) {
+            $lines[] = rtrim(substr($text, $lineStart));
+        }
+
+        return $lines === [] ? [''] : $lines;
     }
 
     private function pdfText(string $value): string

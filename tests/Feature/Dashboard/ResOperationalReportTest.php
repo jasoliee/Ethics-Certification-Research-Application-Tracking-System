@@ -177,6 +177,70 @@ class ResOperationalReportTest extends TestCase
         $this->assertEquals($filters, $all->viewData('filters'));
     }
 
+    public function test_institute_applicant_list_only_links_to_certificate_released_applications(): void
+    {
+        $resLead = User::factory()->create(['role' => UserRole::ResLead]);
+        $institute = 'Double Blind Institute';
+        $hiddenApplicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'institution' => $institute,
+            'name' => 'Hidden Until Release',
+        ]);
+        $releasedApplicant = User::factory()->create([
+            'role' => UserRole::Applicant,
+            'institution' => $institute,
+            'name' => 'Released Applicant',
+        ]);
+        $hiddenApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $hiddenApplicant->id,
+            'institution' => $institute,
+            'submitted_at' => now()->subDay(),
+        ]);
+        $releasedApplication = ResearchApplication::factory()->create([
+            'applicant_user_id' => $releasedApplicant->id,
+            'institution' => $institute,
+            'application_status' => ApplicationStatus::CertificateReleased,
+            'submitted_at' => now()->subDay(),
+        ]);
+        $releasedApplication->certificateRecipients()->delete();
+        $recipient = $releasedApplication->certificateRecipients()->create([
+            'recipient_name' => $releasedApplicant->name,
+            'normalized_name' => mb_strtolower($releasedApplicant->name),
+            'sort_order' => 1,
+        ]);
+        ApplicationDecisionRelease::create([
+            'research_application_id' => $releasedApplication->id,
+            'review_cycle' => 0,
+            'source_review_type' => 'initial_review',
+            'decision' => ReviewDecision::Approved,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subDay(),
+        ]);
+        Certificate::create([
+            'research_application_id' => $releasedApplication->id,
+            'application_certificate_recipient_id' => $recipient->id,
+            'applicant_user_id' => $releasedApplicant->id,
+            'recipient_name' => $releasedApplicant->name,
+            'certificate_number' => 'RELEASED-INSTITUTE-CERTIFICATE',
+            'status' => CertificateStatus::Released,
+            'released_by_user_id' => $resLead->id,
+            'released_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($resLead)->get(route('res.reports.institutes.applicants', [
+            'institute' => $institute,
+        ]));
+
+        $response->assertOk()
+            ->assertSee($hiddenApplicant->name)
+            ->assertSee($releasedApplicant->name)
+            ->assertDontSee(route('res.applications.show', $hiddenApplication), false)
+            ->assertSee(route('res.applications.show', $releasedApplication), false);
+        $rows = $response->viewData('rows')->keyBy(fn (array $row): int => $row['applicant']->id);
+        $this->assertFalse($rows[$hiddenApplicant->id]['can_view']);
+        $this->assertTrue($rows[$releasedApplicant->id]['can_view']);
+    }
+
     public function test_claimed_and_unclaimed_metrics_count_distinct_applicant_accounts_not_certificate_rows(): void
     {
         $claimedApplicant = User::factory()->create(['institution' => 'Counting Institute']);
@@ -297,7 +361,7 @@ class ResOperationalReportTest extends TestCase
             ->assertSee('ECRATS Research Ethics Unit Operational Report')
             ->assertSee('Filtered Records')
             ->assertSeeInOrder(['Filtered Records', 'Generated:'])
-            ->assertSee('@page { size: A4 landscape; margin: 1in; }', false)
+            ->assertSee('@page { size: A4 portrait; margin: 1in; }', false)
             ->assertSee($matching->application_code)
             ->assertDontSee($outside->application_code)
             ->assertDontSee('Filtered management report')
@@ -366,7 +430,14 @@ class ResOperationalReportTest extends TestCase
             fwrite($stream, $bytes);
             rewind($stream);
             $parser = new Fpdi;
-            $this->assertGreaterThanOrEqual(1, $parser->setSourceFile(new StreamReader($stream)));
+            $pageCount = $parser->setSourceFile(new StreamReader($stream));
+            $this->assertGreaterThanOrEqual(1, $pageCount);
+            foreach (range(1, $pageCount) as $page) {
+                $template = $parser->importPage($page);
+                $size = $parser->getTemplateSize($template);
+                $this->assertEqualsWithDelta(210, $size['width'], 0.6);
+                $this->assertEqualsWithDelta(297, $size['height'], 0.6);
+            }
             fclose($stream);
         }
     }

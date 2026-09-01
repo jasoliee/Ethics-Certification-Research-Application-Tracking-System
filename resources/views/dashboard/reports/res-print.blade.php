@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>REU Operational Report</title>
     <style>
-        @page { size: A4 landscape; margin: 1in; }
+        @page { size: A4 portrait; margin: 1in; }
         * { box-sizing: border-box; }
         body { margin: 0; color: #17202b; font: 10px/1.35 Arial, sans-serif; }
         body::before { content: ""; position: fixed; inset: 0; z-index: -1; opacity: .08; background: center / cover no-repeat; background-image: url({!! json_encode($worksheetBackground) !!}); }
@@ -32,9 +32,11 @@
         .no-print.is-secondary { background: #fff; color: #087241; }
         .download-dialog { width: min(440px, calc(100vw - 32px)); border: 1px solid #b9d6c8; border-radius: 8px; padding: 22px; }
         .download-dialog::backdrop { background: rgba(15, 23, 42, .56); }
+        .download-dialog h2, .download-dialog > p { text-align: center; }
         .download-dialog h2 { margin-top: 0; }
         .download-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
-        .download-options .no-print { width: 100%; }
+        .download-options .no-print { width: 100%; text-align: center; }
+        .download-dialog form { display: flex; justify-content: flex-end; }
         @media (max-width: 760px) { .report-head { align-items: stretch; flex-direction: column; } .report-meta { justify-content: flex-end; } .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media print { .no-print { display: none; } .dashboard-overflow-region { overflow: visible; } }
     </style>

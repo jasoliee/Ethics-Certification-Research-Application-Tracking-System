@@ -12176,20 +12176,29 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .profile-image-replace {
     position: absolute;
-    inset: auto 0 0;
-    padding: 5px 3px;
-    background: rgba(5, 63, 37, .88);
+    z-index: 3;
+    top: calc(50% - 14px);
+    left: 50%;
+    min-width: max-content;
+    border: 1px solid rgba(255, 255, 255, .72);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(5, 63, 37, .94);
     color: #fff;
     font-size: 11px;
     font-weight: 800;
     text-align: center;
-    transform: translateY(100%);
-    transition: transform .16s ease;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -50%) translateY(4px);
+    transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
 }
 
-.profile-image-control:hover .profile-image-replace,
-.profile-image-control:focus-within .profile-image-replace {
-    transform: translateY(0);
+.profile-image-settings-control:hover .profile-image-replace,
+.profile-image-settings-control:focus-within .profile-image-replace {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%);
 }
 
 .profile-image-default {
@@ -12206,7 +12215,7 @@ form[class*='filter'] :is(input, select):focus-visible,
 .profile-image-initials-form {
     position: absolute;
     z-index: 3;
-    top: 50%;
+    top: calc(50% + 18px);
     left: 50%;
     margin: 0;
     opacity: 0;
@@ -12261,7 +12270,7 @@ form[class*='filter'] :is(input, select):focus-visible,
 
 .report-feedback-heading {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     column-gap: 16px;
     padding-inline: 22px;

@@ -59,28 +59,28 @@ class OperationalReportExportService
 
     public function reportPdf(array $report, string $scope): string
     {
-        $pdf = $this->pdf('L');
+        $pdf = $this->pdf('P');
         $pdf->reportTitle('ECRATS Research Ethics Unit Operational Report', $scope, 'Generated: '.now()->format('M j, Y g:i A'));
         $pdf->sectionTitle('Overall Summary');
-        $pdf->table(['Metric', 'Count'], collect($report['summary'])->map(fn ($value, $key) => [Str::headline($key), $value])->values()->all(), [210, 55], ['L', 'C']);
+        $pdf->table(['Metric', 'Count'], collect($report['summary'])->map(fn ($value, $key) => [Str::headline($key), $value])->values()->all(), [140, 45], ['L', 'C']);
         $pdf->sectionTitle('Applicant & Application Summary by Institute');
-        $pdf->table(['Institute', 'Applicants', 'Submitted', 'Not Submitted', 'Failed', 'Claimed', 'Unclaimed'], collect($report['institute_summary'])->map(fn ($item) => [$item['institute'], $item['unique_applicants'], $item['submitted'], $item['not_submitted'], $item['failed'], $item['claimed'], $item['unclaimed']])->all(), [105, 27, 27, 28, 23, 27, 28], ['L', 'C', 'C', 'C', 'C', 'C', 'C']);
+        $pdf->table(['Institute', 'Applicants', 'Submitted', 'Not Submitted', 'Failed', 'Claimed', 'Unclaimed'], collect($report['institute_summary'])->map(fn ($item) => [$item['institute'], $item['unique_applicants'], $item['submitted'], $item['not_submitted'], $item['failed'], $item['claimed'], $item['unclaimed']])->all(), [64, 20, 20, 22, 17, 21, 21], ['L', 'C', 'C', 'C', 'C', 'C', 'C']);
         $pdf->sectionTitle('Review Classification Summary');
-        $pdf->table(['Classification', 'Applications'], collect($report['classifications'])->map(fn ($item) => [$item['label'], $item['count']])->all(), [210, 55], ['L', 'C']);
+        $pdf->table(['Classification', 'Applications'], collect($report['classifications'])->map(fn ($item) => [$item['label'], $item['count']])->all(), [140, 45], ['L', 'C']);
         $pdf->sectionTitle('Adviser & Reviewer Summary');
-        $pdf->table(['Institute', 'Research Advisers', 'Reviewer-enabled Advisers'], collect($report['adviser_reviewer_summary'])->map(fn ($item) => [$item['institute'], $item['advisers'], $item['reviewers']])->all(), [145, 55, 65], ['L', 'C', 'C']);
+        $pdf->table(['Institute', 'Research Advisers', 'Reviewer-enabled Advisers'], collect($report['adviser_reviewer_summary'])->map(fn ($item) => [$item['institute'], $item['advisers'], $item['reviewers']])->all(), [89, 45, 51], ['L', 'C', 'C']);
         $pdf->sectionTitle('Reviewer Review Workload');
-        $pdf->table(['Reviewer', 'Institute', 'Exp.', 'Full', 'Total', 'Done', 'Pending', 'Overdue', 'Capacity'], collect($report['reviewer_workload'])->map(fn ($item) => [$item['reviewer']->name, $item['institute'], $item['expedited'], $item['full_board'], $item['total'], $item['completed'], $item['pending'], $item['overdue'], $item['remaining']])->all(), [45, 78, 19, 19, 19, 19, 22, 22, 22], ['L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C']);
+        $pdf->table(['Reviewer', 'Institute', 'Exp.', 'Full', 'Total', 'Done', 'Pending', 'Overdue', 'Capacity'], collect($report['reviewer_workload'])->map(fn ($item) => [$item['reviewer']->name, $item['institute'], $item['expedited'], $item['full_board'], $item['total'], $item['completed'], $item['pending'], $item['overdue'], $item['remaining']])->all(), [30, 47, 14, 14, 14, 14, 18, 18, 16], ['L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C']);
         $pdf->sectionTitle('Adviser Endorsement Workload');
-        $pdf->table(['Adviser', 'Institute', 'Expected', 'Received', 'Completed', 'Awaiting', 'Not Received'], collect($report['adviser_workload'])->map(fn ($item) => [$item['adviser']->name, $item['institute'], $item['expected'], $item['received'], $item['endorsed'], $item['awaiting'], $item['not_received']])->all(), [50, 95, 24, 24, 24, 24, 24], ['L', 'L', 'C', 'C', 'C', 'C', 'C']);
+        $pdf->table(['Adviser', 'Institute', 'Expected', 'Received', 'Completed', 'Awaiting', 'Not Received'], collect($report['adviser_workload'])->map(fn ($item) => [$item['adviser']->name, $item['institute'], $item['expected'], $item['received'], $item['endorsed'], $item['awaiting'], $item['not_received']])->all(), [28, 57, 20, 20, 20, 20, 20], ['L', 'L', 'C', 'C', 'C', 'C', 'C']);
         $pdf->sectionTitle('Filtered Applications');
         $pdf->table(['Application Code', 'Research Title', 'Institute', 'Review Type', 'Status', 'Certificate', 'Submitted'], collect($report['applications'])->map(function ($item): array {
             $application = $item['application'];
 
             return [$application->application_code, $application->research_title, $application->institution, $application->review_type ? ReviewType::tryFrom((string) $application->review_type)?->label() : 'Not classified', $application->statusLabel(), $item['certificate_status'], $application->submitted_at?->format('M j, Y')];
-        })->all(), [38, 65, 53, 28, 35, 27, 19]);
+        })->all(), [26, 43, 36, 20, 25, 20, 15]);
         $pdf->sectionTitle('Applicant Certification');
-        $pdf->table(['Applicant', 'Institutional ID', 'Institute', 'Application Code', 'Status', 'Released', 'Ageing'], collect($report['applicant_certification'])->map(fn ($item) => [$item['applicant']?->name, $item['applicant']?->institutional_identifier, $item['application']->institution, $item['application']->application_code, $item['certificate_status'], $item['released_at']?->format('M j, Y g:i A'), $item['ageing_days'] === null ? '-' : $item['ageing_days'].' days'])->all(), [45, 34, 62, 44, 25, 34, 21], ['L', 'L', 'L', 'L', 'C', 'C', 'C']);
+        $pdf->table(['Applicant', 'Institutional ID', 'Institute', 'Application Code', 'Status', 'Released', 'Ageing'], collect($report['applicant_certification'])->map(fn ($item) => [$item['applicant']?->name, $item['applicant']?->institutional_identifier, $item['application']->institution, $item['application']->application_code, $item['certificate_status'], $item['released_at']?->format('M j, Y g:i A'), $item['ageing_days'] === null ? '-' : $item['ageing_days'].' days'])->all(), [30, 23, 40, 28, 20, 24, 20], ['L', 'L', 'L', 'L', 'C', 'C', 'C']);
 
         return $pdf->Output('S');
     }
@@ -102,8 +102,9 @@ class OperationalReportExportService
     private function pdf(string $orientation): ReportPdfDocument
     {
         $pdf = new ReportPdfDocument($orientation, 'mm', 'A4');
-        $pdf->SetMargins(10, 34, 10);
-        $pdf->SetAutoPageBreak(true, 14);
+        $portrait = strtoupper($orientation) === 'P';
+        $pdf->SetMargins(10, $portrait ? 52 : 38, 10);
+        $pdf->SetAutoPageBreak(true, $portrait ? 40 : 30);
         $pdf->useBackground($this->backgrounds->active(CertificateBackground::TYPE_REVIEW_WORKSHEET));
         $pdf->AddPage();
 
