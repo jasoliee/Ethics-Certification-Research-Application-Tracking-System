@@ -12,6 +12,10 @@ use App\Enums\ReviewCommentCategory;
 use App\Enums\ReviewCommentScope;
 use App\Enums\ReviewDecision;
 use App\Enums\ReviewerAssignmentStatus;
+use App\Enums\ReviewFormArtifactStatus;
+use App\Enums\ReviewFormStatus;
+use App\Enums\ReviewFormType;
+use App\Enums\ReviewSubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ApplicantSurveyResponse;
 use App\Models\ApplicationDecisionRelease;
@@ -24,9 +28,14 @@ use App\Models\DocumentRequirement;
 use App\Models\ResearchApplication;
 use App\Models\ReviewComment;
 use App\Models\ReviewerAssignment;
+use App\Models\ReviewFormArtifact;
+use App\Models\ReviewFormSubmission;
+use App\Models\ReviewSubmission;
+use App\Models\ReviewSubmissionVersion;
 use App\Models\User;
 use App\Support\ApplicantSurveyCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ApplicantRevisionPresentationTest extends TestCase
@@ -126,6 +135,85 @@ class ApplicantRevisionPresentationTest extends TestCase
 
         $application->update(['current_revision_cycle' => 3]);
         $this->assertSame('For Revision C2', $application->refresh()->statusLabel());
+    }
+
+    public function test_duplicate_research_proposal_requirements_render_one_review_worksheet_as_the_last_panel(): void
+    {
+        [$applicant, $application, $requirement, $reviewer, $assignment] = $this->releasedApplication(
+            ApplicationStatus::RevisionWindowOpen,
+            ReviewDecision::MinorRevision,
+        );
+        $requirement->update(['name' => 'Research Proposal']);
+        $duplicateRequirement = DocumentRequirement::create([
+            'code' => 'REVISION-UI-DUPLICATE-PROPOSAL',
+            'name' => 'Research Proposal',
+            'is_mandatory' => true,
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+        $this->document($application, $duplicateRequirement, $applicant, 1, true, 'duplicate-proposal.pdf');
+
+        $submission = ReviewSubmission::create([
+            'reviewer_assignment_id' => $assignment->id,
+            'status' => ReviewSubmissionStatus::Submitted,
+            'decision' => ReviewDecision::MinorRevision,
+            'decision_comment' => 'Revise the research proposal.',
+            'submitted_at' => now()->subDays(2),
+        ]);
+        $snapshotHash = hash('sha256', 'worksheet-snapshot');
+        $version = ReviewSubmissionVersion::create([
+            'review_submission_id' => $submission->id,
+            'reviewer_assignment_id' => $assignment->id,
+            'version_number' => 1,
+            'submission_token' => (string) Str::uuid(),
+            'decision' => ReviewDecision::MinorRevision,
+            'decision_comment' => 'Revise the research proposal.',
+            'snapshot_schema_version' => 1,
+            'payload_snapshot' => [],
+            'payload_sha256' => $snapshotHash,
+            'request_sha256' => $snapshotHash,
+            'submitted_by_user_id' => $reviewer->id,
+            'submitted_at' => now()->subDays(2),
+        ]);
+        $submission->update(['current_version_id' => $version->id]);
+        $form = ReviewFormSubmission::create([
+            'reviewer_assignment_id' => $assignment->id,
+            'form_type' => ReviewFormType::Protocol,
+            'status' => ReviewFormStatus::Final,
+            'responses' => [],
+            'finalized_at' => now()->subDays(2),
+        ]);
+        ReviewFormArtifact::create([
+            'review_form_submission_id' => $form->id,
+            'review_submission_version_id' => $version->id,
+            'artifact_version' => 1,
+            'business_version' => 1,
+            'status' => ReviewFormArtifactStatus::Ready,
+            'stored_file_path' => "review-forms/{$assignment->id}/protocol-v1.pdf",
+            'original_file_name' => 'protocol-review-worksheet-v1.pdf',
+            'mime_type' => 'application/pdf',
+            'file_size_bytes' => 128,
+            'sha256' => hash('sha256', 'worksheet-pdf'),
+            'template_code' => ReviewFormType::Protocol->code(),
+            'template_version' => 'test-v1',
+            'template_sha256' => hash('sha256', 'worksheet-template'),
+            'generator_version' => 'test-generator',
+            'generated_at' => now()->subDays(2),
+        ]);
+
+        $response = $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertSee('Review Worksheet')
+            ->assertSee('1 official worksheet type');
+
+        $content = $response->getContent();
+        $worksheetPosition = strpos($content, 'data-applicant-review-worksheet');
+        $lastRequirementPosition = strrpos($content, 'data-revision-requirement=');
+        $this->assertSame(1, substr_count($content, 'data-applicant-review-worksheet'));
+        $this->assertIsInt($worksheetPosition);
+        $this->assertIsInt($lastRequirementPosition);
+        $this->assertGreaterThan($lastRequirementPosition, $worksheetPosition);
     }
 
     public function test_final_approval_shows_released_feedback_but_hides_certification_until_release(): void

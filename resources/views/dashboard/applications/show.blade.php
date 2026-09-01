@@ -157,7 +157,7 @@
                 </table>
             </x-dashboard.overflow>
 
-            @if ($role === \App\Enums\UserRole::Applicant && $canEdit)
+            @if ($role === \App\Enums\UserRole::Applicant && $canEdit && ! $isReturnedApplicant)
                 {{-- Applicants return to the upload workspace while the record remains editable. --}}
                 <div class="application-panel-actions application-draft-actions">
                     @if ($canDiscard)
@@ -170,7 +170,7 @@
                             </button>
                         </form>
                     @endif
-                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}">{{ $isReturnedApplicant ? 'Re-upload Documents' : 'Continue Document Submission' }}</a>
+                    <a class="dashboard-primary-action" href="{{ route('applicant.applications.requirements', $application) }}">Continue Document Submission</a>
                 </div>
             @endif
         </section>

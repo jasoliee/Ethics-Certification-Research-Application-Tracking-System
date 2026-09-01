@@ -1,0 +1,831 @@
+FLOW NO.1 ­ TIMELINE AND DEADLINE CONFIGURATION
+
+                                             Start
+
+                     RES Lead/Admin opens
+                     timeline and deadline
+
+                           cinfiguration
+
+                     Term/Semester and
+                       timeline details
+
+                         Set application
+                     submmision start date
+
+                          and deadline
+
+                                   Set adviser
+                                  endorsement
+
+                                    deadline
+                                                                           No
+
+Expedited            Review type                    Full Board
+                       schedule
+     Set Expedited
+    review decision                              Set Full Board
+                                             deliberation schedule
+        deadline                             and final release date
+
+                     Set revision window
+                     and certificate target
+
+                              dates
+
+                                       Yes
+
+                      Dates valid and non-
+                           overlapping?
+
+                          Set Full Board
+                     deliberation schedule
+                     and final release date
+
+                            D10 -
+                     Deadline/Timeline
+
+                       Configuration
+
+                           END
+FLOW NO.2 ­ ACCOUNT CREATION AND USER ACCESS MANAGEMENT
+
+                                START
+
+                      Authorized user opens
+                      Account Creation/User
+
+                               Access
+
+                            Account Type?
+
+RES/reviewer/adviser                             Student group leader
+
+RES Lead/Admin creates                           Research Adviser creates
+adviser, reviewer, RES, or                         student/group leader
+technical admin account                                    account
+
+                          User details, role,
+                      institute/program, email
+
+                                                 NO ­ complete details
+
+                      Account details complete?
+
+                                            Yes                Assign role and account
+                                                                          status
+     Set fixed reviewer
+classification: Expedited or                     Yes
+                                                                      Reviewer account?
+          Full Board
+                                                                No
+Set reviewer capacity to 30
+     active applications
+
+                      Generate or provide login
+                               credentials
+
+                         D1 ­ User DB                                      End ­ Account created
+                      D9 ­ Audit Log DB
+FLOW NO.3 ­ AUTHENTICATE USER AND REDIRECT BY ROLE
+
+                                                                                                          Start
+
+                                                                                                  Login credentials
+                                                                                                  Authenticate user
+
+                                                                                                      credentials
+
+                    D1 ­ User DB
+
+                    Valid credentials?
+
+No                                                                                                                   Yes
+
+Show invalid                                   Account active?
+ credentials                            No
+
+End ­ login failed       Show account                                                                                                       Yes
+                    disabled/access denied
+                                                                                                                          Identify user role and
+                    End ­ access denied                                                                                        permissions
+
+                                                                                                                             Redirect to role-based
+                                                                                                                                    dashboard
+
+                                                                                                                          End ­ user logged in
+FLOW NO.4 ­ CREATE AND MANAGE APPLICATION DRAFT
+
+               Start
+
+    Applicant opens Create
+           Application
+
+                        Submission window
+
+                        open?                    Yes
+
+No
+
+                                                   Select applicant
+                                                 category: Student or
+
+                                                         Faculty
+
+Save draft only / show                           Select research type:
+  submission closed                               Thesis or Capstone
+         notice
+
+                                                 Enter research title,
+                                                 institute/program,
+                                                  adviser, abstract,
+
+                                                     study details
+
+                                                 Student group application?
+
+                        Yes                                                              No
+
+                          Record designated                                  Continue as faculty
+                        group leader and group                                    application
+
+                                members
+
+                                                 Upload baseline requirements: research
+                                                    proposal and accomplished Ethics
+
+                                                 Review Form; add configured Capstone
+                                                           document if applicable
+
+                                                 Upload receipt
+                                                 image/payment
+
+                                            Yes   Save as draft?
+D2 Application DB / D3
+                                                            No - validate
+  Document DB / D4
+      Payment DB                                 End ­ proceed to
+                                                     validation
+  End ­ draft saved
+FLOW NO.5 ­ VALIDATE REQUIREMENTS AND SUBMIT TO ADVISER
+
+                       Start
+
+               Application details,
+               documents, receipt
+
+                       image
+
+               Validate required
+                      fields
+
+                                    Required fields                 Yes
+                                       complete?
+                                                     Validate required
+        No                                           documents and file
+
+Mark Draft/Incomplete                                      presence
+and show missing fields
+
+                                                     Required documents
+
+                                                     complete?
+
+               No                                                             Yes
+
+                    Show missing                                         Validate file type
+               documents as NO files                                        and file size
+
+                                                                             Files valid?
+                                                                                                          Yes
+
+                                                     No
+
+                                                                                    Submission deadline
+                                                                                           reached?
+
+                                                     Show invalid file   Yes
+
+                                                     warning                                                   No
+
+                                                                              Block formal                     Submit application to
+                                                                         submission and show                     assigned Research
+                                                                         Submuission Closed                            Adviser
+
+                  D2 Application DB / D3
+               Document DB / D4 Payment
+
+                     DB / D8 Status DB
+
+End ­ remains  End ­ submission                                 End ­ submitted to
+ incomplete         blocked                                            adviser
+FLOW NO.6 ­ ADVISER REVIEW, RECEIPT VERIFICATION, AND ENDORSEMENT
+
+                                                                                                          Start
+
+                                  Research Adviser
+                                  opens submitted
+
+                                    appplication
+
+                  No              Endorsement
+                                  deadline open
+                 Show deadline
+                closed/await RES                                          Yes
+
+                      action                              Review application
+                                                        details and submitted
+
+                                                               documents
+
+                                                         Verify receipt
+                                                    image/payment proof
+
+                                                     Documents complete and
+                                                         receipt acceptable?
+                                                                                                        Yes
+
+                                  No
+
+                                                                               Endorse application?
+
+                                                                      No                                                         Yes
+
+                                   Return application                                                            Endorse application
+                                  with adviser remarks                                                           and forward to RES
+
+                                                                                                                     Lead/Admin
+
+End ­ deadline                    D2 Application DB / D4                       End ­ adviser
+     closed                       Endorsement DB / D8                            endorsed
+
+                                          Status DB
+
+                                    End ­ returned to
+                                          applicant
+FLOW NO.7 ­ ADVISER EXPECTED ENDORSEMENT DECLARATION AND MONITORING
+
+                                                                                                          Start
+
+                                                                                              Research Adviser opens
+                                                                                                        Expected
+
+                                                                                             Groups/Applications page
+
+                                                                                                Term/semester and
+                                                                                               expected number of
+                                                                                               groups/applications
+
+               Expected count valid?
+                                                                    No
+
+Yes
+
+Save expected count  Show validation error
+     declaration
+
+         D11 ­ Adviser
+     Monitoring Records
+
+      Calculate submitted
+         endorsed, and
+
+    remaining/unsubmitted
+              groups
+
+ Display adviser monitoring
+summary of RES Lead/Admin
+
+           dashboard
+
+                                                                                  End
+FLOW NO.8 ­ RES SCREENING AND REVIEW CLASSIFICATION
+
+                                                                                    Start
+
+                      Adviser-endorsed
+                         application
+
+                     RES Lead/Admin opens
+                     application for screening
+
+                         Review eligibility,
+                       completeness, and
+                       research information
+
+                       Eligible for review?                                           Yes
+No                                                                 Review classification?
+
+Return/hold with RES                         Expedited                                                       Full Board
+  screening remarks
+                                              Mark as Expedited                            Mark as Full Board
+                                                      review                                      review
+
+                                        Save classification and
+                                            update timeline
+
+                     D2 Application DB
+                      D6 Screening DB
+
+End ­ returned/held                          End ­ ready reviewer
+ FLOW NO.9 ­ REVIEWER ASSIGNMENT AND 30-CAPACITY CHECK
+
+Flow No. 9 - Reviewer Assignment and 30-Capacity Check
+
+                                                                                                                Start
+
+                                                                                                       Application review
+                                                                                                        type, discipline,
+                                                                                                           reviewer list
+
+                                                                                                        Open Reviewer
+                                                                                                       Assignment Page
+
+                                                                                               Filter reviewers by discipline,
+                                                                                               fixed classification, availability,
+
+                                                                                                       and active status
+
+                                                            Review type?
+
+                             EXPEDIATED                                            FULL BOARD
+
+                             Require 1 Expediated reviewer                         Require 3 Full Board reviewers
+
+                                                  Display active assignments out
+                                                   of 30 and remaining capavity
+
+                                                            NO                     Disable reviewer/select
+
+                             Reviewer capavity                                     another reviewer
+                                  below 30?
+
+                                         YES
+
+                                Enough eligible
+                             reviewers selected?
+
+NO                                                          YES
+
+  Show no eligible reviewer                       Assign reviewer(s) and create
+warning/assignment pending                               capacity snapshot
+
+End (Assignment Pending)
+
+                                                   D5 Assignment DB / Reviewer
+                                                  Capacity Snapshot / D9 Audit DB
+
+                                                  End (Reviewer(s) assigned)
+FloFwLONWoN. 1O0.1-0R­eRvEiVeIwEWerERCCoOnNflFicLtICDTeDcElCaLrAaRtAioTnIOaNnAdNBDliBnLdINRDeRvEieVwIEWAccess
+
+                                                                                                                         Start
+                                                                                                                Assign application
+
+                                                                                                                        details
+
+                                                                                                           Reviewers open assigned
+                                                                                                                     application
+
+                                                                                                         Grant access to blind review
+                                                                                                                     wrokspace
+
+                                                                                                        End (Reviewer begins review)
+FFlLoOwWNNoO..1111 ­- CCOoNndDuUcCtTBBlLiInNdDRREeVvIiEeWwAaNnDdSSUuBbMmITitRREVeIvEiWewERerDEDCeIScIiOsiNon
+
+                                     Start
+
+                        Anonymized documents
+                         and review worksheet
+
+                        Review documents in secure
+                                      viewer
+
+                           Answer worksheet items.
+
+                        Add overall and document page       NO
+
+                                     comments
+
+Save draft review  YES               Save as draft
+
+                                                            NO
+
+                                                                                                        Submit final
+                                                                                                         decision?
+
+                                                                                                                       YES
+
+                                                                                                   Decision Type?
+
+                                                            Accepted                   Minor Revision            Major Revision
+
+                                     D6 Review/Revision DB                                Submit Decision and
+                                                                                       comment as held decision
+
+                   End (Save Draft)                         End (Penidng RES release)
+wFLNOoW. 1N2O.-1F2u­llFBUoLLaBrdOAInRtDeIrNnTaElRDNeAlLibDeErLaIBtEioRnATaIOnNd AFiNnDalFISNyAsLteSYmSTDEMeciDsEioCnISION
+
+                                                                                                               Start
+                                                                                                Track three assigned full board
+
+                                                                                                              reviewers
+
+                                                                                                      All reviewers ready
+                                                                                                        for deliveration?
+
+                                                                                             Internal deliberation outside the
+                                                                                                             system
+
+                                                                                              Reviewers Submit final system
+                                                                                                decisions after deliberation
+
+                                                                                                        D6 Review DB
+
+                                                                                                End (Final Decision pending
+                                                                                                           for release)
+FLOW NO.13 ­ DECISION HOLD AND BATCH RESULT RELEASE
+
+                                         Start
+
+                       RES Lead/Admin opens pending
+                                result release queue
+
+                       Retrieve ready held decisions and
+                                      comments
+
+                                 Schedule release
+                                date/time reached?
+
+                                                          YES
+
+                    NO                                              Release all ready
+NO                                                                         results?
+
+                                                                               YES
+
+                                                          Show release confirmation dialog
+
+Keep decision on hold      NO                             Confirm release?
+
+                                                                            YES
+
+                                                          Release corresponding results
+                                                           and comments to applicanst
+
+                        D6 Review DB / D12 Decision
+                               Release Batch DB
+
+D8 Status/Notification DB
+
+End (result released)          End (decision on hold)
+FFlLoOwWNNoO. .1144 ­- RREeGgAalLaABBuUtTtTeErRfFlyLYGGuUidIDeEdDSStTaAtuTUsSMMeEsSsSaAgGeE
+
+Purpose: Regala provides neutral guidance based on user action or status, separate from formal notifications and without revealing
+unreleased decisions.
+
+                                                                                                                              Start
+
+                                                                                                                 Status change or button
+                                                                                                                             action
+
+                                                                                                              Find active Regala message
+                                                                                                                           template
+
+                            Schedule release   YES
+                           date/time reached?
+      NO
+                                                  Message reveals
+No Regala message will be                      unreleased decision or
+             shown
+                                                  reviewer identity?
+     End (No Message)
+                           YES
+
+                           Block message and use neutral
+                                          wording
+
+                                                                             NO
+
+                                               Display green Regala butterfly
+                                                       floating message
+
+                                               D13 Regala Message
+                                                 Template/Log DB
+
+                                               End (Regala message
+                                                         shown)
+FloFLwOWNoN.O1.515- ­RReEvVisIiSoIOnNWWinINdDoOwWSSeEtTuUpP
+
+Purpose: RES Lead/Admin opens revision period after official release when Minor Revision or Major Revision is required.
+
+                                                                                                                   Start
+                                                                                                       Official released result
+
+                                 Revision required?
+
+                 NO (Accepted)                                        YES
+
+Proceed to feedback/certificate                      RES Lead/Admin sets revision
+                 path                                     start date and deadline
+
+                                                     Open revision window and update
+                                                                       status
+
+End (No Revision)
+
+                                                     D10 Deadline DB / D6 Revision
+                                                                   Cycle DB
+
+                                                     End (Revision window open)
+FLOW NO.16 ­ APPLICANT REVISION SUBMISSION
+
+      Flow No. 16 - Applicant Revision Submission
+
+                                                                            Start
+
+                                                                          Applicant views official
+                                                                            released comments
+
+                                                             Revision window open?
+
+                                    Yes                                                             No
+
+                                    Revision window open?                                           Lock revision submission /
+                                                                                                         await RES action
+                Yes                                                           No
+Upload revised documents                                                                                     End - locked
+                                                             Stop submission and follow
+                                                                       RES policy
+
+Validate revised required                                    End ­ revision limit reached
+        documents
+
+         Revised Documents          No
+        complete and valid?
+                                      Show missing/ invalid
+               Yes                         revision titles
+
+Submit revision and route directly
+      to assigned reviewer/s
+
+D3 Document DB / D6 Revision
+        DB / D8 status D8
+
+      End ­ revision submitted
+FFLloOwW NNOo..1177­ -RERVeIEvWieEwR eRrE-RREeV-IrEeWviOeFwREoVfISRIOeNvision
+
+                                                    Start
+
+                                                     Reviewer opens revised submission
+
+                                                        Compare previous and current
+                                                               document versions
+
+                                                          Review resolved/unresolved
+                                                                     comments
+
+                                Acceptable now?
+
+                           Yes                                   No
+
+                                                                 Revision cycle still
+                                                                     available?
+
+                                Yes                                                     No
+
+    Submit accepted                Submit minor revision or              Mark maximum cycle
+decision as held decision       major revision as held decision      reached for RES policy action
+
+                                D6 Review/Revision DB
+
+End ­ accepted                  End ­ revision decision pending                         End ­ await RES
+pending release                               release                                    policy action
+FLOW NO.18 ­ MANDATORY FEEDBACK BEFORE CERTIFICATE RELEASE
+
+Flow No. 18 - Mandatory Feedback Before Certificate Release
+
+                                                                                                          Start
+
+                                                                                                                                             Accepted result
+                                                                                                                                                 released
+
+                                                                                                                                                                                           Feedback submitted?
+
+                                                                                                              No
+                                                                                                                 Show mandatory
+                                                                                                            feedback/evaluation form
+
+                                                                                                                Feedback answers
+
+                     Feedback complete?                                                                                                                                                                         Yes
+
+No                                       Yes
+
+Keep certificate/QR                      Save feedback
+        locked                              response
+
+                                         D14 Feedback DB
+                                               Unlock certificate release eligibility
+
+                                         End ­ Feedback Completed
+FLlOowW NNOo..1199­ C-ECReTrIFtIiCfAicTaEtGeEGNEeRnAeTrIOatNioAnNDanREdLERAeSlEease
+
+                                                                                         Start
+
+                                                                                                         RES Lead/Admin opens certificate
+                                                                                                                          queue
+
+          No        Application Accepted and
+                      feedback completed?
+Keep certificate
+     locked                                                Yes
+
+                                              Generate control number
+                                                   using RES pattern
+
+End ­ not eligible      Generate QR token/link
+
+                        Prepare certificate using
+                           provided template
+
+                        Certificate details valid?
+
+                    No                                                                                                                     Yes
+
+                    Edit/correct certificate details                                                                                       Release certificate and QR access
+
+                                                                                                                                           D7 certificate DB/ D9 Audit DBv
+                                                                                                                                              End ­ Certificate released
+FFlLoOwWNNoO.2200­-PPUBuLbICliQcRQCRERCTeIFrItCiAfiTcEaVtEeRVIFeICrAiTfiIcOaNtion
+
+                                Start
+
+                                         QR token or
+                                       control number
+
+                                Public Verifier Scans QR or
+                                   enter control number
+
+                                 Search certificate record
+
+                  D7 Certificate DB
+
+                  Certificate found?
+
+         No                                    Yes
+
+Show Certificate                        Show Certificate details
+   Not Found                          approved for public viewing
+
+                  END
+21F.LFOoWrmaNl OSt.a2tu1s­TrFaOckRinMg aAnLdSNToAtiTfiUcaStioTnRACKING AND NOTIFICATION
+
+                                                                     Start
+
+                                                                  Workflow
+                                                                    Event
+
+                                                            Update application
+                                                            status and required
+
+                                                                    action
+
+                       Formal Notification
+                             Required
+
+No                                                                                       Yes
+
+Record Status Only                                                                          Event contains
+                                                                                         unreleased decision
+ Remove decision
+details / use neutral                                                                           details?
+
+   formal status       Yes                                                                                    No
+
+                       Generate in-
+                        app/email
+                       notification
+
+                       Generate in-app /
+                       email notification
+
+                       D8 Status / Notification DB
+                                   End
+2F2L.OViWewNAOpp.2lic2at­ioVnISEtWatuAs PPLICATION STATUS
+
+                                                                    Start
+
+                                                                   Status
+                                                                  Request
+
+                                                                User opens
+                                                            application status
+
+                                                                    page
+
+                   No  User authorized for
+                           this record?
+        Show Access
+           Denied                                                 Yes
+
+                                                    Retrieve role-based application
+                                                    status, timeline, deadlines, and
+
+                                                              required action
+
+Denied  End
+
+                                                                                D2 Application DB / D8 Status DB
+
+                                                                                Display permitted details only:
+                                                                                  hide reviewer identity and
+                                                                                     unreleased decisions
+
+                       Status Displayed                                         End
+   No. 23 - Reports, Monitoring Dashboard, and RES Timeline Calendar
+
+FLOW NO.23 ­ REPORTS, MONITORING DASHBOARD, AND RES TIMELINE CALENDAR
+
+    \
+
+                                                                                                                      Start
+
+                                                                                                          RES Lead/Admin open
+                                                                                                             dashboard/reports
+
+                                                                                                         Report filters or selected
+                                                                                                               dashboard view
+
+                                                                                               Collect application, adviser, reviewer,
+                                                                                              deadline, revision, certificate, and audit
+
+                                                                                                                     data
+
+                                                                                                            Calculate adviser
+                                                                                               expected/submitted/endores/remaining
+
+                                                                                                                    counts
+
+                                                                                             Calculate reviewer active assignment out
+                                                                                                     of 30 and remaining capacity
+
+                                                                                              Dislay RES Lead-only timeline calendar
+
+     Show dashboard/report
+                results
+
+                                Export report?
+
+YES
+
+Export PDF/Excel if configured  NO
+
+D2/D4/D5/D6/D7/D8/D9/D10/D11
+                   Start
+24F.LSOysWtemNOCo.n2f4ig­urSaYtioSnTEMManCagOeNmFeInGt URATION MANAGEMENT
+
+                                                                      Start
+
+                                                         Authorized admin opens
+                                                           System Configuration
+
+                                                             Manage institutes,
+                                                         programs, research types,
+                                                        requirements, and statuses
+
+                             Manage reviewer,
+                        classifications, notification
+
+                             templates, regala
+                        templates, and certificate
+
+     Changes valid?
+
+Yes                               No
+
+     Save configuration changes                                                     Show validation error /
+                                                                                     correct configuration
+
+     D10 System Configuration DB
+             D9 Audit Log DB
+                    End
+o.F2LO5W- ANuOd.2it5L­oAgUADcItTivLOitGiesACITIVITIES
+
+Purpose: The system records major user/system activities for traceability and accountability.
+
+                                        Start
+                             User or system activity
+
+                               Capture actor, action, type,
+                             affected record, date/time, and
+
+                 YES            Critical action?
+
+Notify RES Lead/Admin or                 NO
+Technical Admin if required
+                             Store audit log entry
+
+                             D9 Audit Log DB
+
+                             End (Activity Logged)
+

@@ -53,7 +53,7 @@
             </div>
 
             {{-- Workflow metrics remain centered and continue using the controller-provided application totals. --}}
-            <div class="identity-profile-metrics" aria-label="Account application totals">
+            <div @class(['identity-profile-metrics', 'is-paired' => count($metrics) > 1]) aria-label="Account application totals">
                 @foreach ($metrics as $metric)
                     <div><span><x-dashboard.icon :name="$metric['icon']" size="22" /></span><strong>{{ $metric['value'] }}</strong><small>{{ $metric['label'] }}</small></div>
                 @endforeach

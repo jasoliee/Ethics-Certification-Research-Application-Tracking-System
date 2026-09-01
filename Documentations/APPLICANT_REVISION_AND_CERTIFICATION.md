@@ -47,6 +47,7 @@ Rollback intentionally refuses while decision, revision, or certificate-version 
 ## Revision behavior
 
 - Applicants see only comments attached to an explicit RES release. Reviewer identities are rendered as `Reviewer 1`, `Reviewer 2`, and so on.
+- The released-feedback list renders exactly one official Review Worksheet disclosure as its final panel after all requirement groups, even if legacy requirement configuration contains duplicate display names.
 - A minor/major revision release must include at least one selected Reviewer comment and at least one exact protected source document. The normal path is a document-linked `required_revision` comment; the explicit RES recovery mapping covers immutable older comments that lack that link.
 - New or edited Reviewer `Required Revision` comments must apply to a specific current document. The narrow Reviewer rail uses intrinsic rows so Review Worksheets cannot cover the comment Reference, Document, or Comment controls; selecting a file in the document library also synchronizes the comment composer.
 - For an already-submitted historical review whose General/Overall comments cannot be edited, RES may select the exact current source documents while releasing at least one selected comment. The service validates application ownership/currentness and stores the mapping on the new revision requirement without changing the Reviewer-authored comment.

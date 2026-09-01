@@ -13,12 +13,15 @@ The RES queue, screening, and reviewer-assignment slice was interactively verifi
 | Area | Check | Result | Notes | Screenshot Evidence |
 | --- | --- | --- | --- | --- |
 | Account Information | Identity appears left, application count is centered, and Back to User Management appears right. | Pending | | |
+| Adviser/Reviewer Account Information | Advised Applications and Active Review Assignments appear as one centered horizontal pair without misaligning the identity or Back action. | Pending | | |
 | Account Information | Approved hierarchy is preserved and all three regions stack without overlap on smaller screens. | Pending | | |
 | Reset Link | Default button is hollow green with green text, border, and icon. | Pending | | |
 | Reset Link | Hover fills green, text/icon remain readable, and keyboard focus is visible. | Pending | | |
 | User Management | Wide tables stay inside their panel and do not create whole-page horizontal overflow. | Pending | | |
 | User Management | Internal horizontal scrolling works by mouse, trackpad, keyboard, and touch. | Pending | | |
 | User Management | Filters, row actions, and pagination remain usable. | Pending | | |
+| Returned Application Detail | The Requirements container has no Re-upload Documents button, and long Adviser remarks wrap without crossing the decision-summary border. | Pending | | |
+| Applicant Revision and Certificates | All requirement panels appear first; duplicate Research Proposal rows still produce exactly one Review Worksheet as the final panel. | Pending | | |
 | Individual Creation | Personal Information and Institute Information have space below the divider, compact space below the title, and visually connected first rows. | Pending | Implemented in code but pending manual visual verification. | Not captured |
 | Dashboard Cards | Icon remains in the left column; count is centered directly above its label in the right column. | Pending | Implemented in code but pending manual visual verification. | Not captured |
 | Dashboard Cards | The icon and count/label group are vertically centered and multiline labels remain balanced. | Pending | Implemented in code but pending manual visual verification. | Not captured |

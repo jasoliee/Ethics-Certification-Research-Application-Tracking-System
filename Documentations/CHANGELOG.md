@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-01
+
+### Corrected
+
+- Applicant Revision and Certificates now renders the official Review Worksheet disclosure exactly once as the final feedback panel, after every requirement, even when legacy or duplicate requirement records share the `Research Proposal` name.
+- Returned application details no longer show the Requirements-panel `Re-upload Documents` shortcut. Long Adviser remarks wrap inside the decision summary instead of overflowing it.
+- RES Lead account details keep the Adviser/Reviewer `Advised Applications` and `Active Review Assignments` metrics centered in one horizontal pair on supported widths.
+
+### Verification
+
+- Focused Applicant revision, application-detail, and User Management feature suites pass with 54 tests and 686 assertions. Blade compilation passes; authenticated cross-viewport visual confirmation remains pending.
+
 ## 2026-08-30
 
 ### Added

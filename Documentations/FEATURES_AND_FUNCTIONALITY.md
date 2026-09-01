@@ -1,6 +1,12 @@
 # Features and Functionality
 
-This file began as the August 3 feature catalog and retains that historical detail below. The August 30 section is the current superseding contract for changed reporting, certification, profile-image, worksheet, notification, and shared-interface behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+This file began as the August 3 feature catalog and retains that historical detail below. The September 1 section is the current superseding contract for the affected Applicant and User Management presentation behavior. A feature is listed as implemented only when the repository contains its authorization, validation, persistence, interface and relevant automated coverage; manual visual acceptance is tracked separately.
+
+## Current September 1 Contract
+
+- Applicant Revision and Certificates places exactly one official Review Worksheet disclosure as the final feedback panel after every requirement, including when historical configuration contains duplicate proposal labels.
+- A returned application's read-only Requirements container has no `Re-upload Documents` shortcut. Adviser remarks preserve line breaks and break long uninterrupted text within the decision-summary boundary.
+- On RES Lead account details, the two Adviser/Reviewer workload metrics remain a centered horizontal pair at supported widths while retaining their position between identity and navigation.
 
 ## Current August 30 Contract
 

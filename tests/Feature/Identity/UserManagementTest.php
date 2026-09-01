@@ -1572,7 +1572,21 @@ class UserManagementTest extends TestCase
             ->assertSee('Send Reset Link')
             ->assertSee('identity-account-lifecycle-actions', false);
 
+        $reviewerEnabledAdviser = User::factory()->create([
+            'role' => UserRole::Adviser,
+            'reviewer_enabled' => true,
+        ]);
+        $this->actingAs($resLead)
+            ->get(route('res.users.show', $reviewerEnabledAdviser))
+            ->assertOk()
+            ->assertSee('identity-profile-metrics is-paired', false)
+            ->assertSeeInOrder(['Advised Applications', 'Active Review Assignments']);
+
         $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.identity-profile-metrics\.is-paired\s*\{[^}]*max-width:\s*100%;[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s',
+            $css,
+        );
         $this->assertMatchesRegularExpression(
             '/\.identity-account-lifecycle-actions\s*>\s*form\s*\{[^}]*align-items:\s*stretch;[^}]*margin:\s*0;[^}]*padding:\s*0;/s',
             $css,

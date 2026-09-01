@@ -59,7 +59,7 @@ Adviser dashboards, lists, detail pages, and private document access require bot
 
 The assigned Adviser may decide only a complete initial-cycle submission while the Adviser Endorsement process is available. Return requires an approved reason plus correction instructions. Endorsement permits optional remarks. Both actions lock and revalidate the application, create an `endorsements` history row, notify the Applicant, and write an audit event.
 
-A return changes status to `returned_by_adviser` and lets the Applicant reopen the same record without resetting its original submission timestamp or consuming another formal slot. Endorsement changes status to `adviser_endorsed`, advances the stage to `res_screening`, prevents a repeated Adviser decision, notifies active RES Leads with neutral text, and makes the application visible in the protected RES Applications Queue.
+A return changes status to `returned_by_adviser` and lets the Applicant reopen the same record without resetting its original submission timestamp or consuming another formal slot. The returned detail page keeps Edit Information available but does not offer a Requirements-panel `Re-upload Documents` shortcut. Long Adviser instructions wrap within the decision summary, including uninterrupted text. Endorsement changes status to `adviser_endorsed`, advances the stage to `res_screening`, prevents a repeated Adviser decision, notifies active RES Leads with neutral text, and makes the application visible in the protected RES Applications Queue.
 
 ## RES Screening and Classification
 

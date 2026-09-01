@@ -152,7 +152,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
             <h2 id="forgot-password-title">Forgot Password?</h2>
-            <p id="forgot-password-message">If you forgot your password, contact the adviser who created your account and ask them to send a new password setup link. You can use that link to choose a new password.</p>
+            <p id="forgot-password-message">If you forgot your password, contact the adviser who created your account and ask them to send a new password setup link. You can use that link to create a new password.</p>
             <button class="login-submit" type="button" data-forgot-password-close>Okay</button>
         </div>
     </section>

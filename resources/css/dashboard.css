@@ -5006,6 +5006,13 @@
         gap: 12px;
     }
 
+    .identity-profile-metrics.is-paired {
+        width: 360px;
+        max-width: 100%;
+        min-width: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .identity-profile-metrics > div {
         min-width: 0;
         display: grid;
@@ -8286,10 +8293,13 @@
     }
 
     .application-decision-summary p {
+        max-width: 100%;
         margin: 0;
+        overflow-wrap: anywhere;
         font-size: 13px;
         line-height: 1.55;
         white-space: pre-wrap;
+        word-break: break-word;
     }
 
     .application-adviser-decision-panel {

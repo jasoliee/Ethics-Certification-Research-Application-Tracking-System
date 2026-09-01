@@ -45,7 +45,7 @@ class ApplicationDetailPresentationTest extends TestCase
         $this->assertSame(2, substr_count($response->getContent(), 'data-application-information-group'));
     }
 
-    public function test_returned_applicant_detail_is_view_only_and_routes_edits_and_uploads_to_their_workspaces(): void
+    public function test_returned_applicant_detail_is_view_only_and_does_not_offer_requirement_reupload(): void
     {
         Storage::fake('local');
         $applicant = User::factory()->create(['role' => UserRole::Applicant]);
@@ -84,15 +84,21 @@ class ApplicationDetailPresentationTest extends TestCase
             ->get(route('applicant.applications.show', $application))
             ->assertOk()
             ->assertSee('data-application-combined-information', false)
-            ->assertSeeInOrder(['Application Information', 'Edit Information', 'Requirements', 'Re-upload Documents'])
+            ->assertSeeInOrder(['Application Information', 'Edit Information', 'Requirements'])
             ->assertSee(route('applicant.applications.edit', $application), false)
-            ->assertSee(route('applicant.applications.requirements', $application), false)
             ->assertSee(route('applicant.applications.documents.preview', [$application, $document]), false)
             ->assertSee(route('applicant.applications.documents.download', [$application, $document]), false)
+            ->assertDontSee('Re-upload Documents')
             ->assertDontSee('Continue Document Submission')
             ->assertDontSee('application-document-remove', false)
             ->assertDontSee('data-document-replace-file', false);
 
         $this->assertSame(1, substr_count($response->getContent(), 'Edit Information'));
+
+        $css = (string) file_get_contents(resource_path('css/dashboard.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.application-decision-summary\s+p\s*\{[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*pre-wrap;[^}]*word-break:\s*break-word;/s',
+            $css,
+        );
     }
 }

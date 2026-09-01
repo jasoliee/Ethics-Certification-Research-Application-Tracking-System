@@ -209,7 +209,7 @@
                                             @endif
                                         </div>
                                     </details>
-                                    @if (Str::lower($group['name']) === 'research proposal' && $worksheetGroups->isNotEmpty())
+                                    @if ($loop->last && $worksheetGroups->isNotEmpty())
                                         <details class="revision-requirement-disclosure applicant-review-worksheet" data-applicant-review-worksheet>
                                             <summary>
                                                 <strong>Review Worksheet</strong>

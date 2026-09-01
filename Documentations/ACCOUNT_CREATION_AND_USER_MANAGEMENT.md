@@ -33,7 +33,7 @@ When validation fails, the upload surface shows only `An error occurred.` Comple
 
 Ordinary profile edits cannot change surname or institutional identifier because both determine the username. A separate confirmed identity-correction action changes those values, regenerates the username, audits old/new usernames, and notifies the account email.
 
-The account-information header preserves three responsive regions: identity on the left, a centered application icon/count, and Back to User Management on the right. Deactivate or Reactivate stays beside Delete Account as one horizontal lifecycle group. Reset/setup resend actions reuse the shared green-outline button and retain authorization, CSRF, rate limiting, and neutral delivery responses. Edit Profile Information aligns to the same form width and no longer duplicates the Dropdown Options shortcut.
+The account-information header preserves three responsive regions: identity on the left, centered application metrics, and Back to User Management on the right. Adviser/Reviewer details keep Advised Applications and Active Review Assignments as one centered horizontal pair on supported widths. Deactivate or Reactivate stays beside Delete Account as one horizontal lifecycle group. Reset/setup resend actions reuse the shared green-outline button and retain authorization, CSRF, rate limiting, and neutral delivery responses. Edit Profile Information aligns to the same form width and no longer duplicates the Dropdown Options shortcut.
 
 ## Status and Mass Actions
 
