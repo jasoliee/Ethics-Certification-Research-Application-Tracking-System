@@ -416,6 +416,90 @@ class ApplicantRevisionCertificationWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_revision_upload_returns_an_inline_document_control_without_reloading_the_page(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        [$applicant, , $resLead, $application, $assignment, $document] = $this->reviewedApplication();
+        $this->openWindow('revision-period', UserRole::Applicant);
+        ReviewComment::create([
+            'reviewer_assignment_id' => $assignment->id,
+            'application_document_id' => $document->id,
+            'scope' => ReviewCommentScope::Document,
+            'category' => ReviewCommentCategory::RequiredRevision,
+            'body' => 'Upload an asynchronously revised protocol.',
+        ]);
+        app(ApplicationRevisionWorkflowService::class)->releaseDecision(
+            $resLead,
+            $application,
+            $assignment->reviewSubmission,
+        );
+        $revision = $application->revisions()->with('requirements')->firstOrFail();
+        $revisionRequirement = $revision->requirements->firstOrFail();
+
+        $response = $this->actingAs($applicant)
+            ->postJson(route('applicant.revision-certificates.revisions.documents.store', [
+                $application,
+                $revision,
+                $revisionRequirement,
+            ]), [
+                'document' => UploadedFile::fake()->createWithContent(
+                    'async-revised-protocol.pdf',
+                    '%PDF-1.4 asynchronous revised protocol',
+                ),
+            ])
+            ->assertOk()
+            ->assertJsonPath('ready', true)
+            ->assertJsonPath('message', 'Revised document uploaded as a new protected version.');
+
+        $replacement = $application->documents()
+            ->where('id', '!=', $document->id)
+            ->latest('id')
+            ->firstOrFail();
+        $controlHtml = (string) $response->json('control_html');
+        $this->assertStringContainsString('data-revision-file-control', $controlHtml);
+        $this->assertStringContainsString('data-document-open', $controlHtml);
+        $this->assertStringContainsString('async-revised-protocol.pdf', $controlHtml);
+        $this->assertStringContainsString(
+            route('applicant.applications.documents.preview', [$application, $replacement]),
+            $controlHtml,
+        );
+        $this->assertStringContainsString(
+            route('applicant.applications.documents.download', [$application, $replacement]),
+            $controlHtml,
+        );
+        $this->assertStringContainsString(
+            'data-document-replace-input="revision_document_'.$revisionRequirement->id.'"',
+            $controlHtml,
+        );
+
+        $pageContent = $this->actingAs($applicant)
+            ->get(route('applicant.revision-certificates.index', ['application' => $application->id]))
+            ->assertOk()
+            ->assertDontSee('Replacement required before submission')
+            ->getContent();
+        $revisionPanelPosition = strpos($pageContent, 'id="revision-documents-title"');
+        $this->assertIsInt($revisionPanelPosition);
+        $revisionPanel = substr($pageContent, $revisionPanelPosition);
+        $actionsPosition = strpos($revisionPanel, 'revision-requirement-actions');
+        $replacementPosition = strpos($revisionPanel, 'async-revised-protocol.pdf');
+        $this->assertIsInt($actionsPosition);
+        $this->assertIsInt($replacementPosition);
+        $this->assertGreaterThan($actionsPosition, $replacementPosition);
+
+        $javascript = (string) file_get_contents(resource_path('js/dashboard.js'));
+        $handlerStart = strpos($javascript, "shell.querySelectorAll('[data-revision-upload-form]')");
+        $handlerEnd = strpos($javascript, 'const recipientBuilder', $handlerStart);
+        $this->assertIsInt($handlerStart);
+        $this->assertIsInt($handlerEnd);
+        $revisionHandler = substr($javascript, $handlerStart, $handlerEnd - $handlerStart);
+        $this->assertStringContainsString('payload.control_html', $revisionHandler);
+        $this->assertStringContainsString('control.replaceChildren(replacementControl)', $revisionHandler);
+        $this->assertStringContainsString("querySelector('[data-revision-upload-required]')?.remove()", $revisionHandler);
+        $this->assertStringContainsString('submitButton.disabled = payload.ready !== true', $revisionHandler);
+        $this->assertStringNotContainsString('window.location.reload()', $revisionHandler);
+    }
+
     public function test_the_third_revised_submission_receives_a_final_review_and_another_revision_decision_marks_it_failed(): void
     {
         Storage::fake('local');

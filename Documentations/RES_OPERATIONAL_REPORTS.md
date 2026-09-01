@@ -20,12 +20,13 @@ Every chart-like section has a textual/table equivalent, labels do not rely on c
 
 - **Download Report** produces either `.xlsx` or PDF from the current validated filters. The workbook separates operational and anonymous survey data into worksheets and wraps every populated cell.
 - **Download Survey** produces a survey-only `.xlsx` or PDF without Applicant identity or free-text responses.
-- Printable operational and anonymous-survey reports remain browser-printable, and both download-format dialogs use the shared accessible modal behavior.
+- **Print Report** and **Print Survey** open inline PDFs produced by the same generators as their corresponding PDF downloads. The browser therefore prints the official PDF layout, background, outlines, pagination, and current validated filter scope instead of a separate HTML print view.
+- Both download-format dialogs use the shared accessible modal behavior.
 - Generated PDFs automatically compose against the active Review Worksheet Background from private managed storage. A translucent white content layer keeps tables readable while preserving the configured institutional design.
 - Download responses are RES-authorized, private/no-store, and generated from stored ECRATS records without an external export service.
 
 ## Verification
 
-`ResOperationalReportTest` covers authorization, filter validation/scope, stored-data aggregates, average/median calculations, application-level certification aggregation, current-term data-quality checks, accessible output, Excel wrapping, genuine PDF downloads, and query-count stability as Reviewer/Adviser rows grow.
+`ResOperationalReportTest` covers authorization, filter validation/scope, stored-data aggregates, average/median calculations, application-level certification aggregation, current-term data-quality checks, accessible output, Excel wrapping, genuine PDF downloads, equivalent inline print PDFs after volatile creation metadata is excluded, and query-count stability as Reviewer/Adviser rows grow.
 
 Manual responsive/browser acceptance remains tracked in `MANUAL_VISUAL_VALIDATION.md`.

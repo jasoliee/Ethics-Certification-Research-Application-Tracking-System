@@ -13715,7 +13715,7 @@ form[class*='filter'] :is(input, select):focus-visible,
     }
 
     .revision-upload-complete {
-        color: #16814b !important;
+        color: #16814b;
         font-weight: 700;
     }
 

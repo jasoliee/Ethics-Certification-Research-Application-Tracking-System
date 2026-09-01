@@ -355,8 +355,8 @@ Route::middleware('no-store')->group(function (): void {
                 Route::controller(ResReportController::class)->prefix('reports')->name('reports.')->group(function (): void {
                     Route::get('/', 'index')->name('index');
                     Route::get('/download', 'downloadReport')->middleware('throttle:report-export')->name('download');
-                    Route::get('/print', 'printReport')->name('print');
-                    Route::get('/survey/print', 'printSurvey')->name('survey.print');
+                    Route::get('/print', 'printReport')->middleware('throttle:report-export')->name('print');
+                    Route::get('/survey/print', 'printSurvey')->middleware('throttle:report-export')->name('survey.print');
                     Route::get('/survey/download', 'downloadSurvey')->middleware('throttle:report-export')->name('survey.download');
                     Route::get('/applications', 'applications')->name('applications.index');
                     Route::get('/certifications', 'certifications')->name('certifications.index');

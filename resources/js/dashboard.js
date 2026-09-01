@@ -2620,7 +2620,6 @@ function initializeApplicationTools(shell) {
 
     shell.querySelectorAll('[data-revision-upload-form]').forEach((form) => {
         const input = form.querySelector('[data-revision-upload-input]');
-        const fileName = form.querySelector('[data-revision-file-name]');
         const feedback = form.querySelector('[data-revision-upload-feedback]');
 
         input?.addEventListener('change', async () => {
@@ -2629,9 +2628,7 @@ function initializeApplicationTools(shell) {
                 return;
             }
 
-            if (fileName) {
-                fileName.textContent = file.name;
-            }
+            closeDocumentDialog();
             const stopProgress = uploadProgress((label) => {
                 if (feedback) feedback.textContent = label;
             });
@@ -2647,6 +2644,7 @@ function initializeApplicationTools(shell) {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                     },
+                    credentials: 'same-origin',
                 });
                 const payload = await response.json().catch(() => ({}));
                 if (! response.ok) {
@@ -2654,14 +2652,26 @@ function initializeApplicationTools(shell) {
                     throw new Error(validationMessage ?? payload.message ?? 'The revised document could not be uploaded.');
                 }
 
+                const control = form.querySelector('[data-revision-upload-control]');
+                const template = document.createElement('template');
+                template.innerHTML = String(payload.control_html ?? '').trim();
+                const replacementControl = template.content.firstElementChild;
+                if (! control || ! replacementControl?.matches('[data-revision-file-control]')) {
+                    throw new Error('The revised document was uploaded, but its control could not be refreshed.');
+                }
+
+                control.replaceChildren(replacementControl);
+                form.closest('article')?.querySelector('[data-revision-upload-required]')?.remove();
+                input.disabled = false;
+                input.value = '';
+                const submitButton = shell.querySelector('[data-revision-submit-button]');
+                if (submitButton) {
+                    submitButton.disabled = payload.ready !== true;
+                }
                 if (feedback) feedback.textContent = '';
-                window.location.reload();
             } catch (error) {
                 input.disabled = false;
                 input.value = '';
-                if (fileName) {
-                    fileName.textContent = 'Choose File';
-                }
                 if (feedback) {
                     feedback.textContent = error.message || 'Upload failed. Check your connection and try again.';
                     feedback.classList.add('is-error');

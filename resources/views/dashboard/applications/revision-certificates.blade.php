@@ -294,6 +294,7 @@
                                 @foreach ($activeRevision->requirements as $revisionRequirement)
                                     @php
                                         $replacement = $revisionRequirement->replacementDocument;
+                                        $revisionInputId = 'revision_document_'.$revisionRequirement->id;
                                     @endphp
                                     <article>
                                         <div class="revision-requirement-copy">
@@ -304,11 +305,9 @@
                                                     <a href="{{ route('applicant.applications.documents.preview', [$application, $revisionRequirement->sourceDocument]) }}" target="_blank" rel="noopener">View Source</a>
                                                 @endif
                                             </span>
-                                            @if ($replacement)
-                                                <button class="revision-upload-complete application-document-title" type="button" data-document-open data-document-name="{{ $replacement->original_file_name }}" data-document-type="{{ $replacement->fileTypeLabel() }}" data-document-meta="Version {{ $replacement->document_version }} uploaded {{ $replacement->uploaded_at?->format('M j, Y g:i A') }}" data-document-preview-kind="{{ $replacement->previewKind() }}" data-document-preview-url="{{ route('applicant.applications.documents.preview', [$application, $replacement]) }}" data-document-download-url="{{ route('applicant.applications.documents.download', [$application, $replacement]) }}" data-document-replace-input="revision_document_{{ $revisionRequirement->id }}">{{ $replacement->original_file_name }}</button>
-                                            @else
-                                                <small class="revision-upload-required">Replacement required before submission</small>
-                                            @endif
+                                            @unless ($replacement)
+                                                <small class="revision-upload-required" data-revision-upload-required>Replacement required before submission</small>
+                                            @endunless
                                         </div>
                                         <div class="revision-requirement-actions">
                                             <form
@@ -318,11 +317,14 @@
                                                 data-revision-upload-form
                                             >
                                                 @csrf
-                                                <label class="dashboard-outline-action revision-file-control">
-                                                    <x-dashboard.icon name="upload" size="16" />
-                                                    <span data-revision-file-name>Choose File</span>
-                                                    <input id="revision_document_{{ $revisionRequirement->id }}" type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" required data-revision-upload-input>
-                                                </label>
+                                                <div data-revision-upload-control>
+                                                    @include('dashboard.applications.partials.revision-upload-control', [
+                                                        'application' => $application,
+                                                        'replacement' => $replacement,
+                                                        'inputId' => $revisionInputId,
+                                                    ])
+                                                </div>
+                                                <input class="sr-only" id="{{ $revisionInputId }}" type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" required data-revision-upload-input>
                                                 <span class="application-upload-feedback" role="status" aria-live="polite" data-revision-upload-feedback></span>
                                             </form>
                                         </div>
@@ -335,7 +337,7 @@
                             @endphp
                             <form method="POST" action="{{ route('applicant.revision-certificates.revisions.submit', [$application, $activeRevision]) }}" data-disable-on-submit data-notification-confirm data-confirm-title="Submit Revision for Re-review" data-confirm-message="Submit all selected Version {{ $activeRevision->revision_number + 1 }} documents to the authorized Reviewer set? Files cannot be replaced after submission." data-confirm-action="Submit Revision">
                                 @csrf
-                                <button class="dashboard-primary-action" type="submit" @disabled(! $revisionReady)>
+                                <button class="dashboard-primary-action" type="submit" data-revision-submit-button @disabled(! $revisionReady)>
                                     <x-dashboard.icon name="send" size="17" />
                                     <span>Submit Revision for Re-review</span>
                                 </button>

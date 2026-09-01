@@ -460,14 +460,31 @@ class ApplicantRevisionCertificateController extends Controller
         ApplicationRevision $applicationRevision,
         ApplicationRevisionRequirement $applicationRevisionRequirement,
         ApplicationDocumentService $documents,
-    ): RedirectResponse {
-        $documents->uploadRevision(
+    ): RedirectResponse|JsonResponse {
+        $replacement = $documents->uploadRevision(
             $request->user(),
             $researchApplication,
             $applicationRevision,
             $applicationRevisionRequirement,
             $request->file('document'),
         );
+
+        if ($request->expectsJson()) {
+            $ready = $applicationRevision->requirements()->exists()
+                && ! $applicationRevision->requirements()
+                    ->whereNull('replacement_application_document_id')
+                    ->exists();
+
+            return response()->json([
+                'message' => 'Revised document uploaded as a new protected version.',
+                'ready' => $ready,
+                'control_html' => view('dashboard.applications.partials.revision-upload-control', [
+                    'application' => $researchApplication,
+                    'replacement' => $replacement,
+                    'inputId' => 'revision_document_'.$applicationRevisionRequirement->id,
+                ])->render(),
+            ]);
+        }
 
         return back()->with('status', 'Revised document uploaded as a new protected version.');
     }

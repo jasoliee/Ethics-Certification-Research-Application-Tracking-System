@@ -5,12 +5,15 @@
 ### Corrected
 
 - Applicant Revision and Certificates now renders the official Review Worksheet disclosure exactly once as the final feedback panel, after every requirement, even when legacy or duplicate requirement records share the `Research Proposal` name.
+- Revised-document uploads now complete asynchronously without refreshing or closing open disclosures. The Choose File control becomes the uploaded filename and opens the shared secure preview dialog with Replace and Download actions.
 - Returned application details no longer show the Requirements-panel `Re-upload Documents` shortcut. Long Adviser remarks wrap inside the decision summary instead of overflowing it.
 - RES Lead account details keep the Adviser/Reviewer `Advised Applications` and `Active Review Assignments` metrics centered in one horizontal pair on supported widths.
+- RES Reports `Print Report` and `Print Survey` now open the generated PDFs inline, so browser printing uses the same official background, outlines, pagination, and filtered content as PDF downloads.
 
 ### Verification
 
-- Focused Applicant revision, application-detail, and User Management feature suites pass with 54 tests and 686 assertions. Blade compilation passes; authenticated cross-viewport visual confirmation remains pending.
+- Focused Applicant revision workflow, presentation, application-detail, and User Management feature suites pass with 61 tests and 830 assertions. Blade compilation and the Vite production build pass; authenticated cross-viewport visual confirmation remains pending.
+- The complete RES operational-report feature suite passes with 11 tests and 603 assertions, including matching inline/download PDF content after volatile creation metadata is excluded. Report/survey browser print-preview confirmation remains pending.
 
 ## 2026-08-30
 

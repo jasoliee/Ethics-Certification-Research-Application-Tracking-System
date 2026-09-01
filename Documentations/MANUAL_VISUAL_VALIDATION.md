@@ -22,6 +22,7 @@ The RES queue, screening, and reviewer-assignment slice was interactively verifi
 | User Management | Filters, row actions, and pagination remain usable. | Pending | | |
 | Returned Application Detail | The Requirements container has no Re-upload Documents button, and long Adviser remarks wrap without crossing the decision-summary border. | Pending | | |
 | Applicant Revision and Certificates | All requirement panels appear first; duplicate Research Proposal rows still produce exactly one Review Worksheet as the final panel. | Pending | | |
+| Applicant Revision Upload | Uploading or replacing a revised file does not refresh the page or close open disclosures; Choose File becomes the filename and opens Preview, Replace, and Download. | Pending | | |
 | Individual Creation | Personal Information and Institute Information have space below the divider, compact space below the title, and visually connected first rows. | Pending | Implemented in code but pending manual visual verification. | Not captured |
 | Dashboard Cards | Icon remains in the left column; count is centered directly above its label in the right column. | Pending | Implemented in code but pending manual visual verification. | Not captured |
 | Dashboard Cards | The icon and count/label group are vertically centered and multiline labels remain balanced. | Pending | Implemented in code but pending manual visual verification. | Not captured |
@@ -203,6 +204,7 @@ Run at 1440x900, 1024x768, 768x1024, and 390x844 for RES Lead, Applicant, Advise
 | Decision & Certificates | Hero filters, queue View, long-title modal, Reviewer collapsibles, eye-only document actions, Release All/result alignment, and Preview All/Release controls remain bounded. | Pending | Metrics/filter/privacy/release/plural preview tests pass. |
 | Private previews | Authorized PDF/image iframe and new tab render without browser block; Download works; Office fallback remains same-origin; cross-owner request is denied. | Pending | Nested policy and defensive response-header tests pass. |
 | RES Reports | All filters/cards/tables reflect the selected real data; controls and accessible equivalents remain usable; wide tables scroll internally; empty states render at every width. | Pending | Operational aggregate/filter/auth/privacy/query-count tests pass. |
+| RES Report and Survey Printing | Print Report and Print Survey each open the generated PDF in the browser PDF viewer, and the print preview retains the downloaded PDF's official background, outlines, pagination, and active filter scope. | Pending | Automated coverage verifies matching generated content after volatile PDF creation metadata is excluded. Browser print-preview confirmation remains pending. | |
 | Long values and hover/focus | Long titles/dropdown values never overlap; ellipsis/full-value affordances, filter/collapsible hover, focus visibility, and modal focus restoration work. | Pending | Shared CSS/JS and rendered contracts pass. |
 
 ### Certificate and QR manual acceptance

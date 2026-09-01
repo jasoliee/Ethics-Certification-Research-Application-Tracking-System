@@ -55,6 +55,7 @@ Rollback intentionally refuses while decision, revision, or certificate-version 
 - Only document requirements selected by RES become mandatory replacements.
 - Each replacement is stored on the private local disk as a new immutable version. The prior database row and bytes remain available to authorized workflow participants.
 - Re-uploading identical bytes within the same revision cycle is idempotent and does not create a duplicate version.
+- Revision replacements upload asynchronously without refreshing the page, so open feedback and submission disclosures remain open. On success, Choose File becomes the uploaded filename; selecting it opens the shared protected document dialog with Preview, Replace, and Download behavior matching initial document submission.
 - Submission requires every marked replacement and a configured current `reviewing-revision-period`.
 - Re-review assignments retain the same Reviewers, link to the prior assignment, and bypass a second Adviser review and initial RES screening.
 - Reviewers receive the new current documents plus bounded, read-only access to prior document versions and their own earlier review/comments. An unrelated Reviewer remains denied.

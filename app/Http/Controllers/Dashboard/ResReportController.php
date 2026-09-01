@@ -11,10 +11,8 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicTerm;
 use App\Models\AuditLog;
-use App\Models\CertificateBackground;
 use App\Models\ResearchApplication;
 use App\Models\User;
-use App\Services\Certificates\CertificateBackgroundService;
 use App\Services\Privacy\ApplicationIdentityVisibilityService;
 use App\Services\Reports\ApplicantSurveyReportService;
 use App\Services\Reports\OperationalReportExportService;
@@ -22,7 +20,6 @@ use App\Services\Reports\OperationalReportService;
 use App\Services\Settings\AcademicTermResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -126,38 +123,38 @@ class ResReportController extends Controller
 
     public function printReport(
         Request $request,
-        ApplicantSurveyReportService $surveyReports,
+        OperationalReportExportService $exports,
         OperationalReportService $operationalReports,
-        CertificateBackgroundService $backgrounds,
-    ): View {
+    ): Response {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $this->validatedFilters($request);
+        $bytes = $exports->reportPdf(
+            $operationalReports->report($filters),
+            $this->filterSummary($filters),
+        );
 
-        return view('dashboard.reports.res-print', [
-            'report' => $operationalReports->report($filters),
-            'surveySummary' => $surveyReports->summary($filters),
-            'filters' => $filters,
-            'filterSummary' => $this->filterSummary($filters),
-            'worksheetBackground' => $this->worksheetBackgroundDataUri($backgrounds),
-            'generatedAt' => now(),
-        ]);
+        return $this->inlinePdfResponse(
+            $bytes,
+            'ecrats-reu-report-'.now()->format('Ymd-His').'.pdf',
+        );
     }
 
     public function printSurvey(
         Request $request,
         ApplicantSurveyReportService $surveyReports,
-        CertificateBackgroundService $backgrounds,
-    ): View {
+        OperationalReportExportService $exports,
+    ): Response {
         abort_unless($request->user()->role === UserRole::ResLead, 403);
         $filters = $this->validatedFilters($request);
+        $bytes = $exports->surveyPdf(
+            $surveyReports->summary($filters),
+            $this->filterSummary($filters),
+        );
 
-        return view('dashboard.reports.survey-print', [
-            'surveySummary' => $surveyReports->summary($filters),
-            'filters' => $filters,
-            'filterSummary' => $this->filterSummary($filters),
-            'worksheetBackground' => $this->worksheetBackgroundDataUri($backgrounds),
-            'generatedAt' => now(),
-        ]);
+        return $this->inlinePdfResponse(
+            $bytes,
+            'ecrats-applicant-feedback-'.now()->format('Ymd-His').'.pdf',
+        );
     }
 
     public function applicant(
@@ -377,15 +374,15 @@ class ResReportController extends Controller
         })->implode(' | ');
     }
 
-    private function worksheetBackgroundDataUri(CertificateBackgroundService $backgrounds): ?string
+    private function inlinePdfResponse(string $bytes, string $filename): Response
     {
-        $background = $backgrounds->active(CertificateBackground::TYPE_REVIEW_WORKSHEET);
-        if (! str_starts_with($background->mime_type, 'image/')) {
-            return null;
-        }
-
-        $contents = Storage::disk('local')->get($background->stored_file_path);
-
-        return 'data:'.$background->mime_type.';base64,'.base64_encode($contents);
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'SAMEORIGIN',
+            'Referrer-Policy' => 'no-referrer',
+        ]);
     }
 }

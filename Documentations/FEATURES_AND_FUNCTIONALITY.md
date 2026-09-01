@@ -5,8 +5,10 @@ This file began as the August 3 feature catalog and retains that historical deta
 ## Current September 1 Contract
 
 - Applicant Revision and Certificates places exactly one official Review Worksheet disclosure as the final feedback panel after every requirement, including when historical configuration contains duplicate proposal labels.
+- Revision replacements upload in place without page navigation, preserving open disclosures. Each successful Choose File control becomes the protected filename trigger for the shared Preview, Replace, and Download dialog and updates revision-submit readiness immediately.
 - A returned application's read-only Requirements container has no `Re-upload Documents` shortcut. Adviser remarks preserve line breaks and break long uninterrupted text within the decision-summary boundary.
 - On RES Lead account details, the two Adviser/Reviewer workload metrics remain a centered horizontal pair at supported widths while retaining their position between identity and navigation.
+- RES Reports opens the generated operational-report or anonymous-survey PDF for printing. Each inline print response uses the same generator and validated filters as its PDF download, preserving the official background, outlines, and pagination.
 
 ## Current August 30 Contract
 

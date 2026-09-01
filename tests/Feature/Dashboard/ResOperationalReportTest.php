@@ -341,31 +341,36 @@ class ResOperationalReportTest extends TestCase
         $this->assertSame(28, $row['remaining']);
     }
 
-    public function test_print_download_and_survey_print_keep_the_current_filter_scope_and_updated_headers(): void
+    public function test_print_routes_stream_the_same_filtered_pdfs_as_the_download_routes(): void
     {
+        $this->travelTo('2026-09-01 15:30:00');
         $resLead = User::factory()->create(['role' => UserRole::ResLead]);
-        $matching = ResearchApplication::factory()->create([
+        ResearchApplication::factory()->create([
             'application_code' => 'PRINT-FILTER-MATCH',
             'institution' => 'Print Institute',
             'submitted_at' => now()->subDay(),
         ]);
-        $outside = ResearchApplication::factory()->create([
+        ResearchApplication::factory()->create([
             'application_code' => 'PRINT-FILTER-OUTSIDE',
             'institution' => 'Outside Institute',
             'submitted_at' => now()->subDay(),
         ]);
         $filters = ['institute' => 'Print Institute'];
 
-        $this->actingAs($resLead)->get(route('res.reports.print', $filters))
+        $printReport = $this->actingAs($resLead)->get(route('res.reports.print', $filters))
             ->assertOk()
-            ->assertSee('ECRATS Research Ethics Unit Operational Report')
-            ->assertSee('Filtered Records')
-            ->assertSeeInOrder(['Filtered Records', 'Generated:'])
-            ->assertSee('@page { size: A4 portrait; margin: 1in; }', false)
-            ->assertSee($matching->application_code)
-            ->assertDontSee($outside->application_code)
-            ->assertDontSee('Filtered management report')
-            ->assertDontSee('Privacy boundary:');
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename="ecrats-reu-report-20260901-153000.pdf"')
+            ->assertHeader('cache-control', 'max-age=0, must-revalidate, no-cache, no-store, private');
+        $this->assertStringStartsWith('%PDF-', $printReport->getContent());
+
+        $downloadedReport = $this->actingAs($resLead)->get(route('res.reports.download', [...$filters, 'format' => 'pdf']))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+        $this->assertSame(
+            $this->withoutPdfCreationDate($downloadedReport->getContent()),
+            $this->withoutPdfCreationDate($printReport->getContent()),
+        );
 
         $workbook = $this->actingAs($resLead)->get(route('res.reports.download', [...$filters, 'format' => 'xlsx']));
         $workbook->assertOk()->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -384,13 +389,25 @@ class ResOperationalReportTest extends TestCase
             @unlink($path);
         }
 
-        $this->actingAs($resLead)->get(route('res.reports.survey.print', $filters))
+        $printSurvey = $this->actingAs($resLead)->get(route('res.reports.survey.print', $filters))
             ->assertOk()
-            ->assertSeeInOrder(['Print Institute', 'Generated:'])
-            ->assertSee('@page { size: A4 portrait; margin: 1in; }', false)
-            ->assertSeeInOrder(['Responses', 'Average'])
-            ->assertDontSee('Preserved legacy responses excluded')
-            ->assertSee('Print Report');
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename="ecrats-applicant-feedback-20260901-153000.pdf"');
+        $this->assertStringStartsWith('%PDF-', $printSurvey->getContent());
+
+        $downloadedSurvey = $this->actingAs($resLead)->get(route('res.reports.survey.download', [...$filters, 'format' => 'pdf']))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+        $this->assertSame(
+            $this->withoutPdfCreationDate($downloadedSurvey->getContent()),
+            $this->withoutPdfCreationDate($printSurvey->getContent()),
+        );
+
+        $this->actingAs($resLead)
+            ->get(route('res.reports.index', $filters))
+            ->assertOk()
+            ->assertSee(route('res.reports.print', $filters), false)
+            ->assertSee(route('res.reports.survey.print', $filters), false);
     }
 
     public function test_report_query_count_does_not_grow_with_reviewer_or_adviser_rows(): void
@@ -567,5 +584,10 @@ class ResOperationalReportTest extends TestCase
         $this->assertCount(1, $certificationRows);
         $this->assertSame('Unclaimed', $certificationRows->first()['certificate_status']);
         $this->actingAs($resLead)->get(route('res.reports.download', ['format' => 'xlsx']))->assertOk();
+    }
+
+    private function withoutPdfCreationDate(string $pdf): string
+    {
+        return preg_replace('/\/CreationDate \(D:[^)]+\)/', '/CreationDate (normalized)', $pdf) ?? $pdf;
     }
 }
