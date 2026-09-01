@@ -343,24 +343,40 @@ class OfficialReviewFormArtifactService
 
         $signatureY = $isProtocol ? 244.0 : 201.0;
         $signatureTextY = $signatureY - 2.0;
+        $signatureLineX = 25.4;
+        $signatureLineWidth = 62.06;
         $signaturePath = $this->verifiedWorksheetSignature($context);
         if ($signaturePath !== null) {
-            $pdf->Image($signaturePath, 56.0, $signatureY - 13.0, 52.0, 11.0, 'PNG');
+            $sourceWidth = max(1, (int) ($context['worksheet_signature_width'] ?? 1));
+            $sourceHeight = max(1, (int) ($context['worksheet_signature_height'] ?? 1));
+            $signatureScale = min(52.0 / $sourceWidth, 12.0 / $sourceHeight);
+            $signatureImageWidth = $sourceWidth * $signatureScale;
+            $signatureImageHeight = $sourceHeight * $signatureScale;
+            $signatureImageX = $signatureLineX + (($signatureLineWidth - $signatureImageWidth) / 2);
+            $signatureImageY = $signatureTextY - $signatureImageHeight - 0.5;
+            $pdf->Image(
+                $signaturePath,
+                $signatureImageX,
+                $signatureImageY,
+                $signatureImageWidth,
+                $signatureImageHeight,
+                'PNG',
+            );
         }
         $this->writeFittedCenteredLine(
             $pdf,
-            25.5,
+            $signatureLineX,
             $signatureTextY,
-            113.0,
+            $signatureLineWidth,
             (string) ($context['worksheet_signatory_name'] ?? $context['reviewer_name'] ?? ''),
             11.0,
             8.0,
         );
         $this->writeFittedCenteredLine(
             $pdf,
-            145.0,
+            144.02,
             $signatureTextY,
-            40.0,
+            39.79,
             (string) ($context['review_date'] ?? ''),
             11.0,
             8.5,
